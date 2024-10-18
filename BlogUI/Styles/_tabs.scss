@@ -1,0 +1,41 @@
+﻿.nav.nav-tabs .nav-item .nav-link.active {
+    background: #fff;
+    color: #020202;
+}
+
+.nav.nav-tabs .nav-item .nav-link {
+    background: transparent;
+    color: #020202 !important;
+    padding: .75rem 1rem;
+    border: 0;
+}
+
+.tab-content {
+    background: #fff;
+    padding: 1.25rem;
+}
+
+.nav.nav-tabs + .tab-content {
+    box-shadow: 0 0.1rem 0.2rem RGB(0 0 0 / 5%);
+    border-radius: 0 0 .2rem .2rem;
+}
+
+.tab-content h4 {
+    font-size: .95rem;
+}
+
+.tab-vertical-left .col-auto {
+    padding-right: 0;
+}
+
+.tab-vertical-left .col {
+    padding-left: 0;
+}
+
+.tab-vertical-right .col-auto {
+    padding-left: 0;
+}
+
+.tab-vertical-right .col {
+    padding-right: 0;
+}

@@ -1,0 +1,175 @@
+﻿@inherits LayoutComponentBase
+<Layout Sider="true">
+    <LayoutSider>
+        <LayoutSiderContent>
+            <Bar @ref="@sideBar" Breakpoint="Breakpoint.Desktop" NavigationBreakpoint="Breakpoint.Tablet" ThemeContrast="ThemeContrast.Dark"
+                 Mode="BarMode.VerticalInline" CollapseMode="BarCollapseMode.Small">
+                <BarBrand>
+                    <BarItem>
+                        <BarLink To="">
+                            <BarIcon IconName="IconName.Home" />
+                            BlazeStack
+                        </BarLink>
+                    </BarItem>
+                </BarBrand>
+                <BarMenu>
+                    <BarStart>
+                        <BarItem>
+                            <BarDropdown @bind-Visible="DashboardMenuVisible">
+                                <BarDropdownToggle>
+                                    <BarIcon IconName="IconName.Dashboard" />
+                                    Dashboard
+                                </BarDropdownToggle>
+                                <BarDropdownMenu>
+                                    <BarDropdownItem To="dashboard-default">
+                                        Default
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="dashboard-social">
+                                        Social
+                                    </BarDropdownItem>
+                                </BarDropdownMenu>
+                            </BarDropdown>
+                        </BarItem>
+                        <BarItem>
+                            <BarDropdown @bind-Visible="PagesMenuVisible">
+                                <BarDropdownToggle>
+                                    <BarIcon IconName="IconName.Dashboard" />
+                                    Pages
+                                </BarDropdownToggle>
+                                <BarDropdownMenu>
+                                    <BarDropdownItem To="pages-profile">
+                                        Profile
+                                    </BarDropdownItem>
+                                </BarDropdownMenu>
+                            </BarDropdown>
+                        </BarItem>
+                        <BarItem>
+                            <BarDropdown @bind-Visible="AuthMenuVisible">
+                                <BarDropdownToggle>
+                                    <BarIcon IconName="IconName.Users" />
+                                    Auth
+                                </BarDropdownToggle>
+                                <BarDropdownMenu>
+                                    <BarDropdownItem To="auth-sign-in">
+                                        Sign In
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="auth-sign-up">
+                                        Sign Up
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="auth-reset-password">
+                                        Reset password
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="404">
+                                        400
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="500">
+                                        500
+                                    </BarDropdownItem>
+                                </BarDropdownMenu>
+                            </BarDropdown>
+                        </BarItem>
+                        <BarItem>
+                            <BarDropdown @bind-Visible="UIElementsMenuVisible">
+                                <BarDropdownToggle>
+                                    <BarIcon IconName="IconName.SliderHorizontal" />
+                                    UI Elements
+                                </BarDropdownToggle>
+                                <BarDropdownMenu>
+                                    <BarDropdownItem To="ui-alerts">
+                                        Alerts
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="ui-buttons">
+                                        Buttons
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="ui-cards">
+                                        Cards
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="ui-carousel">
+                                        Carousel
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="ui-grid">
+                                        Grid
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="ui-modals">
+                                        Modals
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="ui-tabs">
+                                        Tabs
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="ui-typography">
+                                        Typography
+                                    </BarDropdownItem>
+                                </BarDropdownMenu>
+                            </BarDropdown>
+                        </BarItem>
+                        <BarItem>
+                            <BarDropdown @bind-Visible="FormsMenuVisible">
+                                <BarDropdownToggle>
+                                    <BarIcon IconName="IconName.Edit" />
+                                    Forms
+                                </BarDropdownToggle>
+                                <BarDropdownMenu>
+                                    <BarDropdownItem To="forms-layouts">
+                                        Layouts
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="forms-basic-inputs">
+                                        Basic Inputs
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="forms-input-groups">
+                                        Input Groups
+                                    </BarDropdownItem>
+                                </BarDropdownMenu>
+                            </BarDropdown>
+                        </BarItem>
+                    </BarStart>
+                </BarMenu>
+            </Bar>
+        </LayoutSiderContent>
+    </LayoutSider>
+    <Layout>
+        <LayoutHeader Fixed="true">
+            <Bar @bind-Visible="@TopBarVisible" Class="navbar-expand" Breakpoint="Breakpoint.Desktop" Background="Background.Light" ThemeContrast="ThemeContrast.Light">
+                <BarToggler Bar="@sideBar" Border="Border.Is0" />
+                <BarBrand>
+                    <BarItem>
+                        <BarLink To="">
+                            <BarIcon IconName="IconName.Dashboard" />
+                            BlazeStack
+                        </BarLink>
+                    </BarItem>
+                </BarBrand>
+                <BarMenu>
+                    <BarEnd>
+                        <Dropdown RightAligned>
+                            <DropdownToggle Display="Display.InlineBlock.None.OnMobile">
+                                <Image Class="avatar" Source="@Persons.Avatar1.Image" Text="@Persons.Avatar1.FullName" Fluid Border="Border.RoundedCircle" Margin="Margin.Is1.FromEnd" Style="width:40px; height:40px;" />
+                                 <Span TextColor="TextColor.Dark">@Persons.Avatar1.FullName</Span>
+                                </DropdownToggle>
+                                <DropdownMenu>
+                                    <DropdownItem>
+                                        <Icon Name="IconName.User" />
+                                        Profile
+                                    </DropdownItem>
+                                    <DropdownItem>
+                                        <Icon Name="IconName.ChartPie" />
+                                        Analytics
+                                    </DropdownItem>
+                                    <DropdownDivider />
+                                    <DropdownItem>Settings &amp; Privacy</DropdownItem>
+                                    <DropdownItem>Help</DropdownItem>
+                                    <DropdownItem>Sign out</DropdownItem>
+                                </DropdownMenu>
+                            </Dropdown>
+                        </BarEnd>
+                    </BarMenu>
+                </Bar>
+            </LayoutHeader>
+            <LayoutContent>
+                <Div Class="content">
+                    <Container Fluid="true" Padding="Padding.Is0">
+                        @Body
+                </Container>
+            </Div>
+        </LayoutContent>
+    </Layout>
+</Layout>

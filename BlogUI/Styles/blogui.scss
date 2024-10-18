@@ -1,0 +1,31 @@
+﻿@import "variables";
+
+@import "base";
+
+@import "badge";
+@import "button";
+@import "card";
+@import "form";
+@import "table";
+@import "tabs";
+@import "typography";
+
+.illustration {
+    background: white;
+    color: #497aca;
+}
+
+.stat {
+    background: #e0eafc;
+    border-radius: 50%;
+    padding: .75rem;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    justify-content: center;
+}
+
+.stat i {
+    color: #497aca !important;
+    text-align: center !important;
+}

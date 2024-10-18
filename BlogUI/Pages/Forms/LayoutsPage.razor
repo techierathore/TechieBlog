@@ -1,0 +1,184 @@
+﻿@page "/forms-layouts"
+
+<Heading Size="HeadingSize.Is3" Margin="Margin.Is3.FromBottom">Form Layouts</Heading>
+
+<Row>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnFullHD">
+        <Card>
+            <CardHeader>
+                <CardTitle Size="5">Basic form</CardTitle>
+                <CardSubtitle TextColor="TextColor.Muted">Default Bootstrap form layout.</CardSubtitle>
+            </CardHeader>
+            <CardBody>
+                <Field>
+                    <FieldLabel>Email address</FieldLabel>
+                    <FieldBody>
+                        <TextEdit Role="TextRole.Email" Placeholder="Email" />
+                    </FieldBody>
+                </Field>
+                <Field>
+                    <FieldLabel>Password</FieldLabel>
+                    <FieldBody>
+                        <TextEdit Role="TextRole.Password" Placeholder="Password" />
+                    </FieldBody>
+                </Field>
+                <Field>
+                    <FieldLabel>Textarea</FieldLabel>
+                    <FieldBody>
+                        <MemoEdit Placeholder="Textarea" />
+                    </FieldBody>
+                </Field>
+                <Field>
+                    <FieldLabel>File input</FieldLabel>
+                    <FieldBody>
+                        <FileEdit />
+                    </FieldBody>
+                </Field>
+                <Field>
+                    <FieldBody>
+                        <Check TValue="bool">Check me out</Check>
+                    </FieldBody>
+                </Field>
+                <Button Color="Color.Primary">Submit</Button>
+            </CardBody>
+        </Card>
+    </Column>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnFullHD">
+        <Card>
+            <CardHeader>
+                <CardTitle Size="5">Horizontal form</CardTitle>
+                <CardSubtitle TextColor="TextColor.Muted">Horizontal Bootstrap layout.</CardSubtitle>
+            </CardHeader>
+            <CardBody>
+                <Field Horizontal>
+                    <FieldLabel ColumnSize="ColumnSize.Is2.OnMobile">Email address</FieldLabel>
+                    <FieldBody ColumnSize="ColumnSize.Is10.OnMobile">
+                        <TextEdit Role="TextRole.Email" Placeholder="Email" />
+                    </FieldBody>
+                </Field>
+                <Field Horizontal>
+                    <FieldLabel ColumnSize="ColumnSize.Is2.OnMobile">Password</FieldLabel>
+                    <FieldBody ColumnSize="ColumnSize.Is10.OnMobile">
+                        <TextEdit Role="TextRole.Password" Placeholder="Password" />
+                    </FieldBody>
+                </Field>
+                <Field Horizontal>
+                    <FieldLabel ColumnSize="ColumnSize.Is2.OnMobile">Textarea</FieldLabel>
+                    <FieldBody ColumnSize="ColumnSize.Is10.OnMobile">
+                        <MemoEdit Placeholder="Textarea" />
+                    </FieldBody>
+                </Field>
+                <Field Horizontal>
+                    <FieldLabel ColumnSize="ColumnSize.Is2.OnMobile">Radios</FieldLabel>
+                    <FieldBody ColumnSize="ColumnSize.Is10.OnMobile">
+                        <RadioGroup TValue="int" Orientation="Orientation.Vertical">
+                            <Radio TValue="int" Value="1">Default radio</Radio>
+                            <Radio TValue="int" Value="1">Second default radio</Radio>
+                            <Radio TValue="int" Value="1" Disabled>Disabled radio</Radio>
+                        </RadioGroup>
+                    </FieldBody>
+                </Field>
+                <Field Horizontal>
+                    <FieldLabel ColumnSize="ColumnSize.Is2.OnMobile">Checkbox</FieldLabel>
+                    <FieldBody ColumnSize="ColumnSize.Is10.OnMobile">
+                        <Check TValue="bool">Check me out</Check>
+                    </FieldBody>
+                </Field>
+                <Field Horizontal>
+                    <FieldBody ColumnSize="ColumnSize.Is10.OnMobile" Margin="Margin.IsAuto.FromStart.OnMobile">
+                        <Button Color="Color.Primary">Submit</Button>
+                    </FieldBody>
+                </Field>
+            </CardBody>
+        </Card>
+    </Column>
+</Row>
+
+<Row>
+    <Column ColumnSize="ColumnSize.Is12.OnDesktop">
+        <Card>
+            <CardHeader>
+                <CardTitle Size="5">Form row</CardTitle>
+                <CardSubtitle TextColor="TextColor.Muted">Bootstrap column layout.</CardSubtitle>
+            </CardHeader>
+            <CardBody>
+                <Fields>
+                    <Field ColumnSize="ColumnSize.Is6.OnDesktop">
+                        <FieldLabel>Email</FieldLabel>
+                        <TextEdit Role="TextRole.Email" Placeholder="Email" />
+                    </Field>
+                    <Field ColumnSize="ColumnSize.Is6.OnDesktop">
+                        <FieldLabel>Password</FieldLabel>
+                        <TextEdit Role="TextRole.Password" Placeholder="Password" />
+                    </Field>
+                </Fields>
+                <Field>
+                    <FieldLabel>Address</FieldLabel>
+                    <TextEdit Placeholder="1234 Main St" />
+                </Field>
+                <Field>
+                    <FieldLabel>Address 2</FieldLabel>
+                    <TextEdit Placeholder="Appartment, studio, or floor" />
+                </Field>
+                <Fields>
+                    <Field ColumnSize="ColumnSize.Is6.OnDesktop">
+                        <FieldLabel>City</FieldLabel>
+                        <TextEdit />
+                    </Field>
+                    <Field ColumnSize="ColumnSize.Is4.OnDesktop">
+                        <FieldLabel>State</FieldLabel>
+                        <Select TValue="string">
+                            <SelectItem TValue="string">...</SelectItem>
+                        </Select>
+                    </Field>
+                    <Field ColumnSize="ColumnSize.Is2.OnDesktop">
+                        <FieldLabel>Zip</FieldLabel>
+                        <TextEdit />
+                    </Field>
+                </Fields>
+                <Field>
+                    <Switch TValue="bool" Color="Color.Danger" Cursor="Cursor.Pointer">Remember me</Switch>
+                </Field>
+                <Field>
+                    <Button Color="Color.Primary">Sign in</Button>
+                </Field>
+            </CardBody>
+        </Card>
+    </Column>
+</Row>
+
+<Row>
+    <Column ColumnSize="ColumnSize.Is12.OnDesktop">
+        <Card>
+            <CardHeader>
+                <CardTitle Size="5">Inline form</CardTitle>
+                <CardSubtitle TextColor="TextColor.Muted">Single horizontal row.</CardSubtitle>
+            </CardHeader>
+            <CardBody>
+                <Fields>
+                    <Column ColumnSize="ColumnSize.IsAuto">
+                        <FieldLabel Screenreader="Screenreader.Only">Name</FieldLabel>
+                        <TextEdit Placeholder="Jane Doe" />
+                    </Column>
+                    <Column ColumnSize="ColumnSize.IsAuto">
+                        <FieldLabel Screenreader="Screenreader.Only">Username</FieldLabel>
+                        <Addons>
+                            <Addon AddonType="AddonType.Start">
+                                <AddonLabel>@@</AddonLabel>
+                            </Addon>
+                            <Addon AddonType="AddonType.Body">
+                                <TextEdit Placeholder="Username" />
+                            </Addon>
+                        </Addons>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.IsAuto">
+                        <Check TValue="bool">Remember me</Check>
+                    </Column>
+                    <Column ColumnSize="ColumnSize.IsAuto">
+                        <Button Color="Color.Primary">Submit</Button>
+                    </Column>
+                </Fields>
+            </CardBody>
+        </Card>
+    </Column>
+</Row>

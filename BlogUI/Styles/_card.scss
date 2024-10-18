@@ -1,0 +1,21 @@
+﻿.card {
+    margin-bottom: 24px;
+    box-shadow: 0 0 0.875rem 0 RGB(41, 48, 66 / 5%);
+}
+
+.card .card-header .card-title {
+    font-size: .95rem;
+    font-weight: 500;
+    color: #414b54;
+    line-height: 1.2;
+    margin-bottom: 1rem;
+}
+
+.card-subtitle {
+    font-weight: 400;
+    margin-top: -.5rem;
+}
+
+.card-subtitle, .card-text:last-child {
+    margin-bottom: 0;
+}

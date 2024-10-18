@@ -1,0 +1,16 @@
+﻿@page "/500"
+@layout BlogUI.Layouts.AuthLayout
+<Row Height="Height.Is100">
+    <Column Height="Height.Is100" ColumnSize="ColumnSize.Is10.OnTablet.Is8.OnDesktop.Is6.OnWidescreen" Margin="Margin.IsAuto.OnX" Display="Display.Table">
+        <Div Display="Display.TableCell" VerticalAlignment="VerticalAlignment.Middle">
+            <Div TextAlignment="TextAlignment.Center" Margin="Margin.Is4.FromTop">
+                <DisplayHeading Size="DisplayHeadingSize.Is1" TextWeight="TextWeight.Bold" TextAlignment="TextAlignment.Center">500</DisplayHeading>
+                <Heading Size="HeadingSize.Is1" TextAlignment="TextAlignment.Center">Internal server error.</Heading>
+                <Heading Size="HeadingSize.Is2" TextAlignment="TextAlignment.Center" Margin="Margin.Is3.FromTop.Is4.FromBottom">
+                    The server encountered something unexpected that didn't allow it to complete the request.
+                </Heading>
+                <Button Type="ButtonType.Link" To="dashboard-default" Color="Color.Primary">Return to website</Button>
+            </Div>
+        </Div>
+    </Column>
+</Row>

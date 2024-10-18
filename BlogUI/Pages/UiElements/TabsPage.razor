@@ -1,0 +1,213 @@
+﻿@page "/ui-tabs"
+
+<Heading Size="HeadingSize.Is3" Margin="Margin.Is3.FromBottom">Tabs</Heading>
+
+<Row>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnWidescreen">
+        <Tabs @bind-SelectedTab="@selectedTab1">
+            <Items>
+                <Tab Name="home">Home</Tab>
+                <Tab Name="profile">Profile</Tab>
+                <Tab Name="messages">Messages</Tab>
+            </Items>
+            <Content>
+                <TabPanel Name="home">
+                    <Heading Size="HeadingSize.Is4">
+                        Default tabs
+                    </Heading>
+                    <Paragraph>
+                        Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor tellus eget condimentum rhoncus. Aenean massa. Cum sociis natoque penatibus et magnis neque dis parturient montes, nascetur ridiculus mus.
+                    </Paragraph>
+                    <Paragraph>
+                        Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo.
+                    </Paragraph>
+                </TabPanel>
+                <TabPanel Name="profile">
+                    <Heading Size="HeadingSize.Is4">
+                        Another one
+                    </Heading>
+                    <Paragraph>
+                        Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor tellus eget condimentum rhoncus. Aenean massa. Cum sociis natoque penatibus et magnis neque dis parturient montes, nascetur ridiculus mus.
+                    </Paragraph>
+                    <Paragraph>
+                        Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo.
+                    </Paragraph>
+                </TabPanel>
+                <TabPanel Name="messages">
+                    <Heading Size="HeadingSize.Is4">
+                        One more
+                    </Heading>
+                    <Paragraph>
+                        Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor tellus eget condimentum rhoncus. Aenean massa. Cum sociis natoque penatibus et magnis neque dis parturient montes, nascetur ridiculus mus.
+                    </Paragraph>
+                    <Paragraph>
+                        Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo.
+                    </Paragraph>
+                </TabPanel>
+            </Content>
+        </Tabs>
+    </Column>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnWidescreen">
+        <Tabs @bind-SelectedTab="@selectedTab2">
+            <Items>
+                <Tab Name="home">
+                    <Icon Name="IconName.Home" IconSize="IconSize.Large" />
+                </Tab>
+                <Tab Name="profile">
+                    <Icon Name="IconName.User" IconSize="IconSize.Large" />
+                </Tab>
+                <Tab Name="messages">
+                    <Icon Name="IconName.Comment" IconSize="IconSize.Large" />
+                </Tab>
+            </Items>
+            <Content>
+                <TabPanel Name="home">
+                    <Heading Size="HeadingSize.Is4">
+                        Default tabs
+                    </Heading>
+                    <Paragraph>
+                        Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor tellus eget condimentum rhoncus. Aenean massa. Cum sociis natoque penatibus et magnis neque dis parturient montes, nascetur ridiculus mus.
+                    </Paragraph>
+                    <Paragraph>
+                        Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo.
+                    </Paragraph>
+                </TabPanel>
+                <TabPanel Name="profile">
+                    <Heading Size="HeadingSize.Is4">
+                        Another one
+                    </Heading>
+                    <Paragraph>
+                        Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor tellus eget condimentum rhoncus. Aenean massa. Cum sociis natoque penatibus et magnis neque dis parturient montes, nascetur ridiculus mus.
+                    </Paragraph>
+                    <Paragraph>
+                        Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo.
+                    </Paragraph>
+                </TabPanel>
+                <TabPanel Name="messages">
+                    <Heading Size="HeadingSize.Is4">
+                        One more
+                    </Heading>
+                    <Paragraph>
+                        Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor tellus eget condimentum rhoncus. Aenean massa. Cum sociis natoque penatibus et magnis neque dis parturient montes, nascetur ridiculus mus.
+                    </Paragraph>
+                    <Paragraph>
+                        Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo.
+                    </Paragraph>
+                </TabPanel>
+            </Content>
+        </Tabs>
+    </Column>
+</Row>
+
+<Row Margin="Margin.Is4.FromTop">
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnWidescreen">
+        <Div Class="tab-vertical-left">
+            <Tabs @bind-SelectedTab="@selectedTab3" TabPosition="TabPosition.Start">
+                <Items>
+                    <Tab Name="home">
+                        <Icon Name="IconName.Home" IconSize="IconSize.Large" />
+                    </Tab>
+                    <Tab Name="profile">
+                        <Icon Name="IconName.User" IconSize="IconSize.Large" />
+                    </Tab>
+                    <Tab Name="messages">
+                        <Icon Name="IconName.Comment" IconSize="IconSize.Large" />
+                    </Tab>
+                </Items>
+                <Content>
+                    <TabPanel Name="home">
+                        <Heading Size="HeadingSize.Is4">
+                            Vertical icon tabs
+                        </Heading>
+                        <Paragraph>
+                            Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor tellus eget condimentum rhoncus. Aenean massa. Cum sociis natoque penatibus et magnis neque dis parturient montes, nascetur ridiculus mus.
+                        </Paragraph>
+                        <Paragraph>
+                            Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo.
+                        </Paragraph>
+                    </TabPanel>
+                    <TabPanel Name="profile">
+                        <Heading Size="HeadingSize.Is4">
+                            Another one
+                        </Heading>
+                        <Paragraph>
+                            Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor tellus eget condimentum rhoncus. Aenean massa. Cum sociis natoque penatibus et magnis neque dis parturient montes, nascetur ridiculus mus.
+                        </Paragraph>
+                        <Paragraph>
+                            Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo.
+                        </Paragraph>
+                    </TabPanel>
+                    <TabPanel Name="messages">
+                        <Heading Size="HeadingSize.Is4">
+                            One more
+                        </Heading>
+                        <Paragraph>
+                            Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor tellus eget condimentum rhoncus. Aenean massa. Cum sociis natoque penatibus et magnis neque dis parturient montes, nascetur ridiculus mus.
+                        </Paragraph>
+                        <Paragraph>
+                            Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo.
+                        </Paragraph>
+                    </TabPanel>
+                </Content>
+            </Tabs>
+        </Div>
+    </Column>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnWidescreen">
+        <Div Class="tab-vertical-right">
+            <Tabs @bind-SelectedTab="@selectedTab4" TabPosition="TabPosition.End">
+                <Items>
+                    <Tab Name="home">
+                        <Icon Name="IconName.Home" IconSize="IconSize.Large" />
+                    </Tab>
+                    <Tab Name="profile">
+                        <Icon Name="IconName.User" IconSize="IconSize.Large" />
+                    </Tab>
+                    <Tab Name="messages">
+                        <Icon Name="IconName.Comment" IconSize="IconSize.Large" />
+                    </Tab>
+                </Items>
+                <Content>
+                    <TabPanel Name="home">
+                        <Heading Size="HeadingSize.Is4">
+                            Vertical icon tabs
+                        </Heading>
+                        <Paragraph>
+                            Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor tellus eget condimentum rhoncus. Aenean massa. Cum sociis natoque penatibus et magnis neque dis parturient montes, nascetur ridiculus mus.
+                        </Paragraph>
+                        <Paragraph>
+                            Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo.
+                        </Paragraph>
+                    </TabPanel>
+                    <TabPanel Name="profile">
+                        <Heading Size="HeadingSize.Is4">
+                            Another one
+                        </Heading>
+                        <Paragraph>
+                            Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor tellus eget condimentum rhoncus. Aenean massa. Cum sociis natoque penatibus et magnis neque dis parturient montes, nascetur ridiculus mus.
+                        </Paragraph>
+                        <Paragraph>
+                            Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo.
+                        </Paragraph>
+                    </TabPanel>
+                    <TabPanel Name="messages">
+                        <Heading Size="HeadingSize.Is4">
+                            One more
+                        </Heading>
+                        <Paragraph>
+                            Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor tellus eget condimentum rhoncus. Aenean massa. Cum sociis natoque penatibus et magnis neque dis parturient montes, nascetur ridiculus mus.
+                        </Paragraph>
+                        <Paragraph>
+                            Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo.
+                        </Paragraph>
+                    </TabPanel>
+                </Content>
+            </Tabs>
+        </Div>
+    </Column>
+</Row>
+@code{
+    string selectedTab1 = "home";
+    string selectedTab2 = "home";
+    string selectedTab3 = "home";
+    string selectedTab4 = "home";
+}

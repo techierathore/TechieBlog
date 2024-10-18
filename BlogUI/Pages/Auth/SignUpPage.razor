@@ -1,0 +1,44 @@
+﻿@page "/auth-sign-up"
+@layout BlogUI.Layouts.AuthLayout
+<Row Height="Height.Is100">
+    <Column Height="Height.Is100" ColumnSize="ColumnSize.Is10.OnTablet.Is8.OnDesktop.Is6.OnWidescreen" Margin="Margin.IsAuto.OnX" Display="Display.Table">
+        <Div Display="Display.TableCell" VerticalAlignment="VerticalAlignment.Middle">
+            <Text TextAlignment="TextAlignment.Center" Margin="Margin.Is4.FromTop">
+                <Heading Size="HeadingSize.Is2" TextAlignment="TextAlignment.Center">Get started</Heading>
+                <Paragraph Class="lead" TextAlignment="TextAlignment.Center">
+                    Start creating the best possible user experience for you customers.
+                </Paragraph>
+            </Text>
+
+            <Card>
+                <CardBody>
+                    <Div Margin="Margin.Is4.OnTablet">
+                        <Form>
+                            <Field>
+                                <FieldLabel>Name</FieldLabel>
+                                <TextEdit Placeholder="Enter your name" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>Company</FieldLabel>
+                                <TextEdit Placeholder="Enter your company name" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>Email</FieldLabel>
+                                <TextEdit Role="TextRole.Email" Placeholder="Enter your email" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>Password</FieldLabel>
+                                <FieldBody>
+                                    <TextEdit Role="TextRole.Password" Placeholder="Enter password" />
+                                </FieldBody>
+                            </Field>
+                            <Field TextAlignment="TextAlignment.Center">
+                                <Button Color="Color.Primary" Size="Size.Large">Sign up</Button>
+                            </Field>
+                        </Form>
+                    </Div>
+                </CardBody>
+            </Card>
+        </Div>
+    </Column>
+</Row>

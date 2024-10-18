@@ -1,0 +1,156 @@
+﻿@page "/forms-basic-inputs"
+
+<Heading Size="HeadingSize.Is3" Margin="Margin.Is3.FromBottom">Basic Inputs</Heading>
+
+<Row>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnFullHD">
+        <Card>
+            <CardHeader>
+                <CardTitle Size="5" Margin="Margin.Is0.FromBottom">Input</CardTitle>
+            </CardHeader>
+            <CardBody>
+                <Field>
+                    <TextEdit Placeholder="Input" />
+                </Field>
+            </CardBody>
+        </Card>
+        <Card>
+            <CardHeader>
+                <CardTitle Size="5" Margin="Margin.Is0.FromBottom">Textarea</CardTitle>
+            </CardHeader>
+            <CardBody>
+                <Field>
+                    <MemoEdit Placeholder="Textarea" />
+                </Field>
+            </CardBody>
+        </Card>
+        <Card>
+            <CardHeader>
+                <CardTitle Size="5" Margin="Margin.Is0.FromBottom">Checkboxes</CardTitle>
+            </CardHeader>
+            <CardBody>
+                <Field>
+                    <Check TValue="bool">Option one is this and that—be sure to include why it's great</Check>
+                    <Check TValue="bool" Disabled>Option two is disabled</Check>
+                </Field>
+                <Field>
+                    <Check TValue="bool" Inline>1</Check>
+                    <Check TValue="bool" Inline>2</Check>
+                    <Check TValue="bool" Inline Disabled>3</Check>
+                </Field>
+            </CardBody>
+        </Card>
+        <Card>
+            <CardHeader>
+                <CardTitle Size="5" Margin="Margin.Is0.FromBottom">Selects</CardTitle>
+            </CardHeader>
+            <CardBody>
+                <Field>
+                    <Select TValue="int">
+                        <SelectItem TValue="int" Value="0">Open this select menu</SelectItem>
+                        <SelectItem TValue="int" Value="1">One</SelectItem>
+                        <SelectItem TValue="int" Value="2">Two</SelectItem>
+                        <SelectItem TValue="int" Value="3">Three</SelectItem>
+                    </Select>
+                </Field>
+                <Field>
+                    <Select TValue="int" Multiple>
+                        <SelectItem TValue="int" Value="0">Open this select menu</SelectItem>
+                        <SelectItem TValue="int" Value="1">One</SelectItem>
+                        <SelectItem TValue="int" Value="2">Two</SelectItem>
+                        <SelectItem TValue="int" Value="3">Three</SelectItem>
+                    </Select>
+                </Field>
+            </CardBody>
+        </Card>
+        <Card>
+            <CardHeader>
+                <CardTitle Size="5" Margin="Margin.Is0.FromBottom">Sizes</CardTitle>
+            </CardHeader>
+            <CardBody>
+                <Field>
+                    <TextEdit Placeholder="Large" Size="Size.Large" />
+                </Field>
+                <Field>
+                    <TextEdit Placeholder="Medium" Size="Size.Medium" />
+                </Field>
+                <Field>
+                    <TextEdit Placeholder="Small" Size="Size.Small" />
+                </Field>
+            </CardBody>
+        </Card>
+    </Column>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnFullHD">
+        <Card>
+            <CardHeader>
+                <CardTitle Size="5" Margin="Margin.Is0.FromBottom">Radios</CardTitle>
+            </CardHeader>
+            <CardBody>
+                <Field>
+                    <RadioGroup TValue="int">
+                        <Radio TValue="int" Value="1">Option one is this and that—be sure to include why it's great</Radio>
+                        <Radio TValue="int" Value="2">Option two can be something else and selecting it will deselect option one</Radio>
+                        <Radio TValue="int" Value="3" Disabled>Option three is disabled</Radio>
+                    </RadioGroup>
+                </Field>
+                <Field>
+                    <RadioGroup TValue="int" Orientation="Orientation.Horizontal">
+                        <Radio TValue="int" Value="1">1</Radio>
+                        <Radio TValue="int" Value="2">2</Radio>
+                        <Radio TValue="int" Value="3" Disabled>3</Radio>
+                    </RadioGroup>
+                </Field>
+            </CardBody>
+        </Card>
+        <Card>
+            <CardHeader>
+                <CardTitle Size="5" Margin="Margin.Is0.FromBottom">Switches</CardTitle>
+            </CardHeader>
+            <CardBody>
+                <Field>
+                    <Switch TValue="bool">Toggle this switch element</Switch>
+                </Field>
+                <Field>
+                    <Switch TValue="bool" Disabled>Disabled switch element</Switch>
+                </Field>
+            </CardBody>
+        </Card>
+        <Card>
+            <CardHeader>
+                <CardTitle Size="5" Margin="Margin.Is0.FromBottom">Disabled</CardTitle>
+            </CardHeader>
+            <CardBody>
+                <Field>
+                    <FieldLabel>Disabled input</FieldLabel>
+                    <FieldBody>
+                        <TextEdit Placeholder="Disabled input" Disabled />
+                    </FieldBody>
+                </Field>
+                <Field>
+                    <FieldLabel>Disabled select menu</FieldLabel>
+                    <FieldBody>
+                        <Select TValue="int" Disabled>
+                            <SelectItem TValue="int" Value="0">Open this select menu</SelectItem>
+                            <SelectItem TValue="int" Value="1">One</SelectItem>
+                            <SelectItem TValue="int" Value="2">Two</SelectItem>
+                            <SelectItem TValue="int" Value="3">Three</SelectItem>
+                        </Select>
+                    </FieldBody>
+                </Field>
+                <Field>
+                    <Check TValue="bool" Disabled>Can't check this</Check>
+                </Field>
+            </CardBody>
+        </Card>
+        <Card>
+            <CardHeader>
+                <CardTitle Size="5" Margin="Margin.Is0.FromBottom">Read only</CardTitle>
+            </CardHeader>
+            <CardBody>
+                <Field>
+                    <TextEdit Placeholder="Readonly input" Disabled />
+                </Field>
+            </CardBody>
+        </Card>
+    </Column>
+</Row>

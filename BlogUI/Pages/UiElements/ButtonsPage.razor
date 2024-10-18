@@ -1,0 +1,331 @@
+﻿@page "/ui-buttons"
+
+<Heading Size="HeadingSize.Is3" Margin="Margin.Is3.FromBottom">Buttons</Heading>
+
+<Row>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnWidescreen">
+        <Card>
+            <CardHeader>
+                <CardTitle Size="5">Basic Buttons</CardTitle>
+                <CardSubtitle TextColor="TextColor.Muted">Default buttons style.</CardSubtitle>
+            </CardHeader>
+            <CardBody>
+                <Button Color="Color.Primary">Primary</Button>
+                <Button Color="Color.Secondary">Secondary</Button>
+                <Button Color="Color.Success">Success</Button>
+                <Button Color="Color.Danger">Danger</Button>
+                <Button Color="Color.Warning">Warning</Button>
+                <Button Color="Color.Info">Info</Button>
+            </CardBody>
+            <CardBody>
+                <Button Color="Color.Primary" Disabled>Primary</Button>
+                <Button Color="Color.Secondary" Disabled>Secondary</Button>
+                <Button Color="Color.Success" Disabled>Success</Button>
+                <Button Color="Color.Danger" Disabled>Danger</Button>
+                <Button Color="Color.Warning" Disabled>Warning</Button>
+                <Button Color="Color.Info" Disabled>Info</Button>
+            </CardBody>
+        </Card>
+    </Column>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnWidescreen">
+        <Card>
+            <CardHeader>
+                <CardTitle Size="5">Rounded Buttons</CardTitle>
+                <CardSubtitle TextColor="TextColor.Muted">Rounded buttons style.</CardSubtitle>
+            </CardHeader>
+            <CardBody>
+                <Button Color="Color.Primary" Border="Border.RoundedPill">Primary</Button>
+                <Button Color="Color.Secondary" Border="Border.RoundedPill">Secondary</Button>
+                <Button Color="Color.Success" Border="Border.RoundedPill">Success</Button>
+                <Button Color="Color.Danger" Border="Border.RoundedPill">Danger</Button>
+                <Button Color="Color.Warning" Border="Border.RoundedPill">Warning</Button>
+                <Button Color="Color.Info" Border="Border.RoundedPill">Info</Button>
+            </CardBody>
+            <CardBody>
+                <Button Color="Color.Primary" Border="Border.RoundedPill" Disabled>Primary</Button>
+                <Button Color="Color.Secondary" Border="Border.RoundedPill" Disabled>Secondary</Button>
+                <Button Color="Color.Success" Border="Border.RoundedPill" Disabled>Success</Button>
+                <Button Color="Color.Danger" Border="Border.RoundedPill" Disabled>Danger</Button>
+                <Button Color="Color.Warning" Border="Border.RoundedPill" Disabled>Warning</Button>
+                <Button Color="Color.Info" Border="Border.RoundedPill" Disabled>Info</Button>
+            </CardBody>
+        </Card>
+    </Column>
+</Row>
+
+<Row>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnWidescreen">
+        <Card>
+            <CardHeader>
+                <CardTitle Size="5">Outline Buttons</CardTitle>
+                <CardSubtitle TextColor="TextColor.Muted">Buttons without background color.</CardSubtitle>
+            </CardHeader>
+            <CardBody>
+                <Button Color="Color.Primary" Outline>Primary</Button>
+                <Button Color="Color.Secondary" Outline>Secondary</Button>
+                <Button Color="Color.Success" Outline>Success</Button>
+                <Button Color="Color.Danger" Outline>Danger</Button>
+                <Button Color="Color.Warning" Outline>Warning</Button>
+                <Button Color="Color.Info" Outline>Info</Button>
+            </CardBody>
+            <CardBody>
+                <Button Color="Color.Primary" Outline Disabled>Primary</Button>
+                <Button Color="Color.Secondary" Outline Disabled>Secondary</Button>
+                <Button Color="Color.Success" Outline Disabled>Success</Button>
+                <Button Color="Color.Danger" Outline Disabled>Danger</Button>
+                <Button Color="Color.Warning" Outline Disabled>Warning</Button>
+                <Button Color="Color.Info" Outline Disabled>Info</Button>
+            </CardBody>
+        </Card>
+    </Column>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnWidescreen">
+        <Card>
+            <CardHeader>
+                <CardTitle Size="5">Square Buttons</CardTitle>
+                <CardSubtitle TextColor="TextColor.Muted">Buttons without border radius.</CardSubtitle>
+            </CardHeader>
+            <CardBody>
+                <Button Color="Color.Primary" Border="Border.RoundedZero">Primary</Button>
+                <Button Color="Color.Secondary" Border="Border.RoundedZero">Secondary</Button>
+                <Button Color="Color.Success" Border="Border.RoundedZero">Success</Button>
+                <Button Color="Color.Danger" Border="Border.RoundedZero">Danger</Button>
+                <Button Color="Color.Warning" Border="Border.RoundedZero">Warning</Button>
+                <Button Color="Color.Info" Border="Border.RoundedZero">Info</Button>
+            </CardBody>
+            <CardBody>
+                <Button Color="Color.Primary" Border="Border.RoundedZero" Disabled>Primary</Button>
+                <Button Color="Color.Secondary" Border="Border.RoundedZero" Disabled>Secondary</Button>
+                <Button Color="Color.Success" Border="Border.RoundedZero" Disabled>Success</Button>
+                <Button Color="Color.Danger" Border="Border.RoundedZero" Disabled>Danger</Button>
+                <Button Color="Color.Warning" Border="Border.RoundedZero" Disabled>Warning</Button>
+                <Button Color="Color.Info" Border="Border.RoundedZero" Disabled>Info</Button>
+            </CardBody>
+        </Card>
+    </Column>
+</Row>
+
+<Row>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnWidescreen">
+        <Card>
+            <CardHeader>
+                <CardTitle Size="5">Button Sizes</CardTitle>
+                <CardSubtitle TextColor="TextColor.Muted">Fancy larger or smaller buttons.</CardSubtitle>
+            </CardHeader>
+            <CardBody>
+                <Button Color="Color.Primary" Size="Size.Small">Small</Button>
+                <Button Color="Color.Primary" Size="Size.Medium">Medium</Button>
+                <Button Color="Color.Primary" Size="Size.Large">Large</Button>
+            </CardBody>
+            <CardBody>
+                <Button Color="Color.Primary" Size="Size.Small">
+                    <Icon Name="IconName.Camera" />
+                    Small
+                </Button>
+                <Button Color="Color.Primary" Size="Size.Medium">
+                    <Icon Name="IconName.Camera" />
+                    Medium
+                </Button>
+                <Button Color="Color.Primary" Size="Size.Large">
+                    <Icon Name="IconName.Camera" />
+                    Large
+                </Button>
+            </CardBody>
+        </Card>
+        <Card>
+            <CardHeader>
+                <CardTitle Size="5">Button Dropdown</CardTitle>
+                <CardSubtitle TextColor="TextColor.Muted">Dropdowns styles with buttons.</CardSubtitle>
+            </CardHeader>
+            <CardBody>
+                <Dropdown Display="Display.InlineBlock">
+                    <DropdownToggle Color="Color.Primary">Primary</DropdownToggle>
+                    <DropdownMenu>
+                        <DropdownItem>Action</DropdownItem>
+                        <DropdownItem>Another sction</DropdownItem>
+                        <DropdownItem>Something else here</DropdownItem>
+                        <DropdownDivider />
+                        <DropdownItem>Separated link</DropdownItem>
+                    </DropdownMenu>
+                </Dropdown>
+                <Dropdown Display="Display.InlineBlock">
+                    <DropdownToggle Color="Color.Secondary">Secondary</DropdownToggle>
+                    <DropdownMenu>
+                        <DropdownItem>Action</DropdownItem>
+                        <DropdownItem>Another sction</DropdownItem>
+                        <DropdownItem>Something else here</DropdownItem>
+                        <DropdownDivider />
+                        <DropdownItem>Separated link</DropdownItem>
+                    </DropdownMenu>
+                </Dropdown>
+                <Dropdown Display="Display.InlineBlock">
+                    <DropdownToggle Color="Color.Success">Success</DropdownToggle>
+                    <DropdownMenu>
+                        <DropdownItem>Action</DropdownItem>
+                        <DropdownItem>Another sction</DropdownItem>
+                        <DropdownItem>Something else here</DropdownItem>
+                        <DropdownDivider />
+                        <DropdownItem>Separated link</DropdownItem>
+                    </DropdownMenu>
+                </Dropdown>
+                <Dropdown Display="Display.InlineBlock">
+                    <DropdownToggle Color="Color.Danger">Danger</DropdownToggle>
+                    <DropdownMenu>
+                        <DropdownItem>Action</DropdownItem>
+                        <DropdownItem>Another sction</DropdownItem>
+                        <DropdownItem>Something else here</DropdownItem>
+                        <DropdownDivider />
+                        <DropdownItem>Separated link</DropdownItem>
+                    </DropdownMenu>
+                </Dropdown>
+                <Dropdown Display="Display.InlineBlock">
+                    <DropdownToggle Color="Color.Warning">Warning</DropdownToggle>
+                    <DropdownMenu>
+                        <DropdownItem>Action</DropdownItem>
+                        <DropdownItem>Another sction</DropdownItem>
+                        <DropdownItem>Something else here</DropdownItem>
+                        <DropdownDivider />
+                        <DropdownItem>Separated link</DropdownItem>
+                    </DropdownMenu>
+                </Dropdown>
+                <Dropdown Display="Display.InlineBlock">
+                    <DropdownToggle Color="Color.Info">Info</DropdownToggle>
+                    <DropdownMenu>
+                        <DropdownItem>Action</DropdownItem>
+                        <DropdownItem>Another sction</DropdownItem>
+                        <DropdownItem>Something else here</DropdownItem>
+                        <DropdownDivider />
+                        <DropdownItem>Separated link</DropdownItem>
+                    </DropdownMenu>
+                </Dropdown>
+            </CardBody>
+            <CardBody>
+                <Dropdown Display="Display.InlineBlock">
+                    <DropdownToggle Color="Color.Primary" Size="Size.Small">Primary</DropdownToggle>
+                    <DropdownMenu>
+                        <DropdownItem>Action</DropdownItem>
+                        <DropdownItem>Another sction</DropdownItem>
+                        <DropdownItem>Something else here</DropdownItem>
+                        <DropdownDivider />
+                        <DropdownItem>Separated link</DropdownItem>
+                    </DropdownMenu>
+                </Dropdown>
+                <Dropdown Display="Display.InlineBlock">
+                    <DropdownToggle Color="Color.Secondary" Size="Size.Small">Secondary</DropdownToggle>
+                    <DropdownMenu>
+                        <DropdownItem>Action</DropdownItem>
+                        <DropdownItem>Another sction</DropdownItem>
+                        <DropdownItem>Something else here</DropdownItem>
+                        <DropdownDivider />
+                        <DropdownItem>Separated link</DropdownItem>
+                    </DropdownMenu>
+                </Dropdown>
+                <Dropdown Display="Display.InlineBlock">
+                    <DropdownToggle Color="Color.Success" Size="Size.Small">Success</DropdownToggle>
+                    <DropdownMenu>
+                        <DropdownItem>Action</DropdownItem>
+                        <DropdownItem>Another sction</DropdownItem>
+                        <DropdownItem>Something else here</DropdownItem>
+                        <DropdownDivider />
+                        <DropdownItem>Separated link</DropdownItem>
+                    </DropdownMenu>
+                </Dropdown>
+                <Dropdown Display="Display.InlineBlock">
+                    <DropdownToggle Color="Color.Danger" Size="Size.Small">Danger</DropdownToggle>
+                    <DropdownMenu>
+                        <DropdownItem>Action</DropdownItem>
+                        <DropdownItem>Another sction</DropdownItem>
+                        <DropdownItem>Something else here</DropdownItem>
+                        <DropdownDivider />
+                        <DropdownItem>Separated link</DropdownItem>
+                    </DropdownMenu>
+                </Dropdown>
+                <Dropdown Display="Display.InlineBlock">
+                    <DropdownToggle Color="Color.Warning" Size="Size.Small">Warning</DropdownToggle>
+                    <DropdownMenu>
+                        <DropdownItem>Action</DropdownItem>
+                        <DropdownItem>Another sction</DropdownItem>
+                        <DropdownItem>Something else here</DropdownItem>
+                        <DropdownDivider />
+                        <DropdownItem>Separated link</DropdownItem>
+                    </DropdownMenu>
+                </Dropdown>
+                <Dropdown Display="Display.InlineBlock">
+                    <DropdownToggle Color="Color.Info" Size="Size.Small">Info</DropdownToggle>
+                    <DropdownMenu>
+                        <DropdownItem>Action</DropdownItem>
+                        <DropdownItem>Another sction</DropdownItem>
+                        <DropdownItem>Something else here</DropdownItem>
+                        <DropdownDivider />
+                        <DropdownItem>Separated link</DropdownItem>
+                    </DropdownMenu>
+                </Dropdown>
+            </CardBody>
+        </Card>
+    </Column>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnWidescreen">
+        <Card>
+            <CardHeader>
+                <CardTitle Size="5">Button Group</CardTitle>
+                <CardSubtitle TextColor="TextColor.Muted">Button group components.</CardSubtitle>
+            </CardHeader>
+            <CardBody>
+                <CardSubtitle TextColor="TextColor.Muted" Margin="Margin.Is2.FromBottom">Horizontal button group</CardSubtitle>
+                <Buttons Size="Size.Large" Margin="Margin.Is3.FromBottom">
+                    <Button Color="Color.Secondary">Left</Button>
+                    <Button Color="Color.Secondary">Center</Button>
+                    <Button Color="Color.Secondary">Right</Button>
+                </Buttons>
+                <br />
+                <Buttons Margin="Margin.Is3.FromBottom">
+                    <Button Color="Color.Secondary">Left</Button>
+                    <Button Color="Color.Secondary">Center</Button>
+                    <Button Color="Color.Secondary">Right</Button>
+                </Buttons>
+                <br />
+                <Buttons Size="Size.Small" Margin="Margin.Is4.FromBottom">
+                    <Button Color="Color.Secondary">Left</Button>
+                    <Button Color="Color.Secondary">Center</Button>
+                    <Button Color="Color.Secondary">Right</Button>
+                </Buttons>
+
+                <CardSubtitle TextColor="TextColor.Muted" Margin="Margin.Is2.FromBottom">Button toolbar</CardSubtitle>
+                <Buttons Role="ButtonsRole.Toolbar" Margin="Margin.Is4.FromBottom">
+                    <Buttons>
+                        <Button Color="Color.Secondary">1</Button>
+                        <Button Color="Color.Secondary">2</Button>
+                        <Button Color="Color.Secondary">3</Button>
+                    </Buttons>
+                    <Buttons Margin="Margin.Is2.OnX">
+                        <Button Color="Color.Secondary">4</Button>
+                        <Button Color="Color.Secondary">5</Button>
+                    </Buttons>
+                    <Buttons>
+                        <Button Color="Color.Secondary">6</Button>
+                    </Buttons>
+                </Buttons>
+
+                <CardSubtitle TextColor="TextColor.Muted" Margin="Margin.Is2.FromBottom">Vertical button group</CardSubtitle>
+                <Buttons Margin="Margin.Is3.FromEnd" Orientation="Orientation.Vertical">
+                    <Button Color="Color.Primary">Button</Button>
+                    <Button Color="Color.Primary">Button</Button>
+                    <Button Color="Color.Primary">Button</Button>
+                </Buttons>
+                <Buttons Margin="Margin.Is3.FromEnd" Orientation="Orientation.Vertical">
+                    <Button Color="Color.Success">Button</Button>
+                    <Button Color="Color.Success">Button</Button>
+                    <Button Color="Color.Success">Button</Button>
+                </Buttons>
+                <Buttons Margin="Margin.Is3.FromEnd" Orientation="Orientation.Vertical">
+                    <Button Color="Color.Warning">Button</Button>
+                    <Button Color="Color.Warning">Button</Button>
+                    <Button Color="Color.Warning">Button</Button>
+                </Buttons>
+                <Buttons Margin="Margin.Is3.FromEnd" Orientation="Orientation.Vertical">
+                    <Button Color="Color.Danger">Button</Button>
+                    <Button Color="Color.Danger">Button</Button>
+                    <Button Color="Color.Danger">Button</Button>
+                </Buttons>
+            </CardBody>
+        </Card>
+    </Column>
+</Row>

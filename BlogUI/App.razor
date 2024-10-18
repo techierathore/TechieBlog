@@ -1,0 +1,46 @@
+@using BlogUI.Layouts
+<ThemeProvider Theme="@theme">
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+        </Found>
+        <NotFound>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <p>Sorry, there's nothing at this address.</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</ThemeProvider>
+@code{
+    Theme theme = new Theme
+    {
+        LuminanceThreshold = 170,
+        ColorOptions = new ThemeColorOptions
+        {
+            Primary = "#497aca",
+            Secondary = "#414b54",
+            Success = "#4fa06c",
+            Danger = "#ce504d",
+            Warning = "#da9f26",
+            Info = "#4f9cbd",
+        },
+        BackgroundOptions = new ThemeBackgroundOptions
+        {
+            Primary = "#497aca",
+            Secondary = "#414b54",
+            Success = "#4fa06c",
+            Danger = "#ce504d",
+            Warning = "#da9f26",
+            Info = "#4f9cbd",
+        },
+        TextColorOptions = new ThemeTextColorOptions
+        {
+            Primary = "#497aca",
+            Secondary = "#414b54",
+            Success = "#4fa06c",
+            Danger = "#ce504d",
+            Warning = "#da9f26",
+            Info = "#4f9cbd",
+        }
+    };
+}

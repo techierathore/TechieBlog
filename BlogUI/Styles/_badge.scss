@@ -1,0 +1,12 @@
+﻿.badge {
+    display: inline-block;
+    padding: .3em .45em;
+    font-size: 80%;
+    font-weight: 500;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: .2rem;
+    transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out
+}

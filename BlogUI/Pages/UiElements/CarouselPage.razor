@@ -1,0 +1,83 @@
+﻿@page "/ui-carousel"
+
+<Heading Size="HeadingSize.Is3" Margin="Margin.Is3.FromBottom">Carousel</Heading>
+
+<Row>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnWidescreen">
+        <Card Margin="Margin.Is4.OnY">
+            <CardHeader>
+                <CardTitle>With controls</CardTitle>
+            </CardHeader>
+            <CardBody>
+                Adding in the previous and next controls.
+            </CardBody>
+            <CardBody>
+                <Carousel @bind-SelectedSlide="@selectedSlide1" ShowControls ShowIndicators="false">
+                    <CarouselSlide Name="1">
+                        <Image Source="img/photos/unsplash-1.jpg" Text="Unsplash" Display="Display.Block" Width="Width.Is100" />
+                    </CarouselSlide>
+                    <CarouselSlide Name="2">
+                        <Image Source="img/photos/unsplash-2.jpg" Text="Unsplash" Display="Display.Block" Width="Width.Is100" />
+                    </CarouselSlide>
+                    <CarouselSlide Name="3">
+                        <Image Source="img/photos/unsplash-3.jpg" Text="Unsplash" Display="Display.Block" Width="Width.Is100" />
+                    </CarouselSlide>
+                </Carousel>
+            </CardBody>
+        </Card>
+    </Column>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnWidescreen">
+        <Card Margin="Margin.Is4.OnY">
+            <CardHeader>
+                <CardTitle>With indicators</CardTitle>
+            </CardHeader>
+            <CardBody>
+                You can also add the indicators to the carousel, alongside the controls, too.
+            </CardBody>
+            <CardBody>
+                <Carousel @bind-SelectedSlide="@selectedSlide2" ShowControls="true" ShowIndicators="true">
+                    <CarouselSlide Name="1">
+                        <Image Source="img/photos/unsplash-1.jpg" Text="Unsplash" Display="Display.Block" Width="Width.Is100" />
+                    </CarouselSlide>
+                    <CarouselSlide Name="2">
+                        <Image Source="img/photos/unsplash-2.jpg" Text="Unsplash" Display="Display.Block" Width="Width.Is100" />
+                    </CarouselSlide>
+                    <CarouselSlide Name="3">
+                        <Image Source="img/photos/unsplash-3.jpg" Text="Unsplash" Display="Display.Block" Width="Width.Is100" />
+                    </CarouselSlide>
+                </Carousel>
+            </CardBody>
+        </Card>
+    </Column>
+</Row>
+
+<Row>
+    <Column ColumnSize="ColumnSize.Is12">
+        <Card Margin="Margin.Is4.OnY">
+            <CardHeader>
+                <CardTitle>Slides only</CardTitle>
+            </CardHeader>
+            <CardBody>
+                Here’s a carousel with slides only. Note the presence of the <code>Display.Block</code> and <code>Width.Is100</code> on carousel images to prevent browser default image alignment.
+            </CardBody>
+            <CardBody>
+                <Carousel @bind-SelectedSlide="@selectedSlide3" ShowControls="false" ShowIndicators="false">
+                    <CarouselSlide Name="1">
+                        <Image Source="img/photos/unsplash-1.jpg" Text="Unsplash" Display="Display.Block" Width="Width.Is100" />
+                    </CarouselSlide>
+                    <CarouselSlide Name="2">
+                        <Image Source="img/photos/unsplash-2.jpg" Text="Unsplash" Display="Display.Block" Width="Width.Is100" />
+                    </CarouselSlide>
+                    <CarouselSlide Name="3">
+                        <Image Source="img/photos/unsplash-3.jpg" Text="Unsplash" Display="Display.Block" Width="Width.Is100" />
+                    </CarouselSlide>
+                </Carousel>
+            </CardBody>
+        </Card>
+    </Column>
+</Row>
+@code{
+    private string selectedSlide1 = "1";
+    private string selectedSlide2 = "2";
+    private string selectedSlide3 = "1";
+}

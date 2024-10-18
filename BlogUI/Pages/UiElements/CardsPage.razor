@@ -1,0 +1,177 @@
+﻿@page "/ui-cards"
+
+<Heading Size="HeadingSize.Is3" Margin="Margin.Is3.FromBottom">Cards</Heading>
+
+<Row>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnDesktop.Is4.OnWidescreen">
+        <Card Margin="Margin.Is4.OnY">
+            <CardImage Source="img/photos/unsplash-1.jpg" Alt="Placeholder image">
+            </CardImage>
+            <CardBody>
+                <CardTitle Size="5">Card with image and links</CardTitle>
+                <CardText>
+                    Some quick example text to build on the card title and make up the bulk of the card's content.
+                </CardText>
+            </CardBody>
+            <CardBody>
+                <CardLink Source="#">Card link</CardLink>
+                <CardLink Source="#">Another link</CardLink>
+            </CardBody>
+        </Card>
+    </Column>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnDesktop.Is4.OnWidescreen">
+        <Card Margin="Margin.Is4.OnY">
+            <CardImage Source="img/photos/unsplash-2.jpg" Alt="Placeholder image">
+            </CardImage>
+            <CardBody>
+                <CardTitle Size="5">Card with image and button</CardTitle>
+                <CardText>
+                    Some quick example text to build on the card title and make up the bulk of the card's content.
+                </CardText>
+            </CardBody>
+            <CardBody>
+                <Button Type="ButtonType.Link" Color="Color.Primary" To="#">Go somewhere</Button>
+            </CardBody>
+        </Card>
+    </Column>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnDesktop.Is4.OnWidescreen">
+        <Card Margin="Margin.Is4.OnY">
+            <CardImage Source="img/photos/unsplash-3.jpg" Alt="Placeholder image">
+            </CardImage>
+            <CardBody>
+                <CardTitle Size="5">Card with image and list</CardTitle>
+                <CardText>
+                    Some quick example text to build on the card title and make up the bulk of the card's content.
+                </CardText>
+            </CardBody>
+            <ListGroup Flush="true">
+                <ListGroupItem>Cras justo odio</ListGroupItem>
+                <ListGroupItem>Dapibus ac facilisis in</ListGroupItem>
+                <ListGroupItem>Vestibulum at eros</ListGroupItem>
+            </ListGroup>
+        </Card>
+    </Column>
+</Row>
+
+<Row>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnDesktop.Is4.OnWidescreen">
+        <Card Margin="Margin.Is4.OnY">
+            <CardBody>
+                <CardTitle Size="5">Card with links</CardTitle>
+                <CardText>
+                    Some quick example text to build on the card title and make up the bulk of the card's content.
+                </CardText>
+            </CardBody>
+            <CardBody>
+                <CardLink Source="#">Card link</CardLink>
+                <CardLink Source="#">Another link</CardLink>
+            </CardBody>
+        </Card>
+    </Column>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnDesktop.Is4.OnWidescreen">
+        <Card Margin="Margin.Is4.OnY">
+            <CardBody>
+                <CardTitle Size="5">Card with button</CardTitle>
+                <CardText>
+                    Some quick example text to build on the card title and make up the bulk of the card's content.
+                </CardText>
+            </CardBody>
+            <CardBody>
+                <Button Type="ButtonType.Link" Color="Color.Primary" To="#">Go somewhere</Button>
+            </CardBody>
+        </Card>
+    </Column>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnDesktop.Is4.OnWidescreen">
+        <Card Margin="Margin.Is4.OnY">
+            <CardBody>
+                <CardTitle Size="5">Card with list</CardTitle>
+                <CardText>
+                    Some quick example text to build on the card title and make up the bulk of the card's content.
+                </CardText>
+            </CardBody>
+            <ListGroup Flush="true">
+                <ListGroupItem>Cras justo odio</ListGroupItem>
+                <ListGroupItem>Dapibus ac facilisis in</ListGroupItem>
+                <ListGroupItem>Vestibulum at eros</ListGroupItem>
+            </ListGroup>
+        </Card>
+    </Column>
+</Row>
+
+<Row>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnWidescreen">
+        <Card Margin="Margin.Is4.OnY">
+            <CardHeader>
+                <Tabs @bind-SelectedTab="@selectedTab1">
+                    <Items>
+                        <Tab Name="active" href="#active">Active</Tab>
+                        <Tab Name="link">Link</Tab>
+                        <Tab Name="disabled" Disabled>Disabled</Tab>
+                    </Items>
+                </Tabs>
+            </CardHeader>
+            <CardBody>
+                <TabsContent SelectedPanel="@selectedTab1">
+                    <TabPanel Name="active">
+                        <CardTitle Size="5">Card with tabs</CardTitle>
+                        <CardText>
+                            Some quick example text to build on the card title and make up the bulk of the card's content.
+                        </CardText>
+                    </TabPanel>
+                    <TabPanel Name="link">
+                        <CardTitle Size="5">Card with tabs</CardTitle>
+                        <CardText>
+                            Some quick example text to build on the card title and make up the bulk of the card's content.
+                        </CardText>
+                        <Button Type="ButtonType.Link" Color="Color.Primary" To="#">Go somewhere</Button>
+                    </TabPanel>
+                    <TabPanel Name="disabled">
+                        <CardTitle Size="5">Card with tabs</CardTitle>
+                        <CardText>
+                            Some quick example text to build on the card title and make up the bulk of the card's content.
+                        </CardText>
+                    </TabPanel>
+                </TabsContent>
+            </CardBody>
+        </Card>
+    </Column>
+    <Column ColumnSize="ColumnSize.Is12.Is6.OnWidescreen">
+        <Card Margin="Margin.Is4.OnY">
+            <CardHeader>
+                <Tabs @bind-SelectedTab="@selectedTab1" Pills>
+                    <Items>
+                        <Tab Name="active" href="#active">Active</Tab>
+                        <Tab Name="link">Link</Tab>
+                        <Tab Name="disabled" Disabled>Disabled</Tab>
+                    </Items>
+                </Tabs>
+            </CardHeader>
+            <CardBody>
+                <TabsContent SelectedPanel="@selectedTab1">
+                    <TabPanel Name="active">
+                        <CardTitle Size="5">Card with pills</CardTitle>
+                        <CardText>
+                            Some quick example text to build on the card title and make up the bulk of the card's content.
+                        </CardText>
+                    </TabPanel>
+                    <TabPanel Name="link">
+                        <CardTitle Size="5">Card with pills</CardTitle>
+                        <CardText>
+                            Some quick example text to build on the card title and make up the bulk of the card's content.
+                        </CardText>
+                        <Button Type="ButtonType.Link" Color="Color.Primary" To="#">Go somewhere</Button>
+                    </TabPanel>
+                    <TabPanel Name="disabled">
+                        <CardTitle Size="5">Card with pills</CardTitle>
+                        <CardText>
+                            Some quick example text to build on the card title and make up the bulk of the card's content.
+                        </CardText>
+                    </TabPanel>
+                </TabsContent>
+            </CardBody>
+        </Card>
+    </Column>
+</Row>
+@code{
+    string selectedTab1 = "active";
+}
