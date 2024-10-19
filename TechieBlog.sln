@@ -13,7 +13,12 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlogDb", "BlogDb\BlogDb.csp
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlogSvc", "BlogSvc\BlogSvc.csproj", "{4B05F8EB-7F56-4656-8FB1-999E0BB449C9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlogEngine", "BlogEngine\BlogEngine.csproj", "{B391ECE0-0691-4A32-B051-2FE3E4B25191}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlogEngine", "BlogEngine\BlogEngine.csproj", "{B391ECE0-0691-4A32-B051-2FE3E4B25191}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{74A11B97-B37A-471A-B0A1-5C964ABFFE9C}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

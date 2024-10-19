@@ -1,17 +1,85 @@
-CREATE PROCEDURE `BlogUsersInsert`
-   (IN `FirstName` VARCHAR(250), 
-    IN `LastName` VARCHAR(250), 
-    IN `EmailID` VARCHAR(550), 
-    IN `LoginPassword` VARCHAR(20), 
-    IN `Role` VARCHAR(25), 
-    IN `CreatedTime` DATETIME, 
-    IN `UpdatedTime` DATETIME)
+-- Stored Procedures for BlogUser
+
+CREATE PROCEDURE InsertBlogUser (
+    IN FirstName VARCHAR(255),
+    IN LastName VARCHAR(255),
+    IN EmailId VARCHAR(255),
+    IN LoginPass VARCHAR(255),
+    IN UserRoleId INT,
+    IN ProfileImagePath VARCHAR(255),
+    IN ProfileDescription TEXT,
+    IN TwiiterUrl VARCHAR(255),
+    IN LinkedInUrl VARCHAR(255),
+    IN GitHubUrl VARCHAR(255),
+    IN PodDescription TEXT,
+    IN SpeakDescription TEXT,
+    IN AccessToken TEXT,
+    IN RefreshToken TEXT
+)
 BEGIN
-INSERT INTO BlogUser
-(`FirstName`,`LastName`,`EmailID`,`LoginPassword`,`Role`,`CreatedTime`,`UpdatedTime`)
-VALUES
-(FirstName,LastName,EmailID,LoginPassword,Role,CreatedTime,UpdatedTime);
+    INSERT INTO BlogUser 
+    (FirstName, LastName, EmailId, LoginPass, CreatedOn, UpdatedOn, UserRoleId, ProfileImagePath, ProfileDescription, TwiiterUrl, LinkedInUrl, GitHubUrl, PodDescription, SpeakDescription, AccessToken, RefreshToken)
+    VALUES 
+    (FirstName, LastName, EmailId, LoginPass, NOW(), NOW(), UserRoleId, ProfileImagePath, ProfileDescription, TwiiterUrl, LinkedInUrl, GitHubUrl, PodDescription, SpeakDescription, AccessToken, RefreshToken);
 END;
+
+CREATE PROCEDURE UpdateBlogUser (
+    IN UserId BIGINT,
+    IN FirstName VARCHAR(255),
+    IN LastName VARCHAR(255),
+    IN EmailId VARCHAR(255),
+    IN LoginPass VARCHAR(255),
+    IN UserRoleId INT,
+    IN ProfileImagePath VARCHAR(255),
+    IN ProfileDescription TEXT,
+    IN TwiiterUrl VARCHAR(255),
+    IN LinkedInUrl VARCHAR(255),
+    IN GitHubUrl VARCHAR(255),
+    IN PodDescription TEXT,
+    IN SpeakDescription TEXT,
+    IN AccessToken TEXT,
+    IN RefreshToken TEXT
+)
+BEGIN
+    UPDATE BlogUser 
+    SET 
+        FirstName = FirstName,
+        LastName = LastName,
+        EmailId = EmailId,
+        LoginPass = LoginPass,
+        UpdatedOn = NOW(),
+        UserRoleId = UserRoleId,
+        ProfileImagePath = ProfileImagePath,
+        ProfileDescription = ProfileDescription,
+        TwiiterUrl = TwiiterUrl,
+        LinkedInUrl = LinkedInUrl,
+        GitHubUrl = GitHubUrl,
+        PodDescription = PodDescription,
+        SpeakDescription = SpeakDescription,
+        AccessToken = AccessToken,
+        RefreshToken = RefreshToken
+    WHERE UserId = UserId;
+END;
+
+CREATE PROCEDURE SelectBlogUserById (
+    IN UserId BIGINT
+)
+BEGIN
+    SELECT * FROM BlogUser WHERE UserId = UserId;
+END;
+
+CREATE PROCEDURE SelectAllBlogUsers ()
+BEGIN
+    SELECT * FROM BlogUser;
+END;
+
+CREATE PROCEDURE DeleteBlogUser (
+    IN UserId BIGINT
+)
+BEGIN
+    DELETE FROM BlogUser WHERE UserId = UserId;
+END;
+
 
 CREATE PROCEDURE `GetLoginUser`(LoginMail nvarchar(550),
 	LoginPassword nvarchar(20))
