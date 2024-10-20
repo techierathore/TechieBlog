@@ -1,4 +1,5 @@
-﻿using BlogSvc.DaCore;
+﻿using BlogModels.Models;
+using BlogSvc.DaCore;
 
 namespace BlogModels;
 public interface IBlogUserRepo : IGenericRepository<BlogUser>

@@ -13,6 +13,7 @@ CREATE TABLE BlogUser (
     CreatedOn DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UpdatedOn DATETIME ON UPDATE CURRENT_TIMESTAMP,
     UserRoleId INT,
+    IsConfirmed bit(1) DEFAULT b'0',
     ProfileImagePath VARCHAR(255),
     ProfileDescription TEXT,
     TwiiterUrl VARCHAR(255),

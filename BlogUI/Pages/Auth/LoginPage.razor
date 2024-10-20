@@ -1,0 +1,51 @@
+﻿@page "/auth-sign-in"
+@layout BlogUI.Layouts.AuthLayout
+@page "/"
+@page "/LoginPage"
+@page "/LoginPage/{PageCode}"
+
+<EditForm Model="@LoginDetails" OnValidSubmit="@ValidateUser">
+    <div>
+        <br /><br /><br /><br /><br />
+    </div>
+    <div>
+        <h3 style="font-weight:bold; color:purple">Login</h3>
+    </div>
+    <div>
+        <br />
+    </div>
+    <div class="col-12 row">
+        <input class="form-control col-12" @bind="LoginDetails.LoginEmail" placeholder="Enter email" />
+    </div>
+    <br />
+    <div class="col-12 row">
+        <input type="password" class="form-control col-12" @bind="LoginDetails.LoginPass" placeholder="Enter Password" />
+    </div>
+    <br />
+    <div class="col-12 row">
+        <span class="col-12"></span>
+        <input type="submit" class="form-control col-6 btn btn-primary" value="Login" />
+        <a href="/signup" class="col-6"> Sign up</a>
+    </div>
+    <br />
+    <div class="col-12 row" style="text-align:left; font-weight:bold">
+        <span class="col-12">@LoginMesssage</span>
+    </div>
+</EditForm>
+
+<VerifyPopUp @ref="VerifyDialog" />
+
+<Modal @ref="VerifySuccess" id="thankyou-popup">
+    <ModalContent Size="ModalSize.Default" Centered="true">
+        <ModalHeader>
+            <ModalTitle>Thank you ! </ModalTitle>
+            <CloseButton />
+        </ModalHeader>
+        <ModalBody>
+            <p>Thank you for verifying your email address. Your new RentEasly account has been activated and you can now login. </p>
+        </ModalBody>
+        <ModalFooter>
+                    <button type="button" class="btn g-aprv_popup mb-3" @onclick="ClosePopUp">OK</button>
+        </ModalFooter>
+    </ModalContent>
+</Modal>

@@ -37,8 +37,10 @@ public class BlogUser
 	/// Gets or sets the UpdatedTime value.
 	/// </summary>
 	public DateTime UpdatedOn	{ get; set; }
-        public int UserRoleId { get; set; }
-        public string ProfileImagePath	{ get; set; }
+    public int UserRoleId { get; set; }
+    public bool IsConfirmed { get; set; }
+    public string ProfileImagePath	{ get; set; }
+
 	public string ProfileDescription { get; set; }
 	public string TwiiterUrl { get; set; }
 	public string LinkedInUrl { get; set; }
