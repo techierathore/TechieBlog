@@ -1,6 +1,5 @@
-﻿@page "/auth-sign-in"
-@layout BlogUI.Layouts.AuthLayout
-@page "/"
+﻿@layout BlogUI.Layouts.AuthLayout
+@* @page "/" *@
 @page "/LoginPage"
 @page "/LoginPage/{PageCode}"
 
@@ -33,19 +32,3 @@
     </div>
 </EditForm>
 
-<VerifyPopUp @ref="VerifyDialog" />
-
-<Modal @ref="VerifySuccess" id="thankyou-popup">
-    <ModalContent Size="ModalSize.Default" Centered="true">
-        <ModalHeader>
-            <ModalTitle>Thank you ! </ModalTitle>
-            <CloseButton />
-        </ModalHeader>
-        <ModalBody>
-            <p>Thank you for verifying your email address. Your new RentEasly account has been activated and you can now login. </p>
-        </ModalBody>
-        <ModalFooter>
-                    <button type="button" class="btn g-aprv_popup mb-3" @onclick="ClosePopUp">OK</button>
-        </ModalFooter>
-    </ModalContent>
-</Modal>

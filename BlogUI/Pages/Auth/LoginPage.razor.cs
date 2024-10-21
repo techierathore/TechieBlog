@@ -2,6 +2,7 @@
 using BlogModels;
 using BlogModels.Interfaces;
 using BlogModels.Models;
+using BlogModels.ViewModel;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Security.Claims;
@@ -18,42 +19,44 @@ public partial class LoginPage : ComponentBase
     public NavigationManager NavigationManager { get; set; }
     [Inject]
     public IAuthService AuthSvc { get; set; }
-    private BlogUser vValidatedUser;
+    private AppUser vValidatedUser;
     ClaimsPrincipal PageClaimsPrincipal;
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthStateTask { get; set; }
 
-    VerifyPopUp VerifyDialog;
 
     [Parameter]
     public string PageCode { get; set; }
-    Modal VerifySuccess;
+
     protected async override Task OnInitializedAsync()
     {
         LoginDetails = new SvcData();
-        vValidatedUser = new BlogUser();
+        vValidatedUser = new AppUser();
 
         PageClaimsPrincipal = (await AuthStateTask).User;
         if (PageClaimsPrincipal.Identity.IsAuthenticated)
         { NavigationManager.NavigateTo("/Index"); }
 
-        if (!string.IsNullOrEmpty(PageCode))
-        {
-            try
-            {
-                await AuthSvc.VerifyEmailAsync(new SvcData
-                {
-                    VerificationCode = PageCode
-                });
+        //TODO: Need to impliment confirmation PopUp in
+        //place of this in future where the subscriber 
+        //feature is wrritten. 
+        //if (!string.IsNullOrEmpty(PageCode))
+        //{
+        //    try
+        //    {
+        //        await AuthSvc.VerifyEmailAsync(new SvcData
+        //        {
+        //            VerificationCode = PageCode
+        //        });
 
-                VerifySuccess.Show();
-            }
-            catch (Exception ex)
-            {
-                LoginMesssage = ex.Message;
-            }
-        }
+        //        VerifySuccess.Show();
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        LoginMesssage = ex.Message;
+        //    }
+        //}
     }
 
     public async Task ValidateUser()
@@ -70,16 +73,17 @@ public partial class LoginPage : ComponentBase
                 LoginMesssage = "Invalid User Email or Password";
                 return;
             }
-            if (vValidatedUser.IsVerified)
-            {
-                await ((CustomAuthStateProvider)AuthStateProvider).MarkUserAsAuthenticated(vValidatedUser);
-                NavigationManager.NavigateTo("/Index");
-            }
-            else
-            {
-                VerifyDialog.UserEmail = LoginDetails.LoginEmail;
-                VerifyDialog.ShowPopUp();
-            }
+            //TODO: Impliment Role based access in this 
+            //if (vValidatedUser.IsVerified)
+            //{
+            await ((CustomAuthStateProvider)AuthStateProvider).MarkUserAsAuthenticated(vValidatedUser);
+            NavigationManager.NavigateTo("/Index");
+            //}
+            //else
+            //{
+            //    VerifyDialog.UserEmail = LoginDetails.LoginEmail;
+            //    VerifyDialog.ShowPopUp();
+            //}
         }
         catch (Exception ex)
         {
@@ -92,10 +96,10 @@ public partial class LoginPage : ComponentBase
         StateHasChanged();
     }
 
-    public void ClosePopUp()
-    {
-        VerifySuccess.Hide();
-    }
+    //public void ClosePopUp()
+    //{
+    //    VerifySuccess.Hide();
+    //}
     public Task OnModalClosing(ModalClosingEventArgs e)
     {
         if (e.CloseReason != CloseReason.UserClosing)

@@ -1,12 +1,13 @@
 ﻿using BlogModels.Models;
+using BlogModels.ViewModel;
 using BlogSvc.DaCore;
 
 namespace BlogModels;
-public interface IBlogUserRepo : IGenericRepository<BlogUser>
+public interface IBlogUserRepo : IGenericRepository<AppUser>
 {
-    BlogUser GetLoginUser(string aLoginEmail, string aPassword);
-    BlogUser GetUserByEmail(string aLoginEmail);
-    BlogUser GetUserByMobile(string aMobileNo);
+    AppUser GetLoginUser(string aLoginEmail, string aPassword);
+    AppUser GetUserByEmail(string aLoginEmail);
+    AppUser GetUserByMobile(string aMobileNo);
 }
 public interface ISvcTokenRepo : IGenericRepository<SvcToken>
 { SvcToken GetSvcToken(long aAppUserId, string aLoginToken); }

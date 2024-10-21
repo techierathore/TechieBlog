@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\BlogEngine\BlogEngine.csproj" />
     <ProjectReference Include="..\BlogModel\BlogModels.csproj" />
     <ProjectReference Include="..\BlogUI\BlogUI.csproj" />
   </ItemGroup>
