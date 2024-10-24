@@ -27,7 +27,7 @@ public abstract class GenericRepository<TEntity> : IGenericRepository<TEntity>
     /// <param name="connectionString"></param>
     public GenericRepository(string connectionString)
     {
-        _dbType = EDbConnectionTypes.MariaDb;
+        _dbType = EDbConnectionTypes.MySql;
         _connectionString = connectionString;
     }
 

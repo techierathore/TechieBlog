@@ -1,4 +1,5 @@
-﻿using System.Data;
+﻿using MySql.Data.MySqlClient;
+using System.Data;
 
 namespace BlogEngine.DaCore;
 
@@ -14,7 +15,7 @@ public class DbConnectionFactory
                 //connection = new MySqlConnection(connectionString);
                 break;
             case EDbConnectionTypes.MySql:
-                //connection = new MySqlConnection(connectionString);
+                connection = new MySqlConnection(connectionString);
                 break;
             case EDbConnectionTypes.SQLServer:
                 //connection = new SqlConnection(connectionString);
