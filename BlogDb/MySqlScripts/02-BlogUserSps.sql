@@ -68,18 +68,6 @@ BEGIN
     SELECT * FROM BlogUser WHERE UserId = UserId;
 END;
 
-CREATE PROCEDURE SelectAllBlogUsers ()
-BEGIN
-    SELECT * FROM BlogUser;
-END;
-
-CREATE PROCEDURE DeleteBlogUser (
-    IN UserId BIGINT
-)
-BEGIN
-    DELETE FROM BlogUser WHERE UserId = UserId;
-END;
-
 
 CREATE PROCEDURE `GetLoginUser`(LoginMail nvarchar(550),
 	LoginPassword nvarchar(20))
@@ -87,6 +75,8 @@ BEGIN
 SELECT `UserID`,`FirstName`,`LastName`,`EmailID`,`LoginPassword`,`Role`,`CreatedTime`,`UpdatedTime`,`LastLogin`
 FROM BlogUser WHERE EmailID = LoginMail and LoginPassword = LoginPassword;
 END;
+
+
 
 CREATE PROCEDURE `GetUserByEmail`(IN `LoginMail` VARCHAR(550)
 BEGIN
