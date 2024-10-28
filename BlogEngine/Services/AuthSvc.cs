@@ -1,4 +1,4 @@
-﻿using BlogModels.ViewModel;
+﻿using BlogModels.Models;
 using BlogSvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;

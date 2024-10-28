@@ -1,5 +1,4 @@
 ﻿using BlogModels.Models;
-using BlogModels.ViewModel;
 namespace BlogModels.Interfaces;
 
 public interface IAuthService

@@ -1,7 +1,7 @@
 ﻿using BlogEngine.Services;
 using BlogModels;
 using BlogModels.Interfaces;
-using BlogModels.ViewModel;
+using BlogModels.Models;
 using System.Text.Json;
 
 namespace TechieBlog.Services;

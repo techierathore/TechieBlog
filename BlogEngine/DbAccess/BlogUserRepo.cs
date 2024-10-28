@@ -1,4 +1,4 @@
-﻿using BlogModels.ViewModel;
+﻿using BlogModels.Models;
 
 namespace BlogEngine.DbAccess;
 

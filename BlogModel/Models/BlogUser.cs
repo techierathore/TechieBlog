@@ -1,7 +1,7 @@
 ﻿
 namespace BlogModels.Models;
 
-public class BlogUser
+public class AppUser
 {
 	/// <summary>
 	/// Gets or sets the UserID value.
@@ -37,7 +37,7 @@ public class BlogUser
 	/// Gets or sets the UpdatedTime value.
 	/// </summary>
 	public DateTime UpdatedOn	{ get; set; }
-    public int UserRoleId { get; set; }
+    public string UserRole { get; set; }
     public bool IsConfirmed { get; set; }
     public string ProfileImagePath	{ get; set; }
 

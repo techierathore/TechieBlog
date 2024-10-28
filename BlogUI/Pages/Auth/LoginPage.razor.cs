@@ -2,7 +2,6 @@
 using BlogModels;
 using BlogModels.Interfaces;
 using BlogModels.Models;
-using BlogModels.ViewModel;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Security.Claims;

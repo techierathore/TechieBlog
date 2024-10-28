@@ -3,7 +3,7 @@ using BlogModels.Interfaces;
 using BlogModels;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Security.Claims;
-using BlogModels.ViewModel;
+using BlogModels.Models;
 
 namespace BlogUI;
 
