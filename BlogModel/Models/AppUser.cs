@@ -1,4 +1,6 @@
 ﻿
+using System;
+
 namespace BlogModels.Models;
 
 public class AppUser
@@ -49,4 +51,36 @@ public class AppUser
 	public string SpeakDescription { get; set; }
 	public string AccessToken { get; set; }
 	public string RefreshToken { get; set; }
+}
+
+
+public static class SampleUsers
+{
+    public static AppUser Avatar1 { get; set; } = new()
+    {
+        FirstName = "Daniel",
+        LastName = "Mccoy",
+        ProfileImagePath = "img/avatars/avatar.jpg",
+    };
+
+    public static AppUser Avatar2 { get; set; } = new()
+    {
+        FirstName = "Dale",
+        LastName = "Summers",
+        ProfileImagePath = "img/avatars/avatar-2.jpg",
+    };
+
+    public static AppUser Avatar3 { get; set; } = new()
+    {
+        FirstName = "Mary",
+        LastName = "Fletcher",
+        ProfileImagePath = "img/avatars/avatar-3.jpg",
+    };
+
+    public static AppUser Avatar4 { get; set; } = new()
+    {
+        FirstName = "Anne",
+        LastName = "Cameron",
+        ProfileImagePath = "img/avatars/avatar-4.jpg",
+    };
 }

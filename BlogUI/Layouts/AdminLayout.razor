@@ -1,4 +1,5 @@
-﻿@inherits LayoutComponentBase
+﻿@using BlogModels.Models
+@inherits LayoutComponentBase
 <Layout Sider="true">
     <LayoutSider>
         <LayoutSiderContent>
@@ -142,8 +143,8 @@
                     <BarEnd>
                         <Dropdown RightAligned>
                             <DropdownToggle Display="Display.InlineBlock.None.OnMobile">
-                                <Image Class="avatar" Source="@Persons.Avatar1.Image" Text="@Persons.Avatar1.FullName" Fluid Border="Border.RoundedCircle" Margin="Margin.Is1.FromEnd" Style="width:40px; height:40px;" />
-                                 <Span TextColor="TextColor.Dark">@Persons.Avatar1.FullName</Span>
+                                <Image Class="avatar" Source="@SampleUsers.Avatar1.ProfileImagePath" Text="@SampleUsers.Avatar1.FullName" Fluid Border="Border.RoundedCircle" Margin="Margin.Is1.FromEnd" Style="width:40px; height:40px;" />
+                                <Span TextColor="TextColor.Dark">@SampleUsers.Avatar1.FullName</Span>
                                 </DropdownToggle>
                                 <DropdownMenu>
                                     <DropdownItem>
