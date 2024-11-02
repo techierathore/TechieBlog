@@ -1,4 +1,8 @@
 ﻿namespace BlogModels.Interfaces;
+/// <summary>
+/// THe Interface for implimenting repository. 
+/// </summary>
+/// <typeparam name="TEntity"></typeparam>
 public interface IManageService<TEntity>
 {
     Task<List<TEntity>> GetAllAsync(string aRequestUri);

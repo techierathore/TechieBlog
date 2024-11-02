@@ -2,7 +2,9 @@
 using System;
 
 namespace BlogModels.Models;
-
+/// <summary>
+/// the main application user Class
+/// </summary>
 public class AppUser
 {
 	/// <summary>

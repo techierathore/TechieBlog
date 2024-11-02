@@ -1,4 +1,4 @@
-﻿using BlogSvc.DaCore;
+﻿using BlogModels.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Data;

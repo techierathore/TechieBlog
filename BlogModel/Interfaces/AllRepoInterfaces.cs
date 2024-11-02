@@ -1,5 +1,5 @@
 ﻿using BlogModels.Models;
-using BlogSvc.DaCore;
+using BlogModels.Interfaces;
 
 namespace BlogModels;
 public interface IBlogUserRepo : IGenericRepository<AppUser>
