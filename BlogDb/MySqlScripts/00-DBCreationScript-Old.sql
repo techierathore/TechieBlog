@@ -21,29 +21,23 @@ CREATE TABLE `BlogImage` (
   `UserID` bigint(20) NOT NULL,
   PRIMARY KEY (`BlogImageID`)
 );
-CREATE TABLE `BlogUser` (
-  `UserID` bigint(20) NOT NULL AUTO_INCREMENT,
-  `FirstName` varchar(250) NOT NULL,
-  `LastName` varchar(250) DEFAULT NULL,
-  `EmailID` varchar(550) NOT NULL,
-  `LoginPassword` varchar(20) NOT NULL,
-  `Role` varchar(25) NOT NULL,
-  `CreatedTime` datetime DEFAULT NULL,
-  `UpdatedTime` datetime DEFAULT NULL,
-  `LastLogin` datetime DEFAULT NULL,
-  PRIMARY KEY (`UserID`)
-);
-CREATE TABLE `BlogUser` (
-  `UserID` bigint(20) NOT NULL AUTO_INCREMENT,
-  `FirstName` varchar(250) NOT NULL,
-  `LastName` varchar(250) DEFAULT NULL,
-  `EmailID` varchar(550) NOT NULL,
-  `PassHash` varchar(356) NOT NULL,
-  `UserRole` varchar(25) NOT NULL,
-  `CreatedTime` datetime,
-  `UpdatedTime` datetime,
-  `LastLogin` datetime DEFAULT NULL,
-  PRIMARY KEY (`UserID`)
+CREATE TABLE BlogUser (
+    UserId BIGINT AUTO_INCREMENT PRIMARY KEY,
+    FirstName VARCHAR(100) NOT NULL,
+    LastName VARCHAR(100) NOT NULL,
+    EmailId VARCHAR(255) NOT NULL UNIQUE,
+    LoginPass VARCHAR(255) NOT NULL,
+    CreatedOn DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedOn DATETIME ON UPDATE CURRENT_TIMESTAMP,
+    UserRole VARCHAR(51) NOT NULL,
+    IsConfirmed bit(1) DEFAULT b'0',
+    ProfileImagePath VARCHAR(255),
+    ProfileDescription TEXT,
+    TwiiterUrl VARCHAR(255),
+    LinkedInUrl VARCHAR(255),
+    GitHubUrl VARCHAR(255),
+    PodDescription VARCHAR(1050),
+    SpeakDescription VARCHAR(1050)
 );
 
 CREATE TABLE `Post` (
