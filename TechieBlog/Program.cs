@@ -5,13 +5,7 @@ using Blazorise.Icons.FontAwesome;
 using BlogEngine;
 using BlogModels.Interfaces;
 using BlogUI;
-using Humanizer.Configuration;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using TechieBlog.Services;
 
 

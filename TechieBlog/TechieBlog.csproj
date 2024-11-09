@@ -5,6 +5,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\BlogEngine\BlogEngine.csproj" />
     <ProjectReference Include="..\BlogModel\BlogModels.csproj" />
     <ProjectReference Include="..\BlogUI\BlogUI.csproj" />
