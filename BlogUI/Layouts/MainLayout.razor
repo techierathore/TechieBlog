@@ -2,79 +2,60 @@
 @using BlogModels.Models
 @inherits LayoutComponentBase
 @* TODO: This layout needs to be changed in order to  Show Blog for defualt  *@
-@* <header class="masthead" style="background-image: url('_content/BlogUI/images/FullLogo.jpg')"> *@
-<header class="masthead" style="background-image: url('~/BlogImages/FullLogo.png')">
-    <div class="overlay"></div>
-    <div class="container">
-        <div class="row">
-            <div class="col-lg-8 col-md-10 mx-auto">
-                <div class="site-heading">
-                    <h1>
-                        Welcome
-                    </h1>
-                    <span class="subheading">The Blog Where I Share All Of My Story</span>
+
+    <div id="menu" class="menu-right">
+        <ul>
+            <li>
+                <form class="menu-search">
+                    <div class="form-group header">
+                        <a href="#" class="close-menu"><i class="icon-close"></i></a>
+                    </div>
+                </form>
+            </li>
+            <li><NavLink href="/" class="nav-link"><i class="icon-lime"></i>Home</NavLink></li>
+            <li><NavLink href="/about" class="nav-link"><i class="icon-user"></i>About</NavLink></li>
+            <li><NavLink href="/speaking" class="nav-link"><i class="icon-user"></i>Speaking</NavLink></li>
+            <li><NavLink href="/podcast" class="nav-link"><i class="icon-user"></i>Podcast</NavLink></li>
+        </ul>
+    </div>
+    <div id="wrap">
+        <div id="main-nav" class="">
+            <div class="container">
+                <div class="nav-header">
+                    <NavLink class="nav-brand" href="/">
+                        @*<img src="img/FullLogo.png" />*@
+                    </NavLink>
+                    <a class="menu-link nav-icon" href="#"><i class="icon-menu2"></i></a>
+                    <NavLink class="btn btn-blog outline-white pull-right" href="/podcast">Podcast</NavLink>
+                    <NavLink class="btn btn-blog outline-white pull-right" href="/speaking">Speaking</NavLink>
+                    <NavLink class="btn btn-blog outline-white pull-right" href="/about">About</NavLink>
+                    <NavLink class="btn btn-blog outline-white pull-right" href="/">Home</NavLink>
                 </div>
             </div>
         </div>
-    </div>
-</header>
-<!-- Main Content-->
-<div class="container-fluid" style="padding-right:5%;padding-left:5%">
-    <div class="row">
-        <div class="col-md-9">
-            <div class="row">
+        <div class="content">
+            @Body
+        </div>
 
-            </div>
-            <!-- Pager-->
-            <div class="row">
-                <div class="col text-center">
-                    <div class="clearfix">
-                        @Body
-
+        <footer>
+            <div class="footer">
+                <div class="container">
+                    <div class="row">
+                        @* Add your Blazor components or code here for BlogStats, RecentBlogs, and TagLinks *@
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="col-md-3">
-            <div class="position-sticky" style="top: 2rem;">
-
-                <div class="p-4 mb-3">
-
-
-                </div>
-                <hr />
-                <div class="p-3">
-                    <h4 class="fst-italic">Category</h4>
-
-                    <ol class="list-unstyled mb-0">
-
-                    </ol>
-                </div>
-                <hr />
-                <div class="p-3">
-                    <h4 class="fst-italic">Contact Me</h4>
-
-                    <ol class="list-unstyled">
-
-                        <li style="margin-bottom:5%">
-                            <a href="/about"><span class="iconify" data-icon="akar-icons:more-horizontal" data-inline="true"></span> About</a>
-                        </li>
-                        <li style="margin-bottom:5%">
-                            <a href="/contact"><span class="iconify" data-icon="bx:bxs-phone-call" data-inline="true"></span> Contact</a>
-                        </li>
-                        <li style="margin-bottom:5%">
-                            <a target="_blank" href="https://duylanle-portfolio.netlify.app/"><span class="iconify" data-icon="dashicons:portfolio" data-inline="true"></span> My Portfolio</a>
-                        </li>
-                        <li style="margin-bottom:5%">
-                            <a target="_blank" href="https://github.com/arthastheking113/BlogTest"><span class="iconify" data-icon="akar-icons:github-fill" data-inline="true"></span> Github</a>
-                        </li>
-                        <li style="margin-bottom:5%">
-                            <a target="_blank" href="https://www.linkedin.com/in/duy-lan-le-445262163/"><span class="iconify" data-icon="akar-icons:linkedin-fill" data-inline="true"></span> Linkedin</a>
-                        </li>
-                    </ol>
+            <div class="copyright">
+                <div class="container">
+                    <p class="pull-left">Designed by <a href="http://www.xltants.com" rel="nofollow">Xltants IT Solutions</a></p>
+                    <ul class="social-links pull-right">
+                        <li><a href="https://twitter.com/xltants"><i class="icon-twitter"></i></a></li>
+                        <li><a href="https://www.facebook.com/xltants/"><i class="icon-facebook"></i></a></li>
+                    </ul>
                 </div>
             </div>
-        </div>
+        </footer>
     </div>
-
-</div>
+    <div class="modal fade login" id="loginModal" aria-hidden="true">
+        @* Add your Blazor component or code here for LoginModal *@
+    </div>
