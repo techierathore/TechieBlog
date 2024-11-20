@@ -1,23 +1,23 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>disable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
     <SupportedPlatform Include="browser" />
   </ItemGroup>
   <ItemGroup>
-	<PackageReference Include="Blazored.LocalStorage" Version="4.1.5" />	  
-    <PackageReference Include="Blazorise.Bootstrap" Version="1.4.2" />
-    <PackageReference Include="Blazorise.Components" Version="1.4.2" />
-    <PackageReference Include="Blazorise.Icons.FontAwesome" Version="1.4.2" />
-    <PackageReference Include="Blazorise.DataGrid" Version="1.4.2" />
-    <PackageReference Include="Blazorise.Charts" Version="1.4.2" />
-	<PackageReference Include="Blazorise.Sidebar" Version="1.4.2" />	  
+	<PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />	  
+    <PackageReference Include="Blazorise.Bootstrap" Version="1.7.0" />
+    <PackageReference Include="Blazorise.Components" Version="1.7.0" />
+    <PackageReference Include="Blazorise.Icons.FontAwesome" Version="1.7.0" />
+    <PackageReference Include="Blazorise.DataGrid" Version="1.7.0" />
+    <PackageReference Include="Blazorise.Charts" Version="1.7.0" />
+	<PackageReference Include="Blazorise.Sidebar" Version="1.7.0" />	  
     <PackageReference Include="Humanizer.Core" Version="2.14.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="8.0.10" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="9.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\BlogModel\BlogModels.csproj" />
