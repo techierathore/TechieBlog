@@ -1,18 +1,11 @@
-﻿// See https://aka.ms/new-console-template for more information
-using DbUp;
+﻿using DbUp;
 
-class Program
+namespace BlogDb;
+
+public class BlogDbSvc
 {
-    static int Main(string[] args)
+    public bool UpgradeDatabase(string connectionString)
     {
-        if (args.Length < 1)
-        {
-            Console.WriteLine("Please provide the MySQL connection string as a parameter.");
-            return -1;
-        }
-
-        var connectionString = args[0];
-
         var upgrader =
             DeployChanges.To
                 .MySqlDatabase(connectionString)
@@ -27,12 +20,14 @@ class Program
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine(result.Error);
             Console.ResetColor();
-            return -1;
+            return false;
         }
 
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine("Success!");
         Console.ResetColor();
-        return 0;
+        return true;
     }
 }
+
+
