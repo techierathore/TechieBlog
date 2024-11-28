@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Security.Claims;
 
-namespace BlogUI.Pages.Auth;
+namespace BlogUI.Pages.AdminPages;
 
 public partial class LoginPage : ComponentBase
 {
