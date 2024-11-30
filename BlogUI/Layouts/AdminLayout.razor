@@ -1,5 +1,6 @@
 ﻿@using BlogModels.Models
 @inherits LayoutComponentBase
+<Link rel="stylesheet" href="~/adminui.css" />
 <Layout Sider="true">
     <LayoutSider>
         <LayoutSiderContent>
@@ -9,7 +10,7 @@
                     <BarItem>
                         <BarLink To="">
                             <BarIcon IconName="IconName.Home" />
-                            TechieBlog
+                            BlazeStack
                         </BarLink>
                     </BarItem>
                 </BarBrand>
@@ -45,12 +46,74 @@
                             </BarDropdown>
                         </BarItem>
                         <BarItem>
+                            <BarDropdown @bind-Visible="AuthMenuVisible">
+                                <BarDropdownToggle>
+                                    <BarIcon IconName="IconName.Users" />
+                                    Auth
+                                </BarDropdownToggle>
+                                <BarDropdownMenu>
+                                    <BarDropdownItem To="auth-sign-in">
+                                        Sign In
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="auth-sign-up">
+                                        Sign Up
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="auth-reset-password">
+                                        Reset password
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="404">
+                                        400
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="500">
+                                        500
+                                    </BarDropdownItem>
+                                </BarDropdownMenu>
+                            </BarDropdown>
+                        </BarItem>
+                        <BarItem>
+                            <BarDropdown @bind-Visible="UIElementsMenuVisible">
+                                <BarDropdownToggle>
+                                    <BarIcon IconName="IconName.SliderHorizontal" />
+                                    UI Elements
+                                </BarDropdownToggle>
+                                <BarDropdownMenu>
+                                    <BarDropdownItem To="ui-alerts">
+                                        Alerts
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="ui-buttons">
+                                        Buttons
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="ui-cards">
+                                        Cards
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="ui-carousel">
+                                        Carousel
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="ui-grid">
+                                        Grid
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="ui-modals">
+                                        Modals
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="ui-tabs">
+                                        Tabs
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="ui-typography">
+                                        Typography
+                                    </BarDropdownItem>
+                                </BarDropdownMenu>
+                            </BarDropdown>
+                        </BarItem>
+                        <BarItem>
                             <BarDropdown @bind-Visible="FormsMenuVisible">
                                 <BarDropdownToggle>
                                     <BarIcon IconName="IconName.Edit" />
                                     Forms
                                 </BarDropdownToggle>
                                 <BarDropdownMenu>
+                                    <BarDropdownItem To="forms-layouts">
+                                        Layouts
+                                    </BarDropdownItem>
                                     <BarDropdownItem To="forms-basic-inputs">
                                         Basic Inputs
                                     </BarDropdownItem>
@@ -73,40 +136,42 @@
                     <BarItem>
                         <BarLink To="">
                             <BarIcon IconName="IconName.Dashboard" />
-                            TechieBlog
+                            BlazeStack
                         </BarLink>
                     </BarItem>
                 </BarBrand>
                 <BarMenu>
                     <BarEnd>
                         <Dropdown RightAligned>
-                            <DropdownToggle Display="Display.InlineBlock.None.OnMobile">
-                                <Image Class="avatar" Source="@SampleUsers.Avatar1.ProfileImagePath" Text="@SampleUsers.Avatar1.FullName" Fluid Border="Border.RoundedCircle" Margin="Margin.Is1.FromEnd" Style="width:40px; height:40px;" />
-                                <Span TextColor="TextColor.Dark">@SampleUsers.Avatar1.FullName</Span>
-                                </DropdownToggle>
-                                <DropdownMenu>
-                                    <DropdownItem>
-                                        <Icon Name="IconName.User" />
-                                        Profile
-                                    </DropdownItem>
-                                    <DropdownItem>
-                                        <Icon Name="IconName.ChartPie" />
-                                        Analytics
-                                    </DropdownItem>
-                                    <DropdownDivider />
-                                    <DropdownItem>Settings &amp; Privacy</DropdownItem>
-                                    <DropdownItem>Help</DropdownItem>
-                                    <DropdownItem>Sign out</DropdownItem>
-                                </DropdownMenu>
-                            </Dropdown>
-                        </BarEnd>
-                    </BarMenu>
-                </Bar>
-            </LayoutHeader>
-            <LayoutContent>
-                <Div Class="content">
-                    <Container Fluid="true" Padding="Padding.Is0">
-                        @Body
+                            <DropdownToggle Display="Display.InlineBlock.None.OnMobile">                               
+                                <Image Class="avatar" Fluid Border="Border.RoundedCircle" Margin="Margin.Is1.FromEnd" Style="width:40px; height:40px;" >
+                                    <Icon Name="IconName.User" />
+                                </Image>
+                                <Span TextColor="TextColor.Dark"> S Ravi Kumar</Span>
+                            </DropdownToggle>
+                            <DropdownMenu>
+                                <DropdownItem>
+                                    <Icon Name="IconName.User" />
+                                    Profile
+                                </DropdownItem>
+                                <DropdownItem>
+                                    <Icon Name="IconName.ChartPie" />
+                                    Analytics
+                                </DropdownItem>
+                                <DropdownDivider />
+                                <DropdownItem>Settings &amp; Privacy</DropdownItem>
+                                <DropdownItem>Help</DropdownItem>
+                                <DropdownItem>Sign out</DropdownItem>
+                            </DropdownMenu>
+                        </Dropdown>
+                    </BarEnd>
+                </BarMenu>
+            </Bar>
+        </LayoutHeader>
+        <LayoutContent>
+            <Div Class="content">
+                <Container Fluid="true" Padding="Padding.Is0">
+                    @Body
                 </Container>
             </Div>
         </LayoutContent>
