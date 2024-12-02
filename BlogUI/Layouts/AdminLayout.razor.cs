@@ -6,8 +6,6 @@ namespace BlogUI.Layouts
     {
         private Bar sideBar;
 
-        public bool DashboardMenuVisible { get; set; }
-
         public bool PagesMenuVisible { get; set; }
 
         public bool AuthMenuVisible { get; set; }

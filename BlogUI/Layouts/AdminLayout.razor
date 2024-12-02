@@ -10,99 +10,42 @@
                     <BarItem>
                         <BarLink To="">
                             <BarIcon IconName="IconName.Home" />
-                            BlazeStack
+                            TechieBlog-Admin
                         </BarLink>
                     </BarItem>
                 </BarBrand>
                 <BarMenu>
                     <BarStart>
                         <BarItem>
-                            <BarDropdown @bind-Visible="DashboardMenuVisible">
-                                <BarDropdownToggle>
-                                    <BarIcon IconName="IconName.Dashboard" />
-                                    Dashboard
-                                </BarDropdownToggle>
-                                <BarDropdownMenu>
-                                    <BarDropdownItem To="dashboard-default">
-                                        Default
-                                    </BarDropdownItem>
-                                    <BarDropdownItem To="dashboard-social">
-                                        Social
-                                    </BarDropdownItem>
-                                </BarDropdownMenu>
-                            </BarDropdown>
+                            <BarLink To="dashboard-default">
+                                <BarIcon IconName="IconName.Dashboard" />
+                                Dashboard
+                            </BarLink>                           
                         </BarItem>
                         <BarItem>
                             <BarDropdown @bind-Visible="PagesMenuVisible">
                                 <BarDropdownToggle>
-                                    <BarIcon IconName="IconName.Dashboard" />
-                                    Pages
+                                    <BarIcon IconName="IconName.StickyNote" />
+                                    Blog Management
                                 </BarDropdownToggle>
                                 <BarDropdownMenu>
                                     <BarDropdownItem To="pages-profile">
-                                        Profile
+                                        Blog Posts 
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="pages-profile">
+                                        Tags
+                                    </BarDropdownItem>
+                                    <BarDropdownItem To="pages-profile">
+                                        Comments
                                     </BarDropdownItem>
                                 </BarDropdownMenu>
                             </BarDropdown>
                         </BarItem>
                         <BarItem>
-                            <BarDropdown @bind-Visible="AuthMenuVisible">
-                                <BarDropdownToggle>
-                                    <BarIcon IconName="IconName.Users" />
-                                    Auth
-                                </BarDropdownToggle>
-                                <BarDropdownMenu>
-                                    <BarDropdownItem To="auth-sign-in">
-                                        Sign In
-                                    </BarDropdownItem>
-                                    <BarDropdownItem To="auth-sign-up">
-                                        Sign Up
-                                    </BarDropdownItem>
-                                    <BarDropdownItem To="auth-reset-password">
-                                        Reset password
-                                    </BarDropdownItem>
-                                    <BarDropdownItem To="404">
-                                        400
-                                    </BarDropdownItem>
-                                    <BarDropdownItem To="500">
-                                        500
-                                    </BarDropdownItem>
-                                </BarDropdownMenu>
-                            </BarDropdown>
-                        </BarItem>
-                        <BarItem>
-                            <BarDropdown @bind-Visible="UIElementsMenuVisible">
-                                <BarDropdownToggle>
-                                    <BarIcon IconName="IconName.SliderHorizontal" />
-                                    UI Elements
-                                </BarDropdownToggle>
-                                <BarDropdownMenu>
-                                    <BarDropdownItem To="ui-alerts">
-                                        Alerts
-                                    </BarDropdownItem>
-                                    <BarDropdownItem To="ui-buttons">
-                                        Buttons
-                                    </BarDropdownItem>
-                                    <BarDropdownItem To="ui-cards">
-                                        Cards
-                                    </BarDropdownItem>
-                                    <BarDropdownItem To="ui-carousel">
-                                        Carousel
-                                    </BarDropdownItem>
-                                    <BarDropdownItem To="ui-grid">
-                                        Grid
-                                    </BarDropdownItem>
-                                    <BarDropdownItem To="ui-modals">
-                                        Modals
-                                    </BarDropdownItem>
-                                    <BarDropdownItem To="ui-tabs">
-                                        Tabs
-                                    </BarDropdownItem>
-                                    <BarDropdownItem To="ui-typography">
-                                        Typography
-                                    </BarDropdownItem>
-                                </BarDropdownMenu>
-                            </BarDropdown>
+                            <BarLink To="dashboard-default">
+                                <BarIcon IconName="IconName.Users" />
+                                Users
+                            </BarLink>
                         </BarItem>
                         <BarItem>
                             <BarDropdown @bind-Visible="FormsMenuVisible">
@@ -136,7 +79,7 @@
                     <BarItem>
                         <BarLink To="">
                             <BarIcon IconName="IconName.Dashboard" />
-                            BlazeStack
+                            TechieBlog-Admin
                         </BarLink>
                     </BarItem>
                 </BarBrand>
