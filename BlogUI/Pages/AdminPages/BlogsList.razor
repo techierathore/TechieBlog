@@ -1,6 +1,39 @@
 ﻿@page "/BlogsList"
-<h3>Blogs List</h3>
+<ConentPanel PanelTitle="Blogs List">
+    <RightSesction>
+        <NavLink class="btn btn-primary" href="ManageAccount">
+            <span class="oi oi-plus" aria-hidden="true"></span>
+            Add New
+        </NavLink>
+    </RightSesction>
+    <PanelContent>
+        @if (ObjectList == null)
+        {
+            <p><em>Loading...</em></p>
+        }
+        else
+        {
+            <DataGrid TItem="BlogPost" Data="@ObjectList" @bind-SelectedRow="@SelObject"
+                      Sortable="true" Filterable="false" ShowPager="false" PageSize="15"
+                      UseInternalEditing="false" Editable="false" Striped="false"
+                      Bordered="true" Hoverable="true" Responsive="true">
+                <DataGridColumns>
+                    <DataGridColumn TItem="BlogPost" Field="@nameof(Account.AcNumber)" Caption="Account No" />
+                    <DataGridColumn TItem="BlogPost" Field="@nameof(Account.AcccountName)" Caption="Name" />
+                    <DataGridColumn TItem="BlogPost" Field="@nameof(Account.AcType)" Caption="Type" />
+                    <DataGridColumn TItem="BlogPost" Field="@nameof(Account.OpenBal)" Caption="Opening Balance" />
+                    <DataGridDateColumn TItem="BlogPost" Field="@nameof( Account.StartDate )" DisplayFormat="{0:MM/dd/yyyy}" Caption="Start Date" />
+                    <DataGridColumn TItem="BlogPost" Field="@nameof(Account.AccountId)">
+                        <DisplayTemplate>
+                            <a class="btn btn-secondary table-btn"
+                               href="/ManageAccount/@context.AccountId">
+                                <i class="material-icons">create</i>
+                            </a>
+                        </DisplayTemplate>
+                    </DataGridColumn>
+                </DataGridColumns>
+            </DataGrid>
+        }
+    </PanelContent>
+</ConentPanel>
 
-@code {
-
-}
