@@ -18,15 +18,14 @@
                       UseInternalEditing="false" Editable="false" Striped="false"
                       Bordered="true" Hoverable="true" Responsive="true">
                 <DataGridColumns>
-                    <DataGridColumn TItem="BlogPost" Field="@nameof(Account.AcNumber)" Caption="Account No" />
-                    <DataGridColumn TItem="BlogPost" Field="@nameof(Account.AcccountName)" Caption="Name" />
-                    <DataGridColumn TItem="BlogPost" Field="@nameof(Account.AcType)" Caption="Type" />
-                    <DataGridColumn TItem="BlogPost" Field="@nameof(Account.OpenBal)" Caption="Opening Balance" />
-                    <DataGridDateColumn TItem="BlogPost" Field="@nameof( Account.StartDate )" DisplayFormat="{0:MM/dd/yyyy}" Caption="Start Date" />
-                    <DataGridColumn TItem="BlogPost" Field="@nameof(Account.AccountId)">
+                    <DataGridColumn TItem="BlogPost" Field="@nameof(BlogPost.Title)" Caption="Title" />
+                    <DataGridDateColumn TItem="BlogPost" Field="@nameof(BlogPost.CreatedOn)" DisplayFormat="{0:MM/dd/yyyy}" Caption="Written On" />
+                    <DataGridColumn TItem="BlogPost" Field="@nameof(BlogPost.BlogWriter)" Caption="Written By" />
+                    <DataGridColumn TItem="BlogPost" Field="@nameof(BlogPost.Published)" Caption="Published" />
+                    <DataGridColumn TItem="BlogPost" Field="@nameof(BlogPost.PostID)">
                         <DisplayTemplate>
                             <a class="btn btn-secondary table-btn"
-                               href="/ManageAccount/@context.AccountId">
+                               href="/ManagePost/@context.PostID">
                                 <i class="material-icons">create</i>
                             </a>
                         </DisplayTemplate>

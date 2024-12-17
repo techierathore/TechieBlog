@@ -2,10 +2,9 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components;
 using System.Security.Claims;
-using System.Security.Principal;
 using BlogModels;
 
-namespace BlogUI.Pages.BlogPages;
+namespace BlogUI.Pages.AdminPages;
 
 partial class BlogsList : ComponentBase
 {
