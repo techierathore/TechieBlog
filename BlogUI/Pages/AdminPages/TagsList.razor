@@ -1,6 +1,36 @@
 ﻿@page "/TagsList"
-<h3>TagsList</h3>
+<ConentPanel PanelTitle="All Tags/Categories of Blog-Posts List">
+    <RightSesction>
+        <NavLink class="btn btn-primary" href="ManageAccount">
+            <span class="oi oi-plus" aria-hidden="true"></span>
+            Add New
+        </NavLink>
+    </RightSesction>
+    <PanelContent>
+        @if (ObjectList == null)
+        {
+            <p><em>Loading...</em></p>
+        }
+        else
+        {
+            <DataGrid TItem="BlogTag" Data="@ObjectList" @bind-SelectedRow="@SelObject"
+                      Sortable="true" Filterable="false" ShowPager="false" PageSize="15"
+                      UseInternalEditing="false" Editable="false" Striped="false"
+                      Bordered="true" Hoverable="true" Responsive="true">
+                <DataGridColumns>
+                    <DataGridColumn TItem="BlogTag" Field="@nameof(BlogTag.TagID)" Caption="Tag ID" />
+                    <DataGridColumn TItem="BlogTag" Field="@nameof(BlogTag.TagName)" Caption="Tag Name" />
 
-@code {
-
-}
+                    <DataGridColumn TItem="BlogTag" Field="@nameof(BlogTag.TagID)">
+                        <DisplayTemplate>
+                            <a class="btn btn-secondary table-btn"
+                               href="/ManagePost/@context.TagID">
+                                <i class="material-icons">create</i>
+                            </a>
+                        </DisplayTemplate>
+                    </DataGridColumn>
+                </DataGridColumns>
+            </DataGrid>
+        }
+    </PanelContent>
+</ConentPanel>
