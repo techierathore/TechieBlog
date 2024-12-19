@@ -1,6 +1,65 @@
 ﻿@page "/ManageTag"
-<h3>ManageTag</h3>
+<ConentPanel PanelTitle=@PageHeader>
+    <RightSesction>
 
-@code {
+    </RightSesction>
+    <PanelContent>
+        <div class="col-12">
+            @if (PageObj == null)
+            {
+                <p><em>Loading...</em></p>
+            }
+            else
+            {
+                <EditForm Model="@PageObj" OnValidSubmit="@SaveData">
+                    <DataAnnotationsValidator />
+                    <fieldset>
+                        <CardBody>
+                            <Fields>
+                                <Validation Validator="@ValidationRule.IsNotEmpty">
+                                    <Field Horizontal="true" ColumnSize="ColumnSize.Is6.OnDesktop">
+                                        <FieldLabel ColumnSize="ColumnSize.Is12" Class="LabelDesign">Category Name</FieldLabel>
+                                        <FieldBody ColumnSize="ColumnSize.Is12">
+                                            <input class="form-control" @bind="PageObj.CategoryName" placeholder="Category Name" />
+                                        </FieldBody>
+                                    </Field>
+                                </Validation>
+                                <Validation Validator="@ValidationRule.IsNotEmpty">
+                                    <Field Horizontal="true" ColumnSize="ColumnSize.Is6.OnDesktop">
+                                        <FieldLabel ColumnSize="ColumnSize.Is12" Class="LabelDesign"> Description</FieldLabel>
+                                        <FieldBody ColumnSize="ColumnSize.Is12">
+                                            <input class="form-control" @bind="PageObj.CategoryDescription" placeholder="Description" />
+                                        </FieldBody>
+                                    </Field>
+                                </Validation>
+                                <Validation Validator="@ValidationRule.IsNotEmpty">
+                                    <Field Horizontal="true" ColumnSize="ColumnSize.Is6.OnDesktop">
+                                        <FieldLabel ColumnSize="ColumnSize.Is12" Class="LabelDesign">Parent Category</FieldLabel>
+                                        <FieldBody ColumnSize="ColumnSize.Is12">
+                                            <InputSelect @bind-Value="@SubCatId">
+                                                @foreach (var vSingle in CategoryList)
+                                                {
+                                                    <option value="@vSingle.CategoryId">@vSingle.CategoryName</option>
+                                                }
+                                            </InputSelect>
+                                        </FieldBody>
+                                    </Field>
+                                </Validation>
+                            </Fields>
+                        </CardBody>
+                    </fieldset>
+                </EditForm>
+            }
 
-}
+        </div>
+        &nbsp;&nbsp;
+        <button @onclick="SaveData" class="btn btn-primary">
+            <span class="oi oi-plus" aria-hidden="true"></span> Save
+        </button>
+        &nbsp;&nbsp;
+        <NavLink class="btn btn-primary" href="ExpCatList">
+            <span class="oi oi-x" aria-hidden="true"></span>
+            Close
+        </NavLink>
+    </PanelContent>
+</ConentPanel>
