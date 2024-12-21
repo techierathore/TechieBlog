@@ -1,0 +1,37 @@
+﻿@page "/CommentsList"
+<ConentPanel PanelTitle="Comments List">
+    <RightSesction>
+        <NavLink class="btn btn-primary" href="ManageAccount">
+            <span class="oi oi-plus" aria-hidden="true"></span>
+            Add New
+        </NavLink>
+    </RightSesction>
+    <PanelContent>
+        @if (ObjectList == null)
+        {
+            <p><em>Loading...</em></p>
+        }
+        else
+        {
+            <DataGrid TItem="BlogPost" Data="@ObjectList" @bind-SelectedRow="@SelObject"
+                      Sortable="true" Filterable="false" ShowPager="false" PageSize="15"
+                      UseInternalEditing="false" Editable="false" Striped="false"
+                      Bordered="true" Hoverable="true" Responsive="true">
+                <DataGridColumns>
+                    <DataGridColumn TItem="BlogPost" Field="@nameof(BlogPost.Title)" Caption="Title" />
+                    <DataGridDateColumn TItem="BlogPost" Field="@nameof(BlogPost.CreatedOn)" DisplayFormat="{0:MM/dd/yyyy}" Caption="Written On" />
+                    <DataGridColumn TItem="BlogPost" Field="@nameof(BlogPost.BlogWriter)" Caption="Written By" />
+                    <DataGridColumn TItem="BlogPost" Field="@nameof(BlogPost.Published)" Caption="Published" />
+                    <DataGridColumn TItem="BlogPost" Field="@nameof(BlogPost.PostID)">
+                        <DisplayTemplate>
+                            <a class="btn btn-secondary table-btn"
+                               href="/ManagePost/@context.PostID">
+                                <i class="material-icons">create</i>
+                            </a>
+                        </DisplayTemplate>
+                    </DataGridColumn>
+                </DataGridColumns>
+            </DataGrid>
+        }
+    </PanelContent>
+</ConentPanel>
