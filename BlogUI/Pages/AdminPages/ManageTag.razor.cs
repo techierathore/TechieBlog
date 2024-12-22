@@ -39,8 +39,6 @@ partial class ManageTag: ComponentBase
             {
                 PageHeader = "Edit Expense Category";
                 PageObj = await DataService.GetSingleAsync(GetObjectServiceUrl, PageId);
-                SubCatId = PageObj.ParentId;
-                await LoadCategories();
             }
             else await ResetPage();
             StateHasChanged();
@@ -51,20 +49,13 @@ partial class ManageTag: ComponentBase
     private async Task ResetPage()
     {
         PageHeader = "Add New Tag";
-        PageObj = new BlogTag();
-        await LoadCategories();
+        PageObj = new BlogTag();        
         StateHasChanged();
-    }
-
-    private async Task LoadCategories()
-    {
-        var Categories = await DataService.GetAllAsync(ClientConstants.CatListSvcUrl);
-        CategoryList = Categories.Select(x => new Category { CategoryName = x.CategoryName, CategoryId = x.CategoryId });
     }
 
     public async void SaveData()
     {
-        PageObj.ParentId = SubCatId;
+       // PageObj.ParentId = SubCatId;
         if (PageId != 0)
         { _ = await DataService.UpdateAsync(UpdateServiceUrl, PageObj); }
         else
@@ -73,7 +64,7 @@ partial class ManageTag: ComponentBase
             string vEmpId = LoggedInUser.Claims.FirstOrDefault(
                 c => c.Type == ClaimTypes.PrimarySid)?.Value;
             long lEmployeeId = Convert.ToInt64(vEmpId);
-            PageObj.AppUserId = lEmployeeId;
+           // PageObj.AppUserId = lEmployeeId;
             // PageObj.ParentId = 0;
             _ = await DataService.SaveAsync(CreateServiceUrl, PageObj);
         }

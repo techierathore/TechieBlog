@@ -19,30 +19,9 @@
                             <Fields>
                                 <Validation Validator="@ValidationRule.IsNotEmpty">
                                     <Field Horizontal="true" ColumnSize="ColumnSize.Is6.OnDesktop">
-                                        <FieldLabel ColumnSize="ColumnSize.Is12" Class="LabelDesign">Category Name</FieldLabel>
+                                        <FieldLabel ColumnSize="ColumnSize.Is12" Class="LabelDesign">Tag Name</FieldLabel>
                                         <FieldBody ColumnSize="ColumnSize.Is12">
-                                            <input class="form-control" @bind="PageObj.CategoryName" placeholder="Category Name" />
-                                        </FieldBody>
-                                    </Field>
-                                </Validation>
-                                <Validation Validator="@ValidationRule.IsNotEmpty">
-                                    <Field Horizontal="true" ColumnSize="ColumnSize.Is6.OnDesktop">
-                                        <FieldLabel ColumnSize="ColumnSize.Is12" Class="LabelDesign"> Description</FieldLabel>
-                                        <FieldBody ColumnSize="ColumnSize.Is12">
-                                            <input class="form-control" @bind="PageObj.CategoryDescription" placeholder="Description" />
-                                        </FieldBody>
-                                    </Field>
-                                </Validation>
-                                <Validation Validator="@ValidationRule.IsNotEmpty">
-                                    <Field Horizontal="true" ColumnSize="ColumnSize.Is6.OnDesktop">
-                                        <FieldLabel ColumnSize="ColumnSize.Is12" Class="LabelDesign">Parent Category</FieldLabel>
-                                        <FieldBody ColumnSize="ColumnSize.Is12">
-                                            <InputSelect @bind-Value="@SubCatId">
-                                                @foreach (var vSingle in CategoryList)
-                                                {
-                                                    <option value="@vSingle.CategoryId">@vSingle.CategoryName</option>
-                                                }
-                                            </InputSelect>
+                                            <input class="form-control" @bind="PageObj.TagName" placeholder="Tag Name" />
                                         </FieldBody>
                                     </Field>
                                 </Validation>
