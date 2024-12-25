@@ -1,12 +1,38 @@
 ﻿@page "/ManagePost"
-<ConentPanel PanelTitle="Blogs List">
-    <RightSesction>
-        <NavLink class="btn btn-primary" href="ManageAccount">
-            <span class="oi oi-plus" aria-hidden="true"></span>
-            Add New
-        </NavLink>
-    </RightSesction>
+@page "/ManagePost/{PageId:long}"
+<ConentPanel PanelTitle=@PageHeader>
+    <RightSesction></RightSesction>
     <PanelContent>
-
+        @if (PageObj !=null)
+            {
+                    <EditForm Model="@PageObj" OnValidSubmit="@SaveData">
+                    <DataAnnotationsValidator />
+                    <Field Horizontal>
+                        <FieldLabel ColumnSize="ColumnSize.Is2.OnMobile">Blog Title </FieldLabel>
+                        <FieldBody ColumnSize="ColumnSize.Is10.OnMobile">
+                            <input class="form-control" @bind="PageObj.Title" placeholder="Blog Title" />
+                        </FieldBody>
+                    </Field>
+                    <Field Horizontal>
+                    <FieldLabel ColumnSize="ColumnSize.Is2.OnMobile">Blog Abstract</FieldLabel>
+                        <FieldBody ColumnSize="ColumnSize.Is10.OnMobile">
+                            <input class="form-control" @bind="PageObj.Abstract" placeholder="Blog Abstract" />
+                        </FieldBody>
+                    </Field>
+                    <Field Horizontal>
+                        <FieldLabel ColumnSize="ColumnSize.Is2.OnMobile">Answers</FieldLabel>
+                        <FieldBody ColumnSize="ColumnSize.Is10.OnMobile">
+                            <Markdown Rows="5" Value="@AnswerDetail" ValueChanged="@OnMarkdownValueChanged" />
+                        </FieldBody>
+                    </Field>
+                    <Field Horizontal>
+                        <FieldLabel ColumnSize="ColumnSize.Is7.OnMobile"></FieldLabel>
+                        <FieldBody ColumnSize="ColumnSize.Is5.OnMobile">
+                            <button class="btn btn-primary" type="submit">Save</button>
+                            <Button Color="Color.Secondary" Clicked="@CloseModal">Close</Button>
+                        </FieldBody>
+                    </Field>
+                </EditForm>
+            }
     </PanelContent>
 </ConentPanel>
