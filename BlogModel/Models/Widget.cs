@@ -1,6 +1,5 @@
 ﻿namespace BlogModels;
-
-    public class Widget
+public class Widget
 {
 	/// <summary>
 	/// Gets or sets the WidgetID value.
