@@ -85,13 +85,6 @@ CREATE TABLE `UserSettings` (
   PRIMARY KEY (`SettingsID`)
 );
 
-CREATE TABLE `Widgets` (
-  `WidgetID` int(11) NOT NULL AUTO_INCREMENT,
-  `WidgetName` varchar(150) NOT NULL,
-  `WidgetContent` varchar(550) NOT NULL,
-  `UpdatedTime` datetime,
-  `UserID` bigint(20) NOT NULL,
-  PRIMARY KEY (`WidgetID`)
-);
+
 
 
