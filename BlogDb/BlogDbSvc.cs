@@ -1,7 +1,9 @@
 ﻿using DbUp;
 
 namespace BlogDb;
-
+/// <summary>
+/// 
+/// </summary>
 public class BlogDbSvc
 {
     public bool UpgradeDatabase(string connectionString)

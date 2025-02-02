@@ -3,7 +3,9 @@ using BlogEngine.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BlogEngine;
-
+/// <summary>
+/// Main Initializer of the nuget package. 
+/// </summary>
 public static class BlogSvcInitializer
 {
     public static void Initialize(IServiceCollection services, string dbConnectionString)
