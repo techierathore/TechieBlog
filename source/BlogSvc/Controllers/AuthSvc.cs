@@ -1,4 +1,6 @@
 ﻿
+using BlogModels.Models;
+
 namespace BlogSvc.Controllers;
 
 [Route("[controller]")]
@@ -30,7 +32,7 @@ public class AuthSvc : ControllerBase
         try
         {
             var vUserDataJson = AppEncrypt.DecryptText(aSignUpData.ComplexData);
-            BlogUser vNewUser = JsonSerializer.Deserialize<BlogUser>(vUserDataJson);
+            AppUser vNewUser = JsonSerializer.Deserialize<AppUser>(vUserDataJson);
             string sJwToken;
             var vCheckUserByEmail = UserRepo.GetUserByEmail(vNewUser.EmailId);
             if (vCheckUserByEmail != null) return BadRequest("User with this Email already present use login or Forgot Password (if you had forgotten the password) ");
@@ -143,7 +145,7 @@ public class AuthSvc : ControllerBase
 
     }
 
-   private string GenerateJWToken(BlogUser aLoggedInUser)
+   private string GenerateJWToken(AppUser aLoggedInUser)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.ASCII.GetBytes(AppConstants.JWTTokenGenKey);

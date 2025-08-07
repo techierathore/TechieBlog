@@ -3,7 +3,9 @@
 <ThemeProvider Theme="@theme">
     <Router AppAssembly="@typeof(App).Assembly">
         <Found Context="routeData">
-            <RouteView RouteData="@routeData" DefaultLayout="@typeof(AdminLayout)" />
+            <CascadingValue Value="routeData">
+                <RouteView RouteData="routeData" DefaultLayout="typeof(AdminLayout)" />
+            </CascadingValue>
         </Found>
         <NotFound>
             <LayoutView Layout="@typeof(AdminLayout)">
