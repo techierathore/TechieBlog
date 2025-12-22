@@ -1,58 +1,84 @@
-﻿namespace BlogEngine.DbAccess;
+namespace BlogEngine.DbAccess;
+
+/// <summary>
+/// Repository for managing UserLogin data access operations using Dapper ORM.
+/// </summary>
+/// <remarks>
+/// <para><b>Purpose:</b> Provides CRUD operations for the userlogins table in PostgreSQL.</para>
+/// <para><b>Note:</b> PostgreSQL stores unquoted identifiers as lowercase.</para>
+/// </remarks>
 public class UserLoginRepo : GenericRepository<UserLogin>, IUserLoginRepository
 {
     public UserLoginRepo(string connectionString) : base(connectionString) { }
+
     public override IEnumerable<UserLogin> GetAllById(long aSingleId)
-    { throw new System.NotImplementedException(); }
+    {
+        throw new NotImplementedException();
+    }
+
     public override IEnumerable<UserLogin> GetAll()
     {
         using var vConn = GetOpenConnection();
-        return vConn.Query<UserLogin>("UserLoginsSelectAll", commandType: CommandType.StoredProcedure);
+        return vConn.Query<UserLogin>("SELECT * FROM userlogins ORDER BY loginid");
     }
 
     public override UserLogin GetIntSingle(int aSingleId)
     {
-        throw new System.NotImplementedException();
+        throw new NotImplementedException();
     }
+
     public UserLogin GetUserByToken(long aUserId, string aToken)
     {
         using var vConn = GetOpenConnection();
-        var vParams = new DynamicParameters();
-        vParams.Add("@pUserId", aUserId);
-        vParams.Add("@pLoginToken", aToken);
-        return vConn.QueryFirstOrDefault<UserLogin>("GetUserToken", vParams, commandType: CommandType.StoredProcedure);
+        return vConn.QueryFirstOrDefault<UserLogin>(
+            "SELECT * FROM userlogins WHERE userid = @pUserId AND logintoken = @pLoginToken AND tokenstatus = 'ValidToken'",
+            new { pUserId = aUserId, pLoginToken = aToken });
     }
 
     public override UserLogin GetSingle(long aSingleId)
     {
-        throw new System.NotImplementedException();
+        throw new NotImplementedException();
     }
+
     public override long InsertToGetId(UserLogin aEntity)
-    { throw new System.NotImplementedException(); }
+    {
+        throw new NotImplementedException();
+    }
+
     public override void Insert(UserLogin aEntity)
     {
         using var vConn = GetOpenConnection();
-        var vParams = new DynamicParameters();
-        vParams.Add("@pUserId", aEntity.UserId);
-        vParams.Add("@pLoginDate", aEntity.LoginDate);
-        vParams.Add("@pLoginToken", aEntity.LoginToken);
-        vParams.Add("@pTokenStatus", aEntity.TokenStatus);
-        vParams.Add("@pExipryDate", aEntity.ExipryDate);
-        vParams.Add("@pIssueDate", aEntity.IssueDate);
-        int iResult = vConn.Execute("UserLoginsInsert", vParams, commandType: CommandType.StoredProcedure);
+        vConn.Execute(
+            @"INSERT INTO userlogins (userid, logindate, logintoken, tokenstatus, exiprydate, issuedate)
+              VALUES (@UserId, @LoginDate, @LoginToken, @TokenStatus, @ExipryDate, @IssueDate)",
+            new
+            {
+                aEntity.UserId,
+                aEntity.LoginDate,
+                aEntity.LoginToken,
+                aEntity.TokenStatus,
+                aEntity.ExipryDate,
+                aEntity.IssueDate
+            });
     }
 
     public override void Update(UserLogin aEntityToUpdate)
     {
         using var vConn = GetOpenConnection();
-        var vParams = new DynamicParameters();
-        vParams.Add("@LoginId", aEntityToUpdate.LoginId);
-        vParams.Add("@LoginDate", aEntityToUpdate.LoginDate);
-        vParams.Add("@LoginToken", aEntityToUpdate.LoginToken);
-        vParams.Add("@TokenStatus", aEntityToUpdate.TokenStatus);
-        vParams.Add("@ExipryDate", aEntityToUpdate.ExipryDate);
-        vParams.Add("@IssueDate", aEntityToUpdate.IssueDate);
-        vConn.Execute("UserLoginsUpdate", vParams, commandType: CommandType.StoredProcedure);
+        vConn.Execute(
+            @"UPDATE userlogins
+              SET logindate = @LoginDate, logintoken = @LoginToken, tokenstatus = @TokenStatus,
+                  exiprydate = @ExipryDate, issuedate = @IssueDate
+              WHERE loginid = @LoginId",
+            new
+            {
+                aEntityToUpdate.LoginId,
+                aEntityToUpdate.LoginDate,
+                aEntityToUpdate.LoginToken,
+                aEntityToUpdate.TokenStatus,
+                aEntityToUpdate.ExipryDate,
+                aEntityToUpdate.IssueDate
+            });
     }
 
     public override IEnumerable<UserLogin> GetPagedData(int PageSize, int OffSet)

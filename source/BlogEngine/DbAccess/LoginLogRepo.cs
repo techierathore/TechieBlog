@@ -1,5 +1,8 @@
-﻿namespace BlogEngine.DbAccess;
+namespace BlogEngine.DbAccess;
 
+/// <summary>
+/// Repository for managing LoginLog data access operations using Dapper ORM.
+/// </summary>
 public class LoginLogRepo : GenericRepository<LoginLog>, ILoginLogRepo
 {
     public LoginLogRepo(string connectionString) : base(connectionString) { }
@@ -7,7 +10,10 @@ public class LoginLogRepo : GenericRepository<LoginLog>, ILoginLogRepo
     public override IEnumerable<LoginLog> GetAll()
     {
         using var vConn = GetOpenConnection();
-        return vConn.Query<LoginLog>("GetLoginLogs", commandType: CommandType.StoredProcedure);
+        return vConn.Query<LoginLog>(
+            @"SELECT logid AS LoginLogId, userid AS LoginUserId, attemptedon AS LoginDateTime,
+                     ipaddress AS ClientIP
+              FROM loginlog ORDER BY attemptedon DESC");
     }
 
     public override LoginLog GetIntSingle(int aOrgId)
@@ -18,41 +24,44 @@ public class LoginLogRepo : GenericRepository<LoginLog>, ILoginLogRepo
     public override LoginLog GetSingle(long aSingleId)
     {
         using var vConn = GetOpenConnection();
-        var vParams = new DynamicParameters();
-        vParams.Add("@pLoginLogId", aSingleId);
-        return vConn.QueryFirstOrDefault<LoginLog>("LoginLogSelect", vParams, commandType: CommandType.StoredProcedure);
+        return vConn.QueryFirstOrDefault<LoginLog>(
+            @"SELECT logid AS LoginLogId, userid AS LoginUserId, attemptedon AS LoginDateTime,
+                     ipaddress AS ClientIP
+              FROM loginlog WHERE logid = @LogId",
+            new { LogId = aSingleId });
     }
+
     public IEnumerable<LoginLog> GetUserLoginLogs(long aAppUserId)
     {
         using var vConn = GetOpenConnection();
-        var vParams = new DynamicParameters();
-        vParams.Add("@pLoginUserId", aAppUserId);
-        return vConn.Query<LoginLog>("GetUserLoginLogs", vParams, commandType: CommandType.StoredProcedure);
+        return vConn.Query<LoginLog>(
+            @"SELECT logid AS LoginLogId, userid AS LoginUserId, attemptedon AS LoginDateTime,
+                     ipaddress AS ClientIP
+              FROM loginlog WHERE userid = @UserId ORDER BY attemptedon DESC",
+            new { UserId = aAppUserId });
     }
+
     public override void Insert(LoginLog aLoginLog)
     {
         using var vConn = GetOpenConnection();
-        var vParams = new DynamicParameters();
-        vParams.Add("@pLoginLogId", aLoginLog.LoginLogId);
-        vParams.Add("@pLoginUserId", aLoginLog.LoginUserId);
-        vParams.Add("@pLoginDateTime", aLoginLog.LoginDateTime);
-        vParams.Add("@pClientIP", aLoginLog.ClientIP);
-        vConn.Execute("LoginLogInsert", vParams, commandType: CommandType.StoredProcedure);
+        vConn.Execute(
+            @"INSERT INTO loginlog (userid, attemptedemail, success, ipaddress, attemptedon)
+              VALUES (@LoginUserId, '', true, @ClientIP, @LoginDateTime)",
+            new
+            {
+                aLoginLog.LoginUserId,
+                aLoginLog.ClientIP,
+                aLoginLog.LoginDateTime
+            });
     }
 
     public bool UpdateLogOut(long aAppUserId, DateTime aDtLogOut)
     {
-        var blResult = false;
-        using (var vConn = GetOpenConnection())
-        {
-            var vParams = new DynamicParameters();
-            vParams.Add("@pLoginUserId", aAppUserId);
-            vParams.Add("@pLogOutDateTime", aDtLogOut);
-            int iResult = vConn.Execute("UpdateLogOut", vParams, commandType: CommandType.StoredProcedure);
-            if (iResult == 0) blResult = true;
-        }
-        return blResult;
+        // Note: LoginLog table doesn't have logout tracking in current schema
+        // This is a stub for compatibility
+        return true;
     }
+
     public override void Update(LoginLog aLoginLog)
     {
         throw new NotImplementedException();
@@ -60,7 +69,7 @@ public class LoginLogRepo : GenericRepository<LoginLog>, ILoginLogRepo
 
     public override IEnumerable<LoginLog> GetAllById(long aSingleId)
     {
-        throw new NotImplementedException();
+        return GetUserLoginLogs(aSingleId);
     }
 
     public override long InsertToGetId(LoginLog entity)
@@ -70,6 +79,11 @@ public class LoginLogRepo : GenericRepository<LoginLog>, ILoginLogRepo
 
     public override IEnumerable<LoginLog> GetPagedData(int PageSize, int OffSet)
     {
-        throw new NotImplementedException();
+        using var vConn = GetOpenConnection();
+        return vConn.Query<LoginLog>(
+            @"SELECT logid AS LoginLogId, userid AS LoginUserId, attemptedon AS LoginDateTime,
+                     ipaddress AS ClientIP
+              FROM loginlog ORDER BY attemptedon DESC LIMIT @PageSize OFFSET @OffSet",
+            new { PageSize, OffSet });
     }
 }

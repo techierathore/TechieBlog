@@ -1,0 +1,58 @@
+@*
+    FullWidthLayout.razor
+    Purpose: Full-width layout variant without sidebar for TechieBlog pages.
+    Provides layout structure with Header and Footer but no Sidebar.
+    Used for blog post detail pages, series views, and other content-focused pages.
+
+    Layout Structure:
+    .layout > Header + .main-wrapper (.main-content.main-content--full) + Footer + MobileNav
+
+    Usage: Applied to PostView, SeriesView pages
+    Dependencies: Microsoft.FluentUI.AspNetCore.Components, ThemeService,
+                  Header, Footer, MobileNav components
+*@
+
+@using BlogModels.Models
+@using BlogUI
+@inherits LayoutComponentBase
+
+<div class="layout">
+    @* Header Component - Sticky top navigation *@
+    <Header OnMenuClick="OpenMobileNav" />
+
+    @* Main Content Area - Full Width (no sidebar) *@
+    <div class="main-wrapper">
+        @* Primary Content Column - Full Width *@
+        <main class="main-content main-content--full">
+            @Body
+        </main>
+    </div>
+
+    @* Footer Component - Copyright, Links, Theme Indicator *@
+    <Footer />
+
+    @* Mobile Navigation Drawer - Slide-out menu for mobile *@
+    <MobileNav IsOpen="@isMobileNavOpen" OnClose="CloseMobileNav" />
+</div>
+
+@code {
+    private bool isMobileNavOpen = false;
+
+    /// <summary>
+    /// Opens the mobile navigation drawer.
+    /// Called when hamburger menu button in Header is clicked.
+    /// </summary>
+    private void OpenMobileNav()
+    {
+        isMobileNavOpen = true;
+    }
+
+    /// <summary>
+    /// Closes the mobile navigation drawer.
+    /// Called when backdrop or close button in MobileNav is clicked.
+    /// </summary>
+    private void CloseMobileNav()
+    {
+        isMobileNavOpen = false;
+    }
+}

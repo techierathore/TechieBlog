@@ -1,37 +1,42 @@
-﻿@page "/CommentsList"
-<ConentPanel PanelTitle="Comments List">
-    <RightSesction>
-        <NavLink class="btn btn-primary" href="ManageAccount">
-            <span class="oi oi-plus" aria-hidden="true"></span>
-            Add New
-        </NavLink>
-    </RightSesction>
+@*
+    CommentsList.razor
+    Purpose: Displays a list of comments for blog posts.
+    Provides moderation and editing capabilities.
+
+    Usage: Navigate to /CommentsList
+    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+    Authorization: EditorOrAbove policy required
+*@
+@page "/CommentsList"
+@page "/comments"
+@attribute [Authorize(Policy = "EditorOrAbove")]
+@layout BlogUI.Layouts.AdminLayout
+
+<ContentPanel PanelTitle="Comments List">
+    <RightSection>
+        <FluentAnchor Href="ManageAccount" Appearance="Appearance.Accent">
+            + Add New
+        </FluentAnchor>
+    </RightSection>
     <PanelContent>
         @if (ObjectList == null)
         {
-            <p><em>Loading...</em></p>
+            <FluentProgressRing />
+            <span>Loading...</span>
         }
         else
         {
-            <DataGrid TItem="BlogPost" Data="@ObjectList" @bind-SelectedRow="@SelObject"
-                      Sortable="true" Filterable="false" ShowPager="false" PageSize="15"
-                      UseInternalEditing="false" Editable="false" Striped="false"
-                      Bordered="true" Hoverable="true" Responsive="true">
-                <DataGridColumns>
-                    <DataGridColumn TItem="BlogPost" Field="@nameof(BlogPost.Title)" Caption="Title" />
-                    <DataGridDateColumn TItem="BlogPost" Field="@nameof(BlogPost.CreatedOn)" DisplayFormat="{0:MM/dd/yyyy}" Caption="Written On" />
-                    <DataGridColumn TItem="BlogPost" Field="@nameof(BlogPost.BlogWriter)" Caption="Written By" />
-                    <DataGridColumn TItem="BlogPost" Field="@nameof(BlogPost.Published)" Caption="Published" />
-                    <DataGridColumn TItem="BlogPost" Field="@nameof(BlogPost.PostID)">
-                        <DisplayTemplate>
-                            <a class="btn btn-secondary table-btn"
-                               href="/ManagePost/@context.PostID">
-                                <i class="material-icons">create</i>
-                            </a>
-                        </DisplayTemplate>
-                    </DataGridColumn>
-                </DataGridColumns>
-            </DataGrid>
+            <FluentDataGrid Items="@ObjectList.AsQueryable()" Style="width: 100%;">
+                <PropertyColumn Property="@(p => p.Title)" Title="Title" Sortable="true" />
+                <PropertyColumn Property="@(p => p.CreatedOn)" Title="Written On" Format="MM/dd/yyyy" Sortable="true" />
+                <PropertyColumn Property="@(p => p.BlogWriter)" Title="Written By" Sortable="true" />
+                <PropertyColumn Property="@(p => p.Published)" Title="Published" />
+                <TemplateColumn Title="Actions">
+                    <FluentAnchor Href="@($"/ManagePost/{context.PostID}")" Appearance="Appearance.Stealth">
+                        Edit
+                    </FluentAnchor>
+                </TemplateColumn>
+            </FluentDataGrid>
         }
     </PanelContent>
-</ConentPanel>
+</ContentPanel>

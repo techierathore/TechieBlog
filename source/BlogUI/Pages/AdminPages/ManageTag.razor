@@ -1,43 +1,175 @@
-﻿@page "/ManageTag"
+@*
+    ManageTag.razor
+    Purpose: Create and edit tags for blog posts.
+    Provides form for tag management with validation.
+
+    Usage: Navigate to /ManageTag or /ManageTag/{PageId}
+    Dependencies: Microsoft.FluentUI.AspNetCore.Components, TagSvc
+    Authorization: AdminOnly policy required
+*@
+@page "/ManageTag"
 @page "/ManageTag/{PageId:long}"
-<ConentPanel PanelTitle=@PageHeader>
-    <RightSesction></RightSesction>
+@attribute [Authorize(Policy = "AdminOnly")]
+@layout BlogUI.Layouts.AdminLayout
+@inject BlogEngine.Services.TagSvc TagService
+@inject NavigationManager Navigation
+
+<ContentPanel PanelTitle="@PageHeader">
+    <RightSection></RightSection>
     <PanelContent>
-        <div class="col-12">
-            @if (PageObj == null)
+        @if (!string.IsNullOrEmpty(StatusMessage))
+        {
+            <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
+                              Style="margin-bottom: 16px;">
+                @StatusMessage
+            </FluentMessageBar>
+        }
+
+        @if (PageObj == null)
+        {
+            <FluentProgressRing />
+            <span>Loading...</span>
+        }
+        else
+        {
+            <EditForm Model="@PageObj" OnValidSubmit="@SaveData">
+                <DataAnnotationsValidator />
+                <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px; max-width: 600px;">
+                    <FluentTextField Label="Tag Name"
+                                     Value="@PageObj.TagName"
+                                     ValueChanged="@OnNameChanged"
+                                     Placeholder="Enter tag name"
+                                     Required="true"
+                                     Style="width: 100%;" />
+
+                    <FluentTextField Label="URL Slug"
+                                     @bind-Value="PageObj.Slug"
+                                     Placeholder="auto-generated-from-name"
+                                     Style="width: 100%;">
+                        <FluentLabel Slot="end" Style="color: var(--neutral-foreground-hint);">
+                            @if (!string.IsNullOrEmpty(SlugPreview))
+                            {
+                                <span>/tag/@SlugPreview</span>
+                            }
+                        </FluentLabel>
+                    </FluentTextField>
+
+                    <FluentStack Orientation="Orientation.Horizontal" Style="gap: 8px; margin-top: 16px;">
+                        <FluentButton Appearance="Appearance.Accent"
+                                      Type="ButtonType.Submit"
+                                      Disabled="@IsSaving">
+                            @if (IsSaving)
+                            {
+                                <FluentIcon Value="@(new Icons.Regular.Size16.ArrowSync())" />
+                                <span>Saving...</span>
+                            }
+                            else
+                            {
+                                <span>@(PageId > 0 ? "Update Tag" : "Create Tag")</span>
+                            }
+                        </FluentButton>
+                        <FluentAnchor Href="/TagsList" Appearance="Appearance.Outline">
+                            Cancel
+                        </FluentAnchor>
+                    </FluentStack>
+                </FluentStack>
+            </EditForm>
+        }
+    </PanelContent>
+</ContentPanel>
+
+@code {
+    [Parameter]
+    public long PageId { get; set; }
+
+    private BlogTag PageObj;
+    private string PageHeader = "Add New Tag";
+    private string SlugPreview = string.Empty;
+    private string StatusMessage = string.Empty;
+    private bool IsError = false;
+    private bool IsSaving = false;
+
+    protected override void OnInitialized()
+    {
+        LoadTag();
+    }
+
+    protected override void OnParametersSet()
+    {
+        LoadTag();
+    }
+
+    private void LoadTag()
+    {
+        if (PageId > 0)
+        {
+            PageHeader = "Edit Tag";
+            PageObj = TagService.GetSingleTag(PageId);
+            if (PageObj == null)
             {
-                <p><em>Loading...</em></p>
+                PageObj = new BlogTag();
+                StatusMessage = "Tag not found.";
+                IsError = true;
             }
             else
             {
-                <EditForm Model="@PageObj" OnValidSubmit="@SaveData">
-                    <DataAnnotationsValidator />
-                    <fieldset>
-                        <CardBody>
-                            <Fields>
-                                <Validation Validator="@ValidationRule.IsNotEmpty">
-                                    <Field Horizontal="true" ColumnSize="ColumnSize.Is6.OnDesktop">
-                                        <FieldLabel ColumnSize="ColumnSize.Is12" Class="LabelDesign">Tag Name</FieldLabel>
-                                        <FieldBody ColumnSize="ColumnSize.Is12">
-                                            <input class="form-control" @bind="PageObj.TagName" placeholder="Tag Name" />
-                                        </FieldBody>
-                                    </Field>
-                                </Validation>
-                            </Fields>
-                        </CardBody>
-                    </fieldset>
-                </EditForm>
+                SlugPreview = PageObj.Slug;
             }
+        }
+        else
+        {
+            PageHeader = "Add New Tag";
+            PageObj = new BlogTag();
+            SlugPreview = string.Empty;
+        }
+    }
 
-        </div>
-        &nbsp;&nbsp;
-        <button @onclick="SaveData" class="btn btn-primary">
-            <span class="oi oi-plus" aria-hidden="true"></span> Save
-        </button>
-        &nbsp;&nbsp;
-        <NavLink class="btn btn-primary" href="ExpCatList">
-            <span class="oi oi-x" aria-hidden="true"></span>
-            Close
-        </NavLink>
-    </PanelContent>
-</ConentPanel>
+    private void OnNameChanged(string value)
+    {
+        PageObj.TagName = value;
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            SlugPreview = BlogEngine.Common.SlugGenerator.GenerateSlug(value);
+        }
+        else
+        {
+            SlugPreview = string.Empty;
+        }
+    }
+
+    private void SaveData()
+    {
+        if (string.IsNullOrWhiteSpace(PageObj.TagName))
+        {
+            StatusMessage = "Tag name is required.";
+            IsError = true;
+            return;
+        }
+
+        IsSaving = true;
+        StatusMessage = string.Empty;
+
+        try
+        {
+            var result = TagService.SaveTag(PageObj);
+            if (result.IsSuccess)
+            {
+                Navigation.NavigateTo("/TagsList");
+            }
+            else
+            {
+                StatusMessage = result.ErrorMessage;
+                IsError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error saving tag: {ex.Message}";
+            IsError = true;
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+}

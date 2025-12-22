@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>blazor - Tag Archive - TechieBlog 2.0</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <!-- Header -->
+        <header class="header">
+            <a href="01-home.html" class="header__logo">
+                <span>TechieBlog</span>
+            </a>
+            <nav class="header__nav">
+                <a href="01-home.html" class="header__nav-link">Home</a>
+                <a href="03-category-archive.html" class="header__nav-link">Categories</a>
+                <a href="05-series-view.html" class="header__nav-link">Series</a>
+                <a href="06-search-results.html" class="header__nav-link">Search</a>
+            </nav>
+            <div class="header__actions">
+                <button class="btn btn--icon" title="Search">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M8.5 3a5.5 5.5 0 014.383 8.823l3.896 3.9a.75.75 0 01-1.061 1.06l-3.895-3.897A5.5 5.5 0 118.5 3zm0 1.5a4 4 0 100 8 4 4 0 000-8z"/>
+                    </svg>
+                </button>
+                <!-- Theme Toggle -->
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+                    <svg class="theme-toggle__moon" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+                    </svg>
+                    <svg class="theme-toggle__sun" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+                <button class="btn btn--icon show-mobile" title="Menu">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M2 4.5a.5.5 0 01.5-.5h15a.5.5 0 010 1h-15a.5.5 0 01-.5-.5zm0 5a.5.5 0 01.5-.5h15a.5.5 0 010 1h-15a.5.5 0 01-.5-.5zm.5 4.5a.5.5 0 000 1h15a.5.5 0 000-1h-15z"/>
+                    </svg>
+                </button>
+                <a href="08-login.html" class="btn btn--secondary hide-mobile">Login</a>
+                <a href="09-register.html" class="btn btn--primary hide-mobile">Sign Up</a>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-wrapper">
+            <main class="main-content">
+                <!-- Breadcrumb -->
+                <nav class="breadcrumb">
+                    <a href="01-home.html">Home</a>
+                    <span class="breadcrumb__separator">/</span>
+                    <a href="#">Tags</a>
+                    <span class="breadcrumb__separator">/</span>
+                    <span class="breadcrumb__current">blazor</span>
+                </nav>
+
+                <!-- Tag Header -->
+                <div style="margin-bottom: var(--spacing-xl);">
+                    <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                        <span style="font-size: var(--font-size-h2); color: var(--color-neutral-light);">#</span>
+                        <h1 style="margin: 0;">blazor</h1>
+                    </div>
+                    <p style="color: var(--color-neutral-light); margin-top: var(--spacing-sm);">
+                        Posts tagged with "blazor"
+                    </p>
+                    <span class="badge" style="margin-top: var(--spacing-sm);">18 posts</span>
+                </div>
+
+                <!-- Posts with Tag -->
+                <div class="post-grid">
+                    <article class="card">
+                        <div class="card__image placeholder-image">Image</div>
+                        <div class="card__body">
+                            <span class="card__category">Blazor</span>
+                            <h3 class="card__title">
+                                <a href="02-blog-post.html">Building Modern Blazor Applications with Fluent UI</a>
+                            </h3>
+                            <p class="card__excerpt">
+                                Learn how to create beautiful, accessible web applications using Microsoft Fluent UI components in Blazor.
+                            </p>
+                            <div class="card__meta">
+                                <div class="card__author">
+                                    <div class="card__avatar"></div>
+                                    <span>John Developer</span>
+                                </div>
+                                <span>Dec 15</span>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="card">
+                        <div class="card__image placeholder-image">Image</div>
+                        <div class="card__body">
+                            <span class="card__category">Blazor</span>
+                            <h3 class="card__title">
+                                <a href="02-blog-post.html">Understanding Blazor Server vs WebAssembly</a>
+                            </h3>
+                            <p class="card__excerpt">
+                                A deep dive into the differences between Blazor Server and WebAssembly hosting models.
+                            </p>
+                            <div class="card__meta">
+                                <div class="card__author">
+                                    <div class="card__avatar"></div>
+                                    <span>Jane Smith</span>
+                                </div>
+                                <span>Dec 14</span>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="card">
+                        <div class="card__image placeholder-image">Image</div>
+                        <div class="card__body">
+                            <span class="card__category">Testing</span>
+                            <h3 class="card__title">
+                                <a href="02-blog-post.html">Unit Testing Blazor Components with bUnit</a>
+                            </h3>
+                            <p class="card__excerpt">
+                                A practical guide to writing effective unit tests for your Blazor components using bUnit.
+                            </p>
+                            <div class="card__meta">
+                                <div class="card__author">
+                                    <div class="card__avatar"></div>
+                                    <span>Emily Watson</span>
+                                </div>
+                                <span>Dec 10</span>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="card">
+                        <div class="card__image placeholder-image">Image</div>
+                        <div class="card__body">
+                            <span class="card__category">Architecture</span>
+                            <h3 class="card__title">
+                                <a href="02-blog-post.html">Clean Architecture in Blazor Applications</a>
+                            </h3>
+                            <p class="card__excerpt">
+                                How to structure your Blazor projects following clean architecture principles.
+                            </p>
+                            <div class="card__meta">
+                                <div class="card__author">
+                                    <div class="card__avatar"></div>
+                                    <span>David Kim</span>
+                                </div>
+                                <span>Dec 9</span>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="card">
+                        <div class="card__image placeholder-image">Image</div>
+                        <div class="card__body">
+                            <span class="card__category">Blazor</span>
+                            <h3 class="card__title">
+                                <a href="02-blog-post.html">State Management Patterns in Blazor</a>
+                            </h3>
+                            <p class="card__excerpt">
+                                Best practices for managing state in your Blazor applications effectively.
+                            </p>
+                            <div class="card__meta">
+                                <div class="card__author">
+                                    <div class="card__avatar"></div>
+                                    <span>Sarah Chen</span>
+                                </div>
+                                <span>Dec 8</span>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="card">
+                        <div class="card__image placeholder-image">Image</div>
+                        <div class="card__body">
+                            <span class="card__category">Blazor</span>
+                            <h3 class="card__title">
+                                <a href="02-blog-post.html">Blazor Forms and Validation</a>
+                            </h3>
+                            <p class="card__excerpt">
+                                Complete guide to handling forms and validation in Blazor applications.
+                            </p>
+                            <div class="card__meta">
+                                <div class="card__author">
+                                    <div class="card__avatar"></div>
+                                    <span>Alex Rivera</span>
+                                </div>
+                                <span>Dec 5</span>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+
+                <!-- Pagination -->
+                <nav class="pagination">
+                    <button class="pagination__btn" disabled>&laquo;</button>
+                    <button class="pagination__btn pagination__btn--active">1</button>
+                    <button class="pagination__btn">2</button>
+                    <button class="pagination__btn">3</button>
+                    <button class="pagination__btn">&raquo;</button>
+                </nav>
+            </main>
+
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <!-- Related Tags -->
+                <div class="sidebar__section">
+                    <h3 class="sidebar__title">Related Tags</h3>
+                    <div class="tags-cloud">
+                        <a href="#" class="tag" style="background: var(--color-primary); color: white;">blazor</a>
+                        <a href="#" class="tag">c#</a>
+                        <a href="#" class="tag">.net</a>
+                        <a href="#" class="tag">fluent-ui</a>
+                        <a href="#" class="tag">components</a>
+                        <a href="#" class="tag">wasm</a>
+                        <a href="#" class="tag">server</a>
+                    </div>
+                </div>
+
+                <!-- All Tags -->
+                <div class="sidebar__section">
+                    <h3 class="sidebar__title">All Tags</h3>
+                    <div class="tags-cloud">
+                        <a href="#" class="tag">api</a>
+                        <a href="#" class="tag">architecture</a>
+                        <a href="#" class="tag">authentication</a>
+                        <a href="#" class="tag">beginner</a>
+                        <a href="#" class="tag">blazor</a>
+                        <a href="#" class="tag">c#</a>
+                        <a href="#" class="tag">clean-code</a>
+                        <a href="#" class="tag">database</a>
+                        <a href="#" class="tag">fluent-ui</a>
+                        <a href="#" class="tag">.net</a>
+                        <a href="#" class="tag">postgresql</a>
+                        <a href="#" class="tag">testing</a>
+                        <a href="#" class="tag">tutorial</a>
+                    </div>
+                </div>
+
+                <!-- Subscribe -->
+                <div class="sidebar__section">
+                    <div class="subscribe-form">
+                        <h3 class="subscribe-form__title">Subscribe</h3>
+                        <p class="subscribe-form__text">Get the latest posts delivered to your inbox.</p>
+                        <div class="form-group">
+                            <input type="email" class="form-input" placeholder="your@email.com">
+                        </div>
+                        <button class="btn btn--primary" style="width: 100%;">Subscribe</button>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2025 TechieBlog. All rights reserved.</p>
+            <div style="margin-top: var(--spacing-sm);">
+                <a href="#">About</a> &bull;
+                <a href="#">RSS Feed</a> &bull;
+                <span>Theme: Light</span>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Theme Toggle Functionality
+        function toggleTheme() {
+            const root = document.documentElement;
+            const currentTheme = root.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Initialize theme from localStorage or system preference
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+</body>
+</html>

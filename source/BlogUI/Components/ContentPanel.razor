@@ -1,0 +1,39 @@
+@*
+    ContentPanel.razor
+    Purpose: Reusable card panel component for admin pages.
+    Provides a consistent layout with title header and content area.
+
+    Usage: Wrap page content in admin pages for consistent styling.
+    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+*@
+<FluentCard Style="margin: 16px 0;">
+    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--neutral-stroke-rest); margin-bottom: 16px;">
+        <h6 style="margin: 0;">@PanelTitle</h6>
+        <div>
+            @RightSection
+        </div>
+    </div>
+    <div>
+        @PanelContent
+    </div>
+</FluentCard>
+
+@code {
+    /// <summary>
+    /// Title displayed in the panel header.
+    /// </summary>
+    [Parameter]
+    public string PanelTitle { get; set; }
+
+    /// <summary>
+    /// Content to render in the right section of the header (typically action buttons).
+    /// </summary>
+    [Parameter]
+    public RenderFragment RightSection { get; set; }
+
+    /// <summary>
+    /// Main content to render in the panel body.
+    /// </summary>
+    [Parameter]
+    public RenderFragment PanelContent { get; set; }
+}

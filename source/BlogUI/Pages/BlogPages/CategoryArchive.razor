@@ -1,0 +1,213 @@
+@*
+    CategoryArchive.razor
+    Purpose: Category archive page showing posts filtered by category.
+    Displays category header, filtered post grid, and pagination.
+
+    Dependencies: Breadcrumb, PostCard, Pagination components
+    Layout: Uses MainLayout (with sidebar for category navigation)
+*@
+
+@page "/category/{Slug}"
+@page "/categories"
+@page "/categories/{Slug}"
+@layout MainLayout
+@inject BlogEngine.Services.CategorySvc CategoryService
+@inject BlogEngine.Services.BlogSvc BlogService
+@inject NavigationManager Navigation
+
+@if (isLoading)
+{
+    <div class="loading-container" style="display: flex; justify-content: center; padding: 48px;">
+        <FluentProgressRing />
+        <span style="margin-left: 12px;">Loading...</span>
+    </div>
+}
+else if (notFound)
+{
+    <div class="not-found" style="text-align: center; padding: 48px;">
+        <FluentIcon Value="@(new Icons.Regular.Size48.Folder())" />
+        <h1>Category Not Found</h1>
+        <p>The category you're looking for doesn't exist.</p>
+        <FluentAnchor Href="/categories" Appearance="Appearance.Accent">
+            View All Categories
+        </FluentAnchor>
+    </div>
+}
+else if (showCategoryList)
+{
+    @* All Categories View *@
+    <Breadcrumb Items="@breadcrumbItems" />
+
+    <div class="category-header">
+        <h1>All Categories</h1>
+        <p class="category-header__description">Browse all blog post categories.</p>
+    </div>
+
+    <div class="post-grid">
+        @foreach (var cat in allCategories)
+        {
+            <article class="card">
+                <div class="card__body">
+                    <h3 class="card__title">
+                        <a href="/category/@cat.Slug">@cat.CategoryName</a>
+                    </h3>
+                    <p class="card__excerpt">@(string.IsNullOrEmpty(cat.Description) ? "Browse posts in this category." : cat.Description)</p>
+                    <FluentBadge Appearance="Appearance.Neutral">@cat.PostCount posts</FluentBadge>
+                </div>
+            </article>
+        }
+    </div>
+}
+else
+{
+    @* Category Detail View *@
+    <Breadcrumb Items="@breadcrumbItems" />
+
+    <div class="category-header">
+        <h1>@category.CategoryName</h1>
+        <p class="category-header__description">@(string.IsNullOrEmpty(category.Description) ? "Browse posts in this category." : category.Description)</p>
+        <FluentBadge Appearance="Appearance.Neutral">@totalPosts posts</FluentBadge>
+    </div>
+
+    @if (posts.Count == 0)
+    {
+        <FluentMessageBar Intent="MessageIntent.Info" Style="margin: 24px 0;">
+            No posts found in this category.
+        </FluentMessageBar>
+    }
+    else
+    {
+        <div class="post-grid">
+            @foreach (var post in posts)
+            {
+                <PostCard Category="@category.CategoryName"
+                          Title="@post.Title"
+                          Excerpt="@(string.IsNullOrEmpty(post.Abstract) ? GetExcerpt(post.PostContent) : post.Abstract)"
+                          PostUrl="@($"/post/{post.Slug}")"
+                          AuthorName="@(string.IsNullOrEmpty(post.BlogWriter) ? "Unknown" : post.BlogWriter)"
+                          Date="@post.CreatedOn.ToString("MMM dd")"
+                          ReadTime="@GetReadingTime(post.PostContent)" />
+            }
+        </div>
+
+        @if (totalPages > 1)
+        {
+            <Pagination CurrentPage="@currentPage" TotalPages="@totalPages" OnPageChanged="HandlePageChanged" />
+        }
+    }
+}
+
+@code {
+    /// <summary>
+    /// Category slug from URL route parameter.
+    /// </summary>
+    [Parameter]
+    public string Slug { get; set; } = string.Empty;
+
+    private List<Breadcrumb.BreadcrumbItem> breadcrumbItems = new();
+    private Category category;
+    private List<Category> allCategories = new();
+    private List<BlogModels.BlogPost> posts = new();
+    private bool isLoading = true;
+    private bool notFound = false;
+    private bool showCategoryList = false;
+    private int currentPage = 1;
+    private int totalPages = 1;
+    private int totalPosts = 0;
+    private const int PageSize = 9;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadCategory();
+    }
+
+    private async Task LoadCategory()
+    {
+        isLoading = true;
+        notFound = false;
+        showCategoryList = false;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(Slug))
+            {
+                // Show all categories
+                showCategoryList = true;
+                allCategories = CategoryService.GetAllWithCounts().ToList();
+
+                breadcrumbItems = new List<Breadcrumb.BreadcrumbItem>
+                {
+                    new Breadcrumb.BreadcrumbItem { Label = "Home", Url = "/" },
+                    new Breadcrumb.BreadcrumbItem { Label = "Categories", Url = "" }
+                };
+            }
+            else
+            {
+                // Show specific category
+                category = CategoryService.GetCategoryBySlug(Slug);
+
+                if (category == null)
+                {
+                    notFound = true;
+                }
+                else
+                {
+                    breadcrumbItems = new List<Breadcrumb.BreadcrumbItem>
+                    {
+                        new Breadcrumb.BreadcrumbItem { Label = "Home", Url = "/" },
+                        new Breadcrumb.BreadcrumbItem { Label = "Categories", Url = "/categories" },
+                        new Breadcrumb.BreadcrumbItem { Label = category.CategoryName, Url = "" }
+                    };
+
+                    totalPosts = BlogService.GetPostCountByCategory(category.CategoryId);
+                    totalPages = Math.Max(1, (int)Math.Ceiling(totalPosts / (double)PageSize));
+
+                    var offset = (currentPage - 1) * PageSize;
+                    posts = BlogService.GetPostsByCategory(category.CategoryId, PageSize, offset).ToList();
+                }
+            }
+        }
+        catch
+        {
+            notFound = true;
+        }
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task HandlePageChanged(int page)
+    {
+        currentPage = page;
+        await LoadCategory();
+    }
+
+    /// <summary>
+    /// Gets a short excerpt from content.
+    /// </summary>
+    private string GetExcerpt(string content, int maxLength = 150)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            return string.Empty;
+
+        var text = content
+            .Replace("#", "")
+            .Replace("*", "")
+            .Replace("_", "")
+            .Replace("`", "")
+            .Trim();
+
+        if (text.Length <= maxLength)
+            return text;
+
+        return text.Substring(0, maxLength).TrimEnd() + "...";
+    }
+
+    /// <summary>
+    /// Gets reading time from content.
+    /// </summary>
+    private string GetReadingTime(string content)
+    {
+        return BlogEngine.Common.ReadingTimeCalculator.Calculate(content);
+    }
+}

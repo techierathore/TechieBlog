@@ -1,0 +1,124 @@
+@*
+    ManageSeries.razor
+    Purpose: Create and edit blog series.
+    Provides form for series management with validation.
+
+    Usage: Navigate to /admin/series/new or /admin/series/{PageId}
+    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+    Authorization: AuthorOrAbove policy required
+*@
+@page "/admin/series/new"
+@page "/admin/series/{PageId:long}"
+@attribute [Authorize(Policy = "AuthorOrAbove")]
+@layout BlogUI.Layouts.AdminLayout
+
+<ContentPanel PanelTitle="@PageHeader">
+    <RightSection></RightSection>
+    <PanelContent>
+        <div style="max-width: 600px;">
+            @if (!string.IsNullOrEmpty(StatusMessage))
+            {
+                <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
+                                  Style="margin-bottom: 16px;">
+                    @StatusMessage
+                </FluentMessageBar>
+            }
+
+            @if (PageObj == null)
+            {
+                <FluentProgressRing />
+                <span>Loading...</span>
+            }
+            else
+            {
+                <EditForm Model="@PageObj" OnValidSubmit="@SaveData">
+                    <DataAnnotationsValidator />
+                    <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px;">
+                        <div>
+                            <FluentTextField Label="Series Name"
+                                             @bind-Value="PageObj.Name"
+                                             Placeholder="Enter series name"
+                                             Required="true"
+                                             Style="width: 100%;" />
+                        </div>
+                        <div>
+                            <FluentTextField Label="Slug (URL-friendly name)"
+                                             @bind-Value="PageObj.Slug"
+                                             Placeholder="auto-generated from name"
+                                             Style="width: 100%;" />
+                            <small style="color: var(--neutral-foreground-hint);">
+                                Leave blank to auto-generate from series name
+                            </small>
+                        </div>
+                        <div>
+                            <FluentTextArea Label="Description"
+                                            @bind-Value="PageObj.Description"
+                                            Placeholder="Description of this series shown on the series page"
+                                            Rows="4"
+                                            Style="width: 100%;" />
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px;">Status</label>
+                            <FluentSelect TOption="string"
+                                          @bind-Value="PageObj.Status"
+                                          Style="width: 100%;">
+                                <FluentOption TOption="string" Value="@("In Progress")">In Progress</FluentOption>
+                                <FluentOption TOption="string" Value="@("Complete")">Complete</FluentOption>
+                            </FluentSelect>
+                            <small style="color: var(--neutral-foreground-hint);">
+                                Mark as complete when all parts have been published
+                            </small>
+                        </div>
+
+                        @* Show posts in series if editing *@
+                        @if (PageId > 0 && SeriesPosts != null && SeriesPosts.Count > 0)
+                        {
+                            <FluentCard Style="margin-top: 8px;">
+                                <h4 style="margin-top: 0; margin-bottom: 8px;">Posts in this Series (@SeriesPosts.Count)</h4>
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    @foreach (var post in SeriesPosts.OrderBy(p => p.SeriesPartNumber))
+                                    {
+                                        <div style="display: flex; align-items: center; gap: 8px; padding: 4px 0;">
+                                            <span style="font-weight: 500; min-width: 60px;">Part @post.SeriesPartNumber:</span>
+                                            <FluentAnchor Href="@($"/ManagePost/{post.PostID}")" Style="flex: 1;">
+                                                @post.Title
+                                            </FluentAnchor>
+                                            @if (post.Published)
+                                            {
+                                                <FluentBadge Appearance="Appearance.Accent" Style="background-color: #107c10; font-size: 0.75rem;">
+                                                    Published
+                                                </FluentBadge>
+                                            }
+                                            else
+                                            {
+                                                <FluentBadge Appearance="Appearance.Neutral" Style="font-size: 0.75rem;">
+                                                    Draft
+                                                </FluentBadge>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </FluentCard>
+                        }
+
+                        <FluentStack Orientation="Orientation.Horizontal" Style="gap: 8px; margin-top: 8px;">
+                            <FluentButton Appearance="Appearance.Accent" OnClick="@SaveData">
+                                Save
+                            </FluentButton>
+                            <FluentAnchor Href="/admin/series" Appearance="Appearance.Outline">
+                                Cancel
+                            </FluentAnchor>
+                            @if (PageId > 0)
+                            {
+                                <FluentAnchor Href="@($"/series/{PageObj.Slug}")" Appearance="Appearance.Outline" Target="_blank">
+                                    <FluentIcon Value="@(new Icons.Regular.Size16.Eye())" />
+                                    View Series
+                                </FluentAnchor>
+                            }
+                        </FluentStack>
+                    </FluentStack>
+                </EditForm>
+            }
+        </div>
+    </PanelContent>
+</ContentPanel>

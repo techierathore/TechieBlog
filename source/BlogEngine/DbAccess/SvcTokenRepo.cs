@@ -1,5 +1,9 @@
-﻿namespace BlogEngine.DbAccess;
+namespace BlogEngine.DbAccess;
 
+/// <summary>
+/// Repository for managing SvcToken data access operations using Dapper ORM.
+/// Note: This repo may be deprecated - consider using UserLoginRepo for token management.
+/// </summary>
 public class SvcTokenRepo : GenericRepository<SvcToken>, ISvcTokenRepo
 {
     public SvcTokenRepo(string connectionString) : base(connectionString) { }
@@ -7,12 +11,15 @@ public class SvcTokenRepo : GenericRepository<SvcToken>, ISvcTokenRepo
     public override IEnumerable<SvcToken> GetAll()
     {
         using var vConn = GetOpenConnection();
-        return vConn.Query<SvcToken>("LoginSvcTokenSelectAll", commandType: CommandType.StoredProcedure);
+        return vConn.Query<SvcToken>("SELECT * FROM svctoken ORDER BY issuedate DESC");
     }
 
     public override IEnumerable<SvcToken> GetAllById(long aSingleId)
     {
-        throw new NotImplementedException();
+        using var vConn = GetOpenConnection();
+        return vConn.Query<SvcToken>(
+            "SELECT * FROM svctoken WHERE appuserid = @UserId",
+            new { UserId = aSingleId });
     }
 
     public override SvcToken GetIntSingle(int aOrgId)
@@ -22,36 +29,42 @@ public class SvcTokenRepo : GenericRepository<SvcToken>, ISvcTokenRepo
 
     public override IEnumerable<SvcToken> GetPagedData(int PageSize, int OffSet)
     {
-        throw new NotImplementedException();
+        using var vConn = GetOpenConnection();
+        return vConn.Query<SvcToken>(
+            @"SELECT * FROM svctoken ORDER BY issuedate DESC LIMIT @PageSize OFFSET @OffSet",
+            new { PageSize, OffSet });
     }
 
     public override SvcToken GetSingle(long aSingleId)
     {
         using var vConn = GetOpenConnection();
-        var vParams = new DynamicParameters();
-        vParams.Add("@aAppUserId", aSingleId);
-        return vConn.QueryFirstOrDefault<SvcToken>("GetSvcToken", vParams, commandType: CommandType.StoredProcedure);
+        return vConn.QueryFirstOrDefault<SvcToken>(
+            "SELECT * FROM svctoken WHERE svctokenid = @TokenId",
+            new { TokenId = aSingleId });
     }
 
     public SvcToken GetSvcToken(long aAppUserId, string aLoginToken)
     {
         using var vConn = GetOpenConnection();
-        var vParams = new DynamicParameters();
-        vParams.Add("@pAppUserId", aAppUserId);
-        vParams.Add("@pLoginToken", aLoginToken);
-        return vConn.Query<SvcToken>("TokenSelect", vParams, commandType: CommandType.StoredProcedure).FirstOrDefault();
+        return vConn.QueryFirstOrDefault<SvcToken>(
+            "SELECT * FROM svctoken WHERE appuserid = @UserId AND logintoken = @Token AND tokenstatus = 'ValidToken'",
+            new { UserId = aAppUserId, Token = aLoginToken });
     }
 
     public override void Insert(SvcToken aLoginSvcToken)
     {
         using var vConn = GetOpenConnection();
-        var vParams = new DynamicParameters();
-        vParams.Add("@AppUserId", aLoginSvcToken.AppUserId);
-        vParams.Add("@LoginToken", aLoginSvcToken.LoginToken);
-        vParams.Add("@TokenStatus", aLoginSvcToken.TokenStatus);
-        vParams.Add("@ExipryDate", aLoginSvcToken.ExipryDate);
-        vParams.Add("@IssueDate", aLoginSvcToken.IssueDate);
-        vConn.Execute("TokenInsert", vParams, commandType: CommandType.StoredProcedure);
+        vConn.Execute(
+            @"INSERT INTO svctoken (appuserid, logintoken, tokenstatus, exiprydate, issuedate)
+              VALUES (@AppUserId, @LoginToken, @TokenStatus, @ExipryDate, @IssueDate)",
+            new
+            {
+                aLoginSvcToken.AppUserId,
+                aLoginSvcToken.LoginToken,
+                aLoginSvcToken.TokenStatus,
+                aLoginSvcToken.ExipryDate,
+                aLoginSvcToken.IssueDate
+            });
     }
 
     public override long InsertToGetId(SvcToken entity)
@@ -62,13 +75,18 @@ public class SvcTokenRepo : GenericRepository<SvcToken>, ISvcTokenRepo
     public override void Update(SvcToken aLoginSvcToken)
     {
         using var vConn = GetOpenConnection();
-        var vParams = new DynamicParameters();
-        vParams.Add("@LoginTokenId", aLoginSvcToken.SvcTokenId);
-        vParams.Add("@AppUserId", aLoginSvcToken.AppUserId);
-        vParams.Add("@LoginToken", aLoginSvcToken.LoginToken);
-        vParams.Add("@TokenStatus", aLoginSvcToken.TokenStatus);
-        vParams.Add("@ExipryDate", aLoginSvcToken.ExipryDate);
-        vParams.Add("@IssueDate", aLoginSvcToken.IssueDate);
-        vConn.Execute("LoginSvcTokenUpdate", vParams, commandType: CommandType.StoredProcedure);
+        vConn.Execute(
+            @"UPDATE svctoken
+              SET logintoken = @LoginToken, tokenstatus = @TokenStatus,
+                  exiprydate = @ExipryDate, issuedate = @IssueDate
+              WHERE svctokenid = @SvcTokenId",
+            new
+            {
+                aLoginSvcToken.SvcTokenId,
+                aLoginSvcToken.LoginToken,
+                aLoginSvcToken.TokenStatus,
+                aLoginSvcToken.ExipryDate,
+                aLoginSvcToken.IssueDate
+            });
     }
 }

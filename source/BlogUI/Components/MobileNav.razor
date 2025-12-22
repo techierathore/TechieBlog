@@ -1,0 +1,136 @@
+@*
+    MobileNav.razor
+    Purpose: Slide-out mobile navigation drawer for TechieBlog.
+    Provides navigation links, theme toggle, and auth buttons for mobile devices.
+    Includes backdrop overlay and close button functionality.
+
+    Dependencies: ThemeService for dark mode toggle
+    Usage: Placed in MainLayout.razor, controlled via IsOpen parameter
+*@
+
+@using BlogUI
+@implements IDisposable
+@inject ThemeService ThemeService
+@inject NavigationManager Navigation
+
+<div class="mobile-nav @(IsOpen ? "mobile-nav--open" : "")">
+    @* Backdrop Overlay - Closes drawer when clicked *@
+    <div class="mobile-nav__backdrop" @onclick="Close"></div>
+
+    @* Navigation Drawer Panel *@
+    <div class="mobile-nav__drawer">
+        @* Drawer Header with Close Button *@
+        <div class="mobile-nav__header">
+            <span class="mobile-nav__title">TechieBlog</span>
+            <button type="button" class="mobile-nav__close" @onclick="Close" title="Close menu">
+                <FluentIcon Value="@(new Icons.Regular.Size24.Dismiss())" />
+            </button>
+        </div>
+
+        @* Navigation Links *@
+        <nav class="mobile-nav__links">
+            <NavLink href="/" class="mobile-nav__link" Match="NavLinkMatch.All" @onclick="Close">
+                <FluentIcon Value="@(new Icons.Regular.Size20.Home())" />
+                <span>Home</span>
+            </NavLink>
+            <NavLink href="/categories" class="mobile-nav__link" @onclick="Close">
+                <FluentIcon Value="@(new Icons.Regular.Size20.Folder())" />
+                <span>Categories</span>
+            </NavLink>
+            <NavLink href="/series" class="mobile-nav__link" @onclick="Close">
+                <FluentIcon Value="@(new Icons.Regular.Size20.BookOpen())" />
+                <span>Series</span>
+            </NavLink>
+            <NavLink href="/search" class="mobile-nav__link" @onclick="Close">
+                <FluentIcon Value="@(new Icons.Regular.Size20.Search())" />
+                <span>Search</span>
+            </NavLink>
+        </nav>
+
+        @* Drawer Footer with Theme Toggle and Auth *@
+        <div class="mobile-nav__footer">
+            @* Theme Toggle *@
+            <FluentButton Appearance="Appearance.Outline"
+                          Style="width: 100%; margin-bottom: var(--spacing-sm);"
+                          IconStart="@(isDarkMode ? new Icons.Regular.Size20.WeatherSunny() : new Icons.Regular.Size20.WeatherMoon())"
+                          OnClick="ToggleThemeAsync">
+                @(isDarkMode ? "Light Mode" : "Dark Mode")
+            </FluentButton>
+
+            @* Auth Button *@
+            <FluentButton Appearance="Appearance.Accent"
+                          Style="width: 100%;"
+                          OnClick="NavigateToLogin">
+                Login
+            </FluentButton>
+        </div>
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// Controls the visibility of the mobile navigation drawer.
+    /// </summary>
+    [Parameter]
+    public bool IsOpen { get; set; }
+
+    /// <summary>
+    /// Event callback invoked when the drawer should be closed.
+    /// </summary>
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private bool isDarkMode = false;
+
+    /// <summary>
+    /// Initializes the component by loading the current dark mode state.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        isDarkMode = await ThemeService.GetDarkModeAsync();
+        ThemeService.OnThemeChanged += HandleThemeChanged;
+    }
+
+    /// <summary>
+    /// Closes the mobile navigation drawer.
+    /// </summary>
+    private async Task Close()
+    {
+        await OnClose.InvokeAsync();
+    }
+
+    /// <summary>
+    /// Toggles between light and dark mode using ThemeService.
+    /// </summary>
+    private async Task ToggleThemeAsync()
+    {
+        await ThemeService.ToggleDarkModeAsync();
+        isDarkMode = ThemeService.IsDarkMode;
+    }
+
+    /// <summary>
+    /// Handles theme change events from ThemeService to update local state.
+    /// </summary>
+    private void HandleThemeChanged(string theme, bool darkMode)
+    {
+        isDarkMode = darkMode;
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Navigates to the login page and closes the drawer.
+    /// </summary>
+    private async Task NavigateToLogin()
+    {
+        await Close();
+        Navigation.NavigateTo("/admin/login");
+    }
+
+    /// <summary>
+    /// Unsubscribes from theme change events when component is disposed.
+    /// </summary>
+    public void Dispose()
+    {
+        ThemeService.OnThemeChanged -= HandleThemeChanged;
+    }
+}

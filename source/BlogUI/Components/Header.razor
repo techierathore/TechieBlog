@@ -1,0 +1,148 @@
+@*
+    Header.razor
+    Purpose: Top navigation header component for TechieBlog public pages.
+    Displays site logo, navigation links, search, theme toggle, and auth buttons.
+    Includes hamburger menu for mobile navigation.
+
+    Dependencies: ThemeService for dark mode toggle, FluentUI components
+    Usage: Placed at top of MainLayout.razor
+*@
+
+@using BlogUI
+@implements IDisposable
+@inject ThemeService ThemeService
+@inject NavigationManager Navigation
+
+<header class="header">
+    @* Site Logo - Links to home page *@
+    <a href="/" class="header__logo">
+        <FluentIcon Value="@(new Icons.Regular.Size24.Code())" Color="Color.Accent" />
+        <span>TechieBlog</span>
+    </a>
+
+    @* Desktop Navigation Links *@
+    <nav class="header__nav">
+        <NavLink href="/" class="header__nav-link" Match="NavLinkMatch.All">
+            Home
+        </NavLink>
+        <NavLink href="/categories" class="header__nav-link">
+            Categories
+        </NavLink>
+        <NavLink href="/series" class="header__nav-link">
+            Series
+        </NavLink>
+        <NavLink href="/search" class="header__nav-link">
+            Search
+        </NavLink>
+    </nav>
+
+    @* Header Action Buttons *@
+    <div class="header__actions">
+        @* Search Button (Desktop) *@
+        <FluentButton Appearance="Appearance.Stealth"
+                      IconStart="@(new Icons.Regular.Size20.Search())"
+                      Title="Search"
+                      Class="hide-mobile"
+                      OnClick="@NavigateToSearch" />
+
+        @* Theme Toggle Button *@
+        <button type="button"
+                class="theme-toggle"
+                @onclick="ToggleThemeAsync"
+                title="@(isDarkMode ? "Switch to light mode" : "Switch to dark mode")">
+            @* Sun icon - shown in dark mode *@
+            <svg class="theme-toggle__icon theme-toggle__sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="5"/>
+                <line x1="12" y1="1" x2="12" y2="3"/>
+                <line x1="12" y1="21" x2="12" y2="23"/>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                <line x1="1" y1="12" x2="3" y2="12"/>
+                <line x1="21" y1="12" x2="23" y2="12"/>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+            @* Moon icon - shown in light mode *@
+            <svg class="theme-toggle__icon theme-toggle__moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+        </button>
+
+        @* Hamburger Menu Button (Mobile Only) *@
+        <button type="button"
+                class="header__menu-btn show-mobile"
+                @onclick="OnMenuClick"
+                title="Open menu">
+            <FluentIcon Value="@(new Icons.Regular.Size24.Navigation())" />
+        </button>
+
+        @* Auth Button (Desktop Only) *@
+        <div class="hide-mobile">
+            <FluentButton Appearance="Appearance.Accent" OnClick="@NavigateToLogin">
+                Login
+            </FluentButton>
+        </div>
+    </div>
+</header>
+
+@code {
+    /// <summary>
+    /// Event callback invoked when the mobile menu hamburger button is clicked.
+    /// Parent component (MainLayout) handles opening the mobile navigation drawer.
+    /// </summary>
+    [Parameter]
+    public EventCallback OnMenuClick { get; set; }
+
+    private bool isDarkMode = false;
+
+    /// <summary>
+    /// Initializes the component by loading the current dark mode state.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        isDarkMode = await ThemeService.GetDarkModeAsync();
+        ThemeService.OnThemeChanged += HandleThemeChanged;
+    }
+
+    /// <summary>
+    /// Toggles between light and dark mode using ThemeService.
+    /// </summary>
+    private async Task ToggleThemeAsync()
+    {
+        await ThemeService.ToggleDarkModeAsync();
+        isDarkMode = ThemeService.IsDarkMode;
+    }
+
+    /// <summary>
+    /// Handles theme change events from ThemeService to update local state.
+    /// </summary>
+    private void HandleThemeChanged(string theme, bool darkMode)
+    {
+        isDarkMode = darkMode;
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Navigates to the search page.
+    /// </summary>
+    private void NavigateToSearch()
+    {
+        Navigation.NavigateTo("/search");
+    }
+
+    /// <summary>
+    /// Navigates to the login page.
+    /// </summary>
+    private void NavigateToLogin()
+    {
+        Navigation.NavigateTo("/login");
+    }
+
+    /// <summary>
+    /// Unsubscribes from theme change events when component is disposed.
+    /// </summary>
+    public void Dispose()
+    {
+        ThemeService.OnThemeChanged -= HandleThemeChanged;
+    }
+}

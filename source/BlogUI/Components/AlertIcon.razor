@@ -1,6 +1,18 @@
-﻿<Div Class="alert-icon">
-    <Icon Name="IconName.Bell" IconStyle="IconStyle.Regular" />
-</Div>
+@*
+    AlertIcon.razor
+    Purpose: Displays an alert/notification icon.
+    Used in the application header for notifications.
+
+    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+*@
+<div class="alert-icon">
+    <span>!</span>
+</div>
+
 @code {
-    [Parameter] public RenderFragment ChildContent { get; set; }
+    /// <summary>
+    /// Optional child content for the alert icon component.
+    /// </summary>
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
 }

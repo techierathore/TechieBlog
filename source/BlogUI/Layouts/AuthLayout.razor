@@ -1,22 +1,43 @@
-﻿@inherits LayoutComponentBase
-<div class="col-12">
-    <br /><br />
-    <br /><br />
-    <center>
-        <div class="col-8 card">
-            <div class="col-12 row">
-                <p>&nbsp;</p>
-            </div>
-            <div class="col-12 row">
-                <div class="col-6" style="border-right:groove">
-                </div>
-                <div class="col-6" style="border-left:thick">
-                    @Body
-                </div>
-            </div>
-            <div class="col-12 row">
-                <p>&nbsp;</p>
-            </div>
+@*
+    AuthLayout.razor
+    Purpose: Layout for authentication pages (Login, Register, Password Reset).
+    Provides a centered card-based layout matching the mockup design.
+    Uses CSS custom properties from theme files for consistent styling.
+
+    Usage: Applied to authentication pages in AuthPages folder.
+    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+*@
+@using BlogUI.Components
+@inherits LayoutComponentBase
+
+<div class="layout">
+    @* Header Component *@
+    <Header OnMenuClick="OpenMobileNav" />
+
+    @* Auth Page - Centered card *@
+    <div class="auth-page">
+        <div class="auth-card">
+            @Body
         </div>
-    </center>
+    </div>
+
+    @* Footer Component *@
+    <Footer />
+
+    @* Mobile Navigation Drawer *@
+    <MobileNav IsOpen="@isMobileNavOpen" OnClose="CloseMobileNav" />
 </div>
+
+@code {
+    private bool isMobileNavOpen = false;
+
+    private void OpenMobileNav()
+    {
+        isMobileNavOpen = true;
+    }
+
+    private void CloseMobileNav()
+    {
+        isMobileNavOpen = false;
+    }
+}

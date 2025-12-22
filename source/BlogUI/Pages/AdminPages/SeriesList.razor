@@ -1,0 +1,111 @@
+@*
+    SeriesList.razor
+    Purpose: Displays a list of blog series for administration.
+    Provides editing and deletion capabilities for series management.
+
+    Usage: Navigate to /admin/series
+    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+    Authorization: AuthorOrAbove policy required
+*@
+@page "/admin/series"
+@page "/SeriesList"
+@attribute [Authorize(Policy = "AuthorOrAbove")]
+@layout BlogUI.Layouts.AdminLayout
+
+<ContentPanel PanelTitle="Series">
+    <RightSection>
+        <FluentAnchor Href="/admin/series/new" Appearance="Appearance.Accent">
+            + Add New
+        </FluentAnchor>
+    </RightSection>
+    <PanelContent>
+        @if (!string.IsNullOrEmpty(StatusMessage))
+        {
+            <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
+                              Style="margin-bottom: 16px;">
+                @StatusMessage
+            </FluentMessageBar>
+        }
+
+        @if (ObjectList == null)
+        {
+            <FluentProgressRing />
+            <span>Loading...</span>
+        }
+        else if (ObjectList.Count == 0)
+        {
+            <FluentMessageBar Intent="MessageIntent.Info">
+                No series found. Click "Add New" to create your first series.
+            </FluentMessageBar>
+        }
+        else
+        {
+            <p style="margin-bottom: 16px;">@ObjectList.Count series found</p>
+            <FluentDataGrid Items="@ObjectList.AsQueryable()" Style="width: 100%;">
+                <PropertyColumn Property="@(s => s.Name)" Title="Name" Sortable="true" />
+                <PropertyColumn Property="@(s => s.Slug)" Title="Slug" Sortable="true" />
+                <TemplateColumn Title="Status">
+                    @if (context.IsComplete)
+                    {
+                        <FluentBadge Appearance="Appearance.Accent" Style="background-color: #107c10;">
+                            Complete
+                        </FluentBadge>
+                    }
+                    else
+                    {
+                        <FluentBadge Appearance="Appearance.Neutral">
+                            In Progress
+                        </FluentBadge>
+                    }
+                </TemplateColumn>
+                <PropertyColumn Property="@(s => s.PostCount)" Title="Posts" Sortable="true" />
+                <PropertyColumn Property="@(s => s.AuthorName)" Title="Author" Sortable="true" />
+                <TemplateColumn Title="Actions">
+                    <FluentStack Orientation="Orientation.Horizontal" Style="gap: 8px;">
+                        <FluentAnchor Href="@($"/series/{context.Slug}")" Appearance="Appearance.Stealth" Target="_blank">
+                            <FluentIcon Value="@(new Icons.Regular.Size16.Eye())" />
+                            View
+                        </FluentAnchor>
+                        <FluentAnchor Href="@($"/admin/series/{context.SeriesId}")" Appearance="Appearance.Stealth">
+                            <FluentIcon Value="@(new Icons.Regular.Size16.Edit())" />
+                            Edit
+                        </FluentAnchor>
+                        <FluentButton Appearance="Appearance.Stealth"
+                                      OnClick="@(() => ShowDeleteDialog(context))">
+                            <FluentIcon Value="@(new Icons.Regular.Size16.Delete())" Color="Color.Error" />
+                            Delete
+                        </FluentButton>
+                    </FluentStack>
+                </TemplateColumn>
+            </FluentDataGrid>
+        }
+
+        @* Delete Confirmation Dialog *@
+        @if (ShowDeleteConfirm)
+        {
+        <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
+            <FluentDialogHeader>
+                <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
+            </FluentDialogHeader>
+            <FluentDialogBody>
+                <p>Are you sure you want to delete the series "<strong>@SeriesToDelete?.Name</strong>"?</p>
+                @if (SeriesToDelete?.PostCount > 0)
+                {
+                    <p style="color: var(--warning-foreground);">
+                        Warning: This series has @SeriesToDelete.PostCount post(s). They will be removed from the series but not deleted.
+                    </p>
+                }
+            </FluentDialogBody>
+            <FluentDialogFooter>
+                <FluentButton Appearance="Appearance.Neutral" OnClick="@CancelDelete">
+                    Cancel
+                </FluentButton>
+                <FluentButton Appearance="Appearance.Accent" OnClick="@ConfirmDelete"
+                              Style="background-color: #d13438;">
+                    Delete
+                </FluentButton>
+            </FluentDialogFooter>
+        </FluentDialog>
+        }
+    </PanelContent>
+</ContentPanel>

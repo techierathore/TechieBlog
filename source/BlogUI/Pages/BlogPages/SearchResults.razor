@@ -1,0 +1,232 @@
+@*
+    SearchResults.razor
+    Purpose: Search results page with search box, filters, and result cards.
+    Displays search input, category/date/sort filters, and matching posts.
+    Converted from mockups/06-search-results.html.
+
+    Dependencies: PostCard, Pagination components
+    Layout: Uses MainLayout (with sidebar for popular searches)
+*@
+
+@page "/search"
+@layout MainLayout
+@inject NavigationManager Navigation
+
+@* Search Header *@
+<div class="search-header">
+    <h1>Search</h1>
+    <div class="search-header__form">
+        <FluentTextField Placeholder="Search posts..."
+                         Style="flex: 1;"
+                         @bind-Value="searchQuery"
+                         @onkeydown="HandleSearchKeyDown" />
+        <FluentButton Appearance="Appearance.Accent" OnClick="DoSearch">
+            Search
+        </FluentButton>
+    </div>
+</div>
+
+@* Search Filters *@
+<div class="search-filters">
+    <FluentSelect TOption="string" @bind-Value="categoryFilter" Style="width: auto;">
+        <FluentOption TOption="string" Value="">All Categories</FluentOption>
+        <FluentOption TOption="string" Value="blazor">Blazor</FluentOption>
+        <FluentOption TOption="string" Value="dotnet">.NET</FluentOption>
+        <FluentOption TOption="string" Value="csharp">C#</FluentOption>
+    </FluentSelect>
+    <FluentSelect TOption="string" @bind-Value="dateFilter" Style="width: auto;">
+        <FluentOption TOption="string" Value="">Any Date</FluentOption>
+        <FluentOption TOption="string" Value="week">Past Week</FluentOption>
+        <FluentOption TOption="string" Value="month">Past Month</FluentOption>
+        <FluentOption TOption="string" Value="year">Past Year</FluentOption>
+    </FluentSelect>
+    <FluentSelect TOption="string" @bind-Value="sortBy" Style="width: auto;">
+        <FluentOption TOption="string" Value="relevance">Sort by Relevance</FluentOption>
+        <FluentOption TOption="string" Value="date">Sort by Date</FluentOption>
+        <FluentOption TOption="string" Value="views">Sort by Views</FluentOption>
+    </FluentSelect>
+</div>
+
+@if (hasSearched)
+{
+    @* Results Count *@
+    <div class="search-results__count">
+        Showing <strong>@searchResults.Count results</strong> for "<strong>@displayQuery</strong>"
+    </div>
+
+    @* Search Results *@
+    <div class="search-results__list">
+        @foreach (var result in searchResults)
+        {
+            <article class="search-result">
+                <div class="search-result__image placeholder-image">Image</div>
+                <div class="search-result__content">
+                    <span class="card__category">@result.Category</span>
+                    <h3 class="card__title">
+                        <a href="/post/@result.Slug">@result.Title</a>
+                    </h3>
+                    <p class="card__excerpt">@((MarkupString)result.ExcerptWithHighlights)</p>
+                    <div class="card__meta">
+                        <div class="card__author">
+                            <div class="card__avatar"></div>
+                            <span>@result.Author</span>
+                        </div>
+                        <span>@result.Date</span>
+                        <span>@result.ReadTime</span>
+                        @if (result.Rating > 0)
+                        {
+                            <StarRating Value="@result.Rating" />
+                        }
+                    </div>
+                </div>
+            </article>
+        }
+    </div>
+
+    @* Pagination *@
+    <Pagination CurrentPage="1" TotalPages="2" OnPageChanged="HandlePageChanged" />
+}
+else
+{
+    <p class="search-hint">Enter a search term to find blog posts.</p>
+}
+
+@code {
+    /// <summary>
+    /// Search query parameter from URL.
+    /// </summary>
+    [SupplyParameterFromQuery(Name = "q")]
+    public string? Query { get; set; }
+
+    private string searchQuery = string.Empty;
+    private string displayQuery = string.Empty;
+    private string categoryFilter = string.Empty;
+    private string dateFilter = string.Empty;
+    private string sortBy = "relevance";
+    private bool hasSearched = false;
+    private List<SearchResult> searchResults = new();
+
+    /// <summary>
+    /// Initialize component and perform search if query provided.
+    /// </summary>
+    protected override void OnInitialized()
+    {
+        if (!string.IsNullOrEmpty(Query))
+        {
+            searchQuery = Query;
+            PerformSearch();
+        }
+    }
+
+    /// <summary>
+    /// Handle Enter key press to trigger search.
+    /// </summary>
+    private void HandleSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            DoSearch();
+        }
+    }
+
+    /// <summary>
+    /// Navigate to search results with query.
+    /// </summary>
+    private void DoSearch()
+    {
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+        {
+            Navigation.NavigateTo($"/search?q={Uri.EscapeDataString(searchQuery)}");
+            PerformSearch();
+        }
+    }
+
+    /// <summary>
+    /// Perform search with placeholder results.
+    /// </summary>
+    private void PerformSearch()
+    {
+        hasSearched = true;
+        displayQuery = searchQuery;
+
+        // Placeholder search results with highlighted terms
+        searchResults = new List<SearchResult>
+        {
+            new SearchResult
+            {
+                Category = "Blazor",
+                Title = "Building Modern Blazor Applications with Fluent UI",
+                ExcerptWithHighlights = "Learn how to create beautiful, accessible web applications using Microsoft Fluent UI <mark>components</mark> in <mark>Blazor</mark>. This comprehensive guide covers setup...",
+                Slug = "building-modern-blazor-fluent-ui",
+                Author = "John Developer",
+                Date = "Dec 15, 2025",
+                ReadTime = "8 min read",
+                Rating = 4
+            },
+            new SearchResult
+            {
+                Category = "Blazor",
+                Title = "Creating Reusable Blazor Components",
+                ExcerptWithHighlights = "Design patterns for building reusable and maintainable <mark>Blazor</mark> <mark>components</mark>. Learn about parameters, events, and composition...",
+                Slug = "reusable-blazor-components",
+                Author = "Emily Watson",
+                Date = "Dec 2, 2025",
+                ReadTime = "6 min read",
+                Rating = 0
+            },
+            new SearchResult
+            {
+                Category = "Blazor",
+                Title = "Blazor Component Lifecycle Deep Dive",
+                ExcerptWithHighlights = "Understanding the complete <mark>component</mark> lifecycle in <mark>Blazor</mark> applications. From initialization to disposal...",
+                Slug = "blazor-component-lifecycle",
+                Author = "Mike Johnson",
+                Date = "Dec 10, 2025",
+                ReadTime = "10 min read",
+                Rating = 0
+            },
+            new SearchResult
+            {
+                Category = "Testing",
+                Title = "Unit Testing Blazor Components with bUnit",
+                ExcerptWithHighlights = "A practical guide to writing effective unit tests for your <mark>Blazor</mark> <mark>components</mark> using the bUnit testing library...",
+                Slug = "unit-testing-blazor-bunit",
+                Author = "Sarah Chen",
+                Date = "Dec 10, 2025",
+                ReadTime = "7 min read",
+                Rating = 0
+            },
+            new SearchResult
+            {
+                Category = "Blazor",
+                Title = "Components: The Building Blocks of Blazor",
+                ExcerptWithHighlights = "Learn how to create, compose, and communicate between <mark>Blazor</mark> <mark>components</mark> effectively in this comprehensive guide...",
+                Slug = "blazor-components-building-blocks",
+                Author = "John Developer",
+                Date = "Dec 5, 2025",
+                ReadTime = "8 min read",
+                Rating = 0
+            }
+        };
+    }
+
+    /// <summary>
+    /// Handle page change. Placeholder for future implementation.
+    /// </summary>
+    private void HandlePageChanged(int page)
+    {
+        // Will load different page in future stories
+    }
+
+    private class SearchResult
+    {
+        public string Category { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public string ExcerptWithHighlights { get; set; } = string.Empty;
+        public string Slug { get; set; } = string.Empty;
+        public string Author { get; set; } = string.Empty;
+        public string Date { get; set; } = string.Empty;
+        public string ReadTime { get; set; } = string.Empty;
+        public int Rating { get; set; }
+    }
+}

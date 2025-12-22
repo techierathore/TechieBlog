@@ -1,12 +1,19 @@
-﻿@page "/AdminDashboard"
+@*
+    AdminDashboard.razor
+    Purpose: Main administrative dashboard page.
+    Displays summary information and quick access to admin functions.
 
-<Row Margin="Margin.Is2.FromBottom.Is3.FromBottom.OnFullHD">
-    <Column ColumnSize="ColumnSize.IsAuto" Display="Display.None.Block.OnTablet">
-        <Heading Size="HeadingSize.Is3">Dashboard</Heading>
-    </Column>
+    Usage: Navigate to /AdminDashboard
+    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+    Authorization: EditorOrAbove policy required
+*@
+@page "/AdminDashboard"
+@page "/admin"
+@attribute [Authorize(Policy = "EditorOrAbove")]
+@layout BlogUI.Layouts.AdminLayout
 
-    <Column ColumnSize="ColumnSize.IsAuto" Margin="Margin.IsAuto.FromStart" TextAlignment="TextAlignment.End" Class="mt-n1">
-
-    </Column>
-</Row>
-
+<FluentStack Orientation="Orientation.Vertical" Style="gap: 16px;">
+    <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.SpaceBetween">
+        <h3>Dashboard</h3>
+    </FluentStack>
+</FluentStack>

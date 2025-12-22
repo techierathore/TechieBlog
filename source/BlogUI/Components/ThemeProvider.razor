@@ -1,0 +1,128 @@
+@* ============================================================================
+   ThemeProvider Component
+   ============================================================================
+
+   Purpose:
+   Wraps application content and manages theme application to the document.
+   Applies data-theme and data-site-theme attributes to control CSS variables.
+
+   Usage:
+   Wrap your application content with this component in App.razor:
+
+   <ThemeProvider>
+       <Router AppAssembly="@typeof(App).Assembly">
+           ...
+       </Router>
+   </ThemeProvider>
+
+   Features:
+   - Loads user's saved theme preferences from LocalStorage on initialization
+   - Applies data-theme attribute ("light" or "dark") for light/dark mode
+   - Applies data-site-theme attribute for theme selection
+   - Subscribes to ThemeService.OnThemeChanged for live updates
+   - Uses JavaScript interop to modify document root attributes
+
+   Dependencies:
+   - ThemeService: Manages theme state and LocalStorage persistence
+   - IJSRuntime: Required for DOM manipulation via JavaScript interop
+
+   ============================================================================ *@
+
+@inject ThemeService ThemeService
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+@ChildContent
+
+@code {
+    /// <summary>
+    /// Child content to render within the theme context.
+    /// </summary>
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    /// <summary>
+    /// Initializes the component and loads saved theme preferences.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Flow:</b></para>
+    /// <list type="number">
+    ///   <item>Subscribes to ThemeService.OnThemeChanged event</item>
+    ///   <item>Loads saved theme from LocalStorage via ThemeService</item>
+    ///   <item>Loads saved dark mode preference</item>
+    ///   <item>Applies theme attributes to document root</item>
+    /// </list>
+    /// </remarks>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Subscribe to theme changes
+            ThemeService.OnThemeChanged += HandleThemeChanged;
+
+            // Load saved preferences
+            var theme = await ThemeService.GetCurrentThemeAsync();
+            var isDarkMode = await ThemeService.GetDarkModeAsync();
+
+            // Apply theme to document
+            await ApplyThemeAsync(theme, isDarkMode);
+        }
+    }
+
+    /// <summary>
+    /// Handles theme change events from ThemeService.
+    /// </summary>
+    /// <param name="theme">The new theme name.</param>
+    /// <param name="isDarkMode">Whether dark mode is enabled.</param>
+    private void HandleThemeChanged(string theme, bool isDarkMode)
+    {
+        // Fire-and-forget with proper exception handling for async event
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                await ApplyThemeAsync(theme, isDarkMode);
+                StateHasChanged();
+            }
+            catch (Exception)
+            {
+                // Silently ignore exceptions during theme change
+            }
+        });
+    }
+
+    /// <summary>
+    /// Applies theme attributes to the document root element.
+    /// </summary>
+    /// <remarks>
+    /// Uses JavaScript interop to set:
+    /// - data-site-theme: The theme identifier (fluent-modern, developer, minimal)
+    /// - data-theme: Light/dark mode setting (light or dark)
+    /// </remarks>
+    /// <param name="theme">The theme identifier to apply.</param>
+    /// <param name="isDarkMode">Whether to apply dark mode.</param>
+    private async Task ApplyThemeAsync(string theme, bool isDarkMode)
+    {
+        try
+        {
+            var darkModeValue = isDarkMode ? "dark" : "light";
+            await JSRuntime.InvokeVoidAsync("setThemeAttributes", theme, darkModeValue);
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuit disconnected, ignore
+        }
+        catch (InvalidOperationException)
+        {
+            // JS interop not available during prerendering, ignore
+        }
+    }
+
+    /// <summary>
+    /// Cleans up event subscription when component is disposed.
+    /// </summary>
+    public void Dispose()
+    {
+        ThemeService.OnThemeChanged -= HandleThemeChanged;
+    }
+}

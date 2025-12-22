@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post Editor - TechieBlog 2.0</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <!-- Header -->
+        <header class="header">
+            <a href="01-home.html" class="header__logo">
+                <span>TechieBlog</span>
+            </a>
+            <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                <span class="badge" style="background: var(--color-warning); color: var(--color-neutral);">Draft</span>
+                <span style="font-size: var(--font-size-small); color: var(--color-neutral-light);">Saved 2 min ago</span>
+            </div>
+            <div class="header__actions">
+                <!-- Theme Toggle -->
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+                    <svg class="theme-toggle__moon" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+                    </svg>
+                    <svg class="theme-toggle__sun" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+                <button class="btn btn--secondary">Save Draft</button>
+                <a href="20-draft-preview.html" class="btn btn--secondary">Preview</a>
+                <button class="btn btn--primary">Publish</button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="editor-container" style="padding: var(--spacing-lg); max-width: 100%; margin: 0;">
+            <!-- Editor Main Area -->
+            <div class="editor-main">
+                <!-- Title Input -->
+                <input type="text" class="form-input" placeholder="Post title..." value="Building Modern Blazor Applications with Fluent UI" style="font-size: var(--font-size-h2); font-weight: var(--font-weight-semibold); border: none; padding: var(--spacing-md) 0; margin-bottom: var(--spacing-md);">
+
+                <!-- Editor Toolbar -->
+                <div class="editor-toolbar">
+                    <button class="btn btn--icon" title="Bold"><strong>B</strong></button>
+                    <button class="btn btn--icon" title="Italic"><em>I</em></button>
+                    <button class="btn btn--icon" title="Heading">H</button>
+                    <button class="btn btn--icon" title="Link">&#128279;</button>
+                    <button class="btn btn--icon" title="Image">&#128247;</button>
+                    <button class="btn btn--icon" title="Code">{ }</button>
+                    <button class="btn btn--icon" title="Quote">&ldquo;</button>
+                    <button class="btn btn--icon" title="List">&#9776;</button>
+                    <span style="flex: 1;"></span>
+                    <button class="btn btn--icon" title="Full Screen">&#9744;</button>
+                </div>
+
+                <!-- Editor Pane (Split View) -->
+                <div class="editor-pane" style="flex: 1;">
+                    <div class="editor-pane__edit">
+                        <textarea style="width: 100%; height: 100%; border: none; font-family: var(--font-family-mono); font-size: var(--font-size-small); line-height: 1.6; resize: none; padding: 0;">## Introduction
+
+Microsoft Fluent UI provides a comprehensive set of components that follow modern design principles, making it an excellent choice for building professional Blazor applications.
+
+## Getting Started
+
+First, you'll need to install the Microsoft.FluentUI.AspNetCore.Components NuGet package:
+
+```
+dotnet add package Microsoft.FluentUI.AspNetCore.Components
+```
+
+After installation, register the Fluent UI services in your `Program.cs` file:
+
+```csharp
+builder.Services.AddFluentUIComponents();
+```
+
+## Component Architecture
+
+Fluent UI components are designed with accessibility in mind. They follow WAI-ARIA guidelines and provide proper keyboard navigation out of the box.
+
+## Theming
+
+One of the most powerful features of Fluent UI is its theming system...</textarea>
+                    </div>
+                    <div class="editor-pane__preview" style="background: var(--color-surface);">
+                        <h2>Introduction</h2>
+                        <p>Microsoft Fluent UI provides a comprehensive set of components that follow modern design principles, making it an excellent choice for building professional Blazor applications.</p>
+                        <h2>Getting Started</h2>
+                        <p>First, you'll need to install the Microsoft.FluentUI.AspNetCore.Components NuGet package:</p>
+                        <pre><code>dotnet add package Microsoft.FluentUI.AspNetCore.Components</code></pre>
+                        <p>After installation, register the Fluent UI services in your <code>Program.cs</code> file:</p>
+                        <pre><code>builder.Services.AddFluentUIComponents();</code></pre>
+                        <h2>Component Architecture</h2>
+                        <p>Fluent UI components are designed with accessibility in mind. They follow WAI-ARIA guidelines and provide proper keyboard navigation out of the box.</p>
+                        <h2>Theming</h2>
+                        <p>One of the most powerful features of Fluent UI is its theming system...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Editor Sidebar -->
+            <div class="editor-sidebar" style="overflow-y: auto;">
+                <!-- Status -->
+                <div class="sidebar__section">
+                    <h3 class="sidebar__title">Status</h3>
+                    <select class="form-input form-select">
+                        <option selected>Draft</option>
+                        <option>Published</option>
+                        <option>Scheduled</option>
+                    </select>
+                </div>
+
+                <!-- Category -->
+                <div class="sidebar__section">
+                    <h3 class="sidebar__title">Category</h3>
+                    <select class="form-input form-select">
+                        <option>Select category...</option>
+                        <option selected>Blazor</option>
+                        <option>.NET</option>
+                        <option>C#</option>
+                        <option>PostgreSQL</option>
+                        <option>Architecture</option>
+                    </select>
+                </div>
+
+                <!-- Tags -->
+                <div class="sidebar__section">
+                    <h3 class="sidebar__title">Tags</h3>
+                    <div style="display: flex; flex-wrap: wrap; gap: var(--spacing-xs); margin-bottom: var(--spacing-sm);">
+                        <span class="badge badge--primary">blazor <button style="background: none; border: none; color: white; cursor: pointer; margin-left: 4px;">&times;</button></span>
+                        <span class="badge badge--primary">fluent-ui <button style="background: none; border: none; color: white; cursor: pointer; margin-left: 4px;">&times;</button></span>
+                        <span class="badge badge--primary">c# <button style="background: none; border: none; color: white; cursor: pointer; margin-left: 4px;">&times;</button></span>
+                    </div>
+                    <input type="text" class="form-input" placeholder="Add tag..." style="font-size: var(--font-size-small);">
+                </div>
+
+                <!-- Series -->
+                <div class="sidebar__section">
+                    <h3 class="sidebar__title">Series</h3>
+                    <select class="form-input form-select">
+                        <option>None</option>
+                        <option selected>Blazor Fundamentals</option>
+                        <option>Clean Architecture</option>
+                        <option>PostgreSQL for .NET</option>
+                    </select>
+                    <div style="margin-top: var(--spacing-sm);">
+                        <label class="form-label">Order in Series</label>
+                        <input type="number" class="form-input" value="3" min="1" style="width: 80px;">
+                    </div>
+                </div>
+
+                <!-- Featured Image -->
+                <div class="sidebar__section">
+                    <h3 class="sidebar__title">Featured Image</h3>
+                    <div style="border: 2px dashed var(--color-border); border-radius: var(--border-radius); padding: var(--spacing-lg); text-align: center; background: var(--color-surface);">
+                        <div class="placeholder-image" style="width: 100%; height: 100px; margin-bottom: var(--spacing-sm); border-radius: var(--border-radius);">Preview</div>
+                        <button class="btn btn--secondary" style="font-size: var(--font-size-xs);">Choose Image</button>
+                    </div>
+                </div>
+
+                <!-- Excerpt -->
+                <div class="sidebar__section">
+                    <h3 class="sidebar__title">Excerpt</h3>
+                    <textarea class="form-input form-textarea" style="min-height: 80px; font-size: var(--font-size-small);" placeholder="Brief description for listings...">Learn how to create beautiful, accessible web applications using Microsoft Fluent UI components in Blazor.</textarea>
+                </div>
+
+                <!-- URL Slug -->
+                <div class="sidebar__section">
+                    <h3 class="sidebar__title">URL Slug</h3>
+                    <input type="text" class="form-input" value="building-modern-blazor-applications" style="font-size: var(--font-size-small);">
+                </div>
+
+                <!-- Schedule -->
+                <div class="sidebar__section">
+                    <h3 class="sidebar__title">Schedule</h3>
+                    <div class="form-group">
+                        <label class="form-label" style="font-size: var(--font-size-xs);">Publish Date</label>
+                        <input type="date" class="form-input" style="font-size: var(--font-size-small);">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="font-size: var(--font-size-xs);">Publish Time</label>
+                        <input type="time" class="form-input" style="font-size: var(--font-size-small);">
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="sidebar__section" style="border-top: 1px solid var(--color-border); padding-top: var(--spacing-lg);">
+                    <button class="btn btn--primary" style="width: 100%; margin-bottom: var(--spacing-sm);">Publish Now</button>
+                    <button class="btn btn--secondary" style="width: 100%; margin-bottom: var(--spacing-sm);">Schedule</button>
+                    <button class="btn btn--secondary" style="width: 100%; color: var(--color-error);">Delete Draft</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Theme Toggle Functionality
+        function toggleTheme() {
+            const root = document.documentElement;
+            const currentTheme = root.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Initialize theme from localStorage or system preference
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+</body>
+</html>

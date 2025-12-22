@@ -1,0 +1,56 @@
+# QA Gate Decision File
+# Story 1.6: Main Layout & Navigation Shell
+
+schema: 1
+story: "1.6"
+story_title: "Main Layout & Navigation Shell"
+gate: PASS
+status_reason: "All critical and medium issues resolved. IDisposable properly implemented, misleading Sign Up buttons removed. Build passes with 0 errors/warnings."
+reviewer: "Quinn (Test Architect)"
+updated: "2025-12-18T00:00:00Z"
+
+top_issues: []  # All issues resolved
+
+waiver:
+  active: false
+
+quality_score: 100  # No FAILs or CONCERNS remaining
+expires: "2026-01-01T00:00:00Z"
+
+evidence:
+  tests_reviewed: 0  # No test project yet (Story 1.14)
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: "No user input handling in layout components. Auth routing to admin login is correct."
+  performance:
+    status: PASS
+    notes: "CSS-based responsive design. No runtime calculations. Event subscriptions properly cleaned up."
+  reliability:
+    status: PASS
+    notes: "IDisposable implemented for proper event cleanup. No memory leak risk."
+  maintainability:
+    status: PASS
+    notes: "Clean component separation. XML documentation complete. CSS follows BEM naming."
+
+recommendations:
+  immediate: []  # None - all issues resolved
+  future:
+    - action: "Add placeholder pages for /about, /rss routes"
+      refs: ["source/BlogUI/Components/Footer.razor"]
+    - action: "Add placeholder page for /tags route"
+      refs: ["source/BlogUI/Components/Sidebar.razor"]
+
+# Review History
+review_history:
+  - date: "2025-12-18"
+    gate: CONCERNS
+    reason: "IDisposable missing on 3 components, Sign Up buttons misleading"
+  - date: "2025-12-18"
+    gate: PASS
+    reason: "All issues resolved after dev fixes"

@@ -12,7 +12,7 @@ public static class AppConstants
     public static string RefreshKey = "RefreshToken";
     public static string BearerKey = "Bearer";
     public static string JsonMediaTypeHeader = "application/json";
-    public static string JWTTokenGenKey = "Xp@ns@JwTokenBieSR@viKum@r";
+    public static string JWTTokenGenKey = "Xp@ns@JwTokenBieSR@viKum@r2025!Secure";
     public static string AppSalt = "Xp@ns@r";
     public static string UserAgent = "User-Agent";
     public static string AppTypeBlazor = "BlazorServer";

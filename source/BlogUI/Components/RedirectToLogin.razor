@@ -1,0 +1,17 @@
+@*
+    RedirectToLogin.razor
+    Purpose: Redirects unauthenticated users to the login page.
+    Used by AuthorizeRouteView when user is not authenticated.
+    Preserves the original URL as a return URL parameter.
+
+    Dependencies: NavigationManager
+*@
+@inject NavigationManager NavigationManager
+
+@code {
+    protected override void OnInitialized()
+    {
+        var returnUrl = Uri.EscapeDataString(NavigationManager.Uri);
+        NavigationManager.NavigateTo($"/login?returnUrl={returnUrl}", forceLoad: true);
+    }
+}

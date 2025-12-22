@@ -1,0 +1,221 @@
+@*
+    SeriesView.razor
+    Purpose: Series detail page showing all posts in a blog series.
+    Displays series header, numbered post list with status indicators, and related series.
+
+    Dependencies: Breadcrumb, PostCard components, SeriesSvc
+    Layout: Uses FullWidthLayout (no sidebar - content focused)
+*@
+
+@page "/series"
+@page "/series/{Slug}"
+@layout FullWidthLayout
+
+@inject BlogEngine.Services.SeriesSvc SeriesService
+
+@* Breadcrumb Navigation *@
+<Breadcrumb Items="@breadcrumbItems" />
+
+@if (string.IsNullOrEmpty(Slug))
+{
+    @* All Series Listing *@
+    <div class="series-header">
+        <h1>All Series</h1>
+        <p class="series-header__description">Browse all multi-part blog series.</p>
+    </div>
+
+    @if (allSeries == null)
+    {
+        <FluentProgressRing />
+        <span>Loading series...</span>
+    }
+    else if (!allSeries.Any())
+    {
+        <p>No series available yet. Check back soon!</p>
+    }
+    else
+    {
+        <div class="post-grid post-grid--three">
+            @foreach (var s in allSeries)
+            {
+                <article class="card">
+                    <div class="card__body">
+                        <FluentBadge Appearance="Appearance.Accent">@s.PostCount Parts</FluentBadge>
+                        <h3 class="card__title">
+                            <a href="/series/@s.Slug">@s.Name</a>
+                        </h3>
+                        <p class="card__excerpt">@s.Description</p>
+                        <div class="card__meta">
+                            <span>@s.Status</span>
+                        </div>
+                    </div>
+                </article>
+            }
+        </div>
+    }
+}
+else if (series == null)
+{
+    <FluentProgressRing />
+    <span>Loading series...</span>
+}
+else if (series.SeriesId == 0)
+{
+    <div class="series-header">
+        <h1>Series Not Found</h1>
+        <p class="series-header__description">The series you're looking for doesn't exist or has been removed.</p>
+        <a href="/series" class="btn">Browse All Series</a>
+    </div>
+}
+else
+{
+    @* Series Header *@
+    <div class="series-header">
+        <FluentBadge Appearance="Appearance.Accent">Series</FluentBadge>
+        <h1 class="series-header__title">@series.Name</h1>
+        <p class="series-header__description">@series.Description</p>
+        <div class="series-header__meta">
+            <span><strong>@series.PostCount</strong> Parts</span>
+            <span>By @series.AuthorName</span>
+            <span>Started @series.CreatedOn.ToString("MMM yyyy")</span>
+            <span><strong>@series.Status</strong></span>
+        </div>
+    </div>
+
+    @* Series Posts List *@
+    <section class="series-posts">
+        <h2 class="section-title">Posts in this Series</h2>
+
+        @if (series.Posts != null && series.Posts.Any())
+        {
+            @foreach (var post in series.Posts.OrderBy(p => p.SeriesPartNumber))
+            {
+                var isLatest = post == series.Posts.Where(p => p.Published).OrderByDescending(p => p.PublishedOn).FirstOrDefault();
+
+                <article class="series-post @(isLatest ? "series-post--current" : "")">
+                    <div class="series-post__number">
+                        @post.SeriesPartNumber
+                    </div>
+                    <div class="series-post__content">
+                        <h3 class="series-post__title">
+                            @if (post.Published)
+                            {
+                                <a href="/post/@post.Slug">@post.Title</a>
+                            }
+                            else
+                            {
+                                @post.Title
+                            }
+                        </h3>
+                        <p class="series-post__excerpt">@post.Abstract</p>
+                        <div class="series-post__meta">
+                            @if (post.Published)
+                            {
+                                <span>@post.PublishedOn?.ToString("MMM dd, yyyy")</span>
+                                <span>@BlogEngine.Common.ReadingTimeCalculator.Calculate(post.PostContent ?? "")</span>
+                                @if (isLatest)
+                                {
+                                    <FluentBadge Appearance="Appearance.Accent">Latest</FluentBadge>
+                                }
+                                else
+                                {
+                                    <span class="badge badge--success">Published</span>
+                                }
+                            }
+                            else
+                            {
+                                <FluentBadge Appearance="Appearance.Neutral">Coming Soon</FluentBadge>
+                            }
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(post.FeaturedImage))
+                    {
+                        <div class="series-post__image">
+                            <img src="@post.FeaturedImage" alt="@post.Title" />
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="series-post__image placeholder-image">Image</div>
+                    }
+                </article>
+            }
+        }
+        else
+        {
+            <p>No posts in this series yet. Check back soon!</p>
+        }
+    </section>
+
+    @* Other Series *@
+    @if (otherSeries != null && otherSeries.Any())
+    {
+        <section class="other-series">
+            <h2 class="section-title">Other Series</h2>
+            <div class="post-grid post-grid--three">
+                @foreach (var other in otherSeries)
+                {
+                    <article class="card">
+                        <div class="card__body">
+                            <FluentBadge Appearance="Appearance.Accent">@other.PostCount Parts</FluentBadge>
+                            <h3 class="card__title">
+                                <a href="/series/@other.Slug">@other.Name</a>
+                            </h3>
+                            <p class="card__excerpt">@other.Description</p>
+                            <div class="card__meta">
+                                <span>@other.Status</span>
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
+        </section>
+    }
+}
+
+@code {
+    [Parameter]
+    public string Slug { get; set; } = string.Empty;
+
+    private List<Breadcrumb.BreadcrumbItem> breadcrumbItems = new();
+    private BlogModels.BlogSeries series;
+    private List<BlogModels.BlogSeries> otherSeries = new();
+    private List<BlogModels.BlogSeries> allSeries = new();
+
+    protected override void OnParametersSet()
+    {
+        LoadData();
+    }
+
+    private void LoadData()
+    {
+        // Setup breadcrumb
+        breadcrumbItems = new List<Breadcrumb.BreadcrumbItem>
+        {
+            new Breadcrumb.BreadcrumbItem { Label = "Home", Url = "/" },
+            new Breadcrumb.BreadcrumbItem { Label = "Series", Url = "/series" },
+        };
+
+        // Load all series
+        allSeries = SeriesService.GetAllWithCounts()?.ToList() ?? new List<BlogModels.BlogSeries>();
+
+        if (!string.IsNullOrEmpty(Slug))
+        {
+            // Load specific series with its posts
+            series = SeriesService.GetSeriesBySlug(Slug);
+
+            if (series != null && series.SeriesId > 0)
+            {
+                breadcrumbItems.Add(new Breadcrumb.BreadcrumbItem { Label = series.Name, Url = "" });
+
+                // Get other series (excluding current)
+                otherSeries = allSeries.Where(s => s.Slug != Slug).Take(3).ToList();
+            }
+            else
+            {
+                // Series not found
+                series = new BlogModels.BlogSeries();
+            }
+        }
+    }
+}

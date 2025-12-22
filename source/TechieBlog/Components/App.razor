@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en" data-site-theme="fluent-modern" data-theme="light">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Techie Blog</title>
+    <base href="/" />
+    <ResourcePreloader />
+    <ImportMap />
+
+    <!-- Microsoft Fluent UI Blazor Components CSS -->
+    <link href="_content/Microsoft.FluentUI.AspNetCore.Components/css/reboot.css" rel="stylesheet" />
+
+    <!-- TechieBlog Theme CSS Files -->
+    <link href="_content/BlogUI/Themes/_variables.css" rel="stylesheet" />
+    <link href="_content/BlogUI/Themes/fluent-modern.css" rel="stylesheet" />
+    <link href="_content/BlogUI/Themes/developer-dark.css" rel="stylesheet" />
+    <link href="_content/BlogUI/Themes/minimal-clean.css" rel="stylesheet" />
+
+    <!-- Layout-specific CSS -->
+    <link href="_content/BlogUI/css/layout.css" rel="stylesheet" />
+
+    <HeadOutlet @rendermode="InteractiveServer" />
+
+    <!-- Flash of Unstyled Content (FOUC) Prevention -->
+    <script>
+        (function() {
+            try {
+                var theme = localStorage.getItem('techieblog-theme');
+                var darkMode = localStorage.getItem('techieblog-dark-mode');
+                if (theme) {
+                    document.documentElement.setAttribute('data-site-theme', theme);
+                }
+                if (darkMode === 'true' || darkMode === true) {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                } else if (darkMode === 'false' || darkMode === false) {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                }
+            } catch (e) { }
+        })();
+    </script>
+</head>
+<body>
+    <BlogUI.Routes @rendermode="InteractiveServer" />
+
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <script src="_content/Microsoft.FluentUI.AspNetCore.Components/Microsoft.FluentUI.AspNetCore.Components.lib.module.js" type="module" async></script>
+
+    <!-- Theme Management JavaScript -->
+    <script>
+        function setThemeAttributes(siteTheme, darkMode) {
+            document.documentElement.setAttribute('data-site-theme', siteTheme);
+            document.documentElement.setAttribute('data-theme', darkMode);
+        }
+    </script>
+</body>
+</html>

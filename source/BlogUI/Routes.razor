@@ -1,0 +1,78 @@
+@*
+    Routes.razor
+    Purpose: Contains the Blazor router configuration.
+    Handles routing, authorization, and layout selection for the application.
+*@
+@using BlogUI.Layouts
+@using BlogUI.Components
+@using Microsoft.AspNetCore.Components.Authorization
+
+<CascadingAuthenticationState>
+    <ThemeProvider>
+        <FluentLayout>
+            <ErrorBoundary @ref="errorBoundary">
+                <ChildContent>
+                    <Router AppAssembly="@typeof(Routes).Assembly">
+                        <Found Context="routeData">
+                            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                                <NotAuthorized>
+                            @if (context.User.Identity?.IsAuthenticated != true)
+                            {
+                                <RedirectToLogin />
+                            }
+                            else
+                            {
+                                <LayoutView Layout="@typeof(MainLayout)">
+                                    <AccessDenied />
+                                </LayoutView>
+                            }
+                        </NotAuthorized>
+                        <Authorizing>
+                            <LayoutView Layout="@typeof(MainLayout)">
+                                <div style="display: flex; justify-content: center; align-items: center; height: 100vh;">
+                                    <FluentProgressRing />
+                                </div>
+                            </LayoutView>
+                        </Authorizing>
+                    </AuthorizeRouteView>
+                    <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+                </Found>
+                <NotFound>
+                    <LayoutView Layout="@typeof(MainLayout)">
+                        <PageTitle>Not Found</PageTitle>
+                        <div style="text-align: center; padding: 40px;">
+                            <h1>404 - Page Not Found</h1>
+                            <p>Sorry, there's nothing at this address.</p>
+                            <FluentAnchor Href="/" Appearance="Appearance.Accent">Go to Home</FluentAnchor>
+                        </div>
+                    </LayoutView>
+                    </NotFound>
+                </Router>
+                </ChildContent>
+                <ErrorContent Context="exception">
+                    <LayoutView Layout="@typeof(MainLayout)">
+                        <div style="text-align: center; padding: 40px;">
+                            <FluentIcon Value="@(new Icons.Regular.Size48.ErrorCircle())" Color="Color.Error" />
+                            <h1 style="margin-top: 16px;">Something went wrong</h1>
+                            <p style="color: var(--color-neutral-light);">
+                                We encountered an unexpected error. Please try refreshing the page.
+                            </p>
+                            <FluentButton Appearance="Appearance.Accent" OnClick="RecoverFromError" style="margin-top: 16px;">
+                                Try Again
+                            </FluentButton>
+                        </div>
+                    </LayoutView>
+                </ErrorContent>
+            </ErrorBoundary>
+        </FluentLayout>
+    </ThemeProvider>
+</CascadingAuthenticationState>
+
+@code {
+    private ErrorBoundary? errorBoundary;
+
+    private void RecoverFromError()
+    {
+        errorBoundary?.Recover();
+    }
+}

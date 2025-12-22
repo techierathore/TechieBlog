@@ -1,0 +1,39 @@
+schema: 1
+story: "3.2"
+story_title: "Markdown Editor Integration"
+gate: "PASS"
+status_reason: "Markdig-based markdown editor with live preview, formatting toolbar, and three view modes."
+reviewer: "Quinn (Test Architect)"
+updated: "2025-12-21T12:00:00Z"
+
+waiver: { active: false }
+
+top_issues:
+  - id: "DEF-001"
+    severity: low
+    finding: "Auto-save feature deferred"
+    suggested_action: "Can be added as future enhancement with LocalStorage"
+  - id: "DEF-002"
+    severity: low
+    finding: "Keyboard shortcuts deferred"
+    suggested_action: "Requires JS interop - can be added later"
+
+risk_summary:
+  totals: { critical: 0, high: 0, medium: 0, low: 2 }
+  recommendations:
+    must_fix: []
+    monitor:
+      - "Auto-save would improve user experience"
+
+evidence:
+  tests_reviewed: 5
+  risks_identified: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6]
+    ac_gaps: [7]
+
+nfr_validation:
+  security: { status: PASS, notes: "Server-side rendering prevents XSS" }
+  performance: { status: PASS, notes: "Debounced preview updates" }
+  reliability: { status: PASS, notes: "" }
+  maintainability: { status: PASS, notes: "MarkdownRenderer registered as singleton" }

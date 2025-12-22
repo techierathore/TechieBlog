@@ -1,0 +1,106 @@
+@*
+    PostCard.razor
+    Purpose: Reusable card component for displaying blog post previews.
+    Shows post image, category, title, excerpt, author info, date, and optional rating.
+
+    Dependencies: StarRating component for ratings display
+    Usage: Used in Home page post grids, archive pages, author profiles, search results
+*@
+
+<article class="card">
+    <div class="card__image placeholder-image">
+        @(string.IsNullOrEmpty(ImagePlaceholder) ? "Image" : ImagePlaceholder)
+    </div>
+    <div class="card__body">
+        <span class="card__category">@Category</span>
+        <h3 class="card__title">
+            <a href="@PostUrl">@Title</a>
+        </h3>
+        <p class="card__excerpt">
+            @Excerpt
+        </p>
+        <div class="card__meta">
+            <div class="card__author">
+                <div class="card__avatar"></div>
+                <span>@AuthorName</span>
+            </div>
+            <span>@Date</span>
+            @if (!string.IsNullOrEmpty(ReadTime))
+            {
+                <span>@ReadTime</span>
+            }
+            @if (ShowRating && Rating > 0)
+            {
+                <StarRating Value="@Rating" RatingCount="@RatingCount" />
+            }
+        </div>
+    </div>
+</article>
+
+@code {
+    /// <summary>
+    /// The category name displayed above the title.
+    /// </summary>
+    [Parameter]
+    public string Category { get; set; } = "Uncategorized";
+
+    /// <summary>
+    /// The post title.
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = "[Post Title]";
+
+    /// <summary>
+    /// Short excerpt/description of the post.
+    /// </summary>
+    [Parameter]
+    public string Excerpt { get; set; } = "[Post excerpt placeholder]";
+
+    /// <summary>
+    /// URL to navigate when clicking the post title.
+    /// </summary>
+    [Parameter]
+    public string PostUrl { get; set; } = "/post/placeholder";
+
+    /// <summary>
+    /// Author's display name.
+    /// </summary>
+    [Parameter]
+    public string AuthorName { get; set; } = "[Author]";
+
+    /// <summary>
+    /// Display date (formatted string).
+    /// </summary>
+    [Parameter]
+    public string Date { get; set; } = "Dec 15";
+
+    /// <summary>
+    /// Estimated read time (e.g., "8 min read").
+    /// </summary>
+    [Parameter]
+    public string? ReadTime { get; set; }
+
+    /// <summary>
+    /// Whether to display the star rating.
+    /// </summary>
+    [Parameter]
+    public bool ShowRating { get; set; } = false;
+
+    /// <summary>
+    /// Star rating value (1-5).
+    /// </summary>
+    [Parameter]
+    public int Rating { get; set; } = 0;
+
+    /// <summary>
+    /// Number of ratings (displayed in parentheses).
+    /// </summary>
+    [Parameter]
+    public int RatingCount { get; set; } = 0;
+
+    /// <summary>
+    /// Optional placeholder text for the image area.
+    /// </summary>
+    [Parameter]
+    public string? ImagePlaceholder { get; set; }
+}

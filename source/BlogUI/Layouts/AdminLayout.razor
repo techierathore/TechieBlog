@@ -1,103 +1,74 @@
-﻿@using BlogModels.Models
+@*
+    AdminLayout.razor
+    Purpose: Layout for administrative pages with navigation sidebar and header.
+    Provides Fluent UI-based navigation menu, user profile dropdown, and main content area.
+    Uses CSS custom properties from theme files for consistent styling.
+    Role-based menu visibility using AuthorizeView.
+
+    Usage: Applied to all admin pages (Dashboard, BlogsList, Users, etc.)
+    Dependencies: Microsoft.FluentUI.AspNetCore.Components, ThemeService, Authorization
+*@
+@using BlogModels.Models
+@using Microsoft.AspNetCore.Components.Authorization
 @inherits LayoutComponentBase
-<Link rel="stylesheet" href="~/adminui.css" />
-<Layout Sider="true">
-    <LayoutSider>
-        <LayoutSiderContent>
-            <Bar @ref="@sideBar" Breakpoint="Breakpoint.Desktop" NavigationBreakpoint="Breakpoint.Tablet" ThemeContrast="ThemeContrast.Dark"
-                 Mode="BarMode.VerticalInline" CollapseMode="BarCollapseMode.Small">
-                <BarBrand>
-                    <BarItem>
-                        <BarLink To="">
-                            <BarIcon IconName="IconName.Home" />
-                            TechieBlog-Admin
-                        </BarLink>
-                    </BarItem>
-                </BarBrand>
-                <BarMenu>
-                    <BarStart>
-                        <BarItem>
-                            <BarLink To="dashboard-default">
-                                <BarIcon IconName="IconName.Dashboard" />
-                                Dashboard
-                            </BarLink>                           
-                        </BarItem>
-                        <BarItem>
-                            <BarDropdown @bind-Visible="PagesMenuVisible">
-                                <BarDropdownToggle>
-                                    <BarIcon IconName="IconName.StickyNote" />
-                                    Blog Management
-                                </BarDropdownToggle>
-                                <BarDropdownMenu>
-                                    <BarDropdownItem To="BlogsList">
-                                        Blog Posts 
-                                    </BarDropdownItem>
-                                    <BarDropdownItem To="pages-profile">
-                                        Tags
-                                    </BarDropdownItem>
-                                    <BarDropdownItem To="pages-profile">
-                                        Comments
-                                    </BarDropdownItem>
-                                </BarDropdownMenu>
-                            </BarDropdown>
-                        </BarItem>
-                        <BarItem>
-                            <BarLink To="dashboard-default">
-                               @*  <BarIcon IconName="IconName.Users" /> *@
-                                Users
-                            </BarLink>
-                        </BarItem>                        
-                    </BarStart>
-                </BarMenu>
-            </Bar>
-        </LayoutSiderContent>
-    </LayoutSider>
-    <Layout>
-        <LayoutHeader Fixed="true">
-            <Bar @bind-Visible="@TopBarVisible" Class="navbar-expand" Breakpoint="Breakpoint.Desktop" Background="Background.Light" ThemeContrast="ThemeContrast.Light">
-                <BarToggler Bar="@sideBar" Border="Border.Is0" />
-                <BarBrand>
-                    <BarItem>
-                        <BarLink To="">
-                            <BarIcon IconName="IconName.Dashboard" />
-                            TechieBlog-Admin
-                        </BarLink>
-                    </BarItem>
-                </BarBrand>
-                <BarMenu>
-                    <BarEnd>
-                        <Dropdown RightAligned>
-                            <DropdownToggle Display="Display.InlineBlock.None.OnMobile">                               
-                                <Image Class="avatar" Fluid Border="Border.RoundedCircle" Margin="Margin.Is1.FromEnd" Style="width:40px; height:40px;" >
-                                    <Icon Name="IconName.User" />
-                                </Image>
-                                <Span TextColor="TextColor.Dark"> S Ravi Kumar</Span>
-                            </DropdownToggle>
-                            <DropdownMenu>
-                                <DropdownItem>
-                                    <Icon Name="IconName.User" />
-                                    Profile
-                                </DropdownItem>
-                                <DropdownItem>
-                                    <Icon Name="IconName.ChartPie" />
-                                    Analytics
-                                </DropdownItem>
-                                <DropdownDivider />
-                                <DropdownItem>Settings &amp; Privacy</DropdownItem>
-                                <DropdownItem>Help</DropdownItem>
-                                <DropdownItem>Sign out</DropdownItem>
-                            </DropdownMenu>
-                        </Dropdown>
-                    </BarEnd>
-                </BarMenu>
-            </Bar>
-        </LayoutHeader>
-        <LayoutContent>
-            <Div Class="content">
-                <Container Fluid="true" Padding="Padding.Is0">
-                    @Body
-                </Container>
-            </Div>
-        </LayoutContent>
-    </Layout>
-</Layout>
+
+<FluentLayout Style="background-color: var(--color-background); color: var(--color-neutral);">
+    <FluentStack Orientation="Orientation.Horizontal" Style="height: 100vh;">
+        @* Sidebar Navigation *@
+        <FluentNavMenu Width="250" Collapsible="true" Title="TechieBlog Admin" Style="background-color: var(--color-surface); border-right: 1px solid var(--color-border);">
+            <FluentNavLink Href="/" Match="NavLinkMatch.All">
+                TechieBlog
+            </FluentNavLink>
+            <FluentNavLink Href="/admin">
+                Dashboard
+            </FluentNavLink>
+            <FluentNavGroup Title="Blog Management">
+                <FluentNavLink Href="/BlogsList">Blog Posts</FluentNavLink>
+                @* Tags link only visible to Admins *@
+                <AuthorizeView Policy="AdminOnly">
+                    <Authorized>
+                        <FluentNavLink Href="/tags">Tags</FluentNavLink>
+                    </Authorized>
+                </AuthorizeView>
+                <FluentNavLink Href="/comments">Comments</FluentNavLink>
+            </FluentNavGroup>
+            @* Users link only visible to Admins *@
+            <AuthorizeView Policy="AdminOnly">
+                <Authorized>
+                    <FluentNavLink Href="/users">
+                        Users
+                    </FluentNavLink>
+                </Authorized>
+            </AuthorizeView>
+        </FluentNavMenu>
+
+        @* Main Content Area *@
+        <FluentStack Orientation="Orientation.Vertical" Style="flex: 1; overflow: hidden;">
+            @* Top Header Bar *@
+            <FluentHeader Style="height: var(--header-height, 50px); padding: 0 var(--spacing-md, 16px); background-color: var(--color-surface); border-bottom: 1px solid var(--color-border);">
+                <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.End" Style="width: 100%;">
+                    <FluentMenu>
+                        <FluentMenuButton Appearance="Appearance.Stealth">
+                            <span style="margin-left: var(--spacing-sm, 8px);">@CurrentUserName</span>
+                            <FluentBadge Appearance="Appearance.Accent" Style="margin-left: 8px;">@CurrentUserRole</FluentBadge>
+                        </FluentMenuButton>
+                        <FluentMenuItem Href="/profile">Profile</FluentMenuItem>
+                        <AuthorizeView Policy="AdminOnly">
+                            <Authorized>
+                                <FluentMenuItem Href="/analytics">Analytics</FluentMenuItem>
+                                <FluentMenuItem Href="/settings">Settings</FluentMenuItem>
+                            </Authorized>
+                        </AuthorizeView>
+                        <FluentMenuItem Href="/help">Help</FluentMenuItem>
+                        <FluentMenuItem OnClick="@LogoutAsync">Sign out</FluentMenuItem>
+                    </FluentMenu>
+                </FluentStack>
+            </FluentHeader>
+
+            @* Main Body Content *@
+            <FluentBodyContent Style="padding: var(--spacing-md, 16px); overflow: auto; background-color: var(--color-background);">
+                @Body
+            </FluentBodyContent>
+        </FluentStack>
+    </FluentStack>
+</FluentLayout>

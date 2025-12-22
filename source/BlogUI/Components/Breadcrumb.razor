@@ -1,0 +1,54 @@
+@*
+    Breadcrumb.razor
+    Purpose: Navigation breadcrumb component showing page hierarchy.
+    Displays clickable links for parent pages and current page text.
+
+    Dependencies: None
+    Usage: Used in PostView, CategoryArchive, TagArchive, SeriesView pages
+*@
+
+<nav class="breadcrumb">
+    @foreach (var (item, index) in Items.Select((item, index) => (item, index)))
+    {
+        @if (index > 0)
+        {
+            <span class="breadcrumb__separator">/</span>
+        }
+
+        @if (index == Items.Count - 1)
+        {
+            @* Last item - current page, no link *@
+            <span class="breadcrumb__current">@item.Label</span>
+        }
+        else
+        {
+            @* Parent items - clickable links *@
+            <a href="@item.Url">@item.Label</a>
+        }
+    }
+</nav>
+
+@code {
+    /// <summary>
+    /// List of breadcrumb items from root to current page.
+    /// The last item is displayed as plain text (current page).
+    /// </summary>
+    [Parameter]
+    public List<BreadcrumbItem> Items { get; set; } = new();
+
+    /// <summary>
+    /// Represents a single breadcrumb navigation item.
+    /// </summary>
+    public class BreadcrumbItem
+    {
+        /// <summary>
+        /// Display text for the breadcrumb.
+        /// </summary>
+        public string Label { get; set; } = string.Empty;
+
+        /// <summary>
+        /// URL to navigate to (ignored for the last/current item).
+        /// </summary>
+        public string Url { get; set; } = "/";
+    }
+}

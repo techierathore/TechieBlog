@@ -361,3 +361,12 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# BMAD (local only)
+.bmad-core/
+.bmad-*/
+
+# AI Assistant files (local only)
+.claude/
+.opencode/
+CLAUDE.md

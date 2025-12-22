@@ -22,18 +22,29 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
 
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
-        var vAccessToken = await LocalStorageSvc.GetItemAsync<string>(AppConstants.AccessKey);
-
         ClaimsIdentity vIdentity;
-        if (vAccessToken != null && vAccessToken != string.Empty)
+
+        try
         {
-            AppUser user = await AuthSvc.GetUserByAccessTokenAsync(vAccessToken);
-            vIdentity = GetClaimsIdentity(user);
+            var vAccessToken = await LocalStorageSvc.GetItemAsync<string>(AppConstants.AccessKey);
+
+            if (vAccessToken != null && vAccessToken != string.Empty)
+            {
+                AppUser user = await AuthSvc.GetUserByAccessTokenAsync(vAccessToken);
+                vIdentity = GetClaimsIdentity(user);
+            }
+            else
+            {
+                vIdentity = new ClaimsIdentity();
+            }
         }
-        else
+        catch (InvalidOperationException)
         {
+            // JavaScript interop is not available during prerendering
+            // Return unauthenticated state during prerender
             vIdentity = new ClaimsIdentity();
         }
+
         var vClaimsPrincipal = new ClaimsPrincipal(vIdentity);
         return await Task.FromResult(new AuthenticationState(vClaimsPrincipal));
     }

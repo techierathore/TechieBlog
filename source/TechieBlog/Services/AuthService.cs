@@ -13,9 +13,39 @@ public class AuthService : IAuthService
     {
         objAuthSvc = authSvc;
     }
-   public Task<AppUser> GetUserByAccessTokenAsync(string accessToken)
+   /// <summary>
+    /// Retrieves user information from a valid access token.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b></para>
+    /// <list type="number">
+    ///   <item>Wraps token in SvcData for backend call</item>
+    ///   <item>Calls AuthSvc.GetUserByToken to validate and retrieve user</item>
+    ///   <item>Decrypts and deserializes the user data</item>
+    /// </list>
+    /// </remarks>
+    /// <param name="accessToken">JWT access token from LocalStorage.</param>
+    /// <returns>AppUser if token is valid, null if invalid or expired.</returns>
+    public Task<AppUser> GetUserByAccessTokenAsync(string accessToken)
     {
-        throw new NotImplementedException();
+        try
+        {
+            var tokenData = new SvcData { JwToken = accessToken };
+            var vSvcResponse = objAuthSvc.GetUserByToken(tokenData);
+
+            if (vSvcResponse == null)
+            {
+                return Task.FromResult<AppUser>(null);
+            }
+
+            string sDecryptedUser = AppEncrypt.DecryptText(vSvcResponse.ComplexData);
+            var vReturnUser = JsonSerializer.Deserialize<AppUser>(sDecryptedUser);
+            return Task.FromResult(vReturnUser);
+        }
+        catch (Exception)
+        {
+            return Task.FromResult<AppUser>(null);
+        }
     }
 
     public Task<AppUser> LoginAsync(SvcData aLoginUser)

@@ -1,0 +1,93 @@
+@*
+    CategoriesList.razor
+    Purpose: Displays a list of categories for blog posts.
+    Provides editing and deletion capabilities for category management.
+
+    Usage: Navigate to /admin/categories
+    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+    Authorization: AdminOnly policy required
+*@
+@page "/admin/categories"
+@page "/CategoriesList"
+@attribute [Authorize(Policy = "AdminOnly")]
+@layout BlogUI.Layouts.AdminLayout
+
+<ContentPanel PanelTitle="Categories">
+    <RightSection>
+        <FluentAnchor Href="/admin/category" Appearance="Appearance.Accent">
+            + Add New
+        </FluentAnchor>
+    </RightSection>
+    <PanelContent>
+        @if (!string.IsNullOrEmpty(StatusMessage))
+        {
+            <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
+                              Style="margin-bottom: 16px;">
+                @StatusMessage
+            </FluentMessageBar>
+        }
+
+        @if (ObjectList == null)
+        {
+            <FluentProgressRing />
+            <span>Loading...</span>
+        }
+        else if (ObjectList.Count == 0)
+        {
+            <FluentMessageBar Intent="MessageIntent.Info">
+                No categories found. Click "Add New" to create your first category.
+            </FluentMessageBar>
+        }
+        else
+        {
+            <p style="margin-bottom: 16px;">@ObjectList.Count category(ies) found</p>
+            <FluentDataGrid Items="@ObjectList.AsQueryable()" Style="width: 100%;">
+                <PropertyColumn Property="@(c => c.CategoryName)" Title="Name" Sortable="true" />
+                <PropertyColumn Property="@(c => c.Slug)" Title="Slug" Sortable="true" />
+                <PropertyColumn Property="@(c => c.Description)" Title="Description" Sortable="true" />
+                <PropertyColumn Property="@(c => c.PostCount)" Title="Posts" Sortable="true" />
+                <TemplateColumn Title="Actions">
+                    <FluentStack Orientation="Orientation.Horizontal" Style="gap: 8px;">
+                        <FluentAnchor Href="@($"/admin/category/{context.CategoryId}")" Appearance="Appearance.Stealth">
+                            <FluentIcon Value="@(new Icons.Regular.Size16.Edit())" />
+                            Edit
+                        </FluentAnchor>
+                        <FluentButton Appearance="Appearance.Stealth"
+                                      OnClick="@(() => ShowDeleteDialog(context))">
+                            <FluentIcon Value="@(new Icons.Regular.Size16.Delete())" Color="Color.Error" />
+                            Delete
+                        </FluentButton>
+                    </FluentStack>
+                </TemplateColumn>
+            </FluentDataGrid>
+        }
+
+        @* Delete Confirmation Dialog *@
+        @if (ShowDeleteConfirm)
+        {
+        <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
+            <FluentDialogHeader>
+                <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
+            </FluentDialogHeader>
+            <FluentDialogBody>
+                <p>Are you sure you want to delete the category "<strong>@CategoryToDelete?.CategoryName</strong>"?</p>
+                @if (CategoryToDelete?.PostCount > 0)
+                {
+                    <p style="color: var(--warning-foreground);">
+                        Warning: This category has @CategoryToDelete.PostCount post(s). They will become uncategorized.
+                    </p>
+                }
+            </FluentDialogBody>
+            <FluentDialogFooter>
+                <FluentButton Appearance="Appearance.Neutral" OnClick="@CancelDelete">
+                    Cancel
+                </FluentButton>
+                <FluentButton Appearance="Appearance.Accent" OnClick="@ConfirmDelete"
+                              Style="background-color: #d13438;">
+                    Delete
+                </FluentButton>
+            </FluentDialogFooter>
+        </FluentDialog>
+        }
+    </PanelContent>
+</ContentPanel>

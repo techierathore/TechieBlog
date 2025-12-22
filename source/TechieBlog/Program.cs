@@ -1,58 +1,119 @@
+// =============================================================================
+// TechieBlog Application Entry Point
+// Purpose: Configures and starts the Blazor Server application
+// =============================================================================
 using Blazored.LocalStorage;
-using Blazorise;
-using Blazorise.Bootstrap;
-using Blazorise.Icons.FontAwesome;
 using BlogEngine;
+using BlogModels;
 using BlogModels.Interfaces;
 using BlogUI;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.FluentUI.AspNetCore.Components;
+using Serilog;
+using Serilog.Events;
 using TechieBlog.Services;
 
+// Configure Serilog early for startup logging
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
+    .Enrich.FromLogContext()
+    .Enrich.WithMachineName()
+    .Enrich.WithEnvironmentName()
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .WriteTo.File(
+        path: "logs/techieblog-.log",
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 7,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .CreateLogger();
 
-var builder = WebApplication.CreateBuilder(args);
-
-builder.Services
-  .AddBlazorise(options =>
-  {
-      options.Immediate = true; // optional
-  })
-  .AddBootstrapProviders()
-  .AddFontAwesomeIcons();
-
-string sDbConnectionString = builder.Configuration["AppDbConString"];
-
-// Initialize ItsmCore Services 
-BlogSvcInitializer.Initialize(builder.Services, sDbConnectionString);
-
-// Add services to the container.
-builder.Services.AddRazorPages();
-builder.Services.AddServerSideBlazor()
-        .AddHubOptions(o => { o.MaximumReceiveMessageSize = 10 * 1024 * 1024; })
-        .AddCircuitOptions(options => { options.DetailedErrors = true; });
-
-
-
-builder.Services.AddBlazoredLocalStorage();
-builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
-builder.Services.AddTransient<IAuthService, AuthService>();
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+try
 {
-    app.UseExceptionHandler("/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
+    Log.Information("Starting TechieBlog application");
+
+    var builder = WebApplication.CreateBuilder(args);
+
+    // Use Serilog for all logging
+    builder.Host.UseSerilog();
+
+    // Enable static web assets from referenced RCL projects
+    builder.WebHost.UseStaticWebAssets();
+
+    // Register Microsoft Fluent UI Blazor components
+    // Provides modern, accessible UI components following Microsoft's Fluent design system
+    builder.Services.AddFluentUIComponents();
+
+    string sDbConnectionString = builder.Configuration["AppDbConString"];
+
+    // Initialize BlogEngine Services
+    BlogSvcInitializer.Initialize(builder.Services, sDbConnectionString);
+
+    // Add services to the container.
+    builder.Services.AddRazorComponents()
+        .AddInteractiveServerComponents(options =>
+        {
+            options.DetailedErrors = true;
+        });
+
+    // Authentication and Authorization Services
+    builder.Services.AddBlazoredLocalStorage();
+    builder.Services.AddAuthorizationCore(options =>
+    {
+        // AdminOnly: Full system access - users, settings, all content
+        options.AddPolicy(AppPolicies.AdminOnly, policy =>
+            policy.RequireRole(AppRoles.Admin));
+
+        // EditorOrAbove: Content management - manage all posts, comments
+        options.AddPolicy(AppPolicies.EditorOrAbove, policy =>
+            policy.RequireRole(AppRoles.Admin, AppRoles.Editor));
+
+        // AuthorOrAbove: Content creation - create/edit posts
+        options.AddPolicy(AppPolicies.AuthorOrAbove, policy =>
+            policy.RequireRole(AppRoles.Admin, AppRoles.Editor, AppRoles.Author));
+
+        // ContributorOrAbove: Submit content for review
+        options.AddPolicy(AppPolicies.ContributorOrAbove, policy =>
+            policy.RequireRole(AppRoles.Admin, AppRoles.Editor, AppRoles.Author, AppRoles.Contributor));
+
+        // Authenticated: Any logged-in user
+        options.AddPolicy(AppPolicies.Authenticated, policy =>
+            policy.RequireAuthenticatedUser());
+    });
+    builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
+    builder.Services.AddTransient<IAuthService, AuthService>();
+    builder.Services.AddScoped<ThemeService>();
+
+    var app = builder.Build();
+
+    // Configure the HTTP request pipeline.
+    if (!app.Environment.IsDevelopment())
+    {
+        app.UseExceptionHandler("/Error");
+        // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+        app.UseHsts();
+    }
+
+    app.UseHttpsRedirection();
+
+    app.MapStaticAssets();
+
+    app.UseAntiforgery();
+
+    app.MapRazorComponents<TechieBlog.Components.App>()
+        .AddInteractiveServerRenderMode()
+        .AddAdditionalAssemblies(typeof(BlogUI._Imports).Assembly);
+
+    app.Run();
 }
-
-app.UseHttpsRedirection();
-
-app.UseStaticFiles();
-
-app.UseRouting();
-
-app.MapBlazorHub();
-app.MapFallbackToPage("/_Host");
-
-app.Run();
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application terminated unexpectedly");
+}
+finally
+{
+    Log.Information("TechieBlog application shutting down");
+    Log.CloseAndFlush();
+}

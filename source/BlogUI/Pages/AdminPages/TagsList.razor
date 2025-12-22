@@ -1,35 +1,136 @@
-﻿@page "/TagsList"
-<ConentPanel PanelTitle="All Tags/Categories of Blog-Posts List">
-    <RightSesction>
-        <NavLink class="btn btn-primary" href="ManageAccount">
-            <span class="oi oi-plus" aria-hidden="true"></span>
-            Add New
-        </NavLink>
-    </RightSesction>
+@*
+    TagsList.razor
+    Purpose: Displays a list of tags for blog posts.
+    Provides editing and delete capabilities for tag management.
+
+    Usage: Navigate to /TagsList
+    Dependencies: Microsoft.FluentUI.AspNetCore.Components, TagSvc
+    Authorization: AdminOnly policy required
+*@
+@page "/TagsList"
+@attribute [Authorize(Policy = "AdminOnly")]
+@layout BlogUI.Layouts.AdminLayout
+@inject BlogEngine.Services.TagSvc TagService
+@inject NavigationManager Navigation
+
+<ContentPanel PanelTitle="Tags Management">
+    <RightSection>
+        <FluentAnchor Href="/ManageTag" Appearance="Appearance.Accent">
+            + Add New Tag
+        </FluentAnchor>
+    </RightSection>
     <PanelContent>
-        @if (ObjectList == null)
+        @if (!string.IsNullOrEmpty(StatusMessage))
         {
-            <p><em>Loading...</em></p>
+            <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
+                              Style="margin-bottom: 16px;">
+                @StatusMessage
+            </FluentMessageBar>
+        }
+
+        @if (TagList == null)
+        {
+            <FluentProgressRing />
+            <span>Loading...</span>
+        }
+        else if (!TagList.Any())
+        {
+            <FluentMessageBar Intent="MessageIntent.Info">
+                No tags found. Create your first tag to get started.
+            </FluentMessageBar>
         }
         else
         {
-            <DataGrid TItem="BlogTag" Data="@ObjectList" @bind-SelectedRow="@SelObject"
-                      Sortable="true" Filterable="false" ShowPager="false" PageSize="15"
-                      UseInternalEditing="false" Editable="false" Striped="false"
-                      Bordered="true" Hoverable="true" Responsive="true">
-                <DataGridColumns>
-                    <DataGridColumn TItem="BlogTag" Field="@nameof(BlogTag.TagID)" Caption="Tag ID" />
-                    <DataGridColumn TItem="BlogTag" Field="@nameof(BlogTag.TagName)" Caption="Tag Name" />
-                    <DataGridColumn TItem="BlogTag" Field="@nameof(BlogTag.TagID)">
-                        <DisplayTemplate>
-                            <a class="btn btn-secondary table-btn"
-                               href="/ManagePost/@context.TagID">
-                                <i class="material-icons">create</i>
-                            </a>
-                        </DisplayTemplate>
-                    </DataGridColumn>
-                </DataGridColumns>
-            </DataGrid>
+            <FluentDataGrid Items="@TagList.AsQueryable()" Style="width: 100%;">
+                <PropertyColumn Property="@(p => p.TagName)" Title="Tag Name" Sortable="true" />
+                <PropertyColumn Property="@(p => p.Slug)" Title="Slug" Sortable="true" />
+                <PropertyColumn Property="@(p => p.PostCount)" Title="Posts" Sortable="true" />
+                <TemplateColumn Title="Actions">
+                    <FluentStack Orientation="Orientation.Horizontal" Style="gap: 8px;">
+                        <FluentAnchor Href="@($"/ManageTag/{context.TagId}")" Appearance="Appearance.Stealth">
+                            Edit
+                        </FluentAnchor>
+                        <FluentButton Appearance="Appearance.Stealth"
+                                      OnClick="@(() => ConfirmDelete(context))"
+                                      Style="color: var(--error);">
+                            Delete
+                        </FluentButton>
+                    </FluentStack>
+                </TemplateColumn>
+            </FluentDataGrid>
         }
+
+        @* Delete Confirmation Dialog *@
+        <FluentDialog @bind-Hidden="@HideDeleteDialog" Modal="true">
+            <FluentDialogHeader>Confirm Delete</FluentDialogHeader>
+            <FluentDialogBody>
+                <p>Are you sure you want to delete the tag "<strong>@TagToDelete?.TagName</strong>"?</p>
+                <p style="color: var(--warning);">This will remove the tag from all associated posts.</p>
+            </FluentDialogBody>
+            <FluentDialogFooter>
+                <FluentButton Appearance="Appearance.Accent" OnClick="DeleteTag">Delete</FluentButton>
+                <FluentButton Appearance="Appearance.Outline" OnClick="CancelDelete">Cancel</FluentButton>
+            </FluentDialogFooter>
+        </FluentDialog>
     </PanelContent>
-</ConentPanel>
+</ContentPanel>
+
+@code {
+    private List<BlogTag> TagList;
+    private BlogTag TagToDelete;
+    private bool HideDeleteDialog = true;
+    private string StatusMessage = string.Empty;
+    private bool IsError = false;
+
+    protected override void OnInitialized()
+    {
+        LoadTags();
+    }
+
+    private void LoadTags()
+    {
+        try
+        {
+            TagList = TagService.GetAllWithCounts().ToList();
+        }
+        catch
+        {
+            TagList = new List<BlogTag>();
+            StatusMessage = "Failed to load tags.";
+            IsError = true;
+        }
+    }
+
+    private void ConfirmDelete(BlogTag tag)
+    {
+        TagToDelete = tag;
+        HideDeleteDialog = false;
+    }
+
+    private void CancelDelete()
+    {
+        TagToDelete = null;
+        HideDeleteDialog = true;
+    }
+
+    private void DeleteTag()
+    {
+        if (TagToDelete == null) return;
+
+        var result = TagService.DeleteTag(TagToDelete.TagId);
+        if (result.IsSuccess)
+        {
+            StatusMessage = $"Tag '{TagToDelete.TagName}' deleted successfully.";
+            IsError = false;
+            LoadTags();
+        }
+        else
+        {
+            StatusMessage = result.ErrorMessage;
+            IsError = true;
+        }
+
+        TagToDelete = null;
+        HideDeleteDialog = true;
+    }
+}

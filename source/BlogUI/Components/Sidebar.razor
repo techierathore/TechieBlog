@@ -1,0 +1,131 @@
+@*
+    Sidebar.razor
+    Purpose: Right-aligned sidebar component for TechieBlog public pages.
+    Contains search box, categories list, popular tags cloud, and subscribe form.
+    Uses FluentCard for section containers with responsive collapse behavior.
+
+    Dependencies: FluentUI components, CategorySvc, TagSvc
+    Usage: Placed in MainLayout.razor sidebar area
+*@
+@inject BlogEngine.Services.CategorySvc CategoryService
+@inject BlogEngine.Services.TagSvc TagService
+@inject NavigationManager Navigation
+
+<aside class="sidebar">
+    @* Search Box Section *@
+    <section class="sidebar__section">
+        <h3 class="sidebar__title">Search</h3>
+        <FluentCard>
+            <div class="search-box">
+                <FluentIcon Value="@(new Icons.Regular.Size16.Search())" Class="search-box__icon" />
+                <FluentTextField Placeholder="Search posts..."
+                                 Style="width: 100%;"
+                                 @bind-Value="searchQuery"
+                                 @onkeydown="HandleSearchKeyDown" />
+            </div>
+        </FluentCard>
+    </section>
+
+    @* Categories Section *@
+    <section class="sidebar__section">
+        <h3 class="sidebar__title">Categories</h3>
+        <FluentCard>
+            <nav class="nav-menu">
+                @foreach (var category in categories)
+                {
+                    <a href="@($"/category/{category.Slug}")" class="nav-menu__link">
+                        <FluentIcon Value="@(new Icons.Regular.Size20.Folder())" />
+                        <span>@category.CategoryName</span>
+                        <FluentBadge Appearance="Appearance.Neutral">
+                            @category.PostCount
+                        </FluentBadge>
+                    </a>
+                }
+            </nav>
+        </FluentCard>
+    </section>
+
+    @* Popular Tags Section *@
+    <section class="sidebar__section">
+        <h3 class="sidebar__title">Popular Tags</h3>
+        <FluentCard>
+            <div class="tags-cloud">
+                @foreach (var tag in popularTags)
+                {
+                    <a href="@($"/tag/{tag.Slug}")" class="tag">
+                        @tag.TagName
+                    </a>
+                }
+            </div>
+        </FluentCard>
+    </section>
+
+    @* Subscribe Form Section *@
+    <section class="sidebar__section">
+        <div class="subscribe-form">
+            <h4 class="subscribe-form__title">Stay Updated</h4>
+            <p class="subscribe-form__text">
+                Get the latest posts delivered to your inbox.
+            </p>
+            <FluentTextField Placeholder="Your email address"
+                             Style="width: 100%; margin-bottom: var(--spacing-sm);"
+                             @bind-Value="emailAddress" />
+            <FluentButton Appearance="Appearance.Accent"
+                          Style="width: 100%;"
+                          OnClick="HandleSubscribe">
+                Subscribe
+            </FluentButton>
+        </div>
+    </section>
+</aside>
+
+@code {
+    private string searchQuery = string.Empty;
+    private string emailAddress = string.Empty;
+    private List<Category> categories = new();
+    private List<BlogTag> popularTags = new();
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            categories = CategoryService.GetAllWithCounts().ToList();
+        }
+        catch
+        {
+            categories = new List<Category>();
+        }
+
+        try
+        {
+            // Get tags sorted by post count (most popular first), limited to 10
+            popularTags = TagService.GetAllWithCounts()
+                .OrderByDescending(t => t.PostCount)
+                .Take(10)
+                .ToList();
+        }
+        catch
+        {
+            popularTags = new List<BlogTag>();
+        }
+    }
+
+    /// <summary>
+    /// Handles Enter key press in search box to trigger search.
+    /// </summary>
+    private void HandleSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(searchQuery))
+        {
+            Navigation.NavigateTo($"/search?q={Uri.EscapeDataString(searchQuery)}");
+        }
+    }
+
+    /// <summary>
+    /// Handles subscribe button click. Placeholder for future implementation.
+    /// </summary>
+    private void HandleSubscribe()
+    {
+        // Subscribe functionality - to be implemented in future stories
+    }
+}

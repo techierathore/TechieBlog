@@ -1,0 +1,437 @@
+@*
+    MarkdownEditor.razor
+    Purpose: Markdown editor component with live preview and formatting toolbar.
+    Provides edit, split, and preview view modes.
+
+    Usage: <MarkdownEditor @bind-Value="content" />
+    Dependencies: BlogEngine.Common.MarkdownRenderer, Fluent UI
+*@
+@namespace BlogUI.Components
+@inject BlogEngine.Common.MarkdownRenderer Renderer
+
+<div class="markdown-editor">
+    @* Toolbar *@
+    <div class="markdown-editor__toolbar">
+        <div class="markdown-editor__toolbar-group">
+            <FluentButton Appearance="Appearance.Stealth"
+                          OnClick="@(() => InsertMarkdown("**", "**", "bold text"))"
+                          Title="Bold (Ctrl+B)">
+                <FluentIcon Value="@(new Icons.Regular.Size16.TextBold())" />
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Stealth"
+                          OnClick="@(() => InsertMarkdown("*", "*", "italic text"))"
+                          Title="Italic (Ctrl+I)">
+                <FluentIcon Value="@(new Icons.Regular.Size16.TextItalic())" />
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Stealth"
+                          OnClick="@(() => InsertMarkdown("~~", "~~", "strikethrough"))"
+                          Title="Strikethrough">
+                <FluentIcon Value="@(new Icons.Regular.Size16.TextStrikethrough())" />
+            </FluentButton>
+        </div>
+
+        <div class="markdown-editor__toolbar-group">
+            <FluentButton Appearance="Appearance.Stealth"
+                          OnClick="@(() => InsertMarkdown("# ", "", "Heading 1"))"
+                          Title="Heading 1">
+                H1
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Stealth"
+                          OnClick="@(() => InsertMarkdown("## ", "", "Heading 2"))"
+                          Title="Heading 2">
+                H2
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Stealth"
+                          OnClick="@(() => InsertMarkdown("### ", "", "Heading 3"))"
+                          Title="Heading 3">
+                H3
+            </FluentButton>
+        </div>
+
+        <div class="markdown-editor__toolbar-group">
+            <FluentButton Appearance="Appearance.Stealth"
+                          OnClick="@(() => InsertMarkdown("[", "](url)", "link text"))"
+                          Title="Insert Link">
+                <FluentIcon Value="@(new Icons.Regular.Size16.Link())" />
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Stealth"
+                          OnClick="@(() => InsertMarkdown("![alt text](", ")", "image-url"))"
+                          Title="Insert Image">
+                <FluentIcon Value="@(new Icons.Regular.Size16.Image())" />
+            </FluentButton>
+        </div>
+
+        <div class="markdown-editor__toolbar-group">
+            <FluentButton Appearance="Appearance.Stealth"
+                          OnClick="@(() => InsertMarkdown("`", "`", "code"))"
+                          Title="Inline Code">
+                <FluentIcon Value="@(new Icons.Regular.Size16.Code())" />
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Stealth"
+                          OnClick="@(() => InsertMarkdown("```\n", "\n```", "code block"))"
+                          Title="Code Block">
+                <FluentIcon Value="@(new Icons.Regular.Size16.CodeBlock())" />
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Stealth"
+                          OnClick="@(() => InsertMarkdown("> ", "", "quote"))"
+                          Title="Blockquote">
+                <FluentIcon Value="@(new Icons.Regular.Size16.TextQuote())" />
+            </FluentButton>
+        </div>
+
+        <div class="markdown-editor__toolbar-group">
+            <FluentButton Appearance="Appearance.Stealth"
+                          OnClick="@(() => InsertMarkdown("- ", "", "list item"))"
+                          Title="Bullet List">
+                <FluentIcon Value="@(new Icons.Regular.Size16.TextBulletList())" />
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Stealth"
+                          OnClick="@(() => InsertMarkdown("1. ", "", "list item"))"
+                          Title="Numbered List">
+                <FluentIcon Value="@(new Icons.Regular.Size16.TextNumberListLtr())" />
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Stealth"
+                          OnClick="@(() => InsertMarkdown("---\n", "", ""))"
+                          Title="Horizontal Rule">
+                <FluentIcon Value="@(new Icons.Regular.Size16.LineHorizontal1())" />
+            </FluentButton>
+        </div>
+
+        <div class="markdown-editor__spacer"></div>
+
+        @* View Mode Toggle *@
+        <div class="markdown-editor__mode-toggle">
+            <FluentButton Appearance="@(ViewMode == "edit" ? Appearance.Accent : Appearance.Outline)"
+                          OnClick="@(() => SetViewMode("edit"))"
+                          Size="ButtonSize.Small">
+                Edit
+            </FluentButton>
+            <FluentButton Appearance="@(ViewMode == "split" ? Appearance.Accent : Appearance.Outline)"
+                          OnClick="@(() => SetViewMode("split"))"
+                          Size="ButtonSize.Small">
+                Split
+            </FluentButton>
+            <FluentButton Appearance="@(ViewMode == "preview" ? Appearance.Accent : Appearance.Outline)"
+                          OnClick="@(() => SetViewMode("preview"))"
+                          Size="ButtonSize.Small">
+                Preview
+            </FluentButton>
+        </div>
+    </div>
+
+    @* Editor Content Area *@
+    <div class="markdown-editor__content markdown-editor__content--@ViewMode">
+        @if (ViewMode != "preview")
+        {
+            <div class="markdown-editor__input-container">
+                <textarea class="markdown-editor__input"
+                          @bind="Value"
+                          @bind:event="oninput"
+                          @bind:after="OnContentChanged"
+                          placeholder="Write your content in Markdown...
+
+## Quick Markdown Guide
+
+**Bold text** - wrap with **
+*Italic text* - wrap with *
+`code` - wrap with backticks
+```code block``` - triple backticks
+
+# Heading 1
+## Heading 2
+### Heading 3
+
+- Bullet list item
+1. Numbered list item
+
+[Link text](url)
+![Image alt](url)
+
+> Blockquote
+
+---
+Horizontal rule" />
+            </div>
+        }
+        @if (ViewMode != "edit")
+        {
+            <div class="markdown-editor__preview">
+                @if (string.IsNullOrWhiteSpace(Value))
+                {
+                    <div class="markdown-editor__preview-empty">
+                        <FluentIcon Value="@(new Icons.Regular.Size24.Document())" Color="Color.Neutral" />
+                        <p>Preview will appear here as you type...</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="markdown-content">
+                        @((MarkupString)RenderedHtml)
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .markdown-editor {
+        border: 1px solid var(--neutral-stroke-rest);
+        border-radius: 4px;
+        overflow: hidden;
+        background: var(--neutral-layer-1);
+    }
+
+    .markdown-editor__toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 8px;
+        border-bottom: 1px solid var(--neutral-stroke-rest);
+        background: var(--neutral-layer-2);
+    }
+
+    .markdown-editor__toolbar-group {
+        display: flex;
+        gap: 2px;
+        padding-right: 8px;
+        border-right: 1px solid var(--neutral-stroke-rest);
+    }
+
+    .markdown-editor__toolbar-group:last-of-type {
+        border-right: none;
+    }
+
+    .markdown-editor__spacer {
+        flex: 1;
+    }
+
+    .markdown-editor__mode-toggle {
+        display: flex;
+        gap: 4px;
+    }
+
+    .markdown-editor__content {
+        display: flex;
+        min-height: 400px;
+    }
+
+    .markdown-editor__content--edit .markdown-editor__input-container {
+        flex: 1;
+    }
+
+    .markdown-editor__content--split .markdown-editor__input-container,
+    .markdown-editor__content--split .markdown-editor__preview {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .markdown-editor__content--split .markdown-editor__preview {
+        border-left: 1px solid var(--neutral-stroke-rest);
+    }
+
+    .markdown-editor__content--preview .markdown-editor__preview {
+        flex: 1;
+    }
+
+    .markdown-editor__input-container {
+        display: flex;
+    }
+
+    .markdown-editor__input {
+        flex: 1;
+        border: none;
+        resize: none;
+        padding: 16px;
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+        font-size: 14px;
+        line-height: 1.6;
+        background: var(--neutral-layer-1);
+        color: var(--neutral-foreground-rest);
+    }
+
+    .markdown-editor__input:focus {
+        outline: none;
+    }
+
+    .markdown-editor__input::placeholder {
+        color: var(--neutral-foreground-hint);
+        opacity: 0.7;
+    }
+
+    .markdown-editor__preview {
+        padding: 16px;
+        overflow-y: auto;
+        background: var(--neutral-layer-1);
+    }
+
+    .markdown-editor__preview-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: var(--neutral-foreground-hint);
+        text-align: center;
+    }
+
+    /* Markdown content styling */
+    .markdown-content {
+        line-height: 1.7;
+    }
+
+    .markdown-content h1 {
+        font-size: 2rem;
+        margin: 1.5rem 0 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--neutral-stroke-rest);
+    }
+
+    .markdown-content h2 {
+        font-size: 1.5rem;
+        margin: 1.25rem 0 0.75rem;
+    }
+
+    .markdown-content h3 {
+        font-size: 1.25rem;
+        margin: 1rem 0 0.5rem;
+    }
+
+    .markdown-content p {
+        margin: 0.75rem 0;
+    }
+
+    .markdown-content code {
+        background: var(--neutral-layer-3);
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        font-family: 'Cascadia Code', 'Fira Code', monospace;
+        font-size: 0.9em;
+    }
+
+    .markdown-content pre {
+        background: var(--neutral-layer-3);
+        padding: 1rem;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin: 1rem 0;
+    }
+
+    .markdown-content pre code {
+        background: transparent;
+        padding: 0;
+    }
+
+    .markdown-content blockquote {
+        border-left: 4px solid var(--accent-fill-rest);
+        padding-left: 1rem;
+        margin: 1rem 0;
+        color: var(--neutral-foreground-hint);
+        font-style: italic;
+    }
+
+    .markdown-content ul,
+    .markdown-content ol {
+        padding-left: 1.5rem;
+        margin: 0.75rem 0;
+    }
+
+    .markdown-content li {
+        margin: 0.25rem 0;
+    }
+
+    .markdown-content a {
+        color: var(--accent-fill-rest);
+        text-decoration: none;
+    }
+
+    .markdown-content a:hover {
+        text-decoration: underline;
+    }
+
+    .markdown-content hr {
+        border: none;
+        border-top: 1px solid var(--neutral-stroke-rest);
+        margin: 1.5rem 0;
+    }
+
+    .markdown-content img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 4px;
+    }
+
+    .markdown-content table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1rem 0;
+    }
+
+    .markdown-content th,
+    .markdown-content td {
+        border: 1px solid var(--neutral-stroke-rest);
+        padding: 0.5rem;
+        text-align: left;
+    }
+
+    .markdown-content th {
+        background: var(--neutral-layer-2);
+        font-weight: 600;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public string Value { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    [Parameter]
+    public string ViewMode { get; set; } = "split";
+
+    private string RenderedHtml { get; set; } = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        UpdatePreview();
+    }
+
+    protected override void OnParametersSet()
+    {
+        UpdatePreview();
+    }
+
+    private void UpdatePreview()
+    {
+        RenderedHtml = Renderer.ToHtml(Value ?? string.Empty);
+    }
+
+    private async Task OnContentChanged()
+    {
+        UpdatePreview();
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    private void SetViewMode(string mode)
+    {
+        ViewMode = mode;
+    }
+
+    private async Task InsertMarkdown(string before, string after, string placeholder)
+    {
+        // Simple insertion - appends to end
+        // In a full implementation, would use JS interop to insert at cursor
+        if (string.IsNullOrEmpty(Value))
+        {
+            Value = before + placeholder + after;
+        }
+        else
+        {
+            Value = Value + "\n" + before + placeholder + after;
+        }
+
+        UpdatePreview();
+        await ValueChanged.InvokeAsync(Value);
+    }
+}
