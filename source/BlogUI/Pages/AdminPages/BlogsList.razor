@@ -11,177 +11,390 @@
 @attribute [Authorize(Policy = "EditorOrAbove")]
 @layout BlogUI.Layouts.AdminLayout
 
-<ContentPanel PanelTitle="Blogs List">
-    <RightSection>
-        <FluentAnchor Href="ManagePost" Appearance="Appearance.Accent">
-            + Add New
-        </FluentAnchor>
-    </RightSection>
-    <PanelContent>
-        @if (!string.IsNullOrEmpty(StatusMessage))
-        {
-            <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
-                              Style="margin-bottom: 16px;">
-                @StatusMessage
-            </FluentMessageBar>
-        }
+<div class="posts-list-page">
+    @* Page Header *@
+    <div class="page-header">
+        <h1>All Posts</h1>
+        <FluentAnchor Href="/ManagePost" Appearance="Appearance.Accent">+ New Post</FluentAnchor>
+    </div>
 
-        @* Status Filter *@
-        <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 12px;">
-            <label>Filter by status:</label>
-            <FluentSelect TOption="string"
-                          @bind-Value="StatusFilter"
-                          @bind-Value:after="ApplyFilter"
-                          Style="width: 150px;">
-                <FluentOption TOption="string" Value="@("all")">All Posts</FluentOption>
-                <FluentOption TOption="string" Value="@("published")">Published</FluentOption>
-                <FluentOption TOption="string" Value="@("scheduled")">Scheduled</FluentOption>
-                <FluentOption TOption="string" Value="@("draft")">Drafts</FluentOption>
-            </FluentSelect>
-            @if (FilteredList != null)
-            {
-                <span style="color: var(--neutral-foreground-hint);">
-                    Showing @FilteredList.Count of @ObjectList.Count posts
-                </span>
-            }
+    @* Status Messages *@
+    @if (!string.IsNullOrEmpty(StatusMessage))
+    {
+        <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
+                          Style="margin-bottom: 16px;">
+            @StatusMessage
+        </FluentMessageBar>
+    }
+
+    @* Filters Row *@
+    <div class="filters-row">
+        @* Status Tabs *@
+        <div class="status-tabs">
+            <span class="tabs__item @(StatusFilter == "all" ? "tabs__item--active" : "")"
+                  @onclick='() => SetFilter("all")'>
+                All (@(ObjectList?.Count ?? 0))
+            </span>
+            <span class="tabs__item @(StatusFilter == "published" ? "tabs__item--active" : "")"
+                  @onclick='() => SetFilter("published")'>
+                Published (@PublishedCount)
+            </span>
+            <span class="tabs__item @(StatusFilter == "draft" ? "tabs__item--active" : "")"
+                  @onclick='() => SetFilter("draft")'>
+                Drafts (@DraftCount)
+            </span>
+            <span class="tabs__item @(StatusFilter == "scheduled" ? "tabs__item--active" : "")"
+                  @onclick='() => SetFilter("scheduled")'>
+                Scheduled (@ScheduledCount)
+            </span>
         </div>
 
+        <span style="flex: 1;"></span>
+
+        @* Search Box *@
+        <div class="search-box">
+            <FluentIcon Value="@(new Icons.Regular.Size16.Search())" Color="Color.Neutral" />
+            <FluentTextField @bind-Value="SearchTerm"
+                             @bind-Value:after="ApplyFilter"
+                             Placeholder="Search posts..."
+                             Style="min-width: 200px;" />
+        </div>
+    </div>
+
+    @* Posts Table *@
+    <div class="posts-table-container">
         @if (ObjectList == null)
         {
-            <FluentProgressRing />
-            <span>Loading...</span>
+            <div style="padding: 32px; text-align: center;">
+                <FluentProgressRing />
+                <span style="display: block; margin-top: 8px;">Loading...</span>
+            </div>
         }
-        else if (FilteredList.Count == 0)
+        else if (FilteredList == null || FilteredList.Count == 0)
         {
-            <FluentMessageBar Intent="MessageIntent.Info">
-                @if (StatusFilter == "all")
+            <div style="padding: 32px; text-align: center; color: var(--color-neutral-light);">
+                @if (StatusFilter == "all" && string.IsNullOrEmpty(SearchTerm))
                 {
-                    <span>No posts found. Click "Add New" to create your first post.</span>
+                    <p>No posts found. Click "+ New Post" to create your first post.</p>
                 }
                 else
                 {
-                    <span>No @StatusFilter posts found.</span>
+                    <p>No posts match your filters.</p>
+                    <FluentButton Appearance="Appearance.Outline" OnClick="ClearFilters">Clear Filters</FluentButton>
                 }
-            </FluentMessageBar>
+            </div>
         }
         else
         {
-            <FluentDataGrid Items="@FilteredList.AsQueryable()" Style="width: 100%;">
-                <PropertyColumn Property="@(p => p.Title)" Title="Title" Sortable="true" />
-                <PropertyColumn Property="@(p => p.Slug)" Title="Slug" Sortable="true" />
-                <PropertyColumn Property="@(p => p.CreatedOn)" Title="Written On" Format="MM/dd/yyyy" Sortable="true" />
-                <PropertyColumn Property="@(p => p.BlogWriter)" Title="Written By" Sortable="true" />
-                <TemplateColumn Title="Status">
-                    @if (context.Published)
+            <table class="data-grid">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;"><FluentCheckbox @bind-Value="SelectAll" @bind-Value:after="ToggleSelectAll" /></th>
+                        <th>Title</th>
+                        <th style="width: 120px;">Author</th>
+                        <th style="width: 100px;">Status</th>
+                        <th style="width: 100px;">Date</th>
+                        <th style="width: 140px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var post in FilteredList)
                     {
-                        <div style="display: flex; flex-direction: column; gap: 2px;">
-                            <FluentBadge Appearance="Appearance.Accent" Style="background-color: #107c10;">
-                                Published
-                            </FluentBadge>
-                            @if (context.PublishedOn.HasValue)
-                            {
-                                <span style="font-size: 0.75rem; color: var(--neutral-foreground-hint);">
-                                    @context.PublishedOn.Value.ToString("MMM dd, yyyy")
-                                </span>
-                            }
-                        </div>
+                        var rowClass = post.IsScheduled ? "row-scheduled" : (!post.Published ? "row-draft" : "");
+                        <tr class="@rowClass">
+                            <td><FluentCheckbox @bind-Value="post.IsSelected" /></td>
+                            <td>
+                                <a href="/ManagePost/@post.PostID" class="post-title">@post.Title</a>
+                                @if (!string.IsNullOrEmpty(post.Slug))
+                                {
+                                    <div class="post-slug">/@post.Slug</div>
+                                }
+                            </td>
+                            <td>@(post.BlogWriter ?? "Unknown")</td>
+                            <td>
+                                @if (post.Published)
+                                {
+                                    <span class="badge badge--success">Published</span>
+                                }
+                                else if (post.IsScheduled)
+                                {
+                                    <span class="badge badge--warning">
+                                        @(post.ScheduledPublishOn?.ToLocalTime().ToString("MMM dd") ?? "Scheduled")
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge">Draft</span>
+                                }
+                            </td>
+                            <td>
+                                @if (post.Published && post.PublishedOn.HasValue)
+                                {
+                                    @post.PublishedOn.Value.ToString("MMM dd, yyyy")
+                                }
+                                else
+                                {
+                                    @post.CreatedOn.ToString("MMM dd, yyyy")
+                                }
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    <FluentButton Appearance="Appearance.Stealth"
+                                                  OnClick="@(() => NavigateToPreview(post))"
+                                                  Title="Preview">
+                                        <FluentIcon Value="@(new Icons.Regular.Size16.Eye())" />
+                                    </FluentButton>
+                                    <FluentAnchor Href="@($"/ManagePost/{post.PostID}")"
+                                                  Appearance="Appearance.Stealth"
+                                                  Title="Edit">
+                                        <FluentIcon Value="@(new Icons.Regular.Size16.Edit())" />
+                                    </FluentAnchor>
+                                    @if (post.IsScheduled)
+                                    {
+                                        <FluentButton Appearance="Appearance.Stealth"
+                                                      OnClick="@(() => QuickPublish(post))"
+                                                      Title="Publish Now"
+                                                      Disabled="@IsProcessing">
+                                            <FluentIcon Value="@(new Icons.Regular.Size16.Send())" Color="Color.Success" />
+                                        </FluentButton>
+                                        <FluentButton Appearance="Appearance.Stealth"
+                                                      OnClick="@(() => CancelSchedule(post))"
+                                                      Title="Cancel Schedule"
+                                                      Disabled="@IsProcessing">
+                                            <FluentIcon Value="@(new Icons.Regular.Size16.CalendarCancel())" Color="Color.Warning" />
+                                        </FluentButton>
+                                    }
+                                    else if (!post.Published)
+                                    {
+                                        <FluentButton Appearance="Appearance.Stealth"
+                                                      OnClick="@(() => QuickPublish(post))"
+                                                      Title="Publish"
+                                                      Disabled="@IsProcessing">
+                                            <FluentIcon Value="@(new Icons.Regular.Size16.Send())" Color="Color.Success" />
+                                        </FluentButton>
+                                    }
+                                    else
+                                    {
+                                        <FluentButton Appearance="Appearance.Stealth"
+                                                      OnClick="@(() => QuickUnpublish(post))"
+                                                      Title="Unpublish"
+                                                      Disabled="@IsProcessing">
+                                            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowUndo())" Color="Color.Warning" />
+                                        </FluentButton>
+                                    }
+                                    <FluentButton Appearance="Appearance.Stealth"
+                                                  OnClick="@(() => ShowDeleteDialog(post))"
+                                                  Title="Delete">
+                                        <FluentIcon Value="@(new Icons.Regular.Size16.Delete())" Color="Color.Error" />
+                                    </FluentButton>
+                                </div>
+                            </td>
+                        </tr>
                     }
-                    else if (context.IsScheduled)
-                    {
-                        <div style="display: flex; flex-direction: column; gap: 2px;">
-                            <FluentBadge Appearance="Appearance.Accent" Style="background-color: #005a9e;">
-                                Scheduled
-                            </FluentBadge>
-                            @if (context.ScheduledPublishOn.HasValue)
-                            {
-                                <span style="font-size: 0.75rem; color: var(--neutral-foreground-hint);">
-                                    @context.ScheduledPublishOn.Value.ToLocalTime().ToString("MMM dd, h:mm tt")
-                                </span>
-                            }
-                        </div>
-                    }
-                    else
-                    {
-                        <FluentBadge Appearance="Appearance.Neutral">
-                            Draft
-                        </FluentBadge>
-                    }
-                </TemplateColumn>
-                <TemplateColumn Title="Actions">
-                    <FluentStack Orientation="Orientation.Horizontal" Style="gap: 4px; flex-wrap: wrap;">
-                        <FluentAnchor Href="@($"/admin/preview/{context.PostID}")" Appearance="Appearance.Stealth" Title="Preview">
-                            <FluentIcon Value="@(new Icons.Regular.Size16.Eye())" />
-                        </FluentAnchor>
-                        <FluentAnchor Href="@($"/ManagePost/{context.PostID}")" Appearance="Appearance.Stealth" Title="Edit">
-                            <FluentIcon Value="@(new Icons.Regular.Size16.Edit())" />
-                        </FluentAnchor>
-                        @if (context.IsScheduled)
-                        {
-                            @* Scheduled post: Publish Now or Cancel Schedule *@
-                            <FluentButton Appearance="Appearance.Stealth"
-                                          OnClick="@(() => QuickPublish(context))"
-                                          Title="Publish Now"
-                                          Disabled="@IsProcessing">
-                                <FluentIcon Value="@(new Icons.Regular.Size16.Send())" Color="Color.Success" />
-                            </FluentButton>
-                            <FluentButton Appearance="Appearance.Stealth"
-                                          OnClick="@(() => CancelSchedule(context))"
-                                          Title="Cancel Schedule"
-                                          Disabled="@IsProcessing">
-                                <FluentIcon Value="@(new Icons.Regular.Size16.CalendarCancel())" Color="Color.Warning" />
-                            </FluentButton>
-                        }
-                        else if (!context.Published)
-                        {
-                            @* Draft: Publish *@
-                            <FluentButton Appearance="Appearance.Stealth"
-                                          OnClick="@(() => QuickPublish(context))"
-                                          Title="Publish"
-                                          Disabled="@IsProcessing">
-                                <FluentIcon Value="@(new Icons.Regular.Size16.Send())" Color="Color.Success" />
-                            </FluentButton>
-                        }
-                        else
-                        {
-                            @* Published: Unpublish *@
-                            <FluentButton Appearance="Appearance.Stealth"
-                                          OnClick="@(() => QuickUnpublish(context))"
-                                          Title="Unpublish"
-                                          Disabled="@IsProcessing">
-                                <FluentIcon Value="@(new Icons.Regular.Size16.ArrowUndo())" Color="Color.Warning" />
-                            </FluentButton>
-                        }
-                        <FluentButton Appearance="Appearance.Stealth"
-                                      OnClick="@(() => ShowDeleteDialog(context))"
-                                      Title="Delete">
-                            <FluentIcon Value="@(new Icons.Regular.Size16.Delete())" Color="Color.Error" />
-                        </FluentButton>
-                    </FluentStack>
-                </TemplateColumn>
-            </FluentDataGrid>
+                </tbody>
+            </table>
         }
+    </div>
 
-        @* Delete Confirmation Dialog *@
-        @if (ShowDeleteConfirm)
-        {
+    @* Bulk Actions & Pagination Footer *@
+    @if (FilteredList != null && FilteredList.Count > 0)
+    {
+        <div class="table-footer">
+            <div class="bulk-actions">
+                <FluentSelect TOption="string" @bind-Value="BulkAction" Style="width: 150px;">
+                    <FluentOption TOption="string" Value="">Bulk Actions</FluentOption>
+                    <FluentOption TOption="string" Value="publish">Publish</FluentOption>
+                    <FluentOption TOption="string" Value="unpublish">Unpublish</FluentOption>
+                    <FluentOption TOption="string" Value="delete">Delete</FluentOption>
+                </FluentSelect>
+                <FluentButton Appearance="Appearance.Outline"
+                              OnClick="ApplyBulkAction"
+                              Disabled="@(string.IsNullOrEmpty(BulkAction) || !HasSelectedPosts)">
+                    Apply
+                </FluentButton>
+            </div>
+
+            <div class="pagination-info">
+                Showing @FilteredList.Count of @(ObjectList?.Count ?? 0) posts
+            </div>
+        </div>
+    }
+
+    @* Delete Confirmation Dialog *@
+    @if (ShowDeleteConfirm)
+    {
         <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
             <FluentDialogHeader>
                 <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
             </FluentDialogHeader>
             <FluentDialogBody>
                 <p>Are you sure you want to delete the post "<strong>@PostToDelete?.Title</strong>"?</p>
-                <p style="color: var(--neutral-foreground-hint);">This action can be undone by an administrator.</p>
+                <p style="color: var(--color-neutral-light, #605E5C);">This action cannot be undone.</p>
             </FluentDialogBody>
             <FluentDialogFooter>
                 <FluentButton Appearance="Appearance.Neutral" OnClick="@CancelDelete">
                     Cancel
                 </FluentButton>
-                <FluentButton Appearance="Appearance.Accent" OnClick="@ConfirmDelete"
-                              Style="background-color: #d13438;">
+                <FluentButton Appearance="Appearance.Accent"
+                              OnClick="@ConfirmDelete"
+                              Style="background-color: var(--color-error, #D13438);">
                     Delete
                 </FluentButton>
             </FluentDialogFooter>
         </FluentDialog>
-        }
-    </PanelContent>
-</ContentPanel>
+    }
+</div>
+
+<style>
+    .posts-list-page {
+        max-width: 1400px;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--spacing-lg, 24px);
+    }
+
+    .page-header h1 {
+        margin: 0;
+    }
+
+    .filters-row {
+        display: flex;
+        gap: var(--spacing-md, 16px);
+        margin-bottom: var(--spacing-lg, 24px);
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .status-tabs {
+        display: flex;
+        border-bottom: 1px solid var(--color-border, #E1E1E1);
+    }
+
+    .tabs__item {
+        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
+        font-size: var(--font-size-small, 0.875rem);
+        color: var(--color-neutral-light, #605E5C);
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+        cursor: pointer;
+        transition: all var(--transition-fast, 150ms ease);
+    }
+
+    .tabs__item:hover {
+        color: var(--color-neutral, #323130);
+    }
+
+    .tabs__item--active {
+        color: var(--color-primary, #0078D4);
+        border-bottom-color: var(--color-primary, #0078D4);
+    }
+
+    .search-box {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm, 8px);
+    }
+
+    .posts-table-container {
+        border: 1px solid var(--color-border, #E1E1E1);
+        border-radius: var(--border-radius-lg, 8px);
+        overflow: hidden;
+        background-color: var(--color-background, #fff);
+    }
+
+    .data-grid {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--font-size-small, 0.875rem);
+    }
+
+    .data-grid th,
+    .data-grid td {
+        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
+        text-align: left;
+        border-bottom: 1px solid var(--color-border, #E1E1E1);
+    }
+
+    .data-grid th {
+        font-weight: var(--font-weight-semibold, 600);
+        background-color: var(--color-surface, #F5F5F5);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .data-grid tr:hover td {
+        background-color: var(--color-surface, #F5F5F5);
+    }
+
+    .data-grid tr.row-scheduled td {
+        background-color: rgba(255, 185, 0, 0.05);
+    }
+
+    .data-grid tr.row-draft td {
+        background-color: rgba(0, 120, 212, 0.05);
+    }
+
+    .post-title {
+        font-weight: var(--font-weight-semibold, 600);
+        color: var(--color-neutral, #323130);
+        text-decoration: none;
+    }
+
+    .post-title:hover {
+        color: var(--color-primary, #0078D4);
+        text-decoration: underline;
+    }
+
+    .post-slug {
+        font-size: var(--font-size-xs, 0.75rem);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px var(--spacing-sm, 8px);
+        font-size: var(--font-size-xs, 0.75rem);
+        font-weight: var(--font-weight-semibold, 600);
+        border-radius: var(--border-radius, 4px);
+        background-color: var(--color-surface, #F5F5F5);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .badge--success {
+        background-color: var(--color-success, #107C10);
+        color: white;
+    }
+
+    .badge--warning {
+        background-color: var(--color-warning, #FFB900);
+        color: var(--color-neutral, #323130);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 2px;
+        flex-wrap: nowrap;
+    }
+
+    .table-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: var(--spacing-md, 16px);
+    }
+
+    .bulk-actions {
+        display: flex;
+        gap: var(--spacing-sm, 8px);
+        align-items: center;
+    }
+
+    .pagination-info {
+        font-size: var(--font-size-small, 0.875rem);
+        color: var(--color-neutral-light, #605E5C);
+    }
+</style>

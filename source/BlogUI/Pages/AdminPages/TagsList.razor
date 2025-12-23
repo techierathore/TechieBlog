@@ -3,84 +3,231 @@
     Purpose: Displays a list of tags for blog posts.
     Provides editing and delete capabilities for tag management.
 
-    Usage: Navigate to /TagsList
+    Usage: Navigate to /TagsList or /admin/tags
     Dependencies: Microsoft.FluentUI.AspNetCore.Components, TagSvc
     Authorization: AdminOnly policy required
 *@
 @page "/TagsList"
+@page "/admin/tags"
 @attribute [Authorize(Policy = "AdminOnly")]
 @layout BlogUI.Layouts.AdminLayout
 @inject BlogEngine.Services.TagSvc TagService
 @inject NavigationManager Navigation
 
-<ContentPanel PanelTitle="Tags Management">
-    <RightSection>
-        <FluentAnchor Href="/ManageTag" Appearance="Appearance.Accent">
-            + Add New Tag
-        </FluentAnchor>
-    </RightSection>
-    <PanelContent>
-        @if (!string.IsNullOrEmpty(StatusMessage))
-        {
-            <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
-                              Style="margin-bottom: 16px;">
-                @StatusMessage
-            </FluentMessageBar>
-        }
+<div class="tags-list-page">
+    @* Page Header *@
+    <div class="page-header">
+        <h1>Tags Management</h1>
+        <FluentAnchor Href="/ManageTag" Appearance="Appearance.Accent">+ Add New Tag</FluentAnchor>
+    </div>
 
+    @* Status Messages *@
+    @if (!string.IsNullOrEmpty(StatusMessage))
+    {
+        <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
+                          Style="margin-bottom: 16px;">
+            @StatusMessage
+        </FluentMessageBar>
+    }
+
+    @* Search Box *@
+    <div class="filters-row">
+        <div class="search-box">
+            <FluentIcon Value="@(new Icons.Regular.Size16.Search())" Color="Color.Neutral" />
+            <FluentTextField @bind-Value="SearchTerm"
+                             @bind-Value:after="ApplyFilter"
+                             Placeholder="Search tags..."
+                             Style="min-width: 200px;" />
+        </div>
+        <span style="flex: 1;"></span>
+        <span class="result-count">@(FilteredList?.Count ?? 0) tags</span>
+    </div>
+
+    @* Tags Table *@
+    <div class="table-container">
         @if (TagList == null)
         {
-            <FluentProgressRing />
-            <span>Loading...</span>
+            <div style="padding: 32px; text-align: center;">
+                <FluentProgressRing />
+                <span style="display: block; margin-top: 8px;">Loading...</span>
+            </div>
         }
-        else if (!TagList.Any())
+        else if (FilteredList == null || !FilteredList.Any())
         {
-            <FluentMessageBar Intent="MessageIntent.Info">
-                No tags found. Create your first tag to get started.
-            </FluentMessageBar>
+            <div style="padding: 32px; text-align: center; color: var(--color-neutral-light);">
+                @if (string.IsNullOrEmpty(SearchTerm))
+                {
+                    <p>No tags found. Click "+ Add New Tag" to create your first tag.</p>
+                }
+                else
+                {
+                    <p>No tags match your search.</p>
+                    <FluentButton Appearance="Appearance.Outline" OnClick="ClearSearch">Clear Search</FluentButton>
+                }
+            </div>
         }
         else
         {
-            <FluentDataGrid Items="@TagList.AsQueryable()" Style="width: 100%;">
-                <PropertyColumn Property="@(p => p.TagName)" Title="Tag Name" Sortable="true" />
-                <PropertyColumn Property="@(p => p.Slug)" Title="Slug" Sortable="true" />
-                <PropertyColumn Property="@(p => p.PostCount)" Title="Posts" Sortable="true" />
-                <TemplateColumn Title="Actions">
-                    <FluentStack Orientation="Orientation.Horizontal" Style="gap: 8px;">
-                        <FluentAnchor Href="@($"/ManageTag/{context.TagId}")" Appearance="Appearance.Stealth">
-                            Edit
-                        </FluentAnchor>
-                        <FluentButton Appearance="Appearance.Stealth"
-                                      OnClick="@(() => ConfirmDelete(context))"
-                                      Style="color: var(--error);">
-                            Delete
-                        </FluentButton>
-                    </FluentStack>
-                </TemplateColumn>
-            </FluentDataGrid>
+            <table class="data-grid">
+                <thead>
+                    <tr>
+                        <th>Tag Name</th>
+                        <th style="width: 200px;">Slug</th>
+                        <th style="width: 100px;">Posts</th>
+                        <th style="width: 120px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var tag in FilteredList)
+                    {
+                        <tr>
+                            <td class="tag-name">@tag.TagName</td>
+                            <td class="tag-slug">/@tag.Slug</td>
+                            <td>
+                                <span class="badge">@tag.PostCount</span>
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    <FluentAnchor Href="@($"/ManageTag/{tag.TagId}")"
+                                                  Appearance="Appearance.Stealth"
+                                                  Title="Edit">
+                                        <FluentIcon Value="@(new Icons.Regular.Size16.Edit())" />
+                                    </FluentAnchor>
+                                    <FluentButton Appearance="Appearance.Stealth"
+                                                  OnClick="@(() => ConfirmDelete(tag))"
+                                                  Title="Delete">
+                                        <FluentIcon Value="@(new Icons.Regular.Size16.Delete())" Color="Color.Error" />
+                                    </FluentButton>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         }
+    </div>
 
-        @* Delete Confirmation Dialog *@
-        <FluentDialog @bind-Hidden="@HideDeleteDialog" Modal="true">
-            <FluentDialogHeader>Confirm Delete</FluentDialogHeader>
+    @* Delete Confirmation Dialog *@
+    @if (!HideDeleteDialog)
+    {
+        <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
+            <FluentDialogHeader>
+                <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
+            </FluentDialogHeader>
             <FluentDialogBody>
                 <p>Are you sure you want to delete the tag "<strong>@TagToDelete?.TagName</strong>"?</p>
-                <p style="color: var(--warning);">This will remove the tag from all associated posts.</p>
+                <p style="color: var(--color-warning, #FFB900);">This will remove the tag from all associated posts.</p>
             </FluentDialogBody>
             <FluentDialogFooter>
-                <FluentButton Appearance="Appearance.Accent" OnClick="DeleteTag">Delete</FluentButton>
-                <FluentButton Appearance="Appearance.Outline" OnClick="CancelDelete">Cancel</FluentButton>
+                <FluentButton Appearance="Appearance.Neutral" OnClick="CancelDelete">Cancel</FluentButton>
+                <FluentButton Appearance="Appearance.Accent"
+                              OnClick="DeleteTag"
+                              Style="background-color: var(--color-error, #D13438);">
+                    Delete
+                </FluentButton>
             </FluentDialogFooter>
         </FluentDialog>
-    </PanelContent>
-</ContentPanel>
+    }
+</div>
+
+<style>
+    .tags-list-page {
+        max-width: 1200px;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--spacing-lg, 24px);
+    }
+
+    .page-header h1 {
+        margin: 0;
+    }
+
+    .filters-row {
+        display: flex;
+        gap: var(--spacing-md, 16px);
+        margin-bottom: var(--spacing-lg, 24px);
+        align-items: center;
+    }
+
+    .search-box {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm, 8px);
+    }
+
+    .result-count {
+        font-size: var(--font-size-small, 0.875rem);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .table-container {
+        border: 1px solid var(--color-border, #E1E1E1);
+        border-radius: var(--border-radius-lg, 8px);
+        overflow: hidden;
+        background-color: var(--color-background, #fff);
+    }
+
+    .data-grid {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--font-size-small, 0.875rem);
+    }
+
+    .data-grid th,
+    .data-grid td {
+        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
+        text-align: left;
+        border-bottom: 1px solid var(--color-border, #E1E1E1);
+    }
+
+    .data-grid th {
+        font-weight: var(--font-weight-semibold, 600);
+        background-color: var(--color-surface, #F5F5F5);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .data-grid tr:hover td {
+        background-color: var(--color-surface, #F5F5F5);
+    }
+
+    .tag-name {
+        font-weight: var(--font-weight-semibold, 600);
+    }
+
+    .tag-slug {
+        font-size: var(--font-size-xs, 0.75rem);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px var(--spacing-sm, 8px);
+        font-size: var(--font-size-xs, 0.75rem);
+        font-weight: var(--font-weight-semibold, 600);
+        border-radius: var(--border-radius, 4px);
+        background-color: var(--color-surface, #F5F5F5);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 4px;
+    }
+</style>
 
 @code {
     private List<BlogTag> TagList;
+    private List<BlogTag> FilteredList;
     private BlogTag TagToDelete;
     private bool HideDeleteDialog = true;
     private string StatusMessage = string.Empty;
     private bool IsError = false;
+    private string SearchTerm = string.Empty;
 
     protected override void OnInitialized()
     {
@@ -92,13 +239,42 @@
         try
         {
             TagList = TagService.GetAllWithCounts().ToList();
+            ApplyFilter();
         }
         catch
         {
             TagList = new List<BlogTag>();
+            FilteredList = new List<BlogTag>();
             StatusMessage = "Failed to load tags.";
             IsError = true;
         }
+    }
+
+    private void ApplyFilter()
+    {
+        if (TagList == null)
+        {
+            FilteredList = new List<BlogTag>();
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(SearchTerm))
+        {
+            FilteredList = TagList.ToList();
+        }
+        else
+        {
+            var searchLower = SearchTerm.ToLower();
+            FilteredList = TagList.Where(t =>
+                (t.TagName?.ToLower().Contains(searchLower) ?? false) ||
+                (t.Slug?.ToLower().Contains(searchLower) ?? false)).ToList();
+        }
+    }
+
+    private void ClearSearch()
+    {
+        SearchTerm = string.Empty;
+        ApplyFilter();
     }
 
     private void ConfirmDelete(BlogTag tag)

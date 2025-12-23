@@ -11,78 +11,142 @@
 @page "/SeriesList"
 @attribute [Authorize(Policy = "AuthorOrAbove")]
 @layout BlogUI.Layouts.AdminLayout
+@inject BlogEngine.Services.SeriesSvc SeriesService
+@inject NavigationManager Navigation
 
-<ContentPanel PanelTitle="Series">
-    <RightSection>
-        <FluentAnchor Href="/admin/series/new" Appearance="Appearance.Accent">
-            + Add New
-        </FluentAnchor>
-    </RightSection>
-    <PanelContent>
-        @if (!string.IsNullOrEmpty(StatusMessage))
-        {
-            <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
-                              Style="margin-bottom: 16px;">
-                @StatusMessage
-            </FluentMessageBar>
-        }
+<div class="series-list-page">
+    @* Page Header *@
+    <div class="page-header">
+        <h1>Series Management</h1>
+        <FluentAnchor Href="/admin/series/new" Appearance="Appearance.Accent">+ Add New Series</FluentAnchor>
+    </div>
 
+    @* Status Messages *@
+    @if (!string.IsNullOrEmpty(StatusMessage))
+    {
+        <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
+                          Style="margin-bottom: 16px;">
+            @StatusMessage
+        </FluentMessageBar>
+    }
+
+    @* Filters Row *@
+    <div class="filters-row">
+        @* Status Tabs *@
+        <div class="status-tabs">
+            <span class="tabs__item @(StatusFilter == "all" ? "tabs__item--active" : "")"
+                  @onclick='() => SetFilter("all")'>
+                All (@(ObjectList?.Count ?? 0))
+            </span>
+            <span class="tabs__item @(StatusFilter == "inprogress" ? "tabs__item--active" : "")"
+                  @onclick='() => SetFilter("inprogress")'>
+                In Progress (@InProgressCount)
+            </span>
+            <span class="tabs__item @(StatusFilter == "complete" ? "tabs__item--active" : "")"
+                  @onclick='() => SetFilter("complete")'>
+                Complete (@CompleteCount)
+            </span>
+        </div>
+
+        <span style="flex: 1;"></span>
+
+        @* Search Box *@
+        <div class="search-box">
+            <FluentIcon Value="@(new Icons.Regular.Size16.Search())" Color="Color.Neutral" />
+            <FluentTextField @bind-Value="SearchTerm"
+                             @bind-Value:after="ApplyFilter"
+                             Placeholder="Search series..."
+                             Style="min-width: 200px;" />
+        </div>
+    </div>
+
+    @* Series Table *@
+    <div class="table-container">
         @if (ObjectList == null)
         {
-            <FluentProgressRing />
-            <span>Loading...</span>
+            <div style="padding: 32px; text-align: center;">
+                <FluentProgressRing />
+                <span style="display: block; margin-top: 8px;">Loading...</span>
+            </div>
         }
-        else if (ObjectList.Count == 0)
+        else if (FilteredList == null || !FilteredList.Any())
         {
-            <FluentMessageBar Intent="MessageIntent.Info">
-                No series found. Click "Add New" to create your first series.
-            </FluentMessageBar>
+            <div style="padding: 32px; text-align: center; color: var(--color-neutral-light);">
+                @if (StatusFilter == "all" && string.IsNullOrEmpty(SearchTerm))
+                {
+                    <p>No series found. Click "+ Add New Series" to create your first series.</p>
+                }
+                else
+                {
+                    <p>No series match your filters.</p>
+                    <FluentButton Appearance="Appearance.Outline" OnClick="ClearFilters">Clear Filters</FluentButton>
+                }
+            </div>
         }
         else
         {
-            <p style="margin-bottom: 16px;">@ObjectList.Count series found</p>
-            <FluentDataGrid Items="@ObjectList.AsQueryable()" Style="width: 100%;">
-                <PropertyColumn Property="@(s => s.Name)" Title="Name" Sortable="true" />
-                <PropertyColumn Property="@(s => s.Slug)" Title="Slug" Sortable="true" />
-                <TemplateColumn Title="Status">
-                    @if (context.IsComplete)
+            <table class="data-grid">
+                <thead>
+                    <tr>
+                        <th>Series Name</th>
+                        <th style="width: 200px;">Slug</th>
+                        <th style="width: 120px;">Status</th>
+                        <th style="width: 100px;">Posts</th>
+                        <th style="width: 150px;">Author</th>
+                        <th style="width: 140px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var series in FilteredList)
                     {
-                        <FluentBadge Appearance="Appearance.Accent" Style="background-color: #107c10;">
-                            Complete
-                        </FluentBadge>
+                        var rowClass = series.IsComplete ? "" : "row-inprogress";
+                        <tr class="@rowClass">
+                            <td class="series-name">@series.Name</td>
+                            <td class="series-slug">/@series.Slug</td>
+                            <td>
+                                @if (series.IsComplete)
+                                {
+                                    <span class="badge badge--success">Complete</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge--warning">In Progress</span>
+                                }
+                            </td>
+                            <td>
+                                <span class="badge">@series.PostCount</span>
+                            </td>
+                            <td>@(series.AuthorName ?? "Unknown")</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <FluentAnchor Href="@($"/series/{series.Slug}")"
+                                                  Appearance="Appearance.Stealth"
+                                                  Title="View"
+                                                  Target="_blank">
+                                        <FluentIcon Value="@(new Icons.Regular.Size16.Eye())" />
+                                    </FluentAnchor>
+                                    <FluentAnchor Href="@($"/admin/series/{series.SeriesId}")"
+                                                  Appearance="Appearance.Stealth"
+                                                  Title="Edit">
+                                        <FluentIcon Value="@(new Icons.Regular.Size16.Edit())" />
+                                    </FluentAnchor>
+                                    <FluentButton Appearance="Appearance.Stealth"
+                                                  OnClick="@(() => ConfirmDelete(series))"
+                                                  Title="Delete">
+                                        <FluentIcon Value="@(new Icons.Regular.Size16.Delete())" Color="Color.Error" />
+                                    </FluentButton>
+                                </div>
+                            </td>
+                        </tr>
                     }
-                    else
-                    {
-                        <FluentBadge Appearance="Appearance.Neutral">
-                            In Progress
-                        </FluentBadge>
-                    }
-                </TemplateColumn>
-                <PropertyColumn Property="@(s => s.PostCount)" Title="Posts" Sortable="true" />
-                <PropertyColumn Property="@(s => s.AuthorName)" Title="Author" Sortable="true" />
-                <TemplateColumn Title="Actions">
-                    <FluentStack Orientation="Orientation.Horizontal" Style="gap: 8px;">
-                        <FluentAnchor Href="@($"/series/{context.Slug}")" Appearance="Appearance.Stealth" Target="_blank">
-                            <FluentIcon Value="@(new Icons.Regular.Size16.Eye())" />
-                            View
-                        </FluentAnchor>
-                        <FluentAnchor Href="@($"/admin/series/{context.SeriesId}")" Appearance="Appearance.Stealth">
-                            <FluentIcon Value="@(new Icons.Regular.Size16.Edit())" />
-                            Edit
-                        </FluentAnchor>
-                        <FluentButton Appearance="Appearance.Stealth"
-                                      OnClick="@(() => ShowDeleteDialog(context))">
-                            <FluentIcon Value="@(new Icons.Regular.Size16.Delete())" Color="Color.Error" />
-                            Delete
-                        </FluentButton>
-                    </FluentStack>
-                </TemplateColumn>
-            </FluentDataGrid>
+                </tbody>
+            </table>
         }
+    </div>
 
-        @* Delete Confirmation Dialog *@
-        @if (ShowDeleteConfirm)
-        {
+    @* Delete Confirmation Dialog *@
+    @if (!HideDeleteDialog)
+    {
         <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
             <FluentDialogHeader>
                 <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
@@ -91,21 +155,254 @@
                 <p>Are you sure you want to delete the series "<strong>@SeriesToDelete?.Name</strong>"?</p>
                 @if (SeriesToDelete?.PostCount > 0)
                 {
-                    <p style="color: var(--warning-foreground);">
+                    <p style="color: var(--color-warning, #FFB900);">
                         Warning: This series has @SeriesToDelete.PostCount post(s). They will be removed from the series but not deleted.
                     </p>
                 }
             </FluentDialogBody>
             <FluentDialogFooter>
-                <FluentButton Appearance="Appearance.Neutral" OnClick="@CancelDelete">
-                    Cancel
-                </FluentButton>
-                <FluentButton Appearance="Appearance.Accent" OnClick="@ConfirmDelete"
-                              Style="background-color: #d13438;">
+                <FluentButton Appearance="Appearance.Neutral" OnClick="CancelDelete">Cancel</FluentButton>
+                <FluentButton Appearance="Appearance.Accent"
+                              OnClick="DeleteSeries"
+                              Style="background-color: var(--color-error, #D13438);">
                     Delete
                 </FluentButton>
             </FluentDialogFooter>
         </FluentDialog>
+    }
+</div>
+
+<style>
+    .series-list-page {
+        max-width: 1400px;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--spacing-lg, 24px);
+    }
+
+    .page-header h1 {
+        margin: 0;
+    }
+
+    .filters-row {
+        display: flex;
+        gap: var(--spacing-md, 16px);
+        margin-bottom: var(--spacing-lg, 24px);
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .status-tabs {
+        display: flex;
+        border-bottom: 1px solid var(--color-border, #E1E1E1);
+    }
+
+    .tabs__item {
+        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
+        font-size: var(--font-size-small, 0.875rem);
+        color: var(--color-neutral-light, #605E5C);
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+        cursor: pointer;
+        transition: all var(--transition-fast, 150ms ease);
+    }
+
+    .tabs__item:hover {
+        color: var(--color-neutral, #323130);
+    }
+
+    .tabs__item--active {
+        color: var(--color-primary, #0078D4);
+        border-bottom-color: var(--color-primary, #0078D4);
+    }
+
+    .search-box {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm, 8px);
+    }
+
+    .table-container {
+        border: 1px solid var(--color-border, #E1E1E1);
+        border-radius: var(--border-radius-lg, 8px);
+        overflow: hidden;
+        background-color: var(--color-background, #fff);
+    }
+
+    .data-grid {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--font-size-small, 0.875rem);
+    }
+
+    .data-grid th,
+    .data-grid td {
+        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
+        text-align: left;
+        border-bottom: 1px solid var(--color-border, #E1E1E1);
+    }
+
+    .data-grid th {
+        font-weight: var(--font-weight-semibold, 600);
+        background-color: var(--color-surface, #F5F5F5);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .data-grid tr:hover td {
+        background-color: var(--color-surface, #F5F5F5);
+    }
+
+    .data-grid tr.row-inprogress td {
+        background-color: rgba(255, 185, 0, 0.05);
+    }
+
+    .series-name {
+        font-weight: var(--font-weight-semibold, 600);
+    }
+
+    .series-slug {
+        font-size: var(--font-size-xs, 0.75rem);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px var(--spacing-sm, 8px);
+        font-size: var(--font-size-xs, 0.75rem);
+        font-weight: var(--font-weight-semibold, 600);
+        border-radius: var(--border-radius, 4px);
+        background-color: var(--color-surface, #F5F5F5);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .badge--success {
+        background-color: var(--color-success, #107C10);
+        color: white;
+    }
+
+    .badge--warning {
+        background-color: var(--color-warning, #FFB900);
+        color: var(--color-neutral, #323130);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 4px;
+    }
+</style>
+
+@code {
+    private List<BlogSeries> ObjectList;
+    private List<BlogSeries> FilteredList;
+    private BlogSeries SeriesToDelete;
+    private bool HideDeleteDialog = true;
+    private string StatusMessage = string.Empty;
+    private bool IsError = false;
+    private string SearchTerm = string.Empty;
+    private string StatusFilter = "all";
+
+    // Computed counts
+    private int InProgressCount => ObjectList?.Count(s => !s.IsComplete) ?? 0;
+    private int CompleteCount => ObjectList?.Count(s => s.IsComplete) ?? 0;
+
+    protected override void OnInitialized()
+    {
+        LoadSeries();
+    }
+
+    private void LoadSeries()
+    {
+        try
+        {
+            ObjectList = SeriesService.GetAllWithCounts().ToList();
+            ApplyFilter();
         }
-    </PanelContent>
-</ContentPanel>
+        catch
+        {
+            ObjectList = new List<BlogSeries>();
+            FilteredList = new List<BlogSeries>();
+            StatusMessage = "Failed to load series.";
+            IsError = true;
+        }
+    }
+
+    private void SetFilter(string filter)
+    {
+        StatusFilter = filter;
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        if (ObjectList == null)
+        {
+            FilteredList = new List<BlogSeries>();
+            return;
+        }
+
+        // Apply status filter
+        var filtered = StatusFilter switch
+        {
+            "inprogress" => ObjectList.Where(s => !s.IsComplete),
+            "complete" => ObjectList.Where(s => s.IsComplete),
+            _ => ObjectList.AsEnumerable()
+        };
+
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(SearchTerm))
+        {
+            var searchLower = SearchTerm.ToLower();
+            filtered = filtered.Where(s =>
+                (s.Name?.ToLower().Contains(searchLower) ?? false) ||
+                (s.Slug?.ToLower().Contains(searchLower) ?? false) ||
+                (s.AuthorName?.ToLower().Contains(searchLower) ?? false));
+        }
+
+        FilteredList = filtered.ToList();
+    }
+
+    private void ClearFilters()
+    {
+        StatusFilter = "all";
+        SearchTerm = string.Empty;
+        ApplyFilter();
+    }
+
+    private void ConfirmDelete(BlogSeries series)
+    {
+        SeriesToDelete = series;
+        HideDeleteDialog = false;
+    }
+
+    private void CancelDelete()
+    {
+        SeriesToDelete = null;
+        HideDeleteDialog = true;
+    }
+
+    private void DeleteSeries()
+    {
+        if (SeriesToDelete == null) return;
+
+        var result = SeriesService.DeleteSeries(SeriesToDelete.SeriesId);
+        if (result.IsSuccess)
+        {
+            StatusMessage = $"Series '{SeriesToDelete.Name}' deleted successfully.";
+            IsError = false;
+            LoadSeries();
+        }
+        else
+        {
+            StatusMessage = result.ErrorMessage;
+            IsError = true;
+        }
+
+        SeriesToDelete = null;
+        HideDeleteDialog = true;
+    }
+}

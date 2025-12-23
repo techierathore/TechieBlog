@@ -32,14 +32,17 @@ else
     @if (featuredPost != null)
     {
         <article class="featured-post">
-            <div class="featured-post__image placeholder-image">
+            <div class="featured-post__image @(string.IsNullOrEmpty(featuredPost.FeaturedImage) ? "placeholder-image" : "")">
                 @if (!string.IsNullOrEmpty(featuredPost.FeaturedImage))
                 {
-                    <img src="@featuredPost.FeaturedImage" alt="@featuredPost.Title" style="width: 100%; height: 100%; object-fit: cover;" />
+                    <img src="@featuredPost.FeaturedImage"
+                         alt="@featuredPost.Title"
+                         style="width: 100%; height: 100%; object-fit: cover;"
+                         onerror="this.onerror=null; this.style.display='none'; this.parentElement.classList.add('placeholder-image'); this.parentElement.innerHTML='<span>Featured</span>';" />
                 }
                 else
                 {
-                    <span>Featured Image</span>
+                    <span>Featured</span>
                 }
             </div>
             <div class="featured-post__content">
@@ -76,7 +79,8 @@ else
                               PostUrl="@($"/post/{post.Slug}")"
                               AuthorName="@(string.IsNullOrEmpty(post.BlogWriter) ? "Unknown" : post.BlogWriter)"
                               Date="@post.CreatedOn.ToString("MMM dd")"
-                              ReadTime="@GetReadingTime(post.PostContent)" />
+                              ReadTime="@GetReadingTime(post.PostContent)"
+                              ImageUrl="@post.FeaturedImage" />
                 }
             </div>
 

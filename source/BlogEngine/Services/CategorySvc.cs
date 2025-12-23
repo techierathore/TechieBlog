@@ -1,5 +1,6 @@
 using BlogEngine.Common;
 using BlogModels;
+using Microsoft.Extensions.Logging;
 
 namespace BlogEngine.Services;
 
@@ -13,10 +14,12 @@ namespace BlogEngine.Services;
 public class CategorySvc
 {
     private readonly ICategoryRepo CategoryRepo;
+    private readonly ILogger<CategorySvc> _logger;
 
-    public CategorySvc(ICategoryRepo categoryRepo)
+    public CategorySvc(ICategoryRepo categoryRepo, ILogger<CategorySvc> logger)
     {
         CategoryRepo = categoryRepo;
+        _logger = logger;
     }
 
     /// <summary>
@@ -25,7 +28,15 @@ public class CategorySvc
     /// <returns>List of all categories.</returns>
     public IEnumerable<Category> GetAllCategories()
     {
-        return CategoryRepo.GetAll();
+        try
+        {
+            return CategoryRepo.GetAll();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all categories");
+            return Enumerable.Empty<Category>();
+        }
     }
 
     /// <summary>
@@ -34,7 +45,15 @@ public class CategorySvc
     /// <returns>Categories with PostCount field populated.</returns>
     public IEnumerable<Category> GetAllWithCounts()
     {
-        return CategoryRepo.GetAllWithCounts();
+        try
+        {
+            return CategoryRepo.GetAllWithCounts();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting categories with counts");
+            return Enumerable.Empty<Category>();
+        }
     }
 
     /// <summary>
@@ -44,7 +63,15 @@ public class CategorySvc
     /// <returns>Category if found, null otherwise.</returns>
     public Category GetCategory(long categoryId)
     {
-        return CategoryRepo.GetSingle(categoryId);
+        try
+        {
+            return CategoryRepo.GetSingle(categoryId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting category by ID: {CategoryId}", categoryId);
+            return null;
+        }
     }
 
     /// <summary>
@@ -54,9 +81,17 @@ public class CategorySvc
     /// <returns>Category if found, null otherwise.</returns>
     public Category GetCategoryBySlug(string slug)
     {
-        if (string.IsNullOrWhiteSpace(slug))
+        try
+        {
+            if (string.IsNullOrWhiteSpace(slug))
+                return null;
+            return CategoryRepo.GetBySlug(slug);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting category by slug: {Slug}", slug);
             return null;
-        return CategoryRepo.GetBySlug(slug);
+        }
     }
 
     /// <summary>
@@ -95,10 +130,12 @@ public class CategorySvc
         {
             var categoryId = CategoryRepo.InsertToGetId(category);
             category.CategoryId = categoryId;
+            _logger.LogInformation("Created category '{Name}' with ID {CategoryId}", category.CategoryName, categoryId);
             return Result<Category>.Success(category);
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to create category: {Name}", category.CategoryName);
             return Result<Category>.Failure($"Failed to create category: {ex.Message}");
         }
     }
@@ -146,10 +183,12 @@ public class CategorySvc
         try
         {
             CategoryRepo.Update(category);
+            _logger.LogInformation("Updated category '{Name}' with ID {CategoryId}", category.CategoryName, category.CategoryId);
             return Result<Category>.Success(category);
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to update category ID {CategoryId}: {Name}", category.CategoryId, category.CategoryName);
             return Result<Category>.Failure($"Failed to update category: {ex.Message}");
         }
     }
@@ -191,10 +230,12 @@ public class CategorySvc
         try
         {
             CategoryRepo.Delete(categoryId);
+            _logger.LogInformation("Deleted category ID {CategoryId}", categoryId);
             return Result.Success();
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to delete category ID {CategoryId}", categoryId);
             return Result.Failure($"Failed to delete category: {ex.Message}");
         }
     }

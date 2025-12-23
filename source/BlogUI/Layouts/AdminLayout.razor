@@ -1,7 +1,7 @@
 @*
     AdminLayout.razor
     Purpose: Layout for administrative pages with navigation sidebar and header.
-    Provides Fluent UI-based navigation menu, user profile dropdown, and main content area.
+    Provides navigation menu, user profile dropdown, and main content area.
     Uses CSS custom properties from theme files for consistent styling.
     Role-based menu visibility using AuthorizeView.
 
@@ -12,63 +12,296 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @inherits LayoutComponentBase
 
-<FluentLayout Style="background-color: var(--color-background); color: var(--color-neutral);">
-    <FluentStack Orientation="Orientation.Horizontal" Style="height: 100vh;">
-        @* Sidebar Navigation *@
-        <FluentNavMenu Width="250" Collapsible="true" Title="TechieBlog Admin" Style="background-color: var(--color-surface); border-right: 1px solid var(--color-border);">
-            <FluentNavLink Href="/" Match="NavLinkMatch.All">
-                TechieBlog
-            </FluentNavLink>
-            <FluentNavLink Href="/admin">
-                Dashboard
-            </FluentNavLink>
-            <FluentNavGroup Title="Blog Management">
-                <FluentNavLink Href="/BlogsList">Blog Posts</FluentNavLink>
-                @* Tags link only visible to Admins *@
-                <AuthorizeView Policy="AdminOnly">
-                    <Authorized>
-                        <FluentNavLink Href="/tags">Tags</FluentNavLink>
-                    </Authorized>
-                </AuthorizeView>
-                <FluentNavLink Href="/comments">Comments</FluentNavLink>
-            </FluentNavGroup>
-            @* Users link only visible to Admins *@
+<div class="admin-layout">
+    @* Sidebar Navigation *@
+    <aside class="admin-sidebar">
+        <div class="sidebar-header">
+            <a href="/" class="sidebar-logo">TechieBlog</a>
+            <span class="badge badge--admin">Admin</span>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-menu__item">
+                <NavLink href="/admin" class="nav-menu__link" Match="NavLinkMatch.All" ActiveClass="nav-menu__link--active">
+                    <span class="nav-menu__icon">&#128200;</span>
+                    <span>Dashboard</span>
+                </NavLink>
+            </li>
+            <li class="nav-menu__item">
+                <NavLink href="/BlogsList" class="nav-menu__link" ActiveClass="nav-menu__link--active">
+                    <span class="nav-menu__icon">&#128196;</span>
+                    <span>All Posts</span>
+                </NavLink>
+            </li>
             <AuthorizeView Policy="AdminOnly">
                 <Authorized>
-                    <FluentNavLink Href="/users">
-                        Users
-                    </FluentNavLink>
+                    <li class="nav-menu__item">
+                        <NavLink href="/users" class="nav-menu__link" ActiveClass="nav-menu__link--active">
+                            <span class="nav-menu__icon">&#128101;</span>
+                            <span>Users</span>
+                        </NavLink>
+                    </li>
                 </Authorized>
             </AuthorizeView>
-        </FluentNavMenu>
+            <li class="nav-menu__item">
+                <NavLink href="/CommentsList" class="nav-menu__link" ActiveClass="nav-menu__link--active">
+                    <span class="nav-menu__icon">&#128172;</span>
+                    <span>Comments</span>
+                </NavLink>
+            </li>
+            <li class="nav-menu__item">
+                <NavLink href="/CategoriesList" class="nav-menu__link" ActiveClass="nav-menu__link--active">
+                    <span class="nav-menu__icon">&#128193;</span>
+                    <span>Categories</span>
+                </NavLink>
+            </li>
+            <AuthorizeView Policy="AdminOnly">
+                <Authorized>
+                    <li class="nav-menu__item">
+                        <NavLink href="/admin/tags" class="nav-menu__link" ActiveClass="nav-menu__link--active">
+                            <span class="nav-menu__icon">&#127991;</span>
+                            <span>Tags</span>
+                        </NavLink>
+                    </li>
+                </Authorized>
+            </AuthorizeView>
+            <li class="nav-menu__item">
+                <NavLink href="/SeriesList" class="nav-menu__link" ActiveClass="nav-menu__link--active">
+                    <span class="nav-menu__icon">&#128218;</span>
+                    <span>Series</span>
+                </NavLink>
+            </li>
+            <AuthorizeView Policy="AdminOnly">
+                <Authorized>
+                    <li class="nav-menu__item">
+                        <NavLink href="/settings" class="nav-menu__link" ActiveClass="nav-menu__link--active">
+                            <span class="nav-menu__icon">&#9881;</span>
+                            <span>Settings</span>
+                        </NavLink>
+                    </li>
+                </Authorized>
+            </AuthorizeView>
+        </ul>
+    </aside>
 
-        @* Main Content Area *@
-        <FluentStack Orientation="Orientation.Vertical" Style="flex: 1; overflow: hidden;">
-            @* Top Header Bar *@
-            <FluentHeader Style="height: var(--header-height, 50px); padding: 0 var(--spacing-md, 16px); background-color: var(--color-surface); border-bottom: 1px solid var(--color-border);">
-                <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.End" Style="width: 100%;">
-                    <FluentMenu>
-                        <FluentMenuButton Appearance="Appearance.Stealth">
-                            <span style="margin-left: var(--spacing-sm, 8px);">@CurrentUserName</span>
-                            <FluentBadge Appearance="Appearance.Accent" Style="margin-left: 8px;">@CurrentUserRole</FluentBadge>
-                        </FluentMenuButton>
-                        <FluentMenuItem Href="/profile">Profile</FluentMenuItem>
-                        <AuthorizeView Policy="AdminOnly">
-                            <Authorized>
-                                <FluentMenuItem Href="/analytics">Analytics</FluentMenuItem>
-                                <FluentMenuItem Href="/settings">Settings</FluentMenuItem>
-                            </Authorized>
-                        </AuthorizeView>
-                        <FluentMenuItem Href="/help">Help</FluentMenuItem>
-                        <FluentMenuItem OnClick="@LogoutAsync">Sign out</FluentMenuItem>
-                    </FluentMenu>
-                </FluentStack>
-            </FluentHeader>
+    @* Main Content Area *@
+    <div class="admin-main">
+        @* Top Header Bar *@
+        <header class="admin-header">
+            <div class="header-left">
+                <a href="/" class="btn btn--secondary btn--sm">View Site</a>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <span class="user-name">@CurrentUserName</span>
+                    <span class="badge badge--role">@CurrentUserRole</span>
+                </div>
+                <button class="btn btn--secondary btn--sm" @onclick="LogoutAsync">Sign Out</button>
+            </div>
+        </header>
 
-            @* Main Body Content *@
-            <FluentBodyContent Style="padding: var(--spacing-md, 16px); overflow: auto; background-color: var(--color-background);">
-                @Body
-            </FluentBodyContent>
-        </FluentStack>
-    </FluentStack>
-</FluentLayout>
+        @* Main Body Content *@
+        <main class="admin-content">
+            @Body
+        </main>
+    </div>
+</div>
+
+<style>
+    .admin-layout {
+        display: flex;
+        min-height: 100vh;
+        background-color: var(--color-background, #fff);
+    }
+
+    /* Sidebar */
+    .admin-sidebar {
+        width: 250px;
+        min-height: 100vh;
+        background-color: var(--color-surface, #F5F5F5);
+        border-right: 1px solid var(--color-border, #E1E1E1);
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+    }
+
+    .sidebar-header {
+        padding: var(--spacing-lg, 24px) var(--spacing-md, 16px);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm, 8px);
+        border-bottom: 1px solid var(--color-border, #E1E1E1);
+    }
+
+    .sidebar-logo {
+        font-size: var(--font-size-h3, 1.25rem);
+        font-weight: var(--font-weight-bold, 700);
+        color: var(--color-primary, #0078D4);
+        text-decoration: none;
+    }
+
+    .sidebar-logo:hover {
+        color: var(--color-primary-hover, #106EBE);
+    }
+
+    .badge--admin {
+        background-color: var(--color-primary, #0078D4);
+        color: white;
+        padding: 2px var(--spacing-sm, 8px);
+        border-radius: var(--border-radius, 4px);
+        font-size: var(--font-size-xs, 0.75rem);
+        font-weight: var(--font-weight-semibold, 600);
+    }
+
+    /* Navigation Menu */
+    .nav-menu {
+        list-style: none;
+        padding: var(--spacing-md, 16px) 0;
+        margin: 0;
+        flex: 1;
+    }
+
+    .nav-menu__item {
+        margin: 0;
+    }
+
+    .nav-menu__link {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md, 16px);
+        padding: var(--spacing-sm, 8px) var(--spacing-lg, 24px);
+        color: var(--color-neutral, #323130);
+        text-decoration: none;
+        font-size: var(--font-size-small, 0.875rem);
+        transition: all var(--transition-fast, 150ms ease);
+        border-left: 3px solid transparent;
+    }
+
+    .nav-menu__link:hover {
+        background-color: rgba(0, 120, 212, 0.1);
+        color: var(--color-primary, #0078D4);
+    }
+
+    .nav-menu__link--active {
+        background-color: var(--color-primary, #0078D4);
+        color: white !important;
+        border-left-color: var(--color-primary-hover, #106EBE);
+    }
+
+    .nav-menu__link--active:hover {
+        background-color: var(--color-primary-hover, #106EBE);
+    }
+
+    .nav-menu__icon {
+        font-size: 16px;
+        width: 20px;
+        text-align: center;
+    }
+
+    /* Main Content Area */
+    .admin-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .admin-header {
+        height: var(--header-height, 50px);
+        padding: 0 var(--spacing-lg, 24px);
+        background-color: var(--color-surface, #F5F5F5);
+        border-bottom: 1px solid var(--color-border, #E1E1E1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .header-left,
+    .header-right {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md, 16px);
+    }
+
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm, 8px);
+    }
+
+    .user-name {
+        font-size: var(--font-size-small, 0.875rem);
+        color: var(--color-neutral, #323130);
+    }
+
+    .badge--role {
+        background-color: var(--color-success, #107C10);
+        color: white;
+        padding: 2px var(--spacing-sm, 8px);
+        border-radius: var(--border-radius, 4px);
+        font-size: var(--font-size-xs, 0.75rem);
+        font-weight: var(--font-weight-semibold, 600);
+    }
+
+    .admin-content {
+        flex: 1;
+        padding: var(--spacing-lg, 24px);
+        overflow: auto;
+        background-color: var(--color-background, #fff);
+    }
+
+    /* Buttons */
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
+        border-radius: var(--border-radius, 4px);
+        font-size: var(--font-size-small, 0.875rem);
+        font-weight: var(--font-weight-semibold, 600);
+        cursor: pointer;
+        text-decoration: none;
+        transition: all var(--transition-fast, 150ms ease);
+        border: 1px solid transparent;
+    }
+
+    .btn--sm {
+        padding: var(--spacing-xs, 4px) var(--spacing-sm, 8px);
+        font-size: var(--font-size-xs, 0.75rem);
+    }
+
+    .btn--secondary {
+        background-color: transparent;
+        border-color: var(--color-border, #E1E1E1);
+        color: var(--color-neutral, #323130);
+    }
+
+    .btn--secondary:hover {
+        background-color: var(--color-surface, #F5F5F5);
+        border-color: var(--color-neutral-light, #605E5C);
+    }
+
+    /* Responsive */
+    @@media (max-width: 768px) {
+        .admin-sidebar {
+            width: 60px;
+        }
+
+        .sidebar-header {
+            padding: var(--spacing-md, 16px) var(--spacing-sm, 8px);
+            flex-direction: column;
+        }
+
+        .sidebar-logo {
+            display: none;
+        }
+
+        .nav-menu__link span:not(.nav-menu__icon) {
+            display: none;
+        }
+
+        .nav-menu__link {
+            justify-content: center;
+            padding: var(--spacing-md, 16px);
+        }
+    }
+</style>

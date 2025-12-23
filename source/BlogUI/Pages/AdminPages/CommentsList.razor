@@ -11,32 +11,591 @@
 @page "/comments"
 @attribute [Authorize(Policy = "EditorOrAbove")]
 @layout BlogUI.Layouts.AdminLayout
+@inject NavigationManager Navigation
 
-<ContentPanel PanelTitle="Comments List">
-    <RightSection>
-        <FluentAnchor Href="ManageAccount" Appearance="Appearance.Accent">
-            + Add New
-        </FluentAnchor>
-    </RightSection>
-    <PanelContent>
-        @if (ObjectList == null)
+<div class="comments-list-page">
+    @* Page Header *@
+    <div class="page-header">
+        <h1>Comments Management</h1>
+    </div>
+
+    @* Status Messages *@
+    @if (!string.IsNullOrEmpty(StatusMessage))
+    {
+        <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
+                          Style="margin-bottom: 16px;">
+            @StatusMessage
+        </FluentMessageBar>
+    }
+
+    @* Filters Row *@
+    <div class="filters-row">
+        @* Status Tabs *@
+        <div class="status-tabs">
+            <span class="tabs__item @(StatusFilter == "all" ? "tabs__item--active" : "")"
+                  @onclick='() => SetFilter("all")'>
+                All (@TotalCount)
+            </span>
+            <span class="tabs__item @(StatusFilter == "pending" ? "tabs__item--active" : "")"
+                  @onclick='() => SetFilter("pending")'>
+                Pending (@PendingCount)
+            </span>
+            <span class="tabs__item @(StatusFilter == "approved" ? "tabs__item--active" : "")"
+                  @onclick='() => SetFilter("approved")'>
+                Approved (@ApprovedCount)
+            </span>
+            <span class="tabs__item @(StatusFilter == "spam" ? "tabs__item--active" : "")"
+                  @onclick='() => SetFilter("spam")'>
+                Spam (@SpamCount)
+            </span>
+        </div>
+
+        <span style="flex: 1;"></span>
+
+        @* Search Box *@
+        <div class="search-box">
+            <FluentIcon Value="@(new Icons.Regular.Size16.Search())" Color="Color.Neutral" />
+            <FluentTextField @bind-Value="SearchTerm"
+                             @bind-Value:after="ApplyFilter"
+                             Placeholder="Search comments..."
+                             Style="min-width: 200px;" />
+        </div>
+    </div>
+
+    @* Comments Table *@
+    <div class="table-container">
+        @if (IsLoading)
         {
-            <FluentProgressRing />
-            <span>Loading...</span>
+            <div style="padding: 32px; text-align: center;">
+                <FluentProgressRing />
+                <span style="display: block; margin-top: 8px;">Loading...</span>
+            </div>
+        }
+        else if (FilteredList == null || !FilteredList.Any())
+        {
+            <div style="padding: 32px; text-align: center; color: var(--color-neutral-light);">
+                @if (StatusFilter == "all" && string.IsNullOrEmpty(SearchTerm))
+                {
+                    <p>No comments found. Comments will appear here when readers engage with your posts.</p>
+                }
+                else
+                {
+                    <p>No comments match your filters.</p>
+                    <FluentButton Appearance="Appearance.Outline" OnClick="ClearFilters">Clear Filters</FluentButton>
+                }
+            </div>
         }
         else
         {
-            <FluentDataGrid Items="@ObjectList.AsQueryable()" Style="width: 100%;">
-                <PropertyColumn Property="@(p => p.Title)" Title="Title" Sortable="true" />
-                <PropertyColumn Property="@(p => p.CreatedOn)" Title="Written On" Format="MM/dd/yyyy" Sortable="true" />
-                <PropertyColumn Property="@(p => p.BlogWriter)" Title="Written By" Sortable="true" />
-                <PropertyColumn Property="@(p => p.Published)" Title="Published" />
-                <TemplateColumn Title="Actions">
-                    <FluentAnchor Href="@($"/ManagePost/{context.PostID}")" Appearance="Appearance.Stealth">
-                        Edit
-                    </FluentAnchor>
-                </TemplateColumn>
-            </FluentDataGrid>
+            <table class="data-grid">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;"><FluentCheckbox @bind-Value="SelectAll" @bind-Value:after="ToggleSelectAll" /></th>
+                        <th>Comment</th>
+                        <th style="width: 150px;">Author</th>
+                        <th style="width: 200px;">Post</th>
+                        <th style="width: 100px;">Status</th>
+                        <th style="width: 120px;">Date</th>
+                        <th style="width: 140px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var comment in FilteredList)
+                    {
+                        var rowClass = comment.Status == "Pending" ? "row-pending" : (comment.Status == "Spam" ? "row-spam" : "");
+                        <tr class="@rowClass">
+                            <td><FluentCheckbox @bind-Value="comment.IsSelected" /></td>
+                            <td class="comment-content">
+                                <div class="comment-text">@TruncateText(comment.Content, 100)</div>
+                            </td>
+                            <td>
+                                <div class="author-info">
+                                    <span class="author-name">@comment.AuthorName</span>
+                                    <span class="author-email">@comment.AuthorEmail</span>
+                                </div>
+                            </td>
+                            <td>
+                                <a href="/post/@comment.PostSlug" class="post-link" target="_blank">@TruncateText(comment.PostTitle, 30)</a>
+                            </td>
+                            <td>
+                                @if (comment.Status == "Approved")
+                                {
+                                    <span class="badge badge--success">Approved</span>
+                                }
+                                else if (comment.Status == "Pending")
+                                {
+                                    <span class="badge badge--warning">Pending</span>
+                                }
+                                else if (comment.Status == "Spam")
+                                {
+                                    <span class="badge badge--error">Spam</span>
+                                }
+                                else
+                                {
+                                    <span class="badge">@comment.Status</span>
+                                }
+                            </td>
+                            <td>@comment.CreatedOn.ToString("MMM dd, yyyy")</td>
+                            <td>
+                                <div class="action-buttons">
+                                    @if (comment.Status == "Pending")
+                                    {
+                                        <FluentButton Appearance="Appearance.Stealth"
+                                                      OnClick="@(() => ApproveComment(comment))"
+                                                      Title="Approve">
+                                            <FluentIcon Value="@(new Icons.Regular.Size16.CheckmarkCircle())" Color="Color.Success" />
+                                        </FluentButton>
+                                        <FluentButton Appearance="Appearance.Stealth"
+                                                      OnClick="@(() => MarkAsSpam(comment))"
+                                                      Title="Mark as Spam">
+                                            <FluentIcon Value="@(new Icons.Regular.Size16.Warning())" Color="Color.Warning" />
+                                        </FluentButton>
+                                    }
+                                    else if (comment.Status == "Spam")
+                                    {
+                                        <FluentButton Appearance="Appearance.Stealth"
+                                                      OnClick="@(() => ApproveComment(comment))"
+                                                      Title="Not Spam">
+                                            <FluentIcon Value="@(new Icons.Regular.Size16.CheckmarkCircle())" Color="Color.Success" />
+                                        </FluentButton>
+                                    }
+                                    <FluentButton Appearance="Appearance.Stealth"
+                                                  OnClick="@(() => ReplyToComment(comment))"
+                                                  Title="Reply">
+                                        <FluentIcon Value="@(new Icons.Regular.Size16.ArrowReply())" />
+                                    </FluentButton>
+                                    <FluentButton Appearance="Appearance.Stealth"
+                                                  OnClick="@(() => ConfirmDelete(comment))"
+                                                  Title="Delete">
+                                        <FluentIcon Value="@(new Icons.Regular.Size16.Delete())" Color="Color.Error" />
+                                    </FluentButton>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         }
-    </PanelContent>
-</ContentPanel>
+    </div>
+
+    @* Bulk Actions & Pagination Footer *@
+    @if (FilteredList != null && FilteredList.Any())
+    {
+        <div class="table-footer">
+            <div class="bulk-actions">
+                <FluentSelect TOption="string" @bind-Value="BulkAction" Style="width: 150px;">
+                    <FluentOption TOption="string" Value="">Bulk Actions</FluentOption>
+                    <FluentOption TOption="string" Value="approve">Approve</FluentOption>
+                    <FluentOption TOption="string" Value="spam">Mark as Spam</FluentOption>
+                    <FluentOption TOption="string" Value="delete">Delete</FluentOption>
+                </FluentSelect>
+                <FluentButton Appearance="Appearance.Outline"
+                              OnClick="ApplyBulkAction"
+                              Disabled="@(string.IsNullOrEmpty(BulkAction) || !HasSelectedComments)">
+                    Apply
+                </FluentButton>
+            </div>
+
+            <div class="pagination-info">
+                Showing @FilteredList.Count of @TotalCount comments
+            </div>
+        </div>
+    }
+
+    @* Delete Confirmation Dialog *@
+    @if (!HideDeleteDialog)
+    {
+        <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
+            <FluentDialogHeader>
+                <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
+            </FluentDialogHeader>
+            <FluentDialogBody>
+                <p>Are you sure you want to delete this comment by "<strong>@CommentToDelete?.AuthorName</strong>"?</p>
+                <p style="color: var(--color-neutral-light, #605E5C);">This action cannot be undone.</p>
+            </FluentDialogBody>
+            <FluentDialogFooter>
+                <FluentButton Appearance="Appearance.Neutral" OnClick="CancelDelete">Cancel</FluentButton>
+                <FluentButton Appearance="Appearance.Accent"
+                              OnClick="DeleteComment"
+                              Style="background-color: var(--color-error, #D13438);">
+                    Delete
+                </FluentButton>
+            </FluentDialogFooter>
+        </FluentDialog>
+    }
+</div>
+
+<style>
+    .comments-list-page {
+        max-width: 1400px;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--spacing-lg, 24px);
+    }
+
+    .page-header h1 {
+        margin: 0;
+    }
+
+    .filters-row {
+        display: flex;
+        gap: var(--spacing-md, 16px);
+        margin-bottom: var(--spacing-lg, 24px);
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .status-tabs {
+        display: flex;
+        border-bottom: 1px solid var(--color-border, #E1E1E1);
+    }
+
+    .tabs__item {
+        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
+        font-size: var(--font-size-small, 0.875rem);
+        color: var(--color-neutral-light, #605E5C);
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+        cursor: pointer;
+        transition: all var(--transition-fast, 150ms ease);
+    }
+
+    .tabs__item:hover {
+        color: var(--color-neutral, #323130);
+    }
+
+    .tabs__item--active {
+        color: var(--color-primary, #0078D4);
+        border-bottom-color: var(--color-primary, #0078D4);
+    }
+
+    .search-box {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm, 8px);
+    }
+
+    .table-container {
+        border: 1px solid var(--color-border, #E1E1E1);
+        border-radius: var(--border-radius-lg, 8px);
+        overflow: hidden;
+        background-color: var(--color-background, #fff);
+    }
+
+    .data-grid {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--font-size-small, 0.875rem);
+    }
+
+    .data-grid th,
+    .data-grid td {
+        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
+        text-align: left;
+        border-bottom: 1px solid var(--color-border, #E1E1E1);
+    }
+
+    .data-grid th {
+        font-weight: var(--font-weight-semibold, 600);
+        background-color: var(--color-surface, #F5F5F5);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .data-grid tr:hover td {
+        background-color: var(--color-surface, #F5F5F5);
+    }
+
+    .data-grid tr.row-pending td {
+        background-color: rgba(255, 185, 0, 0.05);
+    }
+
+    .data-grid tr.row-spam td {
+        background-color: rgba(209, 52, 56, 0.05);
+    }
+
+    .comment-content {
+        max-width: 300px;
+    }
+
+    .comment-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+
+    .author-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .author-name {
+        font-weight: var(--font-weight-semibold, 600);
+    }
+
+    .author-email {
+        font-size: var(--font-size-xs, 0.75rem);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .post-link {
+        color: var(--color-primary, #0078D4);
+        text-decoration: none;
+    }
+
+    .post-link:hover {
+        text-decoration: underline;
+    }
+
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px var(--spacing-sm, 8px);
+        font-size: var(--font-size-xs, 0.75rem);
+        font-weight: var(--font-weight-semibold, 600);
+        border-radius: var(--border-radius, 4px);
+        background-color: var(--color-surface, #F5F5F5);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .badge--success {
+        background-color: var(--color-success, #107C10);
+        color: white;
+    }
+
+    .badge--warning {
+        background-color: var(--color-warning, #FFB900);
+        color: var(--color-neutral, #323130);
+    }
+
+    .badge--error {
+        background-color: var(--color-error, #D13438);
+        color: white;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 2px;
+        flex-wrap: nowrap;
+    }
+
+    .table-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: var(--spacing-md, 16px);
+    }
+
+    .bulk-actions {
+        display: flex;
+        gap: var(--spacing-sm, 8px);
+        align-items: center;
+    }
+
+    .pagination-info {
+        font-size: var(--font-size-small, 0.875rem);
+        color: var(--color-neutral-light, #605E5C);
+    }
+</style>
+
+@code {
+    // Comment view model for UI
+    private class CommentViewModel
+    {
+        public long CommentId { get; set; }
+        public string Content { get; set; } = string.Empty;
+        public string AuthorName { get; set; } = string.Empty;
+        public string AuthorEmail { get; set; } = string.Empty;
+        public long PostId { get; set; }
+        public string PostTitle { get; set; } = string.Empty;
+        public string PostSlug { get; set; } = string.Empty;
+        public string Status { get; set; } = "Pending";
+        public DateTime CreatedOn { get; set; }
+        public bool IsSelected { get; set; }
+    }
+
+    private List<CommentViewModel> ObjectList = new();
+    private List<CommentViewModel> FilteredList = new();
+    private CommentViewModel CommentToDelete;
+    private bool HideDeleteDialog = true;
+    private bool IsLoading = true;
+    private string StatusMessage = string.Empty;
+    private bool IsError = false;
+    private string SearchTerm = string.Empty;
+    private string StatusFilter = "all";
+    private string BulkAction = string.Empty;
+    private bool SelectAll = false;
+
+    // Computed counts
+    private int TotalCount => ObjectList?.Count ?? 0;
+    private int PendingCount => ObjectList?.Count(c => c.Status == "Pending") ?? 0;
+    private int ApprovedCount => ObjectList?.Count(c => c.Status == "Approved") ?? 0;
+    private int SpamCount => ObjectList?.Count(c => c.Status == "Spam") ?? 0;
+    private bool HasSelectedComments => FilteredList?.Any(c => c.IsSelected) ?? false;
+
+    protected override void OnInitialized()
+    {
+        LoadComments();
+    }
+
+    private void LoadComments()
+    {
+        IsLoading = true;
+        try
+        {
+            // Comments feature not yet implemented - show empty list
+            // TODO: Replace with actual comment service call when implemented
+            ObjectList = new List<CommentViewModel>();
+            ApplyFilter();
+        }
+        catch
+        {
+            ObjectList = new List<CommentViewModel>();
+            FilteredList = new List<CommentViewModel>();
+            StatusMessage = "Failed to load comments.";
+            IsError = true;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void SetFilter(string filter)
+    {
+        StatusFilter = filter;
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        if (ObjectList == null)
+        {
+            FilteredList = new List<CommentViewModel>();
+            return;
+        }
+
+        // Apply status filter
+        var filtered = StatusFilter switch
+        {
+            "pending" => ObjectList.Where(c => c.Status == "Pending"),
+            "approved" => ObjectList.Where(c => c.Status == "Approved"),
+            "spam" => ObjectList.Where(c => c.Status == "Spam"),
+            _ => ObjectList.AsEnumerable()
+        };
+
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(SearchTerm))
+        {
+            var searchLower = SearchTerm.ToLower();
+            filtered = filtered.Where(c =>
+                (c.Content?.ToLower().Contains(searchLower) ?? false) ||
+                (c.AuthorName?.ToLower().Contains(searchLower) ?? false) ||
+                (c.AuthorEmail?.ToLower().Contains(searchLower) ?? false) ||
+                (c.PostTitle?.ToLower().Contains(searchLower) ?? false));
+        }
+
+        FilteredList = filtered.ToList();
+    }
+
+    private void ClearFilters()
+    {
+        StatusFilter = "all";
+        SearchTerm = string.Empty;
+        ApplyFilter();
+    }
+
+    private void ToggleSelectAll()
+    {
+        if (FilteredList == null) return;
+        foreach (var comment in FilteredList)
+        {
+            comment.IsSelected = SelectAll;
+        }
+    }
+
+    private void ApplyBulkAction()
+    {
+        if (string.IsNullOrEmpty(BulkAction) || !HasSelectedComments) return;
+
+        var selectedComments = FilteredList.Where(c => c.IsSelected).ToList();
+
+        foreach (var comment in selectedComments)
+        {
+            switch (BulkAction)
+            {
+                case "approve":
+                    comment.Status = "Approved";
+                    break;
+                case "spam":
+                    comment.Status = "Spam";
+                    break;
+                case "delete":
+                    ObjectList.Remove(comment);
+                    break;
+            }
+        }
+
+        BulkAction = string.Empty;
+        SelectAll = false;
+        ApplyFilter();
+        StatusMessage = $"Bulk action applied to {selectedComments.Count} comment(s).";
+        IsError = false;
+    }
+
+    private void ApproveComment(CommentViewModel comment)
+    {
+        comment.Status = "Approved";
+        StatusMessage = "Comment approved.";
+        IsError = false;
+    }
+
+    private void MarkAsSpam(CommentViewModel comment)
+    {
+        comment.Status = "Spam";
+        StatusMessage = "Comment marked as spam.";
+        IsError = false;
+    }
+
+    private void ReplyToComment(CommentViewModel comment)
+    {
+        // Navigate to post with comment focus
+        Navigation.NavigateTo($"/post/{comment.PostSlug}#comment-{comment.CommentId}");
+    }
+
+    private void ConfirmDelete(CommentViewModel comment)
+    {
+        CommentToDelete = comment;
+        HideDeleteDialog = false;
+    }
+
+    private void CancelDelete()
+    {
+        CommentToDelete = null;
+        HideDeleteDialog = true;
+    }
+
+    private void DeleteComment()
+    {
+        if (CommentToDelete == null) return;
+
+        ObjectList.Remove(CommentToDelete);
+        StatusMessage = "Comment deleted successfully.";
+        IsError = false;
+        ApplyFilter();
+
+        CommentToDelete = null;
+        HideDeleteDialog = true;
+    }
+
+    private string TruncateText(string text, int maxLength)
+    {
+        if (string.IsNullOrEmpty(text)) return string.Empty;
+        return text.Length <= maxLength ? text : text.Substring(0, maxLength) + "...";
+    }
+}

@@ -10,6 +10,9 @@ partial class BlogsList : ComponentBase
     [Inject]
     public BlogEngine.Services.BlogSvc BlogService { get; set; }
 
+    [Inject]
+    public NavigationManager NavigationManager { get; set; }
+
     public List<BlogPost> ObjectList { get; set; }
     public List<BlogPost> FilteredList { get; set; }
     public BlogPost SelObject { get; set; }
@@ -19,6 +22,15 @@ partial class BlogsList : ComponentBase
     public BlogPost PostToDelete { get; set; }
     public string StatusFilter { get; set; } = "all";
     public bool IsProcessing { get; set; }
+    public string SearchTerm { get; set; } = "";
+    public string BulkAction { get; set; } = "";
+    public bool SelectAll { get; set; }
+
+    // Computed counts
+    public int PublishedCount => ObjectList?.Count(p => p.Published) ?? 0;
+    public int DraftCount => ObjectList?.Count(p => !p.Published && !p.IsScheduled) ?? 0;
+    public int ScheduledCount => ObjectList?.Count(p => p.IsScheduled) ?? 0;
+    public bool HasSelectedPosts => FilteredList?.Any(p => p.IsSelected) ?? false;
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthStateTask { get; set; }
@@ -50,6 +62,12 @@ partial class BlogsList : ComponentBase
         ApplyFilter();
     }
 
+    private void SetFilter(string filter)
+    {
+        StatusFilter = filter;
+        ApplyFilter();
+    }
+
     private void ApplyFilter()
     {
         if (ObjectList == null)
@@ -58,13 +76,82 @@ partial class BlogsList : ComponentBase
             return;
         }
 
-        FilteredList = StatusFilter switch
+        // Apply status filter
+        var filtered = StatusFilter switch
         {
-            "published" => ObjectList.Where(p => p.Published).ToList(),
-            "scheduled" => ObjectList.Where(p => p.IsScheduled).ToList(),
-            "draft" => ObjectList.Where(p => !p.Published && !p.IsScheduled).ToList(),
-            _ => ObjectList.ToList()
+            "published" => ObjectList.Where(p => p.Published),
+            "scheduled" => ObjectList.Where(p => p.IsScheduled),
+            "draft" => ObjectList.Where(p => !p.Published && !p.IsScheduled),
+            _ => ObjectList.AsEnumerable()
         };
+
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(SearchTerm))
+        {
+            var searchLower = SearchTerm.ToLower();
+            filtered = filtered.Where(p =>
+                (p.Title?.ToLower().Contains(searchLower) ?? false) ||
+                (p.Slug?.ToLower().Contains(searchLower) ?? false) ||
+                (p.BlogWriter?.ToLower().Contains(searchLower) ?? false));
+        }
+
+        FilteredList = filtered.ToList();
+    }
+
+    private void ClearFilters()
+    {
+        StatusFilter = "all";
+        SearchTerm = "";
+        ApplyFilter();
+    }
+
+    private void ToggleSelectAll()
+    {
+        if (FilteredList == null) return;
+
+        foreach (var post in FilteredList)
+        {
+            post.IsSelected = SelectAll;
+        }
+    }
+
+    private void NavigateToPreview(BlogPost post)
+    {
+        if (post.Published)
+        {
+            NavigationManager.NavigateTo($"/post/{post.Slug}");
+        }
+        else
+        {
+            NavigationManager.NavigateTo($"/admin/preview/{post.PostID}");
+        }
+    }
+
+    private void ApplyBulkAction()
+    {
+        if (string.IsNullOrEmpty(BulkAction) || !HasSelectedPosts) return;
+
+        var selectedPosts = FilteredList.Where(p => p.IsSelected).ToList();
+
+        foreach (var post in selectedPosts)
+        {
+            switch (BulkAction)
+            {
+                case "publish":
+                    QuickPublish(post);
+                    break;
+                case "unpublish":
+                    QuickUnpublish(post);
+                    break;
+                case "delete":
+                    BlogService.DeletePost(post.PostID);
+                    break;
+            }
+        }
+
+        BulkAction = "";
+        SelectAll = false;
+        LoadPosts();
     }
 
     private void QuickPublish(BlogPost post)

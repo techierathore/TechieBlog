@@ -1,5 +1,6 @@
 using BlogEngine.Common;
 using BlogModels;
+using Microsoft.Extensions.Logging;
 
 namespace BlogEngine.Services;
 
@@ -13,10 +14,12 @@ namespace BlogEngine.Services;
 public class TagSvc
 {
     private readonly IBlogTagRepo TagRepo;
+    private readonly ILogger<TagSvc> _logger;
 
-    public TagSvc(IBlogTagRepo tagRepo)
+    public TagSvc(IBlogTagRepo tagRepo, ILogger<TagSvc> logger)
     {
         TagRepo = tagRepo;
+        _logger = logger;
     }
 
     /// <summary>
@@ -25,7 +28,15 @@ public class TagSvc
     /// <returns>List of all tags.</returns>
     public IEnumerable<BlogTag> GetAllTags()
     {
-        return TagRepo.GetAll();
+        try
+        {
+            return TagRepo.GetAll();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all tags");
+            return Enumerable.Empty<BlogTag>();
+        }
     }
 
     /// <summary>
@@ -34,7 +45,15 @@ public class TagSvc
     /// <returns>Tags with PostCount field populated.</returns>
     public IEnumerable<BlogTag> GetAllWithCounts()
     {
-        return TagRepo.GetAllWithCounts();
+        try
+        {
+            return TagRepo.GetAllWithCounts();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting tags with counts");
+            return Enumerable.Empty<BlogTag>();
+        }
     }
 
     /// <summary>
@@ -44,7 +63,15 @@ public class TagSvc
     /// <returns>BlogTag if found, null otherwise.</returns>
     public BlogTag GetSingleTag(long tagId)
     {
-        return TagRepo.GetSingle(tagId);
+        try
+        {
+            return TagRepo.GetSingle(tagId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting tag by ID: {TagId}", tagId);
+            return null;
+        }
     }
 
     /// <summary>
@@ -54,9 +81,17 @@ public class TagSvc
     /// <returns>BlogTag if found, null otherwise.</returns>
     public BlogTag GetTagBySlug(string slug)
     {
-        if (string.IsNullOrWhiteSpace(slug))
+        try
+        {
+            if (string.IsNullOrWhiteSpace(slug))
+                return null;
+            return TagRepo.GetBySlug(slug);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting tag by slug: {Slug}", slug);
             return null;
-        return TagRepo.GetBySlug(slug);
+        }
     }
 
     /// <summary>
@@ -66,9 +101,17 @@ public class TagSvc
     /// <returns>Matching tags.</returns>
     public IEnumerable<BlogTag> SearchTags(string query)
     {
-        if (string.IsNullOrWhiteSpace(query))
-            return TagRepo.GetAll().Take(10);
-        return TagRepo.SearchTags(query);
+        try
+        {
+            if (string.IsNullOrWhiteSpace(query))
+                return TagRepo.GetAll().Take(10);
+            return TagRepo.SearchTags(query);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error searching tags with query: {Query}", query);
+            return Enumerable.Empty<BlogTag>();
+        }
     }
 
     /// <summary>
@@ -131,10 +174,12 @@ public class TagSvc
         {
             var tagId = TagRepo.InsertToGetId(tag);
             tag.TagId = tagId;
+            _logger.LogInformation("Created tag '{TagName}' with ID {TagId}", tag.TagName, tagId);
             return Result<BlogTag>.Success(tag);
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to create tag: {TagName}", tag.TagName);
             return Result<BlogTag>.Failure($"Failed to create tag: {ex.Message}");
         }
     }
@@ -182,10 +227,12 @@ public class TagSvc
         try
         {
             TagRepo.Update(tag);
+            _logger.LogInformation("Updated tag '{TagName}' with ID {TagId}", tag.TagName, tag.TagId);
             return Result<BlogTag>.Success(tag);
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to update tag ID {TagId}: {TagName}", tag.TagId, tag.TagName);
             return Result<BlogTag>.Failure($"Failed to update tag: {ex.Message}");
         }
     }
@@ -227,10 +274,12 @@ public class TagSvc
         try
         {
             TagRepo.Delete(tagId);
+            _logger.LogInformation("Deleted tag ID {TagId}", tagId);
             return Result.Success();
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to delete tag ID {TagId}", tagId);
             return Result.Failure($"Failed to delete tag: {ex.Message}");
         }
     }
@@ -242,7 +291,15 @@ public class TagSvc
     /// <returns>Tags associated with the post.</returns>
     public IEnumerable<BlogTag> GetTagsForPost(long postId)
     {
-        return TagRepo.GetTagsForPost(postId);
+        try
+        {
+            return TagRepo.GetTagsForPost(postId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting tags for post ID {PostId}", postId);
+            return Enumerable.Empty<BlogTag>();
+        }
     }
 
     /// <summary>
@@ -252,7 +309,14 @@ public class TagSvc
     /// <param name="tagIds">List of tag IDs to associate.</param>
     public void SetTagsForPost(long postId, IEnumerable<long> tagIds)
     {
-        TagRepo.SetTagsForPost(postId, tagIds);
+        try
+        {
+            TagRepo.SetTagsForPost(postId, tagIds);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error setting tags for post ID {PostId}", postId);
+        }
     }
 
     /// <summary>
@@ -264,7 +328,15 @@ public class TagSvc
     /// <returns>List of published posts with the tag.</returns>
     public IEnumerable<BlogPost> GetPostsByTag(long tagId, int pageSize, int offset)
     {
-        return TagRepo.GetPostsByTag(tagId, pageSize, offset);
+        try
+        {
+            return TagRepo.GetPostsByTag(tagId, pageSize, offset);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting posts for tag ID {TagId}", tagId);
+            return Enumerable.Empty<BlogPost>();
+        }
     }
 
     /// <summary>
@@ -274,6 +346,14 @@ public class TagSvc
     /// <returns>Count of posts.</returns>
     public int GetPostCountByTag(long tagId)
     {
-        return TagRepo.GetPostCountByTag(tagId);
+        try
+        {
+            return TagRepo.GetPostCountByTag(tagId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting post count for tag ID {TagId}", tagId);
+            return 0;
+        }
     }
 }

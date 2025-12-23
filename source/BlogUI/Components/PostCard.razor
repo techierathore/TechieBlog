@@ -8,8 +8,18 @@
 *@
 
 <article class="card">
-    <div class="card__image placeholder-image">
-        @(string.IsNullOrEmpty(ImagePlaceholder) ? "Image" : ImagePlaceholder)
+    <div class="card__image @(string.IsNullOrEmpty(ImageUrl) ? "placeholder-image" : "")">
+        @if (!string.IsNullOrEmpty(ImageUrl))
+        {
+            <img src="@ImageUrl"
+                 alt="@Title"
+                 style="width: 100%; height: 100%; object-fit: cover;"
+                 onerror="this.onerror=null; this.style.display='none'; this.parentElement.classList.add('placeholder-image'); this.parentElement.innerHTML='<span>Image</span>';" />
+        }
+        else
+        {
+            <span>@(string.IsNullOrEmpty(ImagePlaceholder) ? "Image" : ImagePlaceholder)</span>
+        }
     </div>
     <div class="card__body">
         <span class="card__category">@Category</span>
@@ -103,4 +113,10 @@
     /// </summary>
     [Parameter]
     public string? ImagePlaceholder { get; set; }
+
+    /// <summary>
+    /// Optional URL for the post's featured image.
+    /// </summary>
+    [Parameter]
+    public string? ImageUrl { get; set; }
 }

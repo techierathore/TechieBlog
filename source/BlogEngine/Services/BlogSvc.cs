@@ -1,4 +1,5 @@
 using BlogEngine.Common;
+using Microsoft.Extensions.Logging;
 
 namespace BlogEngine.Services;
 
@@ -12,10 +13,12 @@ namespace BlogEngine.Services;
 public class BlogSvc
 {
     private readonly IBlogPostRepo PostRepo;
+    private readonly ILogger<BlogSvc> _logger;
 
-    public BlogSvc(IBlogPostRepo aPostRepo)
+    public BlogSvc(IBlogPostRepo aPostRepo, ILogger<BlogSvc> logger)
     {
         PostRepo = aPostRepo;
+        _logger = logger;
     }
 
     /// <summary>
@@ -26,13 +29,21 @@ public class BlogSvc
     /// <returns>List of posts visible to the user.</returns>
     public IEnumerable<BlogPost> GetAllPosts(long aUserId, bool aIsAdmin)
     {
-        IEnumerable<BlogPost> vReturnVal;
-        if (aIsAdmin)
+        try
         {
-            vReturnVal = PostRepo.GetAll();
+            IEnumerable<BlogPost> vReturnVal;
+            if (aIsAdmin)
+            {
+                vReturnVal = PostRepo.GetAll();
+            }
+            else vReturnVal = PostRepo.GetAllById(aUserId);
+            return vReturnVal;
         }
-        else vReturnVal = PostRepo.GetAllById(aUserId);
-        return vReturnVal;
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting posts for user {UserId}, isAdmin: {IsAdmin}", aUserId, aIsAdmin);
+            return Enumerable.Empty<BlogPost>();
+        }
     }
 
     /// <summary>
@@ -42,8 +53,15 @@ public class BlogSvc
     /// <returns>BlogPost if found, null otherwise.</returns>
     public BlogPost GetSinglePost(long aSingleId)
     {
-        var vReturnVal = PostRepo.GetSingle(aSingleId);
-        return vReturnVal;
+        try
+        {
+            return PostRepo.GetSingle(aSingleId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting post by ID: {PostId}", aSingleId);
+            return null;
+        }
     }
 
     /// <summary>
@@ -53,9 +71,17 @@ public class BlogSvc
     /// <returns>BlogPost if found, null otherwise.</returns>
     public BlogPost GetPostBySlug(string slug)
     {
-        if (string.IsNullOrWhiteSpace(slug))
+        try
+        {
+            if (string.IsNullOrWhiteSpace(slug))
+                return null;
+            return PostRepo.GetBySlug(slug);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting post by slug: {Slug}", slug);
             return null;
-        return PostRepo.GetBySlug(slug);
+        }
     }
 
     /// <summary>
@@ -66,7 +92,15 @@ public class BlogSvc
     /// <returns>List of published posts.</returns>
     public IEnumerable<BlogPost> GetPublishedPosts(int pageSize, int offset)
     {
-        return PostRepo.GetPublishedPosts(pageSize, offset);
+        try
+        {
+            return PostRepo.GetPublishedPosts(pageSize, offset);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting published posts. PageSize: {PageSize}, Offset: {Offset}", pageSize, offset);
+            return Enumerable.Empty<BlogPost>();
+        }
     }
 
     /// <summary>
@@ -75,7 +109,15 @@ public class BlogSvc
     /// <returns>BlogPost with count statistics.</returns>
     public BlogPost GetBlogCounts()
     {
-        return PostRepo.GetTheCounts();
+        try
+        {
+            return PostRepo.GetTheCounts();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting blog counts");
+            return new BlogPost { BlogCount = 0 };
+        }
     }
 
     /// <summary>
@@ -84,7 +126,15 @@ public class BlogSvc
     /// <returns>Most recent published post, or null if none.</returns>
     public BlogPost GetFeaturedPost()
     {
-        return PostRepo.GetFeaturedPost();
+        try
+        {
+            return PostRepo.GetFeaturedPost();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting featured post");
+            return null;
+        }
     }
 
     /// <summary>
@@ -93,7 +143,15 @@ public class BlogSvc
     /// <returns>Count of published, non-deleted posts.</returns>
     public int GetPublishedPostCount()
     {
-        return PostRepo.GetPublishedPostCount();
+        try
+        {
+            return PostRepo.GetPublishedPostCount();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting published post count");
+            return 0;
+        }
     }
 
     /// <summary>
@@ -105,7 +163,15 @@ public class BlogSvc
     /// <returns>List of published posts in the category.</returns>
     public IEnumerable<BlogPost> GetPostsByCategory(long categoryId, int pageSize, int offset)
     {
-        return PostRepo.GetPostsByCategory(categoryId, pageSize, offset);
+        try
+        {
+            return PostRepo.GetPostsByCategory(categoryId, pageSize, offset);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting posts by category {CategoryId}", categoryId);
+            return Enumerable.Empty<BlogPost>();
+        }
     }
 
     /// <summary>
@@ -115,7 +181,15 @@ public class BlogSvc
     /// <returns>Count of posts.</returns>
     public int GetPostCountByCategory(long categoryId)
     {
-        return PostRepo.GetPostCountByCategory(categoryId);
+        try
+        {
+            return PostRepo.GetPostCountByCategory(categoryId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting post count for category {CategoryId}", categoryId);
+            return 0;
+        }
     }
 
     /// <summary>
@@ -163,10 +237,12 @@ public class BlogSvc
         {
             var postId = PostRepo.InsertToGetId(post);
             post.PostID = postId;
+            _logger.LogInformation("Created post '{Title}' with ID {PostId}", post.Title, postId);
             return Result<BlogPost>.Success(post);
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to create post: {Title}", post.Title);
             return Result<BlogPost>.Failure($"Failed to create post: {ex.Message}");
         }
     }
@@ -221,10 +297,12 @@ public class BlogSvc
         try
         {
             PostRepo.Update(post);
+            _logger.LogInformation("Updated post '{Title}' with ID {PostId}", post.Title, post.PostID);
             return Result<BlogPost>.Success(post);
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to update post ID {PostId}: {Title}", post.PostID, post.Title);
             return Result<BlogPost>.Failure($"Failed to update post: {ex.Message}");
         }
     }
@@ -270,10 +348,12 @@ public class BlogSvc
         try
         {
             PostRepo.SoftDelete(postId);
+            _logger.LogInformation("Deleted post ID {PostId}", postId);
             return Result.Success();
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to delete post ID {PostId}", postId);
             return Result.Failure($"Failed to delete post: {ex.Message}");
         }
     }
@@ -389,7 +469,15 @@ public class BlogSvc
     /// <returns>List of posts scheduled for future publication.</returns>
     public IEnumerable<BlogPost> GetScheduledPosts()
     {
-        return PostRepo.GetScheduledPosts();
+        try
+        {
+            return PostRepo.GetScheduledPosts();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting scheduled posts");
+            return Enumerable.Empty<BlogPost>();
+        }
     }
 
     /// <summary>
@@ -398,7 +486,15 @@ public class BlogSvc
     /// <returns>Posts ready to be published.</returns>
     public IEnumerable<BlogPost> GetDueScheduledPosts()
     {
-        return PostRepo.GetDueScheduledPosts(DateTime.UtcNow);
+        try
+        {
+            return PostRepo.GetDueScheduledPosts(DateTime.UtcNow);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting due scheduled posts");
+            return Enumerable.Empty<BlogPost>();
+        }
     }
 
     /// <summary>

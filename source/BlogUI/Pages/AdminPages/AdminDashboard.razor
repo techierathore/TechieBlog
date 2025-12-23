@@ -12,8 +12,331 @@
 @attribute [Authorize(Policy = "EditorOrAbove")]
 @layout BlogUI.Layouts.AdminLayout
 
-<FluentStack Orientation="Orientation.Vertical" Style="gap: 16px;">
-    <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.SpaceBetween">
-        <h3>Dashboard</h3>
-    </FluentStack>
-</FluentStack>
+<div class="admin-dashboard">
+    <h1 style="margin-bottom: var(--spacing-lg, 24px);">Dashboard</h1>
+
+    @* Stats Grid *@
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-card__value">@TotalPosts</div>
+            <div class="stat-card__label">Total Posts</div>
+            <div class="stat-card__change stat-card__change--positive">+@PostsThisMonth this month</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card__value">@TotalUsers.ToString("N0")</div>
+            <div class="stat-card__label">Total Users</div>
+            <div class="stat-card__change stat-card__change--positive">+@UsersThisMonth this month</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card__value">@TotalComments.ToString("N0")</div>
+            <div class="stat-card__label">Comments</div>
+            @if (PendingComments > 0)
+            {
+                <div class="stat-card__change stat-card__change--warning">@PendingComments pending</div>
+            }
+            else
+            {
+                <div class="stat-card__change stat-card__change--positive">All reviewed</div>
+            }
+        </div>
+        <div class="stat-card">
+            <div class="stat-card__value">@TotalSubscribers</div>
+            <div class="stat-card__label">Subscribers</div>
+            <div class="stat-card__change stat-card__change--positive">+@SubscribersThisMonth this month</div>
+        </div>
+    </div>
+
+    @* Quick Actions & Pending Items *@
+    <div class="dashboard-row">
+        @* Quick Actions *@
+        <div class="dashboard-card">
+            <h2>Quick Actions</h2>
+            <div class="quick-actions">
+                <FluentAnchor Href="/ManagePost" Appearance="Appearance.Accent">+ New Post</FluentAnchor>
+                <FluentAnchor Href="/comments" Appearance="Appearance.Outline">Moderate Comments</FluentAnchor>
+                <FluentAnchor Href="/users" Appearance="Appearance.Outline">Manage Users</FluentAnchor>
+            </div>
+        </div>
+
+        @* Pending Items *@
+        <div class="dashboard-card">
+            <h2>Needs Attention</h2>
+            <ul class="attention-list">
+                <li>
+                    <span>Pending Comments</span>
+                    <FluentAnchor Href="/comments">
+                        <FluentBadge Appearance="@(PendingComments > 0 ? Appearance.Accent : Appearance.Neutral)"
+                                     Style="@(PendingComments > 0 ? "background-color: var(--color-warning, #FFB900); color: #000;" : "")">
+                            @PendingComments
+                        </FluentBadge>
+                    </FluentAnchor>
+                </li>
+                <li>
+                    <span>Scheduled Posts</span>
+                    <FluentAnchor Href="/BlogsList">
+                        <FluentBadge Appearance="Appearance.Neutral">@ScheduledPosts</FluentBadge>
+                    </FluentAnchor>
+                </li>
+                <li class="no-border">
+                    <span>Draft Posts</span>
+                    <FluentAnchor Href="/BlogsList">
+                        <FluentBadge Appearance="Appearance.Neutral">@DraftPosts</FluentBadge>
+                    </FluentAnchor>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    @* Recent Activity & Popular Posts *@
+    <div class="dashboard-row">
+        @* Recent Activity *@
+        <div class="dashboard-card">
+            <h2>Recent Activity</h2>
+            @if (RecentActivities == null || !RecentActivities.Any())
+            {
+                <p style="color: var(--color-neutral-light);">No recent activity</p>
+            }
+            else
+            {
+                <ul class="activity-list">
+                    @foreach (var activity in RecentActivities.Take(5))
+                    {
+                        <li class="@(activity == RecentActivities.Last() ? "no-border" : "")">
+                            <span class="activity-icon activity-icon--@activity.Type.ToLower()">
+                                @GetActivityIcon(activity.Type)
+                            </span>
+                            <div class="activity-content">
+                                <div class="activity-title">@activity.Title</div>
+                                <div class="activity-detail">@activity.Detail</div>
+                            </div>
+                            <span class="activity-time">@GetTimeAgo(activity.Timestamp)</span>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+
+        @* Popular Posts *@
+        <div class="dashboard-card">
+            <h2>Popular Posts (This Month)</h2>
+            @if (PopularPosts == null || !PopularPosts.Any())
+            {
+                <p style="color: var(--color-neutral-light);">No posts yet</p>
+            }
+            else
+            {
+                <table class="data-grid">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th style="width: 80px;">Views</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var post in PopularPosts.Take(5))
+                        {
+                            <tr>
+                                <td>@post.Title</td>
+                                <td>@post.Views.ToString("N0")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .admin-dashboard {
+        max-width: 1400px;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: var(--spacing-md, 16px);
+        margin-bottom: var(--spacing-xl, 32px);
+    }
+
+    @@media (max-width: 1199px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @@media (max-width: 767px) {
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .stat-card {
+        padding: var(--spacing-lg, 24px);
+        background-color: var(--color-background, #fff);
+        border: 1px solid var(--color-border, #E1E1E1);
+        border-radius: var(--border-radius-lg, 8px);
+    }
+
+    .stat-card__value {
+        font-size: var(--font-size-h1, 2rem);
+        font-weight: var(--font-weight-semibold, 600);
+        color: var(--color-primary, #0078D4);
+        margin-bottom: var(--spacing-xs, 4px);
+    }
+
+    .stat-card__label {
+        font-size: var(--font-size-small, 0.875rem);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .stat-card__change {
+        font-size: var(--font-size-xs, 0.75rem);
+        margin-top: var(--spacing-xs, 4px);
+    }
+
+    .stat-card__change--positive {
+        color: var(--color-success, #107C10);
+    }
+
+    .stat-card__change--warning {
+        color: var(--color-warning, #FFB900);
+    }
+
+    .dashboard-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--spacing-lg, 24px);
+        margin-top: var(--spacing-xl, 32px);
+    }
+
+    @@media (max-width: 991px) {
+        .dashboard-row {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .dashboard-card {
+        border: 1px solid var(--color-border, #E1E1E1);
+        border-radius: var(--border-radius-lg, 8px);
+        padding: var(--spacing-lg, 24px);
+        background-color: var(--color-background, #fff);
+    }
+
+    .dashboard-card h2 {
+        font-size: var(--font-size-h3, 1.25rem);
+        margin-bottom: var(--spacing-md, 16px);
+    }
+
+    .quick-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--spacing-sm, 8px);
+    }
+
+    .attention-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .attention-list li {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: var(--spacing-sm, 8px) 0;
+        border-bottom: 1px solid var(--color-border, #E1E1E1);
+    }
+
+    .attention-list li.no-border {
+        border-bottom: none;
+    }
+
+    .activity-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .activity-list li {
+        display: flex;
+        gap: var(--spacing-md, 16px);
+        padding: var(--spacing-sm, 8px) 0;
+        border-bottom: 1px solid var(--color-border, #E1E1E1);
+        align-items: flex-start;
+    }
+
+    .activity-list li.no-border {
+        border-bottom: none;
+    }
+
+    .activity-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+
+    .activity-icon--post {
+        background: var(--color-success, #107C10);
+    }
+
+    .activity-icon--user {
+        background: var(--color-primary, #0078D4);
+    }
+
+    .activity-icon--comment {
+        background: var(--color-warning, #FFB900);
+    }
+
+    .activity-icon--subscriber {
+        background: var(--color-accent, #107C10);
+    }
+
+    .activity-content {
+        flex: 1;
+    }
+
+    .activity-title {
+        font-size: var(--font-size-small, 0.875rem);
+    }
+
+    .activity-detail {
+        font-size: var(--font-size-xs, 0.75rem);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .activity-time {
+        font-size: var(--font-size-xs, 0.75rem);
+        color: var(--color-neutral-light, #605E5C);
+        white-space: nowrap;
+    }
+
+    .data-grid {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--font-size-small, 0.875rem);
+    }
+
+    .data-grid th,
+    .data-grid td {
+        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
+        text-align: left;
+        border-bottom: 1px solid var(--color-border, #E1E1E1);
+    }
+
+    .data-grid th {
+        font-weight: var(--font-weight-semibold, 600);
+        background-color: var(--color-surface, #F5F5F5);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .data-grid tr:hover td {
+        background-color: var(--color-surface, #F5F5F5);
+    }
+</style>

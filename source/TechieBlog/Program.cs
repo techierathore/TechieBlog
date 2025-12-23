@@ -15,19 +15,21 @@ using TechieBlog.Services;
 
 // Configure Serilog early for startup logging
 Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Information()
-    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Debug()  // Changed to Debug for development
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)  // Show more Microsoft logs
     .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.AspNetCore.SignalR", LogEventLevel.Debug)  // Debug SignalR issues
+    .MinimumLevel.Override("Microsoft.AspNetCore.Components", LogEventLevel.Debug)  // Debug Blazor issues
     .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
     .Enrich.FromLogContext()
     .Enrich.WithMachineName()
     .Enrich.WithEnvironmentName()
-    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}{NewLine}  {Message:lj}{NewLine}{Exception}")
     .WriteTo.File(
         path: "logs/techieblog-.log",
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 7,
-        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}")
     .CreateLogger();
 
 try
@@ -60,7 +62,21 @@ try
 
     // Authentication and Authorization Services
     builder.Services.AddBlazoredLocalStorage();
-    builder.Services.AddAuthorizationCore(options =>
+
+    // Add Authentication services (required for authorization middleware)
+    builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultScheme = "BlazorServerAuth";
+        options.DefaultChallengeScheme = "BlazorServerAuth";
+    })
+    .AddCookie("BlazorServerAuth", options =>
+    {
+        options.LoginPath = "/login";
+        options.LogoutPath = "/logout";
+        options.AccessDeniedPath = "/access-denied";
+    });
+
+    builder.Services.AddAuthorization(options =>
     {
         // AdminOnly: Full system access - users, settings, all content
         options.AddPolicy(AppPolicies.AdminOnly, policy =>
@@ -83,6 +99,7 @@ try
             policy.RequireAuthenticatedUser());
     });
     builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
+    builder.Services.AddCascadingAuthenticationState();
     builder.Services.AddTransient<IAuthService, AuthService>();
     builder.Services.AddScoped<ThemeService>();
 
@@ -98,7 +115,17 @@ try
 
     app.UseHttpsRedirection();
 
+    // Serilog request logging - shows HTTP requests in console
+    app.UseSerilogRequestLogging(options =>
+    {
+        options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms";
+    });
+
     app.MapStaticAssets();
+
+    // Authentication and Authorization middleware (order matters!)
+    app.UseAuthentication();
+    app.UseAuthorization();
 
     app.UseAntiforgery();
 

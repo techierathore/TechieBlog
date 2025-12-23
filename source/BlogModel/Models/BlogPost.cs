@@ -139,4 +139,11 @@ public class BlogPost
     /// Series slug (populated when part of a series).
     /// </summary>
     public string SeriesSlug { get; set; }
+
+    /// <summary>
+    /// UI-only property for checkbox selection in admin lists.
+    /// Not persisted to database.
+    /// </summary>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public bool IsSelected { get; set; }
 }
