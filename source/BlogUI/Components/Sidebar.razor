@@ -4,11 +4,12 @@
     Contains search box, categories list, popular tags cloud, and subscribe form.
     Uses FluentCard for section containers with responsive collapse behavior.
 
-    Dependencies: FluentUI components, CategorySvc, TagSvc
+    Dependencies: FluentUI components, CategorySvc, TagSvc, SubscriberSvc
     Usage: Placed in MainLayout.razor sidebar area
 *@
 @inject BlogEngine.Services.CategorySvc CategoryService
 @inject BlogEngine.Services.TagSvc TagService
+@inject BlogEngine.Services.SubscriberSvc SubscriberService
 @inject NavigationManager Navigation
 
 <aside class="sidebar">
@@ -67,14 +68,30 @@
             <p class="subscribe-form__text">
                 Get the latest posts delivered to your inbox.
             </p>
-            <FluentTextField Placeholder="Your email address"
-                             Style="width: 100%; margin-bottom: var(--spacing-sm);"
-                             @bind-Value="emailAddress" />
-            <FluentButton Appearance="Appearance.Accent"
-                          Style="width: 100%;"
-                          OnClick="HandleSubscribe">
-                Subscribe
-            </FluentButton>
+            @if (!string.IsNullOrEmpty(subscribeMessage))
+            {
+                <FluentMessageBar Intent="@(subscribeSuccess ? MessageIntent.Success : MessageIntent.Error)"
+                                  Style="margin-bottom: var(--spacing-sm);">
+                    @subscribeMessage
+                </FluentMessageBar>
+            }
+            @if (!subscribeSuccess)
+            {
+                <FluentTextField Placeholder="Your email address"
+                                 Style="width: 100%; margin-bottom: var(--spacing-sm);"
+                                 @bind-Value="emailAddress"
+                                 @onkeydown="HandleSubscribeKeyDown" />
+                <FluentButton Appearance="Appearance.Accent"
+                              Style="width: 100%;"
+                              OnClick="HandleSubscribe"
+                              Disabled="@isSubscribing">
+                    @if (isSubscribing)
+                    {
+                        <FluentProgressRing Style="width: 16px; height: 16px; margin-right: 8px;" />
+                    }
+                    Subscribe
+                </FluentButton>
+            }
         </div>
     </section>
 </aside>
@@ -84,6 +101,11 @@
     private string emailAddress = string.Empty;
     private List<Category> categories = new();
     private List<BlogTag> popularTags = new();
+    
+    // Subscribe form state
+    private string subscribeMessage = string.Empty;
+    private bool subscribeSuccess = false;
+    private bool isSubscribing = false;
 
     protected override void OnInitialized()
     {
@@ -122,10 +144,60 @@
     }
 
     /// <summary>
-    /// Handles subscribe button click. Placeholder for future implementation.
+    /// Handles Enter key press in subscribe email box.
     /// </summary>
-    private void HandleSubscribe()
+    private async Task HandleSubscribeKeyDown(KeyboardEventArgs e)
     {
-        // Subscribe functionality - to be implemented in future stories
+        if (e.Key == "Enter")
+        {
+            await HandleSubscribe();
+        }
+    }
+
+    /// <summary>
+    /// Handles subscribe button click.
+    /// </summary>
+    private async Task HandleSubscribe()
+    {
+        if (isSubscribing) return;
+        
+        subscribeMessage = string.Empty;
+        
+        if (string.IsNullOrWhiteSpace(emailAddress))
+        {
+            subscribeMessage = "Please enter your email address.";
+            subscribeSuccess = false;
+            return;
+        }
+
+        isSubscribing = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = SubscriberService.Subscribe(emailAddress.Trim());
+            
+            if (result.IsSuccess)
+            {
+                subscribeMessage = "Thank you for subscribing!";
+                subscribeSuccess = true;
+                emailAddress = string.Empty;
+            }
+            else
+            {
+                subscribeMessage = result.ErrorMessage;
+                subscribeSuccess = false;
+            }
+        }
+        catch (Exception)
+        {
+            subscribeMessage = "An error occurred. Please try again.";
+            subscribeSuccess = false;
+        }
+        finally
+        {
+            isSubscribing = false;
+            StateHasChanged();
+        }
     }
 }

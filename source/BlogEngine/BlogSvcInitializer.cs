@@ -39,6 +39,10 @@ public static class BlogSvcInitializer
         services.AddTransient<IBlogSeriesRepo>(x => new BlogSeriesRepo(dbConnectionString));
         services.AddTransient<Services.SeriesSvc>();
 
+        // Subscriber services
+        services.AddTransient<ISubscriberRepo>(x => new SubscriberRepo(dbConnectionString));
+        services.AddTransient<Services.SubscriberSvc>();
+
         // Markdown rendering (singleton for performance)
         services.AddSingleton<MarkdownRenderer>();
 

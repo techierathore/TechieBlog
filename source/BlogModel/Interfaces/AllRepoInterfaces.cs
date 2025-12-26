@@ -1,4 +1,4 @@
-﻿using BlogModels.Models;
+using BlogModels.Models;
 using BlogModels.Interfaces;
 
 namespace BlogModels;
@@ -291,4 +291,63 @@ public interface IPasswordResetTokenRepo : IGenericRepository<PasswordResetToken
     /// Deletes expired tokens (cleanup).
     /// </summary>
     void DeleteExpiredTokens();
+}
+
+/// <summary>
+/// Repository interface for Subscriber data access operations.
+/// </summary>
+public interface ISubscriberRepo : IGenericRepository<Subscriber>
+{
+    /// <summary>
+    /// Gets a subscriber by email address.
+    /// </summary>
+    /// <param name="email">Email address to search.</param>
+    /// <returns>Subscriber if found, null otherwise.</returns>
+    Subscriber GetByEmail(string email);
+
+    /// <summary>
+    /// Checks if an email is already subscribed.
+    /// </summary>
+    /// <param name="email">Email to check.</param>
+    /// <returns>True if email exists, false otherwise.</returns>
+    bool EmailExists(string email);
+
+    /// <summary>
+    /// Gets all active subscribers.
+    /// </summary>
+    /// <returns>List of active subscribers.</returns>
+    IEnumerable<Subscriber> GetActiveSubscribers();
+
+    /// <summary>
+    /// Gets subscribers filtered by active status.
+    /// </summary>
+    /// <param name="isActive">Active status filter.</param>
+    /// <returns>Filtered list of subscribers.</returns>
+    IEnumerable<Subscriber> GetByStatus(bool isActive);
+
+    /// <summary>
+    /// Searches subscribers by email.
+    /// </summary>
+    /// <param name="query">Search query.</param>
+    /// <returns>Matching subscribers.</returns>
+    IEnumerable<Subscriber> SearchByEmail(string query);
+
+    /// <summary>
+    /// Updates subscriber active status.
+    /// </summary>
+    /// <param name="subscriberId">Subscriber ID.</param>
+    /// <param name="isActive">New active status.</param>
+    void UpdateStatus(long subscriberId, bool isActive);
+
+    /// <summary>
+    /// Gets total subscriber count.
+    /// </summary>
+    /// <returns>Count of all subscribers.</returns>
+    int GetTotalCount();
+
+    /// <summary>
+    /// Gets active subscriber count.
+    /// </summary>
+    /// <returns>Count of active subscribers.</returns>
+    int GetActiveCount();
 }

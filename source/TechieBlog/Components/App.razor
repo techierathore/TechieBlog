@@ -19,6 +19,9 @@
 
     <!-- Layout-specific CSS -->
     <link href="_content/BlogUI/css/layout.css" rel="stylesheet" />
+    
+    <!-- FluentUI Dark Mode Overrides -->
+    <link href="_content/BlogUI/css/fluent-dark-mode.css" rel="stylesheet" />
 
     <HeadOutlet @rendermode="InteractiveServer" />
 
@@ -53,6 +56,23 @@
         function setThemeAttributes(siteTheme, darkMode) {
             document.documentElement.setAttribute('data-site-theme', siteTheme);
             document.documentElement.setAttribute('data-theme', darkMode);
+        }
+        
+        // CSV Download function for admin exports
+        function downloadCsv(fileName, csvContent) {
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            if (navigator.msSaveBlob) {
+                // IE 10+
+                navigator.msSaveBlob(blob, fileName);
+            } else {
+                link.href = URL.createObjectURL(blob);
+                link.download = fileName;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
         }
     </script>
 </body>
