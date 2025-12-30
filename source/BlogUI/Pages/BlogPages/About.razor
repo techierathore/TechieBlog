@@ -124,4 +124,27 @@
     :global([data-theme="dark"]) .about-section ul {
         color: var(--color-neutral-light-dark, #A19F9D);
     }
+
+    /* Dark mode - Social Links (Connect With Us) */
+    :global([data-theme="dark"]) .social-links :global(fluent-anchor[appearance="outline"]) {
+        color: var(--color-neutral, #E5E5E5) !important;
+        border-color: var(--color-border, #404040) !important;
+    }
+
+    :global([data-theme="dark"]) .social-links :global(fluent-anchor[appearance="outline"]):hover {
+        color: var(--color-primary, #2899F5) !important;
+        border-color: var(--color-primary, #2899F5) !important;
+        background-color: var(--color-surface-hover, #3D3D3D) !important;
+    }
+
+    :global([data-theme="dark"]) .social-links :global(fluent-anchor[appearance="outline"] svg),
+    :global([data-theme="dark"]) .social-links :global(fluent-anchor) :global(svg) {
+        color: var(--color-neutral, #E5E5E5) !important;
+        fill: currentColor !important;
+    }
+
+    :global([data-theme="dark"]) .social-links :global(fluent-anchor[appearance="outline"]):hover :global(svg) {
+        color: var(--color-primary, #2899F5) !important;
+        fill: var(--color-primary, #2899F5) !important;
+    }
 </style>

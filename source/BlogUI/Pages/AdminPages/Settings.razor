@@ -10,6 +10,7 @@
 @page "/settings"
 @attribute [Authorize(Policy = "AdminOnly")]
 @layout BlogUI.Layouts.AdminLayout
+@inject ThemeService ThemeService
 
 <div class="settings-page">
     @* Page Header *@
@@ -28,6 +29,33 @@
 
     @* Settings Sections *@
     <div class="settings-grid">
+        @* Theme Settings *@
+        <div class="settings-card">
+            <h2>Theme</h2>
+            <div class="settings-form">
+                <div class="form-group">
+                    <FluentSelect TOption="ThemeInfo"
+                                  Items="@availableThemes"
+                                  OptionValue="@(t => t.Id)"
+                                  OptionText="@(t => t.Name)"
+                                  @bind-SelectedOption="selectedThemeInfo"
+                                  @bind-SelectedOption:after="OnThemeChanged"
+                                  Label="Select Theme"
+                                  Style="width: 100%;" />
+                </div>
+                @if (selectedThemeInfo != null)
+                {
+                    <div class="theme-description">
+                        <p>@selectedThemeInfo.Description</p>
+                        @if (selectedThemeInfo.IsDefault)
+                        {
+                            <span class="theme-badge">Default</span>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
         @* General Settings *@
         <div class="settings-card">
             <h2>General Settings</h2>
@@ -192,9 +220,31 @@
         display: flex;
         justify-content: flex-end;
     }
+
+    .theme-description {
+        color: var(--color-text-secondary, #666);
+        font-size: var(--font-size-small, 0.875rem);
+    }
+
+    .theme-description p {
+        margin: 0 0 var(--spacing-xs, 4px) 0;
+    }
+
+    .theme-badge {
+        display: inline-block;
+        background-color: var(--color-accent, #0078D4);
+        color: white;
+        font-size: 0.75rem;
+        padding: 2px 8px;
+        border-radius: var(--border-radius-sm, 4px);
+    }
 </style>
 
 @code {
+    // Theme Settings
+    private List<ThemeInfo> availableThemes = new();
+    private ThemeInfo? selectedThemeInfo;
+
     // General Settings
     private string SiteTitle { get; set; } = "TechieBlog";
     private string SiteTagline { get; set; } = "";
@@ -220,10 +270,29 @@
     private bool IsError { get; set; } = false;
     private bool IsSaving { get; set; } = false;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        // Load theme settings
+        await LoadThemeSettingsAsync();
+
         // TODO: Load settings from database when settings service is implemented
         LoadDefaultSettings();
+    }
+
+    private async Task LoadThemeSettingsAsync()
+    {
+        availableThemes = ThemeService.GetAvailableThemes();
+        var currentThemeId = await ThemeService.GetCurrentThemeAsync();
+        selectedThemeInfo = availableThemes.FirstOrDefault(t => t.Id == currentThemeId)
+                            ?? availableThemes.First();
+    }
+
+    private async Task OnThemeChanged()
+    {
+        if (selectedThemeInfo != null)
+        {
+            await ThemeService.SetThemeAsync(selectedThemeInfo.Id);
+        }
     }
 
     private void LoadDefaultSettings()

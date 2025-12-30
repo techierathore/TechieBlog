@@ -76,7 +76,7 @@ public class SitemapSvc
             var posts = _postRepo.GetPublishedPosts(10000, 0);
             foreach (var post in posts)
             {
-                var lastmod = post.UpdatedOn ?? post.PublishedOn ?? post.CreatedOn;
+                var lastmod = post.PublishedOn ?? post.CreatedOn;
                 AddUrl(sb, $"/post/{post.Slug}", lastmod, "monthly", "0.8");
             }
         }

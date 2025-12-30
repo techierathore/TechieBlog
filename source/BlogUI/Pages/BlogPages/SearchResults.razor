@@ -178,7 +178,7 @@ else
             ExcerptWithHighlights = HighlightSearchTerms(post.Abstract ?? string.Empty, searchQuery),
             Slug = post.Slug ?? string.Empty,
             Author = post.BlogWriter ?? "Unknown",
-            Date = post.CreatedOn?.ToString("MMM dd, yyyy") ?? string.Empty,
+            Date = post.CreatedOn.ToString("MMM dd, yyyy"),
             ReadTime = EstimateReadTime(post.PostContent),
             Rating = 0
         }).ToList();

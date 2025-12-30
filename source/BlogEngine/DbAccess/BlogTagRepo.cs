@@ -35,7 +35,7 @@ public class BlogTagRepo : GenericRepository<BlogTag>, IBlogTagRepo
         using var vConn = GetOpenConnection();
         const string sql = @"
             SELECT t.TagId, t.TagName, t.Slug,
-                   COUNT(pt.PostId) as PostCount
+                   COUNT(p.PostId) as PostCount
             FROM Tag t
             LEFT JOIN PostTag pt ON t.TagId = pt.TagId
             LEFT JOIN BlogPost p ON pt.PostId = p.PostId

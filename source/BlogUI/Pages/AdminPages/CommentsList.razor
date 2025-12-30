@@ -466,7 +466,7 @@
                     AuthorName = comment.GivenBy ?? "Anonymous",
                     AuthorEmail = comment.Email ?? string.Empty,
                     PostId = comment.PostID,
-                    PostTitle = post?.BlogTitle ?? "Unknown Post",
+                    PostTitle = post?.Title ?? "Unknown Post",
                     PostSlug = post?.Slug ?? comment.PostID.ToString(),
                     Status = comment.Published ? "Approved" : "Pending",
                     CreatedOn = comment.GivenOn,

@@ -62,12 +62,20 @@
     border-color: var(--color-primary) !important;
 }
 
+[data-theme="dark"] fluent-text-field::part(label) {
+    color: var(--color-neutral) !important;
+}
+
 /* ========================================
    FLUENT TEXT AREA - Dark Mode
    ======================================== */
 [data-theme="dark"] fluent-text-area::part(control) {
     background-color: var(--color-surface) !important;
     border-color: var(--color-border) !important;
+    color: var(--color-neutral) !important;
+}
+
+[data-theme="dark"] fluent-text-area::part(label) {
     color: var(--color-neutral) !important;
 }
 
@@ -78,6 +86,17 @@
 [data-theme="dark"] fluent-number-field::part(root) {
     background-color: var(--color-surface) !important;
     border-color: var(--color-border) !important;
+    color: var(--color-neutral) !important;
+}
+
+[data-theme="dark"] fluent-number-field::part(label) {
+    color: var(--color-neutral) !important;
+}
+
+/* ========================================
+   FLUENT SELECT - Dark Mode Label
+   ======================================== */
+[data-theme="dark"] fluent-select::part(label) {
     color: var(--color-neutral) !important;
 }
 
@@ -153,6 +172,8 @@
 [data-theme="dark"] fluent-anchor.outline {
     color: var(--color-neutral) !important;
     border-color: var(--color-border) !important;
+    --neutral-foreground-rest: var(--color-neutral);
+    --accent-foreground-rest: var(--color-primary);
 }
 
 [data-theme="dark"] fluent-anchor[appearance="outline"]:hover {
@@ -161,9 +182,41 @@
     background-color: var(--color-surface-hover) !important;
 }
 
+[data-theme="dark"] fluent-anchor[appearance="outline"]:hover svg,
+[data-theme="dark"] fluent-anchor[appearance="outline"]:hover fluent-icon {
+    color: var(--color-primary) !important;
+    fill: var(--color-primary) !important;
+}
+
 [data-theme="dark"] fluent-anchor[appearance="outline"]::part(control) {
     color: var(--color-neutral) !important;
     border-color: var(--color-border) !important;
+    background-color: transparent !important;
+}
+
+[data-theme="dark"] fluent-anchor[appearance="outline"]::part(control):hover {
+    color: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+    background-color: var(--color-surface-hover) !important;
+}
+
+/* Icons inside FluentAnchor - Dark Mode */
+[data-theme="dark"] fluent-anchor[appearance="outline"] svg,
+[data-theme="dark"] fluent-anchor[appearance="outline"] fluent-icon {
+    color: var(--color-neutral) !important;
+    fill: currentColor !important;
+}
+
+/* Social Links Container - About Page Dark Mode */
+[data-theme="dark"] .social-links fluent-anchor[appearance="outline"] {
+    color: var(--color-neutral) !important;
+    border-color: var(--color-border) !important;
+}
+
+[data-theme="dark"] .social-links fluent-anchor[appearance="outline"]:hover {
+    color: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+    background-color: var(--color-surface-hover) !important;
 }
 
 /* ========================================
@@ -193,6 +246,18 @@
 [data-theme="dark"] .fluent-dialog-footer {
     background-color: var(--color-surface) !important;
     border-top-color: var(--color-border) !important;
+}
+
+/* Dialog content elements */
+[data-theme="dark"] fluent-dialog-header fluent-label,
+[data-theme="dark"] fluent-dialog-body p,
+[data-theme="dark"] fluent-dialog-body strong {
+    color: var(--color-neutral) !important;
+}
+
+/* Dialog overlay/backdrop */
+[data-theme="dark"] fluent-dialog::part(overlay) {
+    background-color: rgba(0, 0, 0, 0.6) !important;
 }
 
 /* ========================================
@@ -269,8 +334,17 @@
 }
 
 /* ========================================
-   SEARCH PAGE - Dark Mode Fixes
+   SEARCH PAGE - Base Styles & Dark Mode Fixes
    ======================================== */
+
+/* Search Header */
+.search-header {
+    margin-bottom: var(--spacing-xl, 32px);
+}
+
+.search-header h1 {
+    margin-bottom: var(--spacing-md, 16px);
+}
 
 /* Search Header Form Alignment Fix */
 .search-header__form {
@@ -281,25 +355,147 @@
 
 .search-header__form fluent-text-field {
     flex: 1;
+    min-width: 0; /* Prevents overflow in flex container */
+}
+
+/* Ensure FluentButton matches text field height alignment */
+.search-header__form fluent-button {
+    flex-shrink: 0;
+}
+
+/* Dark mode: Search header text */
+[data-theme="dark"] .search-header h1 {
+    color: var(--color-neutral) !important;
 }
 
 /* Search Filters */
+.search-filters {
+    display: flex;
+    gap: var(--spacing-md, 16px);
+    margin-bottom: var(--spacing-lg, 24px);
+    flex-wrap: wrap;
+}
+
+.search-filters fluent-select {
+    min-width: 140px;
+}
+
 [data-theme="dark"] .search-filters {
     color: var(--color-neutral) !important;
 }
 
-/* Search Results */
+/* Search Results Count */
+.search-results__count {
+    margin-bottom: var(--spacing-lg, 24px);
+    color: var(--color-neutral-light);
+}
+
+[data-theme="dark"] .search-results__count {
+    color: var(--color-neutral-light) !important;
+}
+
+[data-theme="dark"] .search-results__count strong {
+    color: var(--color-neutral) !important;
+}
+
+/* Search Results List */
+.search-results__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md, 16px);
+}
+
+/* Search Result Card */
+.search-result {
+    display: flex;
+    gap: var(--spacing-lg, 24px);
+    padding: var(--spacing-lg, 24px);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-lg, 8px);
+    background-color: var(--color-background);
+    transition: box-shadow var(--transition-fast, 150ms ease);
+}
+
+.search-result:hover {
+    box-shadow: var(--shadow-sm);
+}
+
+.search-result__image {
+    width: 200px;
+    height: 130px;
+    flex-shrink: 0;
+    border-radius: var(--border-radius, 4px);
+    background-color: var(--color-surface);
+}
+
+.search-result__content {
+    flex: 1;
+    min-width: 0; /* Prevents text overflow */
+}
+
+/* Dark mode: Search Result Cards */
 [data-theme="dark"] .search-result {
     background-color: var(--color-surface) !important;
     border-color: var(--color-border) !important;
+}
+
+[data-theme="dark"] .search-result:hover {
+    box-shadow: var(--shadow-md) !important;
 }
 
 [data-theme="dark"] .search-result__content {
     color: var(--color-neutral) !important;
 }
 
+[data-theme="dark"] .search-result__image {
+    background-color: var(--color-surface-hover) !important;
+}
+
+/* Search Hint */
+.search-hint {
+    padding: var(--spacing-xl, 32px);
+    text-align: center;
+    color: var(--color-neutral-light);
+    font-size: var(--font-size-body, 1rem);
+}
+
 [data-theme="dark"] .search-hint {
     color: var(--color-neutral-light) !important;
+}
+
+/* Search result highlighted text (mark tags) */
+.search-result mark,
+.card__excerpt mark {
+    background-color: rgba(255, 235, 59, 0.4);
+    color: inherit;
+    padding: 0 2px;
+    border-radius: 2px;
+}
+
+[data-theme="dark"] .search-result mark,
+[data-theme="dark"] .card__excerpt mark {
+    background-color: rgba(255, 235, 59, 0.25) !important;
+    color: var(--color-neutral) !important;
+}
+
+/* Responsive: Stack search results on mobile */
+@media (max-width: 767px) {
+    .search-result {
+        flex-direction: column;
+    }
+
+    .search-result__image {
+        width: 100%;
+        height: 180px;
+    }
+
+    .search-filters {
+        flex-direction: column;
+    }
+
+    .search-filters fluent-select {
+        width: 100%;
+    }
 }
 
 /* ========================================
@@ -315,6 +511,20 @@
 [data-theme="dark"] .settings-card h2 {
     color: var(--color-neutral) !important;
     border-bottom-color: var(--color-border) !important;
+}
+
+/* Settings Form Groups */
+[data-theme="dark"] .settings-form .form-group {
+    border-color: var(--color-border) !important;
+}
+
+/* Theme Description in Settings */
+[data-theme="dark"] .theme-description {
+    color: var(--color-neutral-light) !important;
+}
+
+[data-theme="dark"] .theme-description p {
+    color: var(--color-neutral-light) !important;
 }
 
 /* Data Grid / Tables */
@@ -427,4 +637,88 @@
 
 [data-theme="dark"] .search-box fluent-icon {
     color: var(--color-neutral-light) !important;
+}
+
+/* ========================================
+   ENHANCED SIDEBAR DARK MODE - Story 7.1
+   ======================================== */
+
+/* FluentCard within sidebar - ensure proper dark mode inheritance */
+[data-theme="dark"] .sidebar fluent-card,
+[data-theme="dark"] .sidebar .fluent-card {
+    background-color: var(--color-surface) !important;
+    border: 1px solid var(--color-border) !important;
+    color: var(--color-neutral) !important;
+}
+
+[data-theme="dark"] .sidebar fluent-card::part(control) {
+    background-color: var(--color-surface) !important;
+}
+
+/* Category navigation - FluentIcon and FluentBadge integration */
+[data-theme="dark"] .sidebar .nav-menu__link fluent-icon,
+[data-theme="dark"] .nav-menu__link fluent-icon {
+    color: var(--color-neutral-light) !important;
+}
+
+[data-theme="dark"] .sidebar .nav-menu__link:hover fluent-icon,
+[data-theme="dark"] .nav-menu__link:hover fluent-icon {
+    color: var(--color-primary) !important;
+}
+
+/* Category badge (post count) dark mode */
+[data-theme="dark"] .sidebar .nav-menu__link fluent-badge,
+[data-theme="dark"] .nav-menu__link fluent-badge {
+    background-color: var(--color-surface-hover) !important;
+    color: var(--color-neutral-light) !important;
+    border: none !important;
+}
+
+[data-theme="dark"] .sidebar .nav-menu__link:hover fluent-badge,
+[data-theme="dark"] .nav-menu__link:hover fluent-badge {
+    background-color: var(--color-primary) !important;
+    color: white !important;
+}
+
+/* Search box input within FluentCard */
+[data-theme="dark"] .search-box fluent-text-field,
+[data-theme="dark"] .sidebar .search-box fluent-text-field {
+    --neutral-fill-input-rest: var(--color-surface);
+}
+
+[data-theme="dark"] .search-box fluent-text-field::part(root),
+[data-theme="dark"] .search-box fluent-text-field::part(control) {
+    background-color: var(--color-background) !important;
+    border-color: var(--color-border) !important;
+    color: var(--color-neutral) !important;
+}
+
+[data-theme="dark"] .search-box fluent-text-field:hover::part(control) {
+    background-color: var(--color-surface-hover) !important;
+}
+
+[data-theme="dark"] .search-box fluent-text-field:focus-within::part(control),
+[data-theme="dark"] .search-box fluent-text-field:focus-within::part(root) {
+    border-color: var(--color-primary) !important;
+}
+
+/* Subscribe form FluentTextField and FluentButton */
+[data-theme="dark"] .subscribe-form fluent-text-field::part(root),
+[data-theme="dark"] .subscribe-form fluent-text-field::part(control) {
+    background-color: var(--color-background) !important;
+    border-color: var(--color-border) !important;
+    color: var(--color-neutral) !important;
+}
+
+[data-theme="dark"] .subscribe-form fluent-text-field:hover::part(control) {
+    background-color: var(--color-surface-hover) !important;
+}
+
+[data-theme="dark"] .subscribe-form fluent-text-field:focus-within::part(control) {
+    border-color: var(--color-primary) !important;
+}
+
+/* FluentProgressRing in subscribe button */
+[data-theme="dark"] .subscribe-form fluent-progress-ring {
+    color: white !important;
 }
