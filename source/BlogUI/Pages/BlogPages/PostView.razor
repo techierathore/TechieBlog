@@ -11,7 +11,9 @@
 @layout FullWidthLayout
 @inject BlogEngine.Services.BlogSvc BlogService
 @inject BlogEngine.Services.SeriesSvc SeriesService
+@inject BlogEngine.Services.FavoriteSvc FavoriteService
 @inject BlogEngine.Common.MarkdownRenderer MarkdownRenderer
+@inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 
 @if (isLoading)
@@ -41,7 +43,16 @@ else if (blogPost != null)
     <article>
         @* Article Header *@
         <header class="article__header">
-            <span class="article__category">@GetCategory(blogPost.Tags)</span>
+            <div class="article__header-top">
+                <span class="article__category">@GetCategory(blogPost.Tags)</span>
+                <FavoriteToggle PostId="@blogPost.PostID"
+                               IsFavorited="@isFavorited"
+                               IsLoggedIn="@isAuthenticated"
+                               UserId="@currentUserId"
+                               ShowCount="true"
+                               FavoriteCount="@favoriteCount"
+                               OnToggle="@HandleFavoriteToggle" />
+            </div>
             <h1 class="article__title">@blogPost.Title</h1>
             <div class="article__meta">
                 <div class="card__author">
@@ -52,6 +63,15 @@ else if (blogPost != null)
                 <span>@GetReadingTime(blogPost.PostContent)</span>
             </div>
         </header>
+
+        <style>
+            .article__header-top {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 8px;
+            }
+        </style>
 
         @* Article Content *@
         <div class="article__content">
@@ -193,6 +213,12 @@ else if (blogPost != null)
     private BlogModels.SeriesNavigation seriesNavigation;
     private bool isLoading = true;
     private bool notFound = false;
+    
+    // Favorite state (FIX-014)
+    private bool isAuthenticated = false;
+    private long currentUserId = 0;
+    private bool isFavorited = false;
+    private int favoriteCount = 0;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -238,6 +264,9 @@ else if (blogPost != null)
                 {
                     seriesNavigation = null;
                 }
+
+                // Load favorite state (FIX-014)
+                await LoadFavoriteState();
             }
         }
         catch
@@ -247,6 +276,52 @@ else if (blogPost != null)
 
         isLoading = false;
         StateHasChanged();
+    }
+
+    /// <summary>
+    /// Loads the current user's favorite state for this post.
+    /// </summary>
+    private async Task LoadFavoriteState()
+    {
+        try
+        {
+            // Get authentication state
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                isAuthenticated = true;
+                var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (long.TryParse(userIdClaim, out var userId))
+                {
+                    currentUserId = userId;
+                    isFavorited = FavoriteService.IsFavorited(blogPost.PostID, userId);
+                }
+            }
+            else
+            {
+                isAuthenticated = false;
+            }
+
+            // Get favorite count for the post
+            favoriteCount = FavoriteService.GetFavoriteCount(blogPost.PostID);
+        }
+        catch
+        {
+            isAuthenticated = false;
+            isFavorited = false;
+            favoriteCount = 0;
+        }
+    }
+
+    /// <summary>
+    /// Handles favorite toggle from the FavoriteToggle component.
+    /// </summary>
+    private void HandleFavoriteToggle(bool newState)
+    {
+        isFavorited = newState;
+        // Count is updated by the component
     }
 
     /// <summary>

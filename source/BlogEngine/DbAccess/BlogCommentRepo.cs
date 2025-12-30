@@ -59,15 +59,18 @@ public class BlogCommentRepo : GenericRepository<BlogComment>, IBlogCommentRepo
         using var vConn = GetOpenConnection();
         return vConn.QueryFirstOrDefault<AdminCounts>(
             @"SELECT
-                (SELECT COUNT(*) FROM post) AS PostCount,
+                (SELECT COUNT(*) FROM BlogPost WHERE IsDeleted = FALSE OR IsDeleted IS NULL) AS BlogCount,
                 (SELECT COUNT(*) FROM blogcomment) AS CommentCount,
-                (SELECT COUNT(*) FROM blogcomment WHERE published = false) AS PendingCommentCount,
+                (SELECT COUNT(*) FROM blogcomment WHERE published = false) AS UnAppComments,
                 (SELECT COUNT(*) FROM bloguser) AS UserCount");
     }
 
     public override BlogComment GetIntSingle(int aSingleId)
     {
-        throw new NotImplementedException();
+        using var vConn = GetOpenConnection();
+        return vConn.QueryFirstOrDefault<BlogComment>(
+            "SELECT * FROM blogcomment WHERE commentid = @CommentId",
+            new { CommentId = aSingleId });
     }
 
     public override IEnumerable<BlogComment> GetPagedData(int PageSize, int OffSet)
@@ -114,12 +117,45 @@ public class BlogCommentRepo : GenericRepository<BlogComment>, IBlogCommentRepo
 
     public override long InsertToGetId(BlogComment entity)
     {
-        throw new NotImplementedException();
+        using var vConn = GetOpenConnection();
+        return vConn.QuerySingle<long>(
+            @"INSERT INTO blogcomment (postid, givenon, givenby, email, comment, published, parentcommentid)
+              VALUES (@PostID, @GivenOn, @GivenBy, @Email, @Comment, @Published, @ParentCommentID)
+              RETURNING commentid",
+            new
+            {
+                entity.PostID,
+                entity.GivenOn,
+                entity.GivenBy,
+                entity.Email,
+                entity.Comment,
+                entity.Published,
+                entity.ParentCommentID
+            });
     }
 
     public override void Update(BlogComment aEntityToUpdate)
     {
-        throw new NotImplementedException();
+        using var vConn = GetOpenConnection();
+        vConn.Execute(
+            @"UPDATE blogcomment 
+              SET postid = @PostID, 
+                  givenby = @GivenBy, 
+                  email = @Email, 
+                  comment = @Comment, 
+                  published = @Published, 
+                  parentcommentid = @ParentCommentID
+              WHERE commentid = @CommentID",
+            new
+            {
+                aEntityToUpdate.PostID,
+                aEntityToUpdate.GivenBy,
+                aEntityToUpdate.Email,
+                aEntityToUpdate.Comment,
+                aEntityToUpdate.Published,
+                aEntityToUpdate.ParentCommentID,
+                aEntityToUpdate.CommentID
+            });
     }
 
     public void ApproveBlogComment(long BlogCommentID)
@@ -128,5 +164,32 @@ public class BlogCommentRepo : GenericRepository<BlogComment>, IBlogCommentRepo
         vConn.Execute(
             "UPDATE blogcomment SET published = true WHERE commentid = @CommentId",
             new { CommentId = BlogCommentID });
+    }
+
+    public void Delete(long commentId)
+    {
+        using var vConn = GetOpenConnection();
+        vConn.Execute(
+            "DELETE FROM blogcomment WHERE commentid = @CommentId",
+            new { CommentId = commentId });
+    }
+
+    public IEnumerable<BlogComment> GetPendingComments()
+    {
+        using var vConn = GetOpenConnection();
+        return vConn.Query<BlogComment>(
+            "SELECT * FROM blogcomment WHERE published = false ORDER BY givenon DESC").ToList();
+    }
+
+    public int GetTotalCount()
+    {
+        using var vConn = GetOpenConnection();
+        return vConn.QuerySingle<int>("SELECT COUNT(*) FROM blogcomment");
+    }
+
+    public int GetPendingCount()
+    {
+        using var vConn = GetOpenConnection();
+        return vConn.QuerySingle<int>("SELECT COUNT(*) FROM blogcomment WHERE published = false");
     }
 }

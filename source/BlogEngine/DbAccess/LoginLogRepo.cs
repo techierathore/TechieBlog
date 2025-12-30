@@ -18,7 +18,7 @@ public class LoginLogRepo : GenericRepository<LoginLog>, ILoginLogRepo
 
     public override LoginLog GetIntSingle(int aOrgId)
     {
-        throw new NotImplementedException();
+        return GetSingle((long)aOrgId);
     }
 
     public override LoginLog GetSingle(long aSingleId)
@@ -64,7 +64,20 @@ public class LoginLogRepo : GenericRepository<LoginLog>, ILoginLogRepo
 
     public override void Update(LoginLog aLoginLog)
     {
-        throw new NotImplementedException();
+        using var vConn = GetOpenConnection();
+        vConn.Execute(
+            @"UPDATE loginlog SET
+                userid = @LoginUserId,
+                ipaddress = @ClientIP,
+                attemptedon = @LoginDateTime
+              WHERE logid = @LoginLogId",
+            new
+            {
+                aLoginLog.LoginLogId,
+                aLoginLog.LoginUserId,
+                aLoginLog.ClientIP,
+                aLoginLog.LoginDateTime
+            });
     }
 
     public override IEnumerable<LoginLog> GetAllById(long aSingleId)
@@ -74,7 +87,17 @@ public class LoginLogRepo : GenericRepository<LoginLog>, ILoginLogRepo
 
     public override long InsertToGetId(LoginLog entity)
     {
-        throw new NotImplementedException();
+        using var vConn = GetOpenConnection();
+        const string sql = @"
+            INSERT INTO loginlog (userid, attemptedemail, success, ipaddress, attemptedon)
+            VALUES (@LoginUserId, '', true, @ClientIP, @LoginDateTime)
+            RETURNING logid";
+        return vConn.ExecuteScalar<long>(sql, new
+        {
+            entity.LoginUserId,
+            entity.ClientIP,
+            entity.LoginDateTime
+        });
     }
 
     public override IEnumerable<LoginLog> GetPagedData(int PageSize, int OffSet)

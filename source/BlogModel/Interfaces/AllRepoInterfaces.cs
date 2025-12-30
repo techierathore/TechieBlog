@@ -121,6 +121,22 @@ public interface IBlogPostRepo : IGenericRepository<BlogPost>
     /// </summary>
     /// <param name="seriesId">Series ID.</param>
     void ClearSeriesFromPosts(long seriesId);
+
+    /// <summary>
+    /// Searches posts by title, abstract, content, and tags.
+    /// </summary>
+    /// <param name="query">Search query string.</param>
+    /// <param name="pageSize">Number of results per page.</param>
+    /// <param name="offset">Number of results to skip.</param>
+    /// <returns>Matching published posts.</returns>
+    IEnumerable<BlogPost> SearchPosts(string query, int pageSize = 10, int offset = 0);
+
+    /// <summary>
+    /// Gets the count of search results.
+    /// </summary>
+    /// <param name="query">Search query string.</param>
+    /// <returns>Count of matching posts.</returns>
+    int GetSearchResultCount(string query);
 }
 /// <summary>
 /// Repository interface for BlogTag data access operations.
@@ -232,6 +248,30 @@ public interface IBlogCommentRepo : IGenericRepository<BlogComment>
     IEnumerable<BlogComment> GetPostParentComments(long BlogPostID);
     IEnumerable<BlogComment> GetPostChildComments(long BlogPostID);
     AdminCounts GetAdminCounts();
+    
+    /// <summary>
+    /// Deletes a comment by ID.
+    /// </summary>
+    /// <param name="commentId">Comment ID to delete.</param>
+    void Delete(long commentId);
+    
+    /// <summary>
+    /// Gets all pending (unapproved) comments.
+    /// </summary>
+    /// <returns>List of unapproved comments.</returns>
+    IEnumerable<BlogComment> GetPendingComments();
+    
+    /// <summary>
+    /// Gets total count of comments.
+    /// </summary>
+    /// <returns>Total comment count.</returns>
+    int GetTotalCount();
+    
+    /// <summary>
+    /// Gets count of pending (unapproved) comments.
+    /// </summary>
+    /// <returns>Pending comment count.</returns>
+    int GetPendingCount();
 }
 public interface IUserEventRepo : IGenericRepository<UserEvent>
 { }
@@ -291,6 +331,105 @@ public interface IPasswordResetTokenRepo : IGenericRepository<PasswordResetToken
     /// Deletes expired tokens (cleanup).
     /// </summary>
     void DeleteExpiredTokens();
+}
+
+/// <summary>
+/// Repository interface for PostRating data access operations.
+/// </summary>
+/// <remarks>
+/// <para><b>Story:</b> FIX-013 - Star Ratings Implementation (Epic 4, FR15-16)</para>
+/// </remarks>
+public interface IPostRatingRepo : IGenericRepository<PostRating>
+{
+    /// <summary>
+    /// Gets a user's rating for a specific post.
+    /// </summary>
+    /// <param name="postId">Post ID.</param>
+    /// <param name="userId">User ID.</param>
+    /// <returns>PostRating if found, null otherwise.</returns>
+    PostRating GetByPostAndUser(long postId, long userId);
+
+    /// <summary>
+    /// Gets the average rating for a post.
+    /// </summary>
+    /// <param name="postId">Post ID.</param>
+    /// <returns>Average rating (0 if no ratings).</returns>
+    double GetAverageByPost(long postId);
+
+    /// <summary>
+    /// Gets the total number of ratings for a post.
+    /// </summary>
+    /// <param name="postId">Post ID.</param>
+    /// <returns>Count of ratings.</returns>
+    int GetCountByPost(long postId);
+
+    /// <summary>
+    /// Gets rating statistics for a post.
+    /// </summary>
+    /// <param name="postId">Post ID.</param>
+    /// <returns>PostRatingStats with average and count.</returns>
+    PostRatingStats GetStatsByPost(long postId);
+
+    /// <summary>
+    /// Gets top-rated posts for popular content lists.
+    /// </summary>
+    /// <param name="count">Number of posts to return.</param>
+    /// <param name="minRatings">Minimum number of ratings required.</param>
+    /// <returns>Post IDs ordered by average rating.</returns>
+    IEnumerable<long> GetTopRatedPostIds(int count = 10, int minRatings = 1);
+
+    /// <summary>
+    /// Deletes a rating by ID.
+    /// </summary>
+    /// <param name="ratingId">Rating ID to delete.</param>
+    void Delete(long ratingId);
+}
+
+/// <summary>
+/// Repository interface for UserFavorite data access operations.
+/// </summary>
+/// <remarks>
+/// <para><b>Story:</b> FIX-014 - Favorites/Bookmarks Implementation (Epic 4, FR17)</para>
+/// </remarks>
+public interface IUserFavoriteRepo : IGenericRepository<UserFavorite>
+{
+    /// <summary>
+    /// Gets a favorite by post and user IDs.
+    /// </summary>
+    /// <param name="postId">The post ID.</param>
+    /// <param name="userId">The user ID.</param>
+    /// <returns>UserFavorite if found, null otherwise.</returns>
+    UserFavorite GetByPostAndUser(long postId, long userId);
+
+    /// <summary>
+    /// Gets all favorites for a user with post details.
+    /// </summary>
+    /// <param name="userId">The user ID.</param>
+    /// <param name="limit">Maximum number of results.</param>
+    /// <param name="offset">Number of results to skip.</param>
+    /// <returns>List of user favorites ordered by creation date descending.</returns>
+    IEnumerable<UserFavorite> GetByUser(long userId, int limit = 50, int offset = 0);
+
+    /// <summary>
+    /// Gets the count of favorites for a post.
+    /// </summary>
+    /// <param name="postId">The post ID.</param>
+    /// <returns>Number of users who favorited the post.</returns>
+    int GetCountByPost(long postId);
+
+    /// <summary>
+    /// Deletes a favorite by post and user IDs.
+    /// </summary>
+    /// <param name="postId">The post ID.</param>
+    /// <param name="userId">The user ID.</param>
+    void Delete(long postId, long userId);
+
+    /// <summary>
+    /// Gets the total count of favorites for a user.
+    /// </summary>
+    /// <param name="userId">The user ID.</param>
+    /// <returns>Total number of favorites.</returns>
+    int GetCountByUser(long userId);
 }
 
 /// <summary>

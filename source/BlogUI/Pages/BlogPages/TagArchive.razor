@@ -12,6 +12,7 @@
 @page "/tags/{Slug}"
 @layout MainLayout
 @inject BlogEngine.Services.TagSvc TagService
+@inject BlogEngine.Services.CategorySvc CategorySvc
 @inject NavigationManager Navigation
 
 @if (isLoading)
@@ -103,6 +104,7 @@ else
     private BlogTag tagInfo;
     private List<BlogTag> allTags = new();
     private List<BlogModels.BlogPost> posts = new();
+    private Dictionary<long, BlogModels.Category> categoryCache = new();
     private bool isLoading = true;
     private bool notFound = false;
     private bool showTagList = false;
@@ -124,6 +126,13 @@ else
 
         try
         {
+            // Load categories into cache for name lookup
+            if (categoryCache.Count == 0)
+            {
+                var allCategories = CategorySvc.GetAllCategories();
+                categoryCache = allCategories.ToDictionary(c => c.CategoryId, c => c);
+            }
+
             if (string.IsNullOrWhiteSpace(Slug))
             {
                 // Show all tags
@@ -179,8 +188,11 @@ else
 
     private string GetCategoryName(BlogModels.BlogPost post)
     {
-        // Placeholder - would need CategorySvc to get actual name
-        return "Blog";
+        if (post.CategoryId > 0 && categoryCache.TryGetValue(post.CategoryId, out var category))
+        {
+            return category.CategoryName ?? "Uncategorized";
+        }
+        return "Uncategorized";
     }
 
     private string GetExcerpt(string content, int maxLength = 150)

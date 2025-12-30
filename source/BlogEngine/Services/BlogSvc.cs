@@ -548,4 +548,36 @@ public class BlogSvc
             return Result.Failure($"Failed to cancel schedule: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Searches posts by query string.
+    /// </summary>
+    public IEnumerable<BlogPost> SearchPosts(string query, int pageSize = 10, int offset = 0)
+    {
+        try
+        {
+            return PostRepo.SearchPosts(query, pageSize, offset);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error searching posts with query: {Query}", query);
+            return Enumerable.Empty<BlogPost>();
+        }
+    }
+
+    /// <summary>
+    /// Gets search result count.
+    /// </summary>
+    public int GetSearchResultCount(string query)
+    {
+        try
+        {
+            return PostRepo.GetSearchResultCount(query);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting search result count for: {Query}", query);
+            return 0;
+        }
+    }
 }

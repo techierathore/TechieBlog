@@ -23,14 +23,27 @@ public class BlogUserRepo : GenericRepository<AppUser>, IBlogUserRepo
         return vConn.Query<AppUser>("SELECT * FROM BlogUser ORDER BY UserId");
     }
 
+    /// <summary>
+    /// Retrieves users matching the specified ID as a collection.
+    /// </summary>
+    /// <param name="aSingleId">The user ID to search for.</param>
+    /// <returns>Collection containing the matching user, or empty if not found.</returns>
     public override IEnumerable<AppUser> GetAllById(long aSingleId)
     {
-        throw new NotImplementedException();
+        using var vConn = GetOpenConnection();
+        return vConn.Query<AppUser>(
+            "SELECT * FROM BlogUser WHERE UserId = @UserId",
+            new { UserId = aSingleId });
     }
 
+    /// <summary>
+    /// Retrieves a single user by their integer ID.
+    /// </summary>
+    /// <param name="aSingleId">The user's integer ID.</param>
+    /// <returns>The user if found, null otherwise.</returns>
     public override AppUser GetIntSingle(int aSingleId)
     {
-        throw new NotImplementedException();
+        return GetSingle((long)aSingleId);
     }
 
     /// <summary>
@@ -141,8 +154,17 @@ public class BlogUserRepo : GenericRepository<AppUser>, IBlogUserRepo
             new { MobileNo = aMobileNo });
     }
 
+    /// <summary>
+    /// Retrieves a paginated list of users.
+    /// </summary>
+    /// <param name="PageSize">Number of users per page.</param>
+    /// <param name="OffSet">Number of users to skip.</param>
+    /// <returns>Paginated collection of users.</returns>
     public override IEnumerable<AppUser> GetPagedData(int PageSize, int OffSet)
     {
-        throw new NotImplementedException();
+        using var vConn = GetOpenConnection();
+        return vConn.Query<AppUser>(
+            "SELECT * FROM BlogUser ORDER BY UserId LIMIT @PageSize OFFSET @OffSet",
+            new { PageSize, OffSet });
     }
 }

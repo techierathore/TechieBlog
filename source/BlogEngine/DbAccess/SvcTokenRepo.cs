@@ -24,7 +24,7 @@ public class SvcTokenRepo : GenericRepository<SvcToken>, ISvcTokenRepo
 
     public override SvcToken GetIntSingle(int aOrgId)
     {
-        throw new NotImplementedException();
+        return GetSingle((long)aOrgId);
     }
 
     public override IEnumerable<SvcToken> GetPagedData(int PageSize, int OffSet)
@@ -69,7 +69,19 @@ public class SvcTokenRepo : GenericRepository<SvcToken>, ISvcTokenRepo
 
     public override long InsertToGetId(SvcToken entity)
     {
-        throw new NotImplementedException();
+        using var vConn = GetOpenConnection();
+        const string sql = @"
+            INSERT INTO svctoken (appuserid, logintoken, tokenstatus, exiprydate, issuedate)
+            VALUES (@AppUserId, @LoginToken, @TokenStatus, @ExipryDate, @IssueDate)
+            RETURNING svctokenid";
+        return vConn.ExecuteScalar<long>(sql, new
+        {
+            entity.AppUserId,
+            entity.LoginToken,
+            entity.TokenStatus,
+            entity.ExipryDate,
+            entity.IssueDate
+        });
     }
 
     public override void Update(SvcToken aLoginSvcToken)

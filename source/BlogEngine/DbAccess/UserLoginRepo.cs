@@ -13,7 +13,10 @@ public class UserLoginRepo : GenericRepository<UserLogin>, IUserLoginRepository
 
     public override IEnumerable<UserLogin> GetAllById(long aSingleId)
     {
-        throw new NotImplementedException();
+        using var vConn = GetOpenConnection();
+        return vConn.Query<UserLogin>(
+            "SELECT * FROM userlogins WHERE userid = @UserId ORDER BY logindate DESC",
+            new { UserId = aSingleId });
     }
 
     public override IEnumerable<UserLogin> GetAll()
@@ -24,7 +27,10 @@ public class UserLoginRepo : GenericRepository<UserLogin>, IUserLoginRepository
 
     public override UserLogin GetIntSingle(int aSingleId)
     {
-        throw new NotImplementedException();
+        using var vConn = GetOpenConnection();
+        return vConn.QueryFirstOrDefault<UserLogin>(
+            "SELECT * FROM userlogins WHERE loginid = @LoginId",
+            new { LoginId = aSingleId });
     }
 
     public UserLogin GetUserByToken(long aUserId, string aToken)
@@ -37,12 +43,28 @@ public class UserLoginRepo : GenericRepository<UserLogin>, IUserLoginRepository
 
     public override UserLogin GetSingle(long aSingleId)
     {
-        throw new NotImplementedException();
+        using var vConn = GetOpenConnection();
+        return vConn.QueryFirstOrDefault<UserLogin>(
+            "SELECT * FROM userlogins WHERE loginid = @LoginId",
+            new { LoginId = aSingleId });
     }
 
     public override long InsertToGetId(UserLogin aEntity)
     {
-        throw new NotImplementedException();
+        using var vConn = GetOpenConnection();
+        return vConn.ExecuteScalar<long>(
+            @"INSERT INTO userlogins (userid, logindate, logintoken, tokenstatus, exiprydate, issuedate)
+              VALUES (@UserId, @LoginDate, @LoginToken, @TokenStatus, @ExipryDate, @IssueDate)
+              RETURNING loginid",
+            new
+            {
+                aEntity.UserId,
+                aEntity.LoginDate,
+                aEntity.LoginToken,
+                aEntity.TokenStatus,
+                aEntity.ExipryDate,
+                aEntity.IssueDate
+            });
     }
 
     public override void Insert(UserLogin aEntity)
@@ -83,6 +105,9 @@ public class UserLoginRepo : GenericRepository<UserLogin>, IUserLoginRepository
 
     public override IEnumerable<UserLogin> GetPagedData(int PageSize, int OffSet)
     {
-        throw new NotImplementedException();
+        using var vConn = GetOpenConnection();
+        return vConn.Query<UserLogin>(
+            "SELECT * FROM userlogins ORDER BY loginid LIMIT @PageSize OFFSET @OffSet",
+            new { PageSize, OffSet });
     }
 }

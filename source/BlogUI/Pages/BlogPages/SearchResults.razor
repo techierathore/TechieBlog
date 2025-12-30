@@ -11,6 +11,8 @@
 @page "/search"
 @layout MainLayout
 @inject NavigationManager Navigation
+@inject BlogEngine.Services.BlogSvc BlogSvc
+@inject BlogEngine.Services.CategorySvc CategorySvc
 
 @* Search Header *@
 <div class="search-header">
@@ -30,9 +32,10 @@
 <div class="search-filters">
     <FluentSelect TOption="string" @bind-Value="categoryFilter" Style="width: auto;">
         <FluentOption TOption="string" Value="">All Categories</FluentOption>
-        <FluentOption TOption="string" Value="blazor">Blazor</FluentOption>
-        <FluentOption TOption="string" Value="dotnet">.NET</FluentOption>
-        <FluentOption TOption="string" Value="csharp">C#</FluentOption>
+        @foreach (var category in categories)
+        {
+            <FluentOption TOption="string" Value="@category.Slug">@category.CategoryName</FluentOption>
+        }
     </FluentSelect>
     <FluentSelect TOption="string" @bind-Value="dateFilter" Style="width: auto;">
         <FluentOption TOption="string" Value="">Any Date</FluentOption>
@@ -84,7 +87,10 @@
     </div>
 
     @* Pagination *@
-    <Pagination CurrentPage="1" TotalPages="2" OnPageChanged="HandlePageChanged" />
+    @if (TotalPages > 1)
+    {
+        <Pagination CurrentPage="@currentPage" TotalPages="@TotalPages" OnPageChanged="HandlePageChanged" />
+    }
 }
 else
 {
@@ -105,12 +111,19 @@ else
     private string sortBy = "relevance";
     private bool hasSearched = false;
     private List<SearchResult> searchResults = new();
+    private List<BlogModels.Category> categories = new();
+    private int totalResults = 0;
+    private int currentPage = 1;
+    private const int PageSize = 10;
 
     /// <summary>
     /// Initialize component and perform search if query provided.
     /// </summary>
     protected override void OnInitialized()
     {
+        // Load categories for the filter dropdown
+        categories = CategorySvc.GetAllCategories().ToList();
+        
         if (!string.IsNullOrEmpty(Query))
         {
             searchQuery = Query;
@@ -136,87 +149,93 @@ else
     {
         if (!string.IsNullOrWhiteSpace(searchQuery))
         {
+            currentPage = 1;
             Navigation.NavigateTo($"/search?q={Uri.EscapeDataString(searchQuery)}");
             PerformSearch();
         }
     }
 
     /// <summary>
-    /// Perform search with placeholder results.
+    /// Perform search against the database.
     /// </summary>
     private void PerformSearch()
     {
         hasSearched = true;
         displayQuery = searchQuery;
 
-        // Placeholder search results with highlighted terms
-        searchResults = new List<SearchResult>
+        // Get total count for pagination
+        totalResults = BlogSvc.GetSearchResultCount(searchQuery);
+
+        // Get paginated results from database
+        int offset = (currentPage - 1) * PageSize;
+        var posts = BlogSvc.SearchPosts(searchQuery, PageSize, offset);
+
+        // Convert BlogPost to SearchResult with highlighted excerpts
+        searchResults = posts.Select(post => new SearchResult
         {
-            new SearchResult
-            {
-                Category = "Blazor",
-                Title = "Building Modern Blazor Applications with Fluent UI",
-                ExcerptWithHighlights = "Learn how to create beautiful, accessible web applications using Microsoft Fluent UI <mark>components</mark> in <mark>Blazor</mark>. This comprehensive guide covers setup...",
-                Slug = "building-modern-blazor-fluent-ui",
-                Author = "John Developer",
-                Date = "Dec 15, 2025",
-                ReadTime = "8 min read",
-                Rating = 4
-            },
-            new SearchResult
-            {
-                Category = "Blazor",
-                Title = "Creating Reusable Blazor Components",
-                ExcerptWithHighlights = "Design patterns for building reusable and maintainable <mark>Blazor</mark> <mark>components</mark>. Learn about parameters, events, and composition...",
-                Slug = "reusable-blazor-components",
-                Author = "Emily Watson",
-                Date = "Dec 2, 2025",
-                ReadTime = "6 min read",
-                Rating = 0
-            },
-            new SearchResult
-            {
-                Category = "Blazor",
-                Title = "Blazor Component Lifecycle Deep Dive",
-                ExcerptWithHighlights = "Understanding the complete <mark>component</mark> lifecycle in <mark>Blazor</mark> applications. From initialization to disposal...",
-                Slug = "blazor-component-lifecycle",
-                Author = "Mike Johnson",
-                Date = "Dec 10, 2025",
-                ReadTime = "10 min read",
-                Rating = 0
-            },
-            new SearchResult
-            {
-                Category = "Testing",
-                Title = "Unit Testing Blazor Components with bUnit",
-                ExcerptWithHighlights = "A practical guide to writing effective unit tests for your <mark>Blazor</mark> <mark>components</mark> using the bUnit testing library...",
-                Slug = "unit-testing-blazor-bunit",
-                Author = "Sarah Chen",
-                Date = "Dec 10, 2025",
-                ReadTime = "7 min read",
-                Rating = 0
-            },
-            new SearchResult
-            {
-                Category = "Blazor",
-                Title = "Components: The Building Blocks of Blazor",
-                ExcerptWithHighlights = "Learn how to create, compose, and communicate between <mark>Blazor</mark> <mark>components</mark> effectively in this comprehensive guide...",
-                Slug = "blazor-components-building-blocks",
-                Author = "John Developer",
-                Date = "Dec 5, 2025",
-                ReadTime = "8 min read",
-                Rating = 0
-            }
-        };
+            Category = "Blog", // Category name would require a join - simplified for now
+            Title = post.Title ?? string.Empty,
+            ExcerptWithHighlights = HighlightSearchTerms(post.Abstract ?? string.Empty, searchQuery),
+            Slug = post.Slug ?? string.Empty,
+            Author = post.BlogWriter ?? "Unknown",
+            Date = post.CreatedOn?.ToString("MMM dd, yyyy") ?? string.Empty,
+            ReadTime = EstimateReadTime(post.PostContent),
+            Rating = 0
+        }).ToList();
     }
 
     /// <summary>
-    /// Handle page change. Placeholder for future implementation.
+    /// Highlights search terms in the excerpt with mark tags.
+    /// </summary>
+    private string HighlightSearchTerms(string text, string query)
+    {
+        if (string.IsNullOrWhiteSpace(text) || string.IsNullOrWhiteSpace(query))
+            return text;
+
+        // Truncate text to reasonable excerpt length
+        var excerpt = text.Length > 200 ? text.Substring(0, 200) + "..." : text;
+
+        // Split query into words and highlight each
+        var words = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var word in words)
+        {
+            if (word.Length < 2) continue;
+            // Case-insensitive replacement with mark tags
+            var regex = new System.Text.RegularExpressions.Regex(
+                System.Text.RegularExpressions.Regex.Escape(word),
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            excerpt = regex.Replace(excerpt, match => $"<mark>{match.Value}</mark>");
+        }
+        return excerpt;
+    }
+
+    /// <summary>
+    /// Estimates read time based on content length.
+    /// </summary>
+    private string EstimateReadTime(string? content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            return "1 min read";
+
+        // Average reading speed: 200 words per minute
+        var wordCount = content.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+        var minutes = Math.Max(1, (int)Math.Ceiling(wordCount / 200.0));
+        return $"{minutes} min read";
+    }
+
+    /// <summary>
+    /// Handle page change for pagination.
     /// </summary>
     private void HandlePageChanged(int page)
     {
-        // Will load different page in future stories
+        currentPage = page;
+        PerformSearch();
     }
+
+    /// <summary>
+    /// Calculate total pages for pagination.
+    /// </summary>
+    private int TotalPages => (int)Math.Ceiling((double)totalResults / PageSize);
 
     private class SearchResult
     {

@@ -31,7 +31,10 @@ public class BlogImageRepo : GenericRepository<BlogImage>, IBlogImageRepo
 
     public override BlogImage GetIntSingle(int aSingleId)
     {
-        throw new NotImplementedException();
+        using var vConn = GetOpenConnection();
+        return vConn.QueryFirstOrDefault<BlogImage>(
+            "SELECT * FROM blogimage WHERE blogimageid = @ImageId",
+            new { ImageId = aSingleId });
     }
 
     public override BlogImage GetSingle(long aSingleId)
@@ -63,7 +66,19 @@ public class BlogImageRepo : GenericRepository<BlogImage>, IBlogImageRepo
 
     public override long InsertToGetId(BlogImage entity)
     {
-        throw new NotImplementedException();
+        using var vConn = GetOpenConnection();
+        return vConn.QuerySingle<long>(
+            @"INSERT INTO blogimage (imagename, imagepath, size, createdtime, userid)
+              VALUES (@ImageName, @ImagePath, @Size, @CreatedTime, @UserID)
+              RETURNING blogimageid",
+            new
+            {
+                entity.ImageName,
+                entity.ImagePath,
+                entity.Size,
+                entity.CreatedTime,
+                entity.UserID
+            });
     }
 
     public override void Update(BlogImage aEntity)

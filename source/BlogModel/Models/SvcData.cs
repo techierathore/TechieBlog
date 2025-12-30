@@ -1,4 +1,4 @@
-﻿namespace BlogModels;
+namespace BlogModels;
 
 public class SvcData
 {
@@ -8,6 +8,8 @@ public class SvcData
 	public string LoginPass { get; set; }
 	public string JwToken { get; set; }
 	public string VerificationCode { get; set; }
+	public string ResetToken { get; set; }
+	public string FirstName { get; set; }
 }
 
 public class RefreshRequest

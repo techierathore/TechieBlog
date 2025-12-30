@@ -4,6 +4,7 @@
 // =============================================================================
 using Blazored.LocalStorage;
 using BlogEngine;
+using BlogEngine.Services;
 using BlogModels;
 using BlogModels.Interfaces;
 using BlogUI;
@@ -132,6 +133,26 @@ try
     app.MapRazorComponents<TechieBlog.Components.App>()
         .AddInteractiveServerRenderMode()
         .AddAdditionalAssemblies(typeof(BlogUI._Imports).Assembly);
+
+    // Sitemap.xml endpoint for SEO
+    app.MapGet("/sitemap.xml", (SitemapSvc sitemapSvc) =>
+    {
+        var xml = sitemapSvc.GenerateSitemap();
+        return Results.Content(xml, "application/xml");
+    });
+
+    // Robots.txt endpoint for SEO
+    app.MapGet("/robots.txt", (IConfiguration config) =>
+    {
+        var baseUrl = config["SiteSettings:BaseUrl"]?.TrimEnd('/') ?? "https://localhost";
+        var robotsTxt = $"""
+            User-agent: *
+            Allow: /
+
+            Sitemap: {baseUrl}/sitemap.xml
+            """;
+        return Results.Content(robotsTxt, "text/plain");
+    });
 
     app.Run();
 }

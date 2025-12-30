@@ -23,7 +23,7 @@ public class UserEventRepo : GenericRepository<UserEvent>, IUserEventRepo
 
     public override UserEvent GetIntSingle(int aSingleId)
     {
-        throw new NotImplementedException();
+        return GetSingle((long)aSingleId);
     }
 
     public override IEnumerable<UserEvent> GetPagedData(int PageSize, int OffSet)
@@ -62,7 +62,21 @@ public class UserEventRepo : GenericRepository<UserEvent>, IUserEventRepo
 
     public override long InsertToGetId(UserEvent entity)
     {
-        throw new NotImplementedException();
+        using var vConn = GetOpenConnection();
+        const string sql = @"
+            INSERT INTO userevents (logoiconpath, eventtitle, sessiontitle, eventurl, eventdate, type, userid)
+            VALUES (@LogoIconPath, @EventTitle, @SessionTitle, @EventUrl, @EventDate, @EventType, @UserID)
+            RETURNING eventid";
+        return vConn.ExecuteScalar<long>(sql, new
+        {
+            entity.LogoIconPath,
+            entity.EventTitle,
+            entity.SessionTitle,
+            entity.EventUrl,
+            entity.EventDate,
+            entity.EventType,
+            entity.UserID
+        });
     }
 
     public override void Update(UserEvent aEntity)

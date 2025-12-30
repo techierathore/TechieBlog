@@ -43,6 +43,21 @@ public static class BlogSvcInitializer
         services.AddTransient<ISubscriberRepo>(x => new SubscriberRepo(dbConnectionString));
         services.AddTransient<Services.SubscriberSvc>();
 
+        // Comment services
+        services.AddTransient<IBlogCommentRepo>(x => new BlogCommentRepo(dbConnectionString));
+        services.AddTransient<Services.CommentSvc>();
+
+        // Rating services (FIX-013: Star Ratings)
+        services.AddTransient<IPostRatingRepo>(x => new PostRatingRepo(dbConnectionString));
+        services.AddTransient<Services.RatingSvc>();
+
+        // Favorite services (FIX-014: Favorites/Bookmarks)
+        services.AddTransient<IUserFavoriteRepo>(x => new UserFavoriteRepo(dbConnectionString));
+        services.AddTransient<Services.FavoriteSvc>();
+
+        // Sitemap service
+        services.AddTransient<Services.SitemapSvc>();
+
         // Markdown rendering (singleton for performance)
         services.AddSingleton<MarkdownRenderer>();
 

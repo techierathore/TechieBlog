@@ -12,6 +12,8 @@
 @attribute [Authorize(Policy = "EditorOrAbove")]
 @layout BlogUI.Layouts.AdminLayout
 @inject NavigationManager Navigation
+@inject BlogEngine.Services.CommentSvc CommentService
+@inject BlogEngine.Services.BlogSvc BlogService
 
 <div class="comments-list-page">
     @* Page Header *@
@@ -448,16 +450,37 @@
         IsLoading = true;
         try
         {
-            // Comments feature not yet implemented - show empty list
-            // TODO: Replace with actual comment service call when implemented
+            // Load all comments from service
+            var comments = CommentService.GetAllComments();
             ObjectList = new List<CommentViewModel>();
+            
+            foreach (var comment in comments)
+            {
+                // Get post details for the comment
+                var post = BlogService.GetSinglePost(comment.PostID);
+                
+                ObjectList.Add(new CommentViewModel
+                {
+                    CommentId = comment.CommentID,
+                    Content = comment.Comment ?? string.Empty,
+                    AuthorName = comment.GivenBy ?? "Anonymous",
+                    AuthorEmail = comment.Email ?? string.Empty,
+                    PostId = comment.PostID,
+                    PostTitle = post?.BlogTitle ?? "Unknown Post",
+                    PostSlug = post?.Slug ?? comment.PostID.ToString(),
+                    Status = comment.Published ? "Approved" : "Pending",
+                    CreatedOn = comment.GivenOn,
+                    IsSelected = false
+                });
+            }
+            
             ApplyFilter();
         }
-        catch
+        catch (Exception ex)
         {
             ObjectList = new List<CommentViewModel>();
             FilteredList = new List<CommentViewModel>();
-            StatusMessage = "Failed to load comments.";
+            StatusMessage = $"Failed to load comments: {ex.Message}";
             IsError = true;
         }
         finally
@@ -524,19 +547,35 @@
         if (string.IsNullOrEmpty(BulkAction) || !HasSelectedComments) return;
 
         var selectedComments = FilteredList.Where(c => c.IsSelected).ToList();
+        int successCount = 0;
+        int failCount = 0;
 
         foreach (var comment in selectedComments)
         {
+            BlogModels.Result result;
             switch (BulkAction)
             {
                 case "approve":
-                    comment.Status = "Approved";
+                    result = CommentService.ApproveComment(comment.CommentId);
+                    if (result.IsSuccess)
+                    {
+                        comment.Status = "Approved";
+                        successCount++;
+                    }
+                    else failCount++;
                     break;
                 case "spam":
                     comment.Status = "Spam";
+                    successCount++;
                     break;
                 case "delete":
-                    ObjectList.Remove(comment);
+                    result = CommentService.DeleteComment(comment.CommentId);
+                    if (result.IsSuccess)
+                    {
+                        ObjectList.Remove(comment);
+                        successCount++;
+                    }
+                    else failCount++;
                     break;
             }
         }
@@ -544,19 +583,39 @@
         BulkAction = string.Empty;
         SelectAll = false;
         ApplyFilter();
-        StatusMessage = $"Bulk action applied to {selectedComments.Count} comment(s).";
-        IsError = false;
+        
+        if (failCount > 0)
+        {
+            StatusMessage = $"Bulk action completed: {successCount} succeeded, {failCount} failed.";
+            IsError = failCount > successCount;
+        }
+        else
+        {
+            StatusMessage = $"Bulk action applied to {successCount} comment(s).";
+            IsError = false;
+        }
     }
 
     private void ApproveComment(CommentViewModel comment)
     {
-        comment.Status = "Approved";
-        StatusMessage = "Comment approved.";
-        IsError = false;
+        var result = CommentService.ApproveComment(comment.CommentId);
+        if (result.IsSuccess)
+        {
+            comment.Status = "Approved";
+            StatusMessage = "Comment approved.";
+            IsError = false;
+        }
+        else
+        {
+            StatusMessage = result.ErrorMessage ?? "Failed to approve comment.";
+            IsError = true;
+        }
     }
 
     private void MarkAsSpam(CommentViewModel comment)
     {
+        // For now, spam just changes UI status since we don't have a spam field
+        // A full implementation would add an IsSpam field to the model
         comment.Status = "Spam";
         StatusMessage = "Comment marked as spam.";
         IsError = false;
@@ -584,10 +643,19 @@
     {
         if (CommentToDelete == null) return;
 
-        ObjectList.Remove(CommentToDelete);
-        StatusMessage = "Comment deleted successfully.";
-        IsError = false;
-        ApplyFilter();
+        var result = CommentService.DeleteComment(CommentToDelete.CommentId);
+        if (result.IsSuccess)
+        {
+            ObjectList.Remove(CommentToDelete);
+            StatusMessage = "Comment deleted successfully.";
+            IsError = false;
+            ApplyFilter();
+        }
+        else
+        {
+            StatusMessage = result.ErrorMessage ?? "Failed to delete comment.";
+            IsError = true;
+        }
 
         CommentToDelete = null;
         HideDeleteDialog = true;

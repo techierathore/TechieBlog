@@ -46,7 +46,7 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
 
     public override BlogPost GetIntSingle(int aSingleId)
     {
-        throw new NotImplementedException();
+        return GetSingle((long)aSingleId);
     }
 
     /// <summary>
@@ -416,5 +416,51 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
                 UpdatedOn = @UpdatedOn
             WHERE SeriesId = @SeriesId";
         vConn.Execute(sql, new { SeriesId = seriesId, UpdatedOn = DateTime.UtcNow });
+    }
+
+    /// <summary>
+    /// Searches posts by title, abstract, and content using PostgreSQL ILIKE.
+    /// </summary>
+    public IEnumerable<BlogPost> SearchPosts(string query, int pageSize = 10, int offset = 0)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+            return Enumerable.Empty<BlogPost>();
+        
+        using var vConn = GetOpenConnection();
+        const string sql = @"
+            SELECT p.PostID, p.Title, p.Slug, p.Abstract, p.PostContent, p.CreatedOn, p.UpdatedOn,
+                   p.UserID, p.Tags, p.CategoryId, p.FeaturedImage, p.Published,
+                   CONCAT(u.FirstName, ' ', u.LastName) as BlogWriter
+            FROM BlogPost p
+            LEFT JOIN BlogUser u ON p.UserID = u.UserId
+            WHERE p.Published = TRUE 
+                AND (p.IsDeleted = FALSE OR p.IsDeleted IS NULL)
+                AND (p.Title ILIKE @Query 
+                    OR p.Abstract ILIKE @Query 
+                    OR p.PostContent ILIKE @Query
+                    OR p.Tags ILIKE @Query)
+            ORDER BY p.CreatedOn DESC
+            LIMIT @PageSize OFFSET @Offset";
+        return vConn.Query<BlogPost>(sql, new { Query = $"%{query}%", PageSize = pageSize, Offset = offset }).ToList();
+    }
+
+    /// <summary>
+    /// Gets the count of search results.
+    /// </summary>
+    public int GetSearchResultCount(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+            return 0;
+        
+        using var vConn = GetOpenConnection();
+        const string sql = @"
+            SELECT COUNT(*) FROM BlogPost
+            WHERE Published = TRUE 
+                AND (IsDeleted = FALSE OR IsDeleted IS NULL)
+                AND (Title ILIKE @Query 
+                    OR Abstract ILIKE @Query 
+                    OR PostContent ILIKE @Query
+                    OR Tags ILIKE @Query)";
+        return vConn.ExecuteScalar<int>(sql, new { Query = $"%{query}%" });
     }
 }

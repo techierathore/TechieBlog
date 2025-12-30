@@ -1,0 +1,169 @@
+@*
+    FavoriteToggle.razor
+    Purpose: Toggle button for favoriting/bookmarking blog posts.
+    Shows a heart icon that can be clicked to add/remove from favorites.
+
+    Dependencies: FavoriteSvc for backend operations
+    Usage: Used in PostView and PostCard components
+    Story: FIX-014 - Favorites/Bookmarks Implementation (Epic 4, FR17)
+*@
+
+@inject BlogEngine.Services.FavoriteSvc FavoriteService
+
+<button class="favorite-toggle @(IsFavorited ? "favorited" : "")" 
+        @onclick="HandleClick"
+        @onclick:stopPropagation="true"
+        disabled="@(!IsLoggedIn || isProcessing)"
+        title="@GetTooltip()"
+        aria-label="@GetTooltip()">
+    @if (isProcessing)
+    {
+        <FluentIcon Value="@(new Icons.Regular.Size20.Heart())" Color="Color.Neutral" />
+    }
+    else if (IsFavorited)
+    {
+        <FluentIcon Value="@(new Icons.Filled.Size20.Heart())" Color="Color.Error" />
+    }
+    else
+    {
+        <FluentIcon Value="@(new Icons.Regular.Size20.Heart())" Color="@(IsLoggedIn ? Color.Neutral : Color.Disabled)" />
+    }
+    @if (ShowCount && FavoriteCount > 0)
+    {
+        <span class="favorite-count">@FavoriteCount</span>
+    }
+</button>
+
+<style>
+    .favorite-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+    
+    .favorite-toggle:hover:not(:disabled) {
+        background: var(--neutral-layer-2, rgba(0, 0, 0, 0.05));
+    }
+    
+    .favorite-toggle:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    
+    .favorite-toggle.favorited {
+        color: var(--error, #dc3545);
+    }
+    
+    .favorite-count {
+        font-size: 0.85rem;
+        color: var(--neutral-foreground-hint, #666);
+    }
+    
+    .favorite-toggle.favorited .favorite-count {
+        color: var(--error, #dc3545);
+    }
+</style>
+
+@code {
+    /// <summary>
+    /// The post ID to favorite/unfavorite.
+    /// </summary>
+    [Parameter]
+    public long PostId { get; set; }
+
+    /// <summary>
+    /// Current favorited state.
+    /// </summary>
+    [Parameter]
+    public bool IsFavorited { get; set; }
+
+    /// <summary>
+    /// Whether the user is logged in.
+    /// </summary>
+    [Parameter]
+    public bool IsLoggedIn { get; set; }
+
+    /// <summary>
+    /// The current user's ID (required for toggling).
+    /// </summary>
+    [Parameter]
+    public long UserId { get; set; }
+
+    /// <summary>
+    /// Whether to show the favorite count.
+    /// </summary>
+    [Parameter]
+    public bool ShowCount { get; set; } = false;
+
+    /// <summary>
+    /// Current favorite count for the post.
+    /// </summary>
+    [Parameter]
+    public int FavoriteCount { get; set; } = 0;
+
+    /// <summary>
+    /// Callback when favorite state changes.
+    /// </summary>
+    [Parameter]
+    public EventCallback<bool> OnToggle { get; set; }
+
+    /// <summary>
+    /// Callback when favorite count changes.
+    /// </summary>
+    [Parameter]
+    public EventCallback<int> OnCountChange { get; set; }
+
+    private bool isProcessing = false;
+
+    private string GetTooltip()
+    {
+        if (!IsLoggedIn)
+            return "Log in to save favorites";
+        if (isProcessing)
+            return "Updating...";
+        return IsFavorited ? "Remove from favorites" : "Add to favorites";
+    }
+
+    private async Task HandleClick()
+    {
+        if (!IsLoggedIn || UserId <= 0 || PostId <= 0 || isProcessing)
+            return;
+
+        isProcessing = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = FavoriteService.ToggleFavorite(PostId, UserId);
+            
+            if (result.IsSuccess)
+            {
+                IsFavorited = result.Data;
+                
+                // Update count based on new state
+                if (ShowCount)
+                {
+                    FavoriteCount = IsFavorited ? FavoriteCount + 1 : Math.Max(0, FavoriteCount - 1);
+                    await OnCountChange.InvokeAsync(FavoriteCount);
+                }
+                
+                await OnToggle.InvokeAsync(IsFavorited);
+            }
+        }
+        catch
+        {
+            // Silently fail - UI will remain in previous state
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+}
