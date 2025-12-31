@@ -370,6 +370,27 @@ FodyWeavers.xsd
 .claude/
 .opencode/
 CLAUDE.md
-/NUL
 /.playwright-mcp
 /.mcp.json
+
+# Windows artifacts
+NUL
+/NUL
+
+# Template-specific ignores
+# These files should be created locally by template users, not committed
+appsettings.Local.json
+appsettings.Production.json
+**/appsettings.Local.json
+**/appsettings.Production.json
+*.local.json
+
+# User-specific development files
+uiissues/
+.ai/
+
+# Secrets and credentials (never commit these)
+*.pfx
+*.key
+secrets.json
+**/secrets.json
