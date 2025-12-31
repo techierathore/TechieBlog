@@ -133,7 +133,7 @@ partial class ManagePost : ComponentBase
 
             // Get current user ID
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var userIdClaim = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userIdClaim = authState.User.FindFirst(ClaimTypes.PrimarySid)?.Value;
             if (long.TryParse(userIdClaim, out long userId))
             {
                 PageObj.UserID = userId;
@@ -370,7 +370,7 @@ partial class ManagePost : ComponentBase
 
             // Get current user ID
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var userIdClaim = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userIdClaim = authState.User.FindFirst(ClaimTypes.PrimarySid)?.Value;
             if (long.TryParse(userIdClaim, out long userId))
             {
                 PageObj.UserID = userId;
@@ -519,7 +519,7 @@ partial class ManagePost : ComponentBase
 
             // Get current user ID
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var userIdClaim = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userIdClaim = authState.User.FindFirst(ClaimTypes.PrimarySid)?.Value;
             if (long.TryParse(userIdClaim, out long userId))
             {
                 PageObj.UserID = userId;

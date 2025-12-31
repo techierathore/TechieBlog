@@ -45,7 +45,7 @@ partial class BlogsList : ComponentBase
 
         // Get user ID
         string userId = LoggedInUser.Claims.FirstOrDefault(
-            c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+            c => c.Type == ClaimTypes.PrimarySid)?.Value;
         CurrentUserId = long.TryParse(userId, out long id) ? id : 0;
 
         // Check if user is Admin or Editor

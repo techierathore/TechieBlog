@@ -71,7 +71,7 @@ public partial class LoginPage : ComponentBase
         PageClaimsPrincipal = (await AuthStateTask).User;
         if (PageClaimsPrincipal.Identity.IsAuthenticated)
         {
-            NavigationManager.NavigateTo("/Index");
+            NavigationManager.NavigateTo("/");
         }
     }
 

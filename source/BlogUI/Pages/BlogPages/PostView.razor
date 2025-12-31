@@ -292,7 +292,7 @@ else if (blogPost != null)
             if (user.Identity?.IsAuthenticated == true)
             {
                 isAuthenticated = true;
-                var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.PrimarySid)?.Value;
                 if (long.TryParse(userIdClaim, out var userId))
                 {
                     currentUserId = userId;

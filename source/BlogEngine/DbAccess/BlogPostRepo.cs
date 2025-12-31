@@ -153,8 +153,8 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
     {
         using var vConn = GetOpenConnection();
         const string sql = @"
-            INSERT INTO BlogPost (Title, Slug, Abstract, PostContent, UserID, Tags, FeaturedImage, CreatedOn, Published, PublishedOn, ScheduledPublishOn, IsDeleted, SeriesId, SeriesPartNumber)
-            VALUES (@Title, @Slug, @Abstract, @PostContent, @UserID, @Tags, @FeaturedImage, @CreatedOn, @Published, @PublishedOn, @ScheduledPublishOn, FALSE, @SeriesId, @SeriesPartNumber)";
+            INSERT INTO BlogPost (Title, Slug, Abstract, PostContent, UserID, Tags, CategoryId, FeaturedImage, CreatedOn, Published, PublishedOn, ScheduledPublishOn, IsDeleted, SeriesId, SeriesPartNumber)
+            VALUES (@Title, @Slug, @Abstract, @PostContent, @UserID, @Tags, @CategoryId, @FeaturedImage, @CreatedOn, @Published, @PublishedOn, @ScheduledPublishOn, FALSE, @SeriesId, @SeriesPartNumber)";
         vConn.Execute(sql, new
         {
             aPost.Title,
@@ -163,6 +163,7 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
             aPost.PostContent,
             aPost.UserID,
             aPost.Tags,
+            aPost.CategoryId,
             aPost.FeaturedImage,
             aPost.CreatedOn,
             aPost.Published,
@@ -180,8 +181,8 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
     {
         using var vConn = GetOpenConnection();
         const string sql = @"
-            INSERT INTO BlogPost (Title, Slug, Abstract, PostContent, UserID, Tags, FeaturedImage, CreatedOn, Published, PublishedOn, ScheduledPublishOn, IsDeleted, SeriesId, SeriesPartNumber)
-            VALUES (@Title, @Slug, @Abstract, @PostContent, @UserID, @Tags, @FeaturedImage, @CreatedOn, @Published, @PublishedOn, @ScheduledPublishOn, FALSE, @SeriesId, @SeriesPartNumber)
+            INSERT INTO BlogPost (Title, Slug, Abstract, PostContent, UserID, Tags, CategoryId, FeaturedImage, CreatedOn, Published, PublishedOn, ScheduledPublishOn, IsDeleted, SeriesId, SeriesPartNumber)
+            VALUES (@Title, @Slug, @Abstract, @PostContent, @UserID, @Tags, @CategoryId, @FeaturedImage, @CreatedOn, @Published, @PublishedOn, @ScheduledPublishOn, FALSE, @SeriesId, @SeriesPartNumber)
             RETURNING PostID";
         return vConn.ExecuteScalar<long>(sql, new
         {
@@ -191,6 +192,7 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
             aPost.PostContent,
             aPost.UserID,
             aPost.Tags,
+            aPost.CategoryId,
             aPost.FeaturedImage,
             aPost.CreatedOn,
             aPost.Published,
@@ -214,6 +216,7 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
                 Abstract = @Abstract,
                 PostContent = @PostContent,
                 Tags = @Tags,
+                CategoryId = @CategoryId,
                 FeaturedImage = @FeaturedImage,
                 UpdatedOn = @UpdatedOn,
                 Published = @Published,
@@ -230,6 +233,7 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
             aPost.Abstract,
             aPost.PostContent,
             aPost.Tags,
+            aPost.CategoryId,
             aPost.FeaturedImage,
             aPost.UpdatedOn,
             aPost.Published,
