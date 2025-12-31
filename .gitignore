@@ -371,3 +371,5 @@ FodyWeavers.xsd
 .opencode/
 CLAUDE.md
 /NUL
+/.playwright-mcp
+/.mcp.json
