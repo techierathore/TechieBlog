@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -14,14 +14,13 @@ public static class SaltEncryption
             throw new ArgumentException("The text must have valid value.", nameof(text));
 
         var buffer = Encoding.UTF8.GetBytes(text);
-        var hash = new SHA512CryptoServiceProvider();
         var aesKey = new byte[24];
-        Buffer.BlockCopy(hash.ComputeHash(Encoding.UTF8.GetBytes(key)), 0, aesKey, 0, 24);
+        using (var hash = SHA512.Create())
+        {
+            Buffer.BlockCopy(hash.ComputeHash(Encoding.UTF8.GetBytes(key)), 0, aesKey, 0, 24);
+        }
 
         using var aes = Aes.Create();
-        if (aes == null)
-            throw new ArgumentException("Parameter must not be null.", nameof(aes));
-
         aes.Key = aesKey;
 
         using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
@@ -39,6 +38,7 @@ public static class SaltEncryption
 
         return Convert.ToBase64String(combined);
     }
+
     public static string Decrypt(this string encryptedText, string key)
     {
         if (string.IsNullOrEmpty(key))
@@ -48,14 +48,13 @@ public static class SaltEncryption
 
         var combined = Convert.FromBase64String(encryptedText);
         var buffer = new byte[combined.Length];
-        var hash = new SHA512CryptoServiceProvider();
         var aesKey = new byte[24];
-        Buffer.BlockCopy(hash.ComputeHash(Encoding.UTF8.GetBytes(key)), 0, aesKey, 0, 24);
+        using (var hash = SHA512.Create())
+        {
+            Buffer.BlockCopy(hash.ComputeHash(Encoding.UTF8.GetBytes(key)), 0, aesKey, 0, 24);
+        }
 
         using var aes = Aes.Create();
-        if (aes == null)
-            throw new ArgumentException("Parameter must not be null.", nameof(aes));
-
         aes.Key = aesKey;
 
         var iv = new byte[aes.IV.Length];
@@ -76,7 +75,6 @@ public static class SaltEncryption
 
         return Encoding.UTF8.GetString(resultStream.ToArray());
     }
-
 }
 public static class AppEncrypt
 {
@@ -85,18 +83,21 @@ public static class AppEncrypt
         string vResult = SaltEncryption.Encrypt(stringToEncrypt, AppConstants.AppSalt);
         return vResult;
     }
+
     public static string DecryptText(string stringToDecrypt)
     {
         string vResult = SaltEncryption.Decrypt(stringToDecrypt, AppConstants.AppSalt);
         return vResult;
     }
+
     public static string CreateHash(string password)
     {
-        var provider = MD5.Create();
+        using var provider = MD5.Create();
         string salt = "TeleM3t3IS@lt";
         byte[] bytes = provider.ComputeHash(Encoding.UTF32.GetBytes(salt + password));
         return BitConverter.ToString(bytes).Replace("-", "").ToLower();
     }
+
     public static string GetNewToken(DateTime GenDate)
     {
         string vInitTokenVal = GenDate.ToString("yyMMdd") + GenDate.ToString("yyyyMMddTHHmmss", CultureInfo.InvariantCulture) + "71003502";

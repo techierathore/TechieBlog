@@ -1,0 +1,523 @@
+/* ========================================
+   TechieBlog 2.0 - Developer Dark Theme
+   ========================================
+
+   CODE EDITOR INSPIRED DESIGN
+
+   This theme is designed for developers who spend hours
+   reading and writing code. It features:
+   - Monospace typography (JetBrains Mono, Fira Code)
+   - GitHub-inspired light mode colors
+   - VS Code-inspired dark mode colors
+   - Syntax highlighting color variables
+   - Terminal/IDE aesthetic elements
+
+   FEATURES:
+   - Light mode: GitHub-style clean and readable
+   - Dark mode: VS Code dark theme colors
+   - Syntax highlighting variables for code blocks
+   - Monospace typography throughout
+   - ">" prefix on logo for terminal feel
+
+   USAGE: Apply data-site-theme="developer" to html element
+   ======================================== */
+
+/* ========================================
+   LIGHT MODE - GitHub Inspired
+   ========================================
+   Clean, high-contrast design similar to GitHub's
+   light theme. Optimized for code readability.
+*/
+[data-site-theme="developer"] {
+    /* Color Palette - Light Mode */
+    --color-primary: #0366D6;
+    --color-primary-hover: #0550AE;
+    --color-secondary: #586069;
+    --color-accent: #28A745;
+    --color-background: #F6F8FA;
+    --color-surface: #FFFFFF;
+    --color-surface-hover: #F0F0F0;
+    --color-success: #28A745;
+    --color-warning: #DBAB09;
+    --color-error: #D73A49;
+    --color-neutral: #24292E;
+    --color-neutral-light: #586069;
+    --color-border: #E1E4E8;
+    --color-link: #0366D6;
+
+    /* ========================================
+       SYNTAX HIGHLIGHTING - Light Mode
+       ========================================
+       Colors for code blocks and inline code.
+       Based on GitHub's syntax highlighting scheme.
+
+       keyword: Language keywords (if, for, class, etc.)
+       string: String literals and template strings
+       comment: Code comments
+       function: Function/method names
+       variable: Variable and parameter names
+       number: Numeric literals
+    */
+    --syntax-keyword: #D73A49;
+    --syntax-string: #28A745;
+    --syntax-comment: #6A737D;
+    --syntax-function: #6F42C1;
+    --syntax-variable: #E36209;
+    --syntax-number: #005CC5;
+
+    /* Typography - Monospace for developer aesthetic */
+    --font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+    --font-family-heading: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-family-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+
+    /* Type Scale - Slightly smaller for technical density */
+    --font-size-h1: 1.875rem;
+    --font-size-h2: 1.375rem;
+    --font-size-h3: 1.125rem;
+    --font-size-body: 0.9375rem;
+    --font-size-small: 0.8125rem;
+    --font-size-xs: 0.75rem;
+
+    /* Font Weights */
+    --font-weight-regular: 400;
+    --font-weight-semibold: 600;
+
+    /* Line Heights */
+    --line-height-tight: 1.3;
+    --line-height-normal: 1.7;
+
+    /* Spacing Scale (4px base) */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --spacing-2xl: 48px;
+    --spacing-3xl: 64px;
+
+    /* Layout */
+    --max-content-width: 1200px;
+    --sidebar-width: 260px;
+    --header-height: 52px;
+    --border-radius: 6px;
+    --border-radius-lg: 8px;
+
+    /* Shadows - Subtle for clean IDE look */
+    --shadow-sm: 0 1px 2px rgba(27, 31, 35, 0.08);
+    --shadow-md: 0 3px 6px rgba(27, 31, 35, 0.12);
+    --shadow-lg: 0 8px 24px rgba(27, 31, 35, 0.16);
+
+    /* Transitions - Fast, responsive */
+    --transition-fast: 100ms ease;
+    --transition-normal: 150ms ease-out;
+}
+
+/* ========================================
+   DARK MODE - VS Code Inspired
+   ========================================
+   Dark theme based on VS Code's default dark+ theme.
+   Optimized for extended coding sessions.
+*/
+[data-site-theme="developer"][data-theme="dark"],
+[data-theme="dark"][data-site-theme="developer"] {
+    /* Color Palette - Dark Mode (VS Code inspired) */
+    --color-primary: #58A6FF;
+    --color-primary-hover: #79B8FF;
+    --color-secondary: #8B949E;
+    --color-accent: #3FB950;
+    --color-background: #0D1117;
+    --color-surface: #161B22;
+    --color-surface-hover: #21262D;
+    --color-success: #3FB950;
+    --color-warning: #D29922;
+    --color-error: #F85149;
+    --color-neutral: #C9D1D9;
+    --color-neutral-light: #8B949E;
+    --color-border: #30363D;
+    --color-link: #58A6FF;
+
+    /* Syntax Highlighting - Dark Mode */
+    --syntax-keyword: #FF7B72;
+    --syntax-string: #A5D6FF;
+    --syntax-comment: #8B949E;
+    --syntax-function: #D2A8FF;
+    --syntax-variable: #FFA657;
+    --syntax-number: #79C0FF;
+}
+
+/* ========================================
+   COMPONENT OVERRIDES - Terminal Style
+   ========================================
+   Custom styling to achieve IDE/terminal aesthetic.
+*/
+
+/* Header - Terminal prompt style */
+[data-site-theme="developer"] .header {
+    background-color: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+}
+
+[data-site-theme="developer"] .header__logo {
+    font-family: var(--font-family-mono);
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+/* Terminal prompt prefix on logo */
+[data-site-theme="developer"] .header__logo::before {
+    content: ">";
+    color: var(--color-accent);
+    margin-right: var(--spacing-xs);
+}
+
+/* Navigation - Tab style like IDE tabs */
+[data-site-theme="developer"] .header__nav-link {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-small);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--border-radius);
+    position: relative;
+}
+
+[data-site-theme="developer"] .header__nav-link:hover {
+    background-color: var(--color-surface-hover);
+}
+
+[data-site-theme="developer"] .header__nav-link.active {
+    color: var(--color-primary);
+    background-color: var(--color-surface-hover);
+}
+
+/* Buttons - Minimal, technical */
+[data-site-theme="developer"] .btn {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-small);
+    border-radius: var(--border-radius);
+    text-transform: lowercase;
+}
+
+/* Cards - Code block style borders */
+[data-site-theme="developer"] .card {
+    border-radius: var(--border-radius);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+}
+
+[data-site-theme="developer"] .card:hover {
+    border-color: var(--color-primary);
+    box-shadow: none;
+}
+
+[data-site-theme="developer"] .card__category {
+    font-family: var(--font-family-mono);
+    color: var(--syntax-function);
+    font-size: var(--font-size-xs);
+}
+
+/* Featured Post - Code comment style */
+[data-site-theme="developer"] .featured-post {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    position: relative;
+}
+
+[data-site-theme="developer"] .featured-post::before {
+    content: "// featured";
+    position: absolute;
+    top: var(--spacing-sm);
+    left: var(--spacing-md);
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    color: var(--syntax-comment);
+}
+
+/* Tags - Hashtag style */
+[data-site-theme="developer"] .tag {
+    font-family: var(--font-family-mono);
+    background-color: var(--color-surface-hover);
+    border: 1px solid var(--color-border);
+    border-radius: 2px;
+    padding: 2px 8px;
+}
+
+[data-site-theme="developer"] .tag::before {
+    content: "#";
+    color: var(--syntax-comment);
+    margin-right: 2px;
+}
+
+[data-site-theme="developer"] .tag:hover {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+}
+
+/* Badges - Minimal tags */
+[data-site-theme="developer"] .badge {
+    font-family: var(--font-family-mono);
+    font-size: 0.6875rem;
+    border-radius: 2px;
+    padding: 2px 6px;
+    text-transform: lowercase;
+}
+
+[data-site-theme="developer"] .badge--primary {
+    background-color: rgba(88, 166, 255, 0.15);
+    color: var(--color-primary);
+}
+
+[data-site-theme="developer"] .badge--success {
+    background-color: rgba(63, 185, 80, 0.15);
+    color: var(--color-success);
+}
+
+[data-site-theme="developer"] .badge--warning {
+    background-color: rgba(210, 153, 34, 0.15);
+    color: var(--color-warning);
+}
+
+[data-site-theme="developer"] .badge--error {
+    background-color: rgba(248, 81, 73, 0.15);
+    color: var(--color-error);
+}
+
+/* Article Content - Code-friendly styling */
+[data-site-theme="developer"] .article__title {
+    font-family: var(--font-family-heading);
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+[data-site-theme="developer"] .article__category {
+    font-family: var(--font-family-mono);
+    color: var(--syntax-function);
+}
+
+[data-site-theme="developer"] .article__content {
+    font-family: var(--font-family);
+    font-size: 1rem;
+    line-height: 1.8;
+}
+
+[data-site-theme="developer"] .article__content h2,
+[data-site-theme="developer"] .article__content h3 {
+    font-family: var(--font-family-heading);
+    margin-top: var(--spacing-2xl);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--color-border);
+}
+
+[data-site-theme="developer"] .article__content code {
+    font-family: var(--font-family-mono);
+    background-color: var(--color-surface-hover);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.875em;
+    color: var(--syntax-variable);
+}
+
+[data-site-theme="developer"] .article__content pre {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    overflow-x: auto;
+    position: relative;
+}
+
+[data-site-theme="developer"] .article__content pre::before {
+    content: "code";
+    position: absolute;
+    top: 0;
+    right: 0;
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    color: var(--syntax-comment);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background-color: var(--color-surface-hover);
+    border-bottom-left-radius: var(--border-radius);
+}
+
+[data-site-theme="developer"] .article__content pre code {
+    background: none;
+    padding: 0;
+    color: var(--color-neutral);
+}
+
+[data-site-theme="developer"] .article__content blockquote {
+    border-left: 3px solid var(--color-primary);
+    padding-left: var(--spacing-md);
+    margin-left: 0;
+    color: var(--color-neutral-light);
+    font-style: italic;
+}
+
+/* Form Elements - Terminal input style */
+[data-site-theme="developer"] .form-input {
+    font-family: var(--font-family-mono);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+}
+
+[data-site-theme="developer"] .form-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
+}
+
+[data-site-theme="developer"] .form-label {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-small);
+    text-transform: lowercase;
+}
+
+[data-site-theme="developer"] .form-label::after {
+    content: ":";
+}
+
+/* Sidebar - Comment style headers */
+[data-site-theme="developer"] .sidebar__title {
+    font-family: var(--font-family-mono);
+    text-transform: lowercase;
+    letter-spacing: 0;
+}
+
+[data-site-theme="developer"] .sidebar__title::before {
+    content: "/* ";
+    color: var(--syntax-comment);
+}
+
+[data-site-theme="developer"] .sidebar__title::after {
+    content: " */";
+    color: var(--syntax-comment);
+}
+
+/* Comments - Code review style */
+[data-site-theme="developer"] .comment__author {
+    font-family: var(--font-family-mono);
+    color: var(--color-primary);
+}
+
+[data-site-theme="developer"] .comment__date {
+    font-family: var(--font-family-mono);
+}
+
+[data-site-theme="developer"] .comment__date::before {
+    content: "// ";
+    color: var(--syntax-comment);
+}
+
+/* Data Grid - Monospace table */
+[data-site-theme="developer"] .data-grid {
+    font-family: var(--font-family-mono);
+}
+
+[data-site-theme="developer"] .data-grid th {
+    text-transform: lowercase;
+    background-color: var(--color-surface);
+}
+
+/* Stat Card */
+[data-site-theme="developer"] .stat-card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+}
+
+[data-site-theme="developer"] .stat-card__value {
+    font-family: var(--font-family-mono);
+    font-weight: 700;
+}
+
+[data-site-theme="developer"] .stat-card__label {
+    font-family: var(--font-family-mono);
+    text-transform: lowercase;
+}
+
+/* Navigation Menu */
+[data-site-theme="developer"] .nav-menu__link {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-small);
+    border-radius: var(--border-radius);
+}
+
+[data-site-theme="developer"] .nav-menu__link--active {
+    background-color: var(--color-primary);
+}
+
+/* Footer */
+[data-site-theme="developer"] .footer {
+    font-family: var(--font-family-mono);
+    background-color: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+}
+
+/* Breadcrumb - Path style */
+[data-site-theme="developer"] .breadcrumb {
+    font-family: var(--font-family-mono);
+}
+
+[data-site-theme="developer"] .breadcrumb__separator {
+    color: var(--syntax-comment);
+}
+
+[data-site-theme="developer"] .breadcrumb__separator::before {
+    content: "/";
+}
+
+/* Tabs - IDE tabs */
+[data-site-theme="developer"] .tabs__item {
+    font-family: var(--font-family-mono);
+    text-transform: lowercase;
+}
+
+/* Pagination */
+[data-site-theme="developer"] .pagination__btn {
+    font-family: var(--font-family-mono);
+    border-radius: 2px;
+}
+
+[data-site-theme="developer"] .pagination__btn--active {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+/* Editor */
+[data-site-theme="developer"] .editor-pane__edit textarea {
+    font-family: var(--font-family-mono);
+    background-color: var(--color-background);
+    color: var(--color-neutral);
+}
+
+[data-site-theme="developer"] .editor-toolbar {
+    background-color: var(--color-surface);
+    border-color: var(--color-border);
+}
+
+/* Modal */
+[data-site-theme="developer"] .modal {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+}
+
+[data-site-theme="developer"] .modal__header {
+    background-color: var(--color-surface-hover);
+}
+
+/* Theme Toggle */
+[data-site-theme="developer"] .theme-toggle {
+    border-radius: var(--border-radius);
+}
+
+/* Placeholder Image - Striped pattern */
+[data-site-theme="developer"] .placeholder-image {
+    background: repeating-linear-gradient(
+        45deg,
+        var(--color-surface),
+        var(--color-surface) 10px,
+        var(--color-surface-hover) 10px,
+        var(--color-surface-hover) 20px
+    );
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+}

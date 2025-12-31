@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comment Moderation - Admin - TechieBlog 2.0</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <!-- Header -->
+        <header class="header">
+            <a href="01-home.html" class="header__logo">
+                <span>TechieBlog</span>
+                <span class="badge badge--primary" style="margin-left: var(--spacing-sm);">Admin</span>
+            </a>
+            <div class="header__actions">
+                <!-- Theme Toggle -->
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+                    <svg class="theme-toggle__moon" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+                    </svg>
+                    <svg class="theme-toggle__sun" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+                <a href="01-home.html" class="btn btn--secondary">View Site</a>
+                <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                    <div class="card__avatar"></div>
+                    <span class="hide-mobile">Admin User</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Admin Layout -->
+        <div class="admin-layout">
+            <!-- Admin Sidebar -->
+            <aside class="admin-sidebar">
+                <ul class="nav-menu">
+                    <li class="nav-menu__item">
+                        <a href="21-admin-dashboard.html" class="nav-menu__link">
+                            <span class="nav-menu__icon">&#128200;</span>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-menu__item">
+                        <a href="22-admin-posts.html" class="nav-menu__link">
+                            <span class="nav-menu__icon">&#128196;</span>
+                            <span>All Posts</span>
+                        </a>
+                    </li>
+                    <li class="nav-menu__item">
+                        <a href="23-admin-users.html" class="nav-menu__link">
+                            <span class="nav-menu__icon">&#128101;</span>
+                            <span>Users</span>
+                        </a>
+                    </li>
+                    <li class="nav-menu__item">
+                        <a href="24-admin-comments.html" class="nav-menu__link nav-menu__link--active">
+                            <span class="nav-menu__icon">&#128172;</span>
+                            <span>Comments</span>
+                            <span class="badge badge--warning" style="margin-left: auto;">5</span>
+                        </a>
+                    </li>
+                    <li class="nav-menu__item">
+                        <a href="25-admin-categories.html" class="nav-menu__link">
+                            <span class="nav-menu__icon">&#128193;</span>
+                            <span>Categories</span>
+                        </a>
+                    </li>
+                    <li class="nav-menu__item">
+                        <a href="26-admin-tags.html" class="nav-menu__link">
+                            <span class="nav-menu__icon">&#127991;</span>
+                            <span>Tags</span>
+                        </a>
+                    </li>
+                    <li class="nav-menu__item">
+                        <a href="27-admin-subscribers.html" class="nav-menu__link">
+                            <span class="nav-menu__icon">&#128231;</span>
+                            <span>Subscribers</span>
+                        </a>
+                    </li>
+                    <li class="nav-menu__item">
+                        <a href="28-admin-settings.html" class="nav-menu__link">
+                            <span class="nav-menu__icon">&#9881;</span>
+                            <span>Settings</span>
+                        </a>
+                    </li>
+                </ul>
+            </aside>
+
+            <!-- Admin Content -->
+            <main class="admin-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+                    <h1>Comment Moderation</h1>
+                </div>
+
+                <!-- Filters -->
+                <div style="display: flex; gap: var(--spacing-md); margin-bottom: var(--spacing-lg); flex-wrap: wrap;">
+                    <div class="tabs" style="border: none; margin: 0;">
+                        <span class="tabs__item tabs__item--active">Pending (5)</span>
+                        <span class="tabs__item">Approved (3,812)</span>
+                        <span class="tabs__item">Spam (25)</span>
+                    </div>
+                    <span style="flex: 1;"></span>
+                    <div class="search-box" style="width: 300px;">
+                        <span class="search-box__icon">
+                            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M8.5 3a5.5 5.5 0 014.383 8.823l3.896 3.9a.75.75 0 01-1.061 1.06l-3.895-3.897A5.5 5.5 0 118.5 3zm0 1.5a4 4 0 100 8 4 4 0 000-8z"/>
+                            </svg>
+                        </span>
+                        <input type="text" class="search-box__input form-input" placeholder="Search comments...">
+                    </div>
+                </div>
+
+                <!-- Pending Comments -->
+                <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
+                    <!-- Comment 1 -->
+                    <div style="border: 1px solid var(--color-warning); border-left: 4px solid var(--color-warning); border-radius: var(--border-radius-lg); padding: var(--spacing-lg); background: rgba(255, 185, 0, 0.05);">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--spacing-md);">
+                            <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                                <div class="card__avatar"></div>
+                                <div>
+                                    <span style="font-weight: var(--font-weight-semibold);">New Reader</span>
+                                    <span style="color: var(--color-neutral-light); font-size: var(--font-size-small);"> &bull; newreader@email.com</span>
+                                </div>
+                            </div>
+                            <span style="font-size: var(--font-size-xs); color: var(--color-neutral-light);">10 minutes ago</span>
+                        </div>
+                        <p style="margin-bottom: var(--spacing-md);">
+                            This is an amazing article! I've been looking for a comprehensive guide on Blazor components and this explains everything perfectly. Can you do a follow-up on state management?
+                        </p>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="font-size: var(--font-size-small); color: var(--color-neutral-light);">
+                                On: <a href="02-blog-post.html" style="color: var(--color-primary);">Understanding Blazor Components</a>
+                            </div>
+                            <div style="display: flex; gap: var(--spacing-sm);">
+                                <button class="btn btn--primary" style="padding: var(--spacing-xs) var(--spacing-md);">Approve</button>
+                                <button class="btn btn--secondary" style="padding: var(--spacing-xs) var(--spacing-md);">Reply</button>
+                                <button class="btn btn--secondary" style="padding: var(--spacing-xs) var(--spacing-md);">Spam</button>
+                                <button class="btn btn--secondary" style="padding: var(--spacing-xs) var(--spacing-md); color: var(--color-error);">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comment 2 -->
+                    <div style="border: 1px solid var(--color-warning); border-left: 4px solid var(--color-warning); border-radius: var(--border-radius-lg); padding: var(--spacing-lg); background: rgba(255, 185, 0, 0.05);">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--spacing-md);">
+                            <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                                <div class="card__avatar"></div>
+                                <div>
+                                    <span style="font-weight: var(--font-weight-semibold);">Tech Enthusiast</span>
+                                    <span style="color: var(--color-neutral-light); font-size: var(--font-size-small);"> &bull; tech.fan@email.com</span>
+                                </div>
+                            </div>
+                            <span style="font-size: var(--font-size-xs); color: var(--color-neutral-light);">25 minutes ago</span>
+                        </div>
+                        <p style="margin-bottom: var(--spacing-md);">
+                            Great tutorial! One question though - how does this compare with using MudBlazor instead of Fluent UI?
+                        </p>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="font-size: var(--font-size-small); color: var(--color-neutral-light);">
+                                On: <a href="02-blog-post.html" style="color: var(--color-primary);">Building Modern Blazor Applications</a>
+                            </div>
+                            <div style="display: flex; gap: var(--spacing-sm);">
+                                <button class="btn btn--primary" style="padding: var(--spacing-xs) var(--spacing-md);">Approve</button>
+                                <button class="btn btn--secondary" style="padding: var(--spacing-xs) var(--spacing-md);">Reply</button>
+                                <button class="btn btn--secondary" style="padding: var(--spacing-xs) var(--spacing-md);">Spam</button>
+                                <button class="btn btn--secondary" style="padding: var(--spacing-xs) var(--spacing-md); color: var(--color-error);">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comment 3 - Potential Spam -->
+                    <div style="border: 1px solid var(--color-error); border-left: 4px solid var(--color-error); border-radius: var(--border-radius-lg); padding: var(--spacing-lg); background: rgba(232, 17, 35, 0.05);">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--spacing-md);">
+                            <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                                <div class="card__avatar" style="background: var(--color-neutral-light);"></div>
+                                <div>
+                                    <span style="font-weight: var(--font-weight-semibold);">Anonymous</span>
+                                    <span style="color: var(--color-neutral-light); font-size: var(--font-size-small);"> &bull; no-email</span>
+                                    <span class="badge badge--error" style="margin-left: var(--spacing-xs);">Suspected Spam</span>
+                                </div>
+                            </div>
+                            <span style="font-size: var(--font-size-xs); color: var(--color-neutral-light);">1 hour ago</span>
+                        </div>
+                        <p style="margin-bottom: var(--spacing-md);">
+                            Check out this amazing website for free stuff! [link removed]
+                        </p>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="font-size: var(--font-size-small); color: var(--color-neutral-light);">
+                                On: <a href="02-blog-post.html" style="color: var(--color-primary);">PostgreSQL Best Practices</a>
+                            </div>
+                            <div style="display: flex; gap: var(--spacing-sm);">
+                                <button class="btn btn--secondary" style="padding: var(--spacing-xs) var(--spacing-md);">Not Spam</button>
+                                <button class="btn btn--primary" style="padding: var(--spacing-xs) var(--spacing-md); background: var(--color-error);">Confirm Spam</button>
+                                <button class="btn btn--secondary" style="padding: var(--spacing-xs) var(--spacing-md); color: var(--color-error);">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comment 4 -->
+                    <div style="border: 1px solid var(--color-warning); border-left: 4px solid var(--color-warning); border-radius: var(--border-radius-lg); padding: var(--spacing-lg); background: rgba(255, 185, 0, 0.05);">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--spacing-md);">
+                            <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                                <div class="card__avatar"></div>
+                                <div>
+                                    <span style="font-weight: var(--font-weight-semibold);">Developer Mike</span>
+                                    <span style="color: var(--color-neutral-light); font-size: var(--font-size-small);"> &bull; mike.dev@company.com</span>
+                                </div>
+                            </div>
+                            <span style="font-size: var(--font-size-xs); color: var(--color-neutral-light);">2 hours ago</span>
+                        </div>
+                        <p style="margin-bottom: var(--spacing-md);">
+                            Found a small typo in the code sample - line 15 should be "services.AddFluentUIComponents()" not "services.AddFluentUI()". Otherwise great article!
+                        </p>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="font-size: var(--font-size-small); color: var(--color-neutral-light);">
+                                On: <a href="02-blog-post.html" style="color: var(--color-primary);">Building Modern Blazor Applications</a>
+                            </div>
+                            <div style="display: flex; gap: var(--spacing-sm);">
+                                <button class="btn btn--primary" style="padding: var(--spacing-xs) var(--spacing-md);">Approve</button>
+                                <button class="btn btn--secondary" style="padding: var(--spacing-xs) var(--spacing-md);">Reply</button>
+                                <button class="btn btn--secondary" style="padding: var(--spacing-xs) var(--spacing-md);">Spam</button>
+                                <button class="btn btn--secondary" style="padding: var(--spacing-xs) var(--spacing-md); color: var(--color-error);">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comment 5 -->
+                    <div style="border: 1px solid var(--color-warning); border-left: 4px solid var(--color-warning); border-radius: var(--border-radius-lg); padding: var(--spacing-lg); background: rgba(255, 185, 0, 0.05);">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--spacing-md);">
+                            <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                                <div class="card__avatar"></div>
+                                <div>
+                                    <span style="font-weight: var(--font-weight-semibold);">Sarah Learning</span>
+                                    <span style="color: var(--color-neutral-light); font-size: var(--font-size-small);"> &bull; sarah@student.edu</span>
+                                </div>
+                            </div>
+                            <span style="font-size: var(--font-size-xs); color: var(--color-neutral-light);">3 hours ago</span>
+                        </div>
+                        <p style="margin-bottom: var(--spacing-md);">
+                            Thank you so much for this series! As a student learning .NET, these tutorials are incredibly helpful. Looking forward to more content!
+                        </p>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="font-size: var(--font-size-small); color: var(--color-neutral-light);">
+                                On: <a href="02-blog-post.html" style="color: var(--color-primary);">Understanding Blazor Components</a>
+                            </div>
+                            <div style="display: flex; gap: var(--spacing-sm);">
+                                <button class="btn btn--primary" style="padding: var(--spacing-xs) var(--spacing-md);">Approve</button>
+                                <button class="btn btn--secondary" style="padding: var(--spacing-xs) var(--spacing-md);">Reply</button>
+                                <button class="btn btn--secondary" style="padding: var(--spacing-xs) var(--spacing-md);">Spam</button>
+                                <button class="btn btn--secondary" style="padding: var(--spacing-xs) var(--spacing-md); color: var(--color-error);">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bulk Actions -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: var(--spacing-lg); padding-top: var(--spacing-lg); border-top: 1px solid var(--color-border);">
+                    <div style="display: flex; gap: var(--spacing-sm); align-items: center;">
+                        <input type="checkbox" id="selectAll">
+                        <label for="selectAll" style="font-size: var(--font-size-small);">Select All Pending</label>
+                        <button class="btn btn--primary" style="margin-left: var(--spacing-md);">Approve All Selected</button>
+                        <button class="btn btn--secondary">Mark All as Spam</button>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    <script>
+        // Theme Toggle Functionality
+        function toggleTheme() {
+            const root = document.documentElement;
+            const currentTheme = root.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Initialize theme from localStorage or system preference
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+</body>
+</html>

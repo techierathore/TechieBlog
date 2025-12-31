@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - TechieBlog 2.0</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <!-- Header -->
+        <header class="header">
+            <a href="01-home.html" class="header__logo">
+                <span>TechieBlog</span>
+                <span class="badge badge--primary" style="margin-left: var(--spacing-sm);">Admin</span>
+            </a>
+            <div class="header__actions">
+                <!-- Theme Toggle -->
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+                    <svg class="theme-toggle__moon" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+                    </svg>
+                    <svg class="theme-toggle__sun" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+                <a href="01-home.html" class="btn btn--secondary">View Site</a>
+                <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                    <div class="card__avatar"></div>
+                    <span class="hide-mobile">Admin User</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Admin Layout -->
+        <div class="admin-layout">
+            <!-- Admin Sidebar -->
+            <aside class="admin-sidebar">
+                <ul class="nav-menu">
+                    <li class="nav-menu__item">
+                        <a href="21-admin-dashboard.html" class="nav-menu__link nav-menu__link--active">
+                            <span class="nav-menu__icon">&#128200;</span>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-menu__item">
+                        <a href="22-admin-posts.html" class="nav-menu__link">
+                            <span class="nav-menu__icon">&#128196;</span>
+                            <span>All Posts</span>
+                        </a>
+                    </li>
+                    <li class="nav-menu__item">
+                        <a href="23-admin-users.html" class="nav-menu__link">
+                            <span class="nav-menu__icon">&#128101;</span>
+                            <span>Users</span>
+                        </a>
+                    </li>
+                    <li class="nav-menu__item">
+                        <a href="24-admin-comments.html" class="nav-menu__link">
+                            <span class="nav-menu__icon">&#128172;</span>
+                            <span>Comments</span>
+                            <span class="badge badge--warning" style="margin-left: auto;">5</span>
+                        </a>
+                    </li>
+                    <li class="nav-menu__item">
+                        <a href="25-admin-categories.html" class="nav-menu__link">
+                            <span class="nav-menu__icon">&#128193;</span>
+                            <span>Categories</span>
+                        </a>
+                    </li>
+                    <li class="nav-menu__item">
+                        <a href="26-admin-tags.html" class="nav-menu__link">
+                            <span class="nav-menu__icon">&#127991;</span>
+                            <span>Tags</span>
+                        </a>
+                    </li>
+                    <li class="nav-menu__item">
+                        <a href="27-admin-subscribers.html" class="nav-menu__link">
+                            <span class="nav-menu__icon">&#128231;</span>
+                            <span>Subscribers</span>
+                        </a>
+                    </li>
+                    <li class="nav-menu__item">
+                        <a href="28-admin-settings.html" class="nav-menu__link">
+                            <span class="nav-menu__icon">&#9881;</span>
+                            <span>Settings</span>
+                        </a>
+                    </li>
+                </ul>
+            </aside>
+
+            <!-- Admin Content -->
+            <main class="admin-content">
+                <h1 style="margin-bottom: var(--spacing-lg);">Dashboard</h1>
+
+                <!-- Stats Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-card__value">156</div>
+                        <div class="stat-card__label">Total Posts</div>
+                        <div style="font-size: var(--font-size-xs); color: var(--color-success); margin-top: var(--spacing-xs);">+12 this month</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card__value">1,247</div>
+                        <div class="stat-card__label">Total Users</div>
+                        <div style="font-size: var(--font-size-xs); color: var(--color-success); margin-top: var(--spacing-xs);">+89 this month</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card__value">3,842</div>
+                        <div class="stat-card__label">Comments</div>
+                        <div style="font-size: var(--font-size-xs); color: var(--color-warning); margin-top: var(--spacing-xs);">5 pending</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card__value">892</div>
+                        <div class="stat-card__label">Subscribers</div>
+                        <div style="font-size: var(--font-size-xs); color: var(--color-success); margin-top: var(--spacing-xs);">+45 this month</div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions & Pending Items -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-lg); margin-top: var(--spacing-xl);">
+                    <!-- Quick Actions -->
+                    <div style="border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); padding: var(--spacing-lg);">
+                        <h2 style="margin-bottom: var(--spacing-md);">Quick Actions</h2>
+                        <div style="display: flex; flex-wrap: wrap; gap: var(--spacing-sm);">
+                            <a href="17-post-editor.html" class="btn btn--primary">+ New Post</a>
+                            <a href="24-admin-comments.html" class="btn btn--secondary">Moderate Comments</a>
+                            <a href="27-admin-subscribers.html" class="btn btn--secondary">Send Newsletter</a>
+                            <a href="23-admin-users.html" class="btn btn--secondary">Manage Users</a>
+                        </div>
+                    </div>
+
+                    <!-- Pending Items -->
+                    <div style="border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); padding: var(--spacing-lg);">
+                        <h2 style="margin-bottom: var(--spacing-md);">Needs Attention</h2>
+                        <ul style="list-style: none; padding: 0; margin: 0;">
+                            <li style="display: flex; justify-content: space-between; padding: var(--spacing-sm) 0; border-bottom: 1px solid var(--color-border);">
+                                <span>Pending Comments</span>
+                                <a href="24-admin-comments.html" class="badge badge--warning">5</a>
+                            </li>
+                            <li style="display: flex; justify-content: space-between; padding: var(--spacing-sm) 0; border-bottom: 1px solid var(--color-border);">
+                                <span>Scheduled Posts</span>
+                                <a href="22-admin-posts.html" class="badge">3</a>
+                            </li>
+                            <li style="display: flex; justify-content: space-between; padding: var(--spacing-sm) 0;">
+                                <span>Draft Posts</span>
+                                <a href="22-admin-posts.html" class="badge">8</a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Recent Activity & Popular Posts -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-lg); margin-top: var(--spacing-xl);">
+                    <!-- Recent Activity -->
+                    <div style="border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); padding: var(--spacing-lg);">
+                        <h2 style="margin-bottom: var(--spacing-md);">Recent Activity</h2>
+                        <ul style="list-style: none; padding: 0; margin: 0;">
+                            <li style="display: flex; gap: var(--spacing-md); padding: var(--spacing-sm) 0; border-bottom: 1px solid var(--color-border);">
+                                <span style="width: 32px; height: 32px; background: var(--color-success); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px;">&#10003;</span>
+                                <div style="flex: 1;">
+                                    <div style="font-size: var(--font-size-small);">New post published</div>
+                                    <div style="font-size: var(--font-size-xs); color: var(--color-neutral-light);">Building Modern Blazor Applications</div>
+                                </div>
+                                <span style="font-size: var(--font-size-xs); color: var(--color-neutral-light);">2h ago</span>
+                            </li>
+                            <li style="display: flex; gap: var(--spacing-md); padding: var(--spacing-sm) 0; border-bottom: 1px solid var(--color-border);">
+                                <span style="width: 32px; height: 32px; background: var(--color-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px;">&#128100;</span>
+                                <div style="flex: 1;">
+                                    <div style="font-size: var(--font-size-small);">New user registered</div>
+                                    <div style="font-size: var(--font-size-xs); color: var(--color-neutral-light);">jane.reader@email.com</div>
+                                </div>
+                                <span style="font-size: var(--font-size-xs); color: var(--color-neutral-light);">3h ago</span>
+                            </li>
+                            <li style="display: flex; gap: var(--spacing-md); padding: var(--spacing-sm) 0; border-bottom: 1px solid var(--color-border);">
+                                <span style="width: 32px; height: 32px; background: var(--color-warning); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px;">&#128172;</span>
+                                <div style="flex: 1;">
+                                    <div style="font-size: var(--font-size-small);">New comment</div>
+                                    <div style="font-size: var(--font-size-xs); color: var(--color-neutral-light);">on "Understanding Blazor Components"</div>
+                                </div>
+                                <span style="font-size: var(--font-size-xs); color: var(--color-neutral-light);">5h ago</span>
+                            </li>
+                            <li style="display: flex; gap: var(--spacing-md); padding: var(--spacing-sm) 0;">
+                                <span style="width: 32px; height: 32px; background: var(--color-accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px;">&#128231;</span>
+                                <div style="flex: 1;">
+                                    <div style="font-size: var(--font-size-small);">New subscriber</div>
+                                    <div style="font-size: var(--font-size-xs); color: var(--color-neutral-light);">developer@example.com</div>
+                                </div>
+                                <span style="font-size: var(--font-size-xs); color: var(--color-neutral-light);">1d ago</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Popular Posts -->
+                    <div style="border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); padding: var(--spacing-lg);">
+                        <h2 style="margin-bottom: var(--spacing-md);">Popular Posts (This Month)</h2>
+                        <table class="data-grid">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th style="width: 80px;">Views</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="font-size: var(--font-size-small);">Building Modern Blazor Applications</td>
+                                    <td>1,234</td>
+                                </tr>
+                                <tr>
+                                    <td style="font-size: var(--font-size-small);">Understanding Blazor Components</td>
+                                    <td>987</td>
+                                </tr>
+                                <tr>
+                                    <td style="font-size: var(--font-size-small);">PostgreSQL Best Practices</td>
+                                    <td>756</td>
+                                </tr>
+                                <tr>
+                                    <td style="font-size: var(--font-size-small);">Clean Architecture Deep Dive</td>
+                                    <td>654</td>
+                                </tr>
+                                <tr>
+                                    <td style="font-size: var(--font-size-small);">C# Modern Features</td>
+                                    <td>543</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Charts Placeholder -->
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--spacing-lg); margin-top: var(--spacing-xl);">
+                    <div style="border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); padding: var(--spacing-lg);">
+                        <h2 style="margin-bottom: var(--spacing-md);">Views Over Time</h2>
+                        <div class="placeholder-image" style="width: 100%; height: 200px; border-radius: var(--border-radius);">
+                            Chart: Daily views for the last 30 days
+                        </div>
+                    </div>
+                    <div style="border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); padding: var(--spacing-lg);">
+                        <h2 style="margin-bottom: var(--spacing-md);">Posts by Category</h2>
+                        <div class="placeholder-image" style="width: 100%; height: 200px; border-radius: var(--border-radius);">
+                            Chart: Pie chart of posts per category
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    <script>
+        // Theme Toggle Functionality
+        function toggleTheme() {
+            const root = document.documentElement;
+            const currentTheme = root.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Initialize theme from localStorage or system preference
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+</body>
+</html>

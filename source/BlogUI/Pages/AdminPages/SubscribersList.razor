@@ -1,0 +1,392 @@
+@*
+    SubscribersList.razor
+    Purpose: Displays a list of newsletter subscribers for administration.
+    Provides filtering, searching, status toggle, and CSV export capabilities.
+
+    Usage: Navigate to /admin/subscribers
+    Dependencies: Microsoft.FluentUI.AspNetCore.Components, SubscriberSvc
+    Authorization: AdminOnly policy required
+*@
+@page "/admin/subscribers"
+@attribute [Authorize(Policy = "AdminOnly")]
+@layout BlogUI.Layouts.AdminLayout
+@inject BlogEngine.Services.SubscriberSvc SubscriberService
+@inject IJSRuntime JSRuntime
+
+<div class="subscribers-page">
+    @* Page Header *@
+    <div class="page-header">
+        <div class="page-header__title">
+            <h1>Subscribers</h1>
+            <span class="subscriber-count">@TotalCount total (@ActiveCount active)</span>
+        </div>
+        <FluentButton Appearance="Appearance.Accent" OnClick="ExportToCsv">
+            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowDownload())" Style="margin-right: 8px;" />
+            Export CSV
+        </FluentButton>
+    </div>
+
+    @* Status Messages *@
+    @if (!string.IsNullOrEmpty(StatusMessage))
+    {
+        <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
+                          Style="margin-bottom: 16px;">
+            @StatusMessage
+        </FluentMessageBar>
+    }
+
+    @* Filters Row *@
+    <div class="filters-row">
+        @* Status Tabs *@
+        <div class="status-tabs">
+            <span class="tabs__item @(StatusFilter == "all" ? "tabs__item--active" : "")"
+                  @onclick='() => SetFilter("all")'>
+                All (@TotalCount)
+            </span>
+            <span class="tabs__item @(StatusFilter == "active" ? "tabs__item--active" : "")"
+                  @onclick='() => SetFilter("active")'>
+                Active (@ActiveCount)
+            </span>
+            <span class="tabs__item @(StatusFilter == "inactive" ? "tabs__item--active" : "")"
+                  @onclick='() => SetFilter("inactive")'>
+                Inactive (@InactiveCount)
+            </span>
+        </div>
+
+        <span style="flex: 1;"></span>
+
+        @* Search Box *@
+        <div class="search-box">
+            <FluentIcon Value="@(new Icons.Regular.Size16.Search())" Color="Color.Neutral" />
+            <FluentTextField @bind-Value="SearchTerm"
+                             @bind-Value:after="ApplyFilter"
+                             Placeholder="Search by email..."
+                             Style="min-width: 200px;" />
+        </div>
+    </div>
+
+    @* Subscribers Table *@
+    <div class="table-container">
+        @if (SubscriberList == null)
+        {
+            <div style="padding: 32px; text-align: center;">
+                <FluentProgressRing />
+                <span style="display: block; margin-top: 8px;">Loading...</span>
+            </div>
+        }
+        else if (FilteredList == null || !FilteredList.Any())
+        {
+            <div style="padding: 32px; text-align: center; color: var(--color-neutral-light);">
+                @if (StatusFilter == "all" && string.IsNullOrEmpty(SearchTerm))
+                {
+                    <p>No subscribers yet. Subscribers will appear here when users sign up.</p>
+                }
+                else
+                {
+                    <p>No subscribers match your filters.</p>
+                    <FluentButton Appearance="Appearance.Outline" OnClick="ClearFilters">Clear Filters</FluentButton>
+                }
+            </div>
+        }
+        else
+        {
+            <table class="data-grid">
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th style="width: 180px;">Name</th>
+                        <th style="width: 150px;">Subscribed On</th>
+                        <th style="width: 100px;">Status</th>
+                        <th style="width: 120px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var subscriber in FilteredList)
+                    {
+                        <tr>
+                            <td class="subscriber-email">@subscriber.Email</td>
+                            <td>@subscriber.Name</td>
+                            <td>@subscriber.SubscribedOn.ToString("MMM dd, yyyy")</td>
+                            <td>
+                                @if (subscriber.IsActive)
+                                {
+                                    <span class="badge badge--success">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge--warning">Inactive</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    @if (subscriber.IsActive)
+                                    {
+                                        <FluentButton Appearance="Appearance.Stealth"
+                                                      OnClick="@(() => ToggleStatus(subscriber, false))"
+                                                      Title="Deactivate">
+                                            <FluentIcon Value="@(new Icons.Regular.Size16.PersonSubtract())" />
+                                        </FluentButton>
+                                    }
+                                    else
+                                    {
+                                        <FluentButton Appearance="Appearance.Stealth"
+                                                      OnClick="@(() => ToggleStatus(subscriber, true))"
+                                                      Title="Activate">
+                                            <FluentIcon Value="@(new Icons.Regular.Size16.PersonAdd())" Color="Color.Success" />
+                                        </FluentButton>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+<style>
+    .subscribers-page {
+        max-width: 1200px;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--spacing-lg, 24px);
+    }
+
+    .page-header__title {
+        display: flex;
+        align-items: baseline;
+        gap: var(--spacing-md, 16px);
+    }
+
+    .page-header h1 {
+        margin: 0;
+    }
+
+    .subscriber-count {
+        font-size: var(--font-size-small, 0.875rem);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .filters-row {
+        display: flex;
+        gap: var(--spacing-md, 16px);
+        margin-bottom: var(--spacing-lg, 24px);
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .status-tabs {
+        display: flex;
+        border-bottom: 1px solid var(--color-border, #E1E1E1);
+    }
+
+    .tabs__item {
+        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
+        font-size: var(--font-size-small, 0.875rem);
+        color: var(--color-neutral-light, #605E5C);
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+        cursor: pointer;
+        transition: all var(--transition-fast, 150ms ease);
+    }
+
+    .tabs__item:hover {
+        color: var(--color-neutral, #323130);
+    }
+
+    .tabs__item--active {
+        color: var(--color-primary, #0078D4);
+        border-bottom-color: var(--color-primary, #0078D4);
+    }
+
+    .search-box {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm, 8px);
+    }
+
+    .table-container {
+        border: 1px solid var(--color-border, #E1E1E1);
+        border-radius: var(--border-radius-lg, 8px);
+        overflow: hidden;
+        background-color: var(--color-background, #fff);
+    }
+
+    .data-grid {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--font-size-small, 0.875rem);
+    }
+
+    .data-grid th,
+    .data-grid td {
+        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
+        text-align: left;
+        border-bottom: 1px solid var(--color-border, #E1E1E1);
+    }
+
+    .data-grid th {
+        font-weight: var(--font-weight-semibold, 600);
+        background-color: var(--color-surface, #F5F5F5);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .data-grid tr:hover td {
+        background-color: var(--color-surface, #F5F5F5);
+    }
+
+    .subscriber-email {
+        font-weight: var(--font-weight-semibold, 600);
+    }
+
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px var(--spacing-sm, 8px);
+        font-size: var(--font-size-xs, 0.75rem);
+        font-weight: var(--font-weight-semibold, 600);
+        border-radius: var(--border-radius, 4px);
+        background-color: var(--color-surface, #F5F5F5);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .badge--success {
+        background-color: var(--color-success, #107C10);
+        color: white;
+    }
+
+    .badge--warning {
+        background-color: var(--color-warning, #FFB900);
+        color: var(--color-neutral, #323130);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 4px;
+    }
+</style>
+
+@code {
+    private List<Subscriber> SubscriberList;
+    private List<Subscriber> FilteredList;
+    private string StatusMessage = string.Empty;
+    private bool IsError = false;
+    private string SearchTerm = string.Empty;
+    private string StatusFilter = "all";
+
+    // Computed counts
+    private int TotalCount => SubscriberList?.Count ?? 0;
+    private int ActiveCount => SubscriberList?.Count(s => s.IsActive) ?? 0;
+    private int InactiveCount => SubscriberList?.Count(s => !s.IsActive) ?? 0;
+
+    protected override void OnInitialized()
+    {
+        LoadSubscribers();
+    }
+
+    private void LoadSubscribers()
+    {
+        try
+        {
+            SubscriberList = SubscriberService.GetAllSubscribers().ToList();
+            ApplyFilter();
+        }
+        catch
+        {
+            SubscriberList = new List<Subscriber>();
+            FilteredList = new List<Subscriber>();
+            StatusMessage = "Failed to load subscribers.";
+            IsError = true;
+        }
+    }
+
+    private void SetFilter(string filter)
+    {
+        StatusFilter = filter;
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        if (SubscriberList == null)
+        {
+            FilteredList = new List<Subscriber>();
+            return;
+        }
+
+        // Apply status filter
+        var filtered = StatusFilter switch
+        {
+            "active" => SubscriberList.Where(s => s.IsActive),
+            "inactive" => SubscriberList.Where(s => !s.IsActive),
+            _ => SubscriberList.AsEnumerable()
+        };
+
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(SearchTerm))
+        {
+            var searchLower = SearchTerm.ToLower();
+            filtered = filtered.Where(s =>
+                (s.Email?.ToLower().Contains(searchLower) ?? false) ||
+                (s.Name?.ToLower().Contains(searchLower) ?? false));
+        }
+
+        FilteredList = filtered.ToList();
+    }
+
+    private void ClearFilters()
+    {
+        StatusFilter = "all";
+        SearchTerm = string.Empty;
+        ApplyFilter();
+    }
+
+    private void ToggleStatus(Subscriber subscriber, bool newStatus)
+    {
+        var result = SubscriberService.UpdateSubscriberStatus(subscriber.SubscriberId, newStatus);
+        if (result.IsSuccess)
+        {
+            subscriber.IsActive = newStatus;
+            StatusMessage = $"Subscriber {(newStatus ? "activated" : "deactivated")} successfully.";
+            IsError = false;
+            ApplyFilter(); // Refresh the filtered list
+        }
+        else
+        {
+            StatusMessage = result.ErrorMessage;
+            IsError = true;
+        }
+    }
+
+    private async Task ExportToCsv()
+    {
+        try
+        {
+            var subscribers = SubscriberService.GetSubscribersForExport();
+            var csv = "Email,Name,SubscribedOn,Status\n";
+            foreach (var s in subscribers)
+            {
+                // Escape commas in fields
+                var name = s.Name?.Replace("\"", "\"\"") ?? "";
+                csv += $"\"{s.Email}\",\"{name}\",{s.SubscribedOn:yyyy-MM-dd},{(s.IsActive ? "Active" : "Inactive")}\n";
+            }
+
+            // Download file using JS interop
+            var fileName = $"subscribers-{DateTime.Now:yyyyMMdd}.csv";
+            await JSRuntime.InvokeVoidAsync("downloadCsv", fileName, csv);
+
+            StatusMessage = $"Exported {subscribers.Count()} subscribers.";
+            IsError = false;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Export failed: {ex.Message}";
+            IsError = true;
+        }
+    }
+}

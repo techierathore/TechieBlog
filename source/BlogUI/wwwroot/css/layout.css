@@ -1,0 +1,695 @@
+/* ==========================================================================
+   layout.css
+   Purpose: Layout-specific styles for TechieBlog main layout structure.
+   Extracted from mockups/styles.css for the Header, Footer, Sidebar, and
+   main content layout grid system.
+
+   Dependencies: CSS custom properties from Themes/_variables.css
+   Usage: Imported in _Host.cshtml for all public-facing pages
+
+   Layout Structure:
+   .layout > .header + .main-wrapper (.main-content + .sidebar) + .footer
+   ========================================================================== */
+
+/* ==========================================================================
+   LAYOUT CONTAINER
+   Root layout wrapper using flexbox for sticky footer pattern
+   ========================================================================== */
+
+.layout {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* ==========================================================================
+   HEADER COMPONENT
+   Sticky top navigation bar with logo, nav links, and action buttons
+   ========================================================================== */
+
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: var(--header-height);
+    padding: 0 var(--spacing-lg);
+    background-color: var(--color-background);
+    border-bottom: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Logo/brand link in header */
+.header__logo {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: var(--font-size-h3);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-neutral);
+    text-decoration: none;
+}
+
+.header__logo:hover {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+/* Navigation links container in header */
+.header__nav {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+}
+
+/* Individual nav link styling */
+.header__nav-link {
+    color: var(--color-neutral-light);
+    font-size: var(--font-size-small);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.header__nav-link:hover,
+.header__nav-link.active {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+/* Action buttons container (search, theme toggle, auth buttons) */
+.header__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+/* Hamburger menu button (mobile only) */
+.header__menu-btn {
+    display: none;
+    padding: var(--spacing-sm);
+    background: none;
+    border: none;
+    color: var(--color-neutral-light);
+    cursor: pointer;
+}
+
+.header__menu-btn:hover {
+    color: var(--color-primary);
+}
+
+/* ==========================================================================
+   MAIN CONTENT AREA
+   Flexible content wrapper with sidebar support
+   ========================================================================== */
+
+.main-wrapper {
+    display: flex;
+    flex: 1;
+    max-width: var(--max-content-width);
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+    width: 100%;
+}
+
+/* Primary content column */
+.main-content {
+    flex: 1;
+    min-width: 0; /* Prevents flex item overflow */
+}
+
+/* Full-width content variant (no sidebar) */
+.main-content--full {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* ==========================================================================
+   SIDEBAR COMPONENT
+   Right-aligned sidebar for widgets and secondary navigation
+   ========================================================================== */
+
+.sidebar {
+    width: var(--sidebar-width);
+    flex-shrink: 0;
+    padding-left: var(--spacing-xl);
+}
+
+/* Left-aligned sidebar variant */
+.sidebar--left {
+    padding-left: 0;
+    padding-right: var(--spacing-xl);
+}
+
+/* Sidebar content section (categories, tags, etc.) */
+.sidebar__section {
+    margin-bottom: var(--spacing-xl);
+}
+
+/* Sidebar section title */
+.sidebar__title {
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-neutral-light);
+    margin-bottom: var(--spacing-md);
+}
+
+/* ==========================================================================
+   FOOTER COMPONENT
+   Site-wide footer with copyright and links
+   ========================================================================== */
+
+.footer {
+    padding: var(--spacing-xl) var(--spacing-lg);
+    background-color: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    text-align: center;
+    font-size: var(--font-size-small);
+    color: var(--color-neutral-light);
+}
+
+.footer__content {
+    max-width: var(--max-content-width);
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.footer__links {
+    display: flex;
+    gap: var(--spacing-lg);
+}
+
+.footer__link {
+    color: var(--color-neutral-light);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.footer__link:hover {
+    color: var(--color-primary);
+}
+
+.footer__theme-indicator {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: var(--font-size-xs);
+    color: var(--color-neutral-light);
+}
+
+/* ==========================================================================
+   THEME TOGGLE BUTTON
+   Light/dark mode toggle button styling
+   ========================================================================== */
+
+.theme-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    color: var(--color-neutral-light);
+    transition: all var(--transition-fast);
+}
+
+.theme-toggle:hover {
+    background-color: var(--color-surface);
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.theme-toggle__icon {
+    width: 20px;
+    height: 20px;
+}
+
+/* Sun icon shown in dark mode, moon shown in light mode */
+.theme-toggle__sun {
+    display: none;
+}
+
+.theme-toggle__moon {
+    display: block;
+}
+
+[data-theme="dark"] .theme-toggle__sun {
+    display: block;
+}
+
+[data-theme="dark"] .theme-toggle__moon {
+    display: none;
+}
+
+/* ==========================================================================
+   MOBILE NAVIGATION DRAWER
+   Slide-out navigation for mobile devices
+   ========================================================================== */
+
+.mobile-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 200;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity var(--transition-normal), visibility var(--transition-normal);
+}
+
+.mobile-nav--open {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Backdrop overlay */
+.mobile-nav__backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* Drawer panel */
+.mobile-nav__drawer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100%;
+    background-color: var(--color-background);
+    box-shadow: var(--shadow-lg);
+    transform: translateX(-100%);
+    transition: transform var(--transition-normal);
+    display: flex;
+    flex-direction: column;
+}
+
+.mobile-nav--open .mobile-nav__drawer {
+    transform: translateX(0);
+}
+
+/* Drawer header with close button */
+.mobile-nav__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.mobile-nav__title {
+    font-size: var(--font-size-h3);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-neutral);
+}
+
+.mobile-nav__close {
+    padding: var(--spacing-sm);
+    background: none;
+    border: none;
+    color: var(--color-neutral-light);
+    cursor: pointer;
+}
+
+.mobile-nav__close:hover {
+    color: var(--color-primary);
+}
+
+/* Navigation links in drawer */
+.mobile-nav__links {
+    flex: 1;
+    padding: var(--spacing-md);
+    overflow-y: auto;
+}
+
+.mobile-nav__link {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    color: var(--color-neutral);
+    text-decoration: none;
+    border-radius: var(--border-radius);
+    transition: background-color var(--transition-fast);
+}
+
+.mobile-nav__link:hover,
+.mobile-nav__link.active {
+    background-color: var(--color-surface);
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+/* Footer section in drawer */
+.mobile-nav__footer {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-top: 1px solid var(--color-border);
+}
+
+/* ==========================================================================
+   RESPONSIVE HELPERS
+   Utility classes for showing/hiding elements at breakpoints
+   ========================================================================== */
+
+.hide-mobile {
+    display: block;
+}
+
+.show-mobile {
+    display: none;
+}
+
+.hide-tablet {
+    display: block;
+}
+
+.show-tablet {
+    display: none;
+}
+
+/* ==========================================================================
+   NAVIGATION MENU
+   Sidebar navigation menu for categories
+   ========================================================================== */
+
+.nav-menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nav-menu__link {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    color: var(--color-neutral);
+    text-decoration: none;
+    border-radius: var(--border-radius);
+    transition: all var(--transition-fast);
+}
+
+.nav-menu__link:hover {
+    background-color: var(--color-surface);
+    text-decoration: none;
+}
+
+.nav-menu__link--active {
+    background-color: var(--color-primary);
+    color: white;
+}
+
+/* ==========================================================================
+   TAGS CLOUD
+   Tag badges for sidebar
+   ========================================================================== */
+
+.tags-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+}
+
+.tag {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-xs);
+    background-color: var(--color-surface);
+    border-radius: var(--border-radius);
+    color: var(--color-neutral-light);
+    transition: all var(--transition-fast);
+}
+
+.tag:hover {
+    background-color: var(--color-primary);
+    color: white;
+    text-decoration: none;
+}
+
+/* ==========================================================================
+   SUBSCRIBE FORM
+   Newsletter subscription form in sidebar
+   ========================================================================== */
+
+.subscribe-form {
+    padding: var(--spacing-lg);
+    background-color: var(--color-surface);
+    border-radius: var(--border-radius-lg);
+}
+
+.subscribe-form__title {
+    font-size: var(--font-size-body);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--spacing-sm);
+}
+
+.subscribe-form__text {
+    font-size: var(--font-size-small);
+    color: var(--color-neutral-light);
+    margin-bottom: var(--spacing-md);
+}
+
+/* ==========================================================================
+   SEARCH BOX
+   Search input with icon
+   ========================================================================== */
+
+.search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-box__icon {
+    position: absolute;
+    left: var(--spacing-md);
+    color: var(--color-neutral-light);
+    pointer-events: none;
+}
+
+/* ==========================================================================
+   AUTH PAGE STYLES
+   Styles for authentication pages (login, register, forgot/reset password)
+   ========================================================================== */
+
+/* Auth page wrapper - centers the card vertically and horizontally */
+.auth-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    min-height: calc(100vh - var(--header-height, 56px) - 80px);
+    padding: var(--spacing-lg, 24px);
+}
+
+/* Auth card - the form container */
+.auth-card {
+    width: 100%;
+    max-width: 400px;
+    padding: var(--spacing-xl, 32px);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-lg, 8px);
+    box-shadow: var(--shadow-md);
+}
+
+/* Auth card header */
+.auth-card__header {
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.auth-card__title {
+    font-size: var(--font-size-h2);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-neutral);
+    margin: 0 0 var(--spacing-xs) 0;
+}
+
+.auth-card__subtitle {
+    font-size: var(--font-size-small);
+    color: var(--color-neutral-light);
+    margin: 0;
+}
+
+/* Auth card footer (switch between login/register) */
+.auth-card__footer {
+    text-align: center;
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid var(--color-border);
+    font-size: var(--font-size-small);
+    color: var(--color-neutral-light);
+}
+
+/* Auth links */
+.auth-link {
+    color: var(--color-primary);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.auth-link:hover {
+    color: var(--color-primary-dark, var(--color-primary));
+    text-decoration: underline;
+}
+
+.auth-link--small {
+    font-size: var(--font-size-small);
+}
+
+/* ==========================================================================
+   FORM STYLES
+   Form group, label, hint, and error/success message styles
+   ========================================================================== */
+
+/* Form group container */
+.form-group {
+    margin-bottom: var(--spacing-md);
+}
+
+/* Inline form group (checkbox + link on same row) */
+.form-group--inline {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Form label */
+.form-label {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-neutral);
+}
+
+/* Form hint text (password requirements, etc.) */
+.form-hint {
+    display: block;
+    margin-top: var(--spacing-xs);
+    font-size: var(--font-size-xs);
+    color: var(--color-neutral-light);
+}
+
+/* Form error message */
+.form-error {
+    display: block;
+    margin-top: var(--spacing-xs);
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-small);
+    color: var(--color-danger, #dc3545);
+    background-color: rgba(220, 53, 69, 0.1);
+    border: 1px solid var(--color-danger, #dc3545);
+    border-radius: var(--border-radius);
+}
+
+/* Form success message */
+.form-success {
+    display: block;
+    margin-top: var(--spacing-xs);
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-small);
+    color: var(--color-success, #28a745);
+    background-color: rgba(40, 167, 69, 0.1);
+    border: 1px solid var(--color-success, #28a745);
+    border-radius: var(--border-radius);
+}
+
+/* Form field error state */
+.form-field--error input,
+.form-field--error fluent-text-field {
+    border-color: var(--color-danger, #dc3545) !important;
+}
+
+/* ==========================================================================
+   RESPONSIVE BREAKPOINTS
+   Mobile: < 768px, Tablet: 768-1199px, Desktop: >= 1200px
+   ========================================================================== */
+
+/* Tablet Breakpoint (768px - 1199px) */
+@media (max-width: 1199px) {
+    .sidebar {
+        width: 240px;
+    }
+
+    .header__nav {
+        gap: var(--spacing-md);
+    }
+
+    .hide-tablet {
+        display: none;
+    }
+
+    .show-tablet {
+        display: block;
+    }
+}
+
+/* Mobile Breakpoint (< 768px) */
+@media (max-width: 767px) {
+    .main-wrapper {
+        flex-direction: column;
+        padding: var(--spacing-md);
+    }
+
+    .sidebar {
+        width: 100%;
+        padding-left: 0;
+        padding-top: var(--spacing-xl);
+        order: 2;
+    }
+
+    .sidebar--left {
+        padding-right: 0;
+        order: -1;
+        padding-top: 0;
+        padding-bottom: var(--spacing-xl);
+    }
+
+    /* Hide desktop nav on mobile */
+    .header__nav {
+        display: none;
+    }
+
+    /* Show hamburger menu on mobile */
+    .header__menu-btn {
+        display: flex;
+    }
+
+    .hide-mobile {
+        display: none !important;
+    }
+
+    .show-mobile {
+        display: block !important;
+    }
+
+    /* Footer stacks on mobile */
+    .footer__content {
+        gap: var(--spacing-md);
+    }
+
+    .footer__links {
+        flex-direction: column;
+        align-items: center;
+        gap: var(--spacing-sm);
+    }
+}

@@ -1,0 +1,267 @@
+@*
+    AddUser.razor
+    Purpose: Form to add a new user to the system.
+    Admins can create new users with specified roles.
+
+    Usage: Navigate to /AddUser
+    Dependencies: Microsoft.FluentUI.AspNetCore.Components, BlogUserRepo
+    Authorization: AdminOnly policy required
+*@
+@page "/AddUser"
+@attribute [Authorize(Policy = "AdminOnly")]
+@layout BlogUI.Layouts.AdminLayout
+@inject BlogModels.IBlogUserRepo UserRepo
+@inject NavigationManager Navigation
+
+<div class="add-user-page">
+    @* Page Header *@
+    <div class="page-header">
+        <div>
+            <h1>Add New User</h1>
+            <p class="page-subtitle">Create a new user account</p>
+        </div>
+        <FluentAnchor Href="/users" Appearance="Appearance.Outline">
+            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowLeft())" Style="margin-right: 4px;" />
+            Back to Users
+        </FluentAnchor>
+    </div>
+
+    @* Status Messages *@
+    @if (!string.IsNullOrEmpty(StatusMessage))
+    {
+        <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
+                          Style="margin-bottom: 16px;">
+            @StatusMessage
+        </FluentMessageBar>
+    }
+
+    @* User Form *@
+    <div class="form-card">
+        <EditForm Model="@NewUser" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">First Name *</label>
+                    <FluentTextField @bind-Value="NewUser.FirstName"
+                                     Placeholder="Enter first name"
+                                     Style="width: 100%;"
+                                     Required="true" />
+                    <ValidationMessage For="@(() => NewUser.FirstName)" />
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Last Name *</label>
+                    <FluentTextField @bind-Value="NewUser.LastName"
+                                     Placeholder="Enter last name"
+                                     Style="width: 100%;"
+                                     Required="true" />
+                    <ValidationMessage For="@(() => NewUser.LastName)" />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Email Address *</label>
+                <FluentTextField @bind-Value="NewUser.EmailId"
+                                 Placeholder="user@example.com"
+                                 Style="width: 100%;"
+                                 Required="true" />
+                <ValidationMessage For="@(() => NewUser.EmailId)" />
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Password *</label>
+                    <FluentTextField @bind-Value="Password"
+                                     TextFieldType="TextFieldType.Password"
+                                     Placeholder="Enter password"
+                                     Style="width: 100%;"
+                                     Required="true" />
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Confirm Password *</label>
+                    <FluentTextField @bind-Value="ConfirmPassword"
+                                     TextFieldType="TextFieldType.Password"
+                                     Placeholder="Confirm password"
+                                     Style="width: 100%;"
+                                     Required="true" />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Role *</label>
+                <FluentSelect TOption="string" @bind-Value="NewUser.UserRole" Style="width: 100%;">
+                    <FluentOption TOption="string" Value="Admin">Admin</FluentOption>
+                    <FluentOption TOption="string" Value="Editor">Editor</FluentOption>
+                    <FluentOption TOption="string" Value="Author">Author</FluentOption>
+                    <FluentOption TOption="string" Value="Contributor">Contributor</FluentOption>
+                    <FluentOption TOption="string" Value="Reader">Reader</FluentOption>
+                </FluentSelect>
+            </div>
+
+            <div class="form-actions">
+                <FluentButton Appearance="Appearance.Neutral"
+                              OnClick="Cancel"
+                              Type="ButtonType.Button">
+                    Cancel
+                </FluentButton>
+                <FluentButton Appearance="Appearance.Accent"
+                              Type="ButtonType.Submit"
+                              Disabled="@IsProcessing">
+                    @if (IsProcessing)
+                    {
+                        <FluentProgressRing Style="width: 16px; height: 16px; margin-right: 8px;" />
+                    }
+                    Create User
+                </FluentButton>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private BlogModels.Models.AppUser NewUser = new()
+    {
+        UserRole = "Reader",
+        CreatedOn = DateTime.UtcNow,
+        IsConfirmed = true
+    };
+
+    private string Password = "";
+    private string ConfirmPassword = "";
+    private string StatusMessage = "";
+    private bool IsError = false;
+    private bool IsProcessing = false;
+
+    private async Task HandleSubmit()
+    {
+        // Validate passwords match
+        if (Password != ConfirmPassword)
+        {
+            StatusMessage = "Passwords do not match.";
+            IsError = true;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(Password) || Password.Length < 6)
+        {
+            StatusMessage = "Password must be at least 6 characters.";
+            IsError = true;
+            return;
+        }
+
+        try
+        {
+            IsProcessing = true;
+            StateHasChanged();
+
+            // Check if email already exists
+            var existingUser = UserRepo.GetUserByEmail(NewUser.EmailId);
+            if (existingUser != null)
+            {
+                StatusMessage = "A user with this email already exists.";
+                IsError = true;
+                return;
+            }
+
+            // Hash the password (using simple hash for now)
+            NewUser.LoginPass = HashPassword(Password);
+
+            // Insert the user
+            UserRepo.Insert(NewUser);
+
+            StatusMessage = $"User '{NewUser.FirstName} {NewUser.LastName}' created successfully!";
+            IsError = false;
+
+            // Wait a moment then redirect
+            await Task.Delay(1500);
+            Navigation.NavigateTo("/users");
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error creating user: {ex.Message}";
+            IsError = true;
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/users");
+    }
+
+    private string HashPassword(string password)
+    {
+        // Simple SHA256 hash - in production, use proper password hashing like BCrypt
+        using var sha256 = System.Security.Cryptography.SHA256.Create();
+        var hashedBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
+        return Convert.ToBase64String(hashedBytes);
+    }
+}
+
+<style>
+    .add-user-page {
+        max-width: 800px;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: var(--spacing-lg, 24px);
+    }
+
+    .page-header h1 {
+        margin: 0 0 var(--spacing-xs, 4px) 0;
+    }
+
+    .page-subtitle {
+        margin: 0;
+        font-size: var(--font-size-small, 0.875rem);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .form-card {
+        border: 1px solid var(--color-border, #E1E1E1);
+        border-radius: var(--border-radius-lg, 8px);
+        padding: var(--spacing-xl, 32px);
+        background-color: var(--color-background, #fff);
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--spacing-md, 16px);
+    }
+
+    @@media (max-width: 600px) {
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .form-group {
+        margin-bottom: var(--spacing-md, 16px);
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: var(--spacing-xs, 4px);
+        font-size: var(--font-size-small, 0.875rem);
+        font-weight: var(--font-weight-semibold, 600);
+        color: var(--color-neutral, #323130);
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--spacing-md, 16px);
+        margin-top: var(--spacing-lg, 24px);
+        padding-top: var(--spacing-lg, 24px);
+        border-top: 1px solid var(--color-border, #E1E1E1);
+    }
+</style>

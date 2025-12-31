@@ -1,5 +1,62 @@
-﻿@* TODO: This layout needs to be changed in order to  Show Blog for defualt  *@
-@using BlogModels.Models
-@inherits LayoutComponentBase
-@* TODO: This layout needs to be changed in order to  Show Blog for defualt  *@
+@*
+    MainLayout.razor
+    Purpose: Primary layout wrapper for public-facing TechieBlog pages.
+    Provides the complete layout structure with Header, Sidebar, Footer,
+    and MobileNav components. Uses Fluent UI design system integration
+    and CSS custom properties from theme files for consistent styling.
 
+    Layout Structure:
+    .layout > Header + .main-wrapper (.main-content + Sidebar) + Footer + MobileNav
+
+    Usage: Applied to public blog pages (Home, PostView, Archives, etc.)
+    Dependencies: Microsoft.FluentUI.AspNetCore.Components, ThemeService,
+                  Header, Footer, Sidebar, MobileNav components
+*@
+
+@using BlogModels.Models
+@using BlogUI
+@inherits LayoutComponentBase
+
+<div class="layout">
+    @* Header Component - Sticky top navigation *@
+    <Header OnMenuClick="OpenMobileNav" />
+
+    @* Main Content Area with Sidebar *@
+    <div class="main-wrapper">
+        @* Primary Content Column *@
+        <main class="main-content">
+            @Body
+        </main>
+
+        @* Sidebar Component - Categories, Tags, Subscribe *@
+        <Sidebar />
+    </div>
+
+    @* Footer Component - Copyright, Links, Theme Indicator *@
+    <Footer />
+
+    @* Mobile Navigation Drawer - Slide-out menu for mobile *@
+    <MobileNav IsOpen="@isMobileNavOpen" OnClose="CloseMobileNav" />
+</div>
+
+@code {
+    private bool isMobileNavOpen = false;
+
+    /// <summary>
+    /// Opens the mobile navigation drawer.
+    /// Called when hamburger menu button in Header is clicked.
+    /// </summary>
+    private void OpenMobileNav()
+    {
+        isMobileNavOpen = true;
+    }
+
+    /// <summary>
+    /// Closes the mobile navigation drawer.
+    /// Called when backdrop or close button in MobileNav is clicked.
+    /// </summary>
+    private void CloseMobileNav()
+    {
+        isMobileNavOpen = false;
+    }
+}

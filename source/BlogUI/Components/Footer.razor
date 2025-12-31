@@ -1,0 +1,71 @@
+@*
+    Footer.razor
+    Purpose: Site-wide footer component for TechieBlog.
+    Displays copyright text with dynamic year, navigation links,
+    and current theme mode indicator.
+
+    Dependencies: ThemeService for theme state display
+    Usage: Placed at bottom of MainLayout.razor
+*@
+
+@using BlogUI
+@implements IDisposable
+@inject ThemeService ThemeService
+
+<footer class="footer">
+    <div class="footer__content">
+        @* Copyright Notice with Dynamic Year *@
+        <p>&copy; @DateTime.Now.Year TechieBlog. All rights reserved.</p>
+
+        @* Footer Navigation Links *@
+        <div class="footer__links">
+            <a href="/about" class="footer__link">About</a>
+            <a href="/rss" class="footer__link">RSS Feed</a>
+        </div>
+
+        @* Theme Mode Indicator *@
+        <div class="footer__theme-indicator">
+            @if (isDarkMode)
+            {
+                <FluentIcon Value="@(new Icons.Regular.Size16.WeatherMoon())" />
+                <span>Dark Mode</span>
+            }
+            else
+            {
+                <FluentIcon Value="@(new Icons.Regular.Size16.WeatherSunny())" />
+                <span>Light Mode</span>
+            }
+        </div>
+    </div>
+</footer>
+
+@code {
+    private bool isDarkMode = false;
+
+    /// <summary>
+    /// Initializes the component by loading the current dark mode state
+    /// and subscribing to theme change events.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        isDarkMode = await ThemeService.GetDarkModeAsync();
+        ThemeService.OnThemeChanged += HandleThemeChanged;
+    }
+
+    /// <summary>
+    /// Handles theme change events from ThemeService to update the indicator.
+    /// </summary>
+    private void HandleThemeChanged(string theme, bool darkMode)
+    {
+        isDarkMode = darkMode;
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Unsubscribes from theme change events when component is disposed.
+    /// </summary>
+    public void Dispose()
+    {
+        ThemeService.OnThemeChanged -= HandleThemeChanged;
+    }
+}

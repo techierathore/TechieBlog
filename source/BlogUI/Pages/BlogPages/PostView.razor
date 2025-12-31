@@ -1,0 +1,384 @@
+@*
+    PostView.razor
+    Purpose: Individual blog post detail page for TechieBlog.
+    Displays full article content with author info, ratings, tags, and comments section.
+
+    Dependencies: Breadcrumb, StarRating, PostCard components, FullWidthLayout, BlogSvc
+    Layout: Uses FullWidthLayout (no sidebar - content focused)
+*@
+
+@page "/post/{Slug}"
+@layout FullWidthLayout
+@inject BlogEngine.Services.BlogSvc BlogService
+@inject BlogEngine.Services.SeriesSvc SeriesService
+@inject BlogEngine.Services.FavoriteSvc FavoriteService
+@inject BlogEngine.Common.MarkdownRenderer MarkdownRenderer
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+@if (isLoading)
+{
+    <div class="loading-container" style="display: flex; justify-content: center; padding: 48px;">
+        <FluentProgressRing />
+        <span style="margin-left: 12px;">Loading post...</span>
+    </div>
+}
+else if (notFound)
+{
+    <div class="not-found" style="text-align: center; padding: 48px;">
+        <FluentIcon Value="@(new Icons.Regular.Size48.ShieldError())" Color="Color.Error" />
+        <h1>Post Not Found</h1>
+        <p>The post you're looking for doesn't exist or has been removed.</p>
+        <FluentAnchor Href="/" Appearance="Appearance.Accent">
+            Return to Home
+        </FluentAnchor>
+    </div>
+}
+else if (blogPost != null)
+{
+    @* Breadcrumb Navigation *@
+    <Breadcrumb Items="@breadcrumbItems" />
+
+    @* Article *@
+    <article>
+        @* Article Header *@
+        <header class="article__header">
+            <div class="article__header-top">
+                <span class="article__category">@GetCategory(blogPost.Tags)</span>
+                <FavoriteToggle PostId="@blogPost.PostID"
+                               IsFavorited="@isFavorited"
+                               IsLoggedIn="@isAuthenticated"
+                               UserId="@currentUserId"
+                               ShowCount="true"
+                               FavoriteCount="@favoriteCount"
+                               OnToggle="@HandleFavoriteToggle" />
+            </div>
+            <h1 class="article__title">@blogPost.Title</h1>
+            <div class="article__meta">
+                <div class="card__author">
+                    <div class="card__avatar"></div>
+                    <span>@(string.IsNullOrEmpty(blogPost.BlogWriter) ? "Unknown Author" : blogPost.BlogWriter)</span>
+                </div>
+                <span>@blogPost.CreatedOn.ToString("MMMM dd, yyyy")</span>
+                <span>@GetReadingTime(blogPost.PostContent)</span>
+            </div>
+        </header>
+
+        <style>
+            .article__header-top {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 8px;
+            }
+        </style>
+
+        @* Article Content *@
+        <div class="article__content">
+            @if (!string.IsNullOrEmpty(blogPost.Abstract))
+            {
+                <p class="article__excerpt"><em>@blogPost.Abstract</em></p>
+            }
+            @* Render content - in a real app, you'd use a Markdown renderer *@
+            @((MarkupString)RenderContent(blogPost.PostContent))
+        </div>
+
+        @* Series Navigation - shown when post is part of a series *@
+        @if (seriesNavigation != null)
+        {
+            <div class="series-navigation" style="margin: 32px 0; padding: 24px; background: var(--neutral-layer-2); border-radius: 8px; border: 1px solid var(--neutral-stroke-rest);">
+                <div style="margin-bottom: 16px;">
+                    <FluentBadge Appearance="Appearance.Accent">Series</FluentBadge>
+                    <h3 style="margin: 8px 0 4px 0;">
+                        <a href="/series/@seriesNavigation.SeriesSlug" style="color: inherit; text-decoration: none;">
+                            @seriesNavigation.SeriesName
+                        </a>
+                    </h3>
+                    <span style="color: var(--neutral-foreground-hint); font-size: 0.9rem;">
+                        Part @seriesNavigation.CurrentPart of @seriesNavigation.TotalParts
+                    </span>
+                </div>
+                <div style="display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+                    @if (seriesNavigation.PreviousPost != null)
+                    {
+                        <a href="/post/@seriesNavigation.PreviousPost.Slug" style="flex: 1; min-width: 200px; padding: 12px; background: var(--neutral-layer-3); border-radius: 4px; text-decoration: none; color: inherit;">
+                            <div style="font-size: 0.8rem; color: var(--neutral-foreground-hint); margin-bottom: 4px;">
+                                <FluentIcon Value="@(new Icons.Regular.Size16.ArrowLeft())" Style="vertical-align: middle;" />
+                                Previous Part
+                            </div>
+                            <div style="font-weight: 500;">@seriesNavigation.PreviousPost.Title</div>
+                        </a>
+                    }
+                    else
+                    {
+                        <div style="flex: 1; min-width: 200px;"></div>
+                    }
+                    @if (seriesNavigation.NextPost != null)
+                    {
+                        <a href="/post/@seriesNavigation.NextPost.Slug" style="flex: 1; min-width: 200px; padding: 12px; background: var(--neutral-layer-3); border-radius: 4px; text-decoration: none; color: inherit; text-align: right;">
+                            <div style="font-size: 0.8rem; color: var(--neutral-foreground-hint); margin-bottom: 4px;">
+                                Next Part
+                                <FluentIcon Value="@(new Icons.Regular.Size16.ArrowRight())" Style="vertical-align: middle;" />
+                            </div>
+                            <div style="font-weight: 500;">@seriesNavigation.NextPost.Title</div>
+                        </a>
+                    }
+                    else if (seriesNavigation.TotalParts > seriesNavigation.CurrentPart)
+                    {
+                        <div style="flex: 1; min-width: 200px; padding: 12px; background: var(--neutral-layer-3); border-radius: 4px; text-align: right; opacity: 0.7;">
+                            <div style="font-size: 0.8rem; color: var(--neutral-foreground-hint); margin-bottom: 4px;">
+                                Next Part
+                                <FluentIcon Value="@(new Icons.Regular.Size16.ArrowRight())" Style="vertical-align: middle;" />
+                            </div>
+                            <div style="font-weight: 500; font-style: italic;">Coming Soon</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        @* Tags *@
+        @if (!string.IsNullOrWhiteSpace(blogPost.Tags))
+        {
+            <div class="article__tags">
+                <strong>Tags:</strong>
+                <div class="tags-cloud tags-cloud--inline">
+                    @foreach (var tag in GetTags(blogPost.Tags))
+                    {
+                        <a href="/tag/@GetSlug(tag)" class="tag">@tag</a>
+                    }
+                </div>
+            </div>
+        }
+
+        @* Author Card *@
+        <div class="author-card">
+            <div class="author-card__avatar"></div>
+            <div class="author-card__content">
+                <h3 class="author-card__name">@blogPost.BlogWriter</h3>
+                <p class="author-card__bio">
+                    Author of this post.
+                </p>
+            </div>
+        </div>
+
+        @* Related Posts *@
+        @if (relatedPosts != null && relatedPosts.Count > 0)
+        {
+            <section class="related-posts">
+                <h2>More Posts</h2>
+                <div class="post-grid post-grid--three">
+                    @foreach (var related in relatedPosts)
+                    {
+                        <article class="card card--compact">
+                            <div class="card__image placeholder-image">Image</div>
+                            <div class="card__body">
+                                <span class="card__category">@GetCategory(related.Tags)</span>
+                                <h3 class="card__title">
+                                    <a href="/post/@related.Slug">@related.Title</a>
+                                </h3>
+                            </div>
+                        </article>
+                    }
+                </div>
+            </section>
+        }
+
+        @* Comments Section *@
+        <section class="comments-section">
+            <h2>Comments</h2>
+            <div class="comments__form">
+                <p class="comments__login-prompt">
+                    <a href="/admin/login">Login</a> to leave a comment
+                </p>
+                <FluentTextArea Placeholder="Write your comment..." Style="width: 100%;" Disabled="true" />
+                <FluentButton Appearance="Appearance.Accent" Disabled="true" Style="margin-top: var(--spacing-sm);">
+                    Post Comment
+                </FluentButton>
+            </div>
+        </section>
+    </article>
+}
+
+@code {
+    /// <summary>
+    /// Post slug from URL route parameter.
+    /// </summary>
+    [Parameter]
+    public string Slug { get; set; } = string.Empty;
+
+    private List<Breadcrumb.BreadcrumbItem> breadcrumbItems = new();
+    private BlogModels.BlogPost blogPost;
+    private List<BlogModels.BlogPost> relatedPosts = new();
+    private BlogModels.SeriesNavigation seriesNavigation;
+    private bool isLoading = true;
+    private bool notFound = false;
+    
+    // Favorite state (FIX-014)
+    private bool isAuthenticated = false;
+    private long currentUserId = 0;
+    private bool isFavorited = false;
+    private int favoriteCount = 0;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadPost();
+    }
+
+    private async Task LoadPost()
+    {
+        isLoading = true;
+        notFound = false;
+
+        try
+        {
+            blogPost = BlogService.GetPostBySlug(Slug);
+
+            if (blogPost == null || !blogPost.Published)
+            {
+                notFound = true;
+            }
+            else
+            {
+                // Setup breadcrumb
+                breadcrumbItems = new List<Breadcrumb.BreadcrumbItem>
+                {
+                    new Breadcrumb.BreadcrumbItem { Label = "Home", Url = "/" },
+                    new Breadcrumb.BreadcrumbItem { Label = GetCategory(blogPost.Tags), Url = $"/category/{GetSlug(GetCategory(blogPost.Tags))}" },
+                    new Breadcrumb.BreadcrumbItem { Label = blogPost.Title, Url = "" }
+                };
+
+                // Load related posts (other recent posts)
+                var allPosts = BlogService.GetPublishedPosts(4, 0);
+                relatedPosts = allPosts
+                    .Where(p => p.PostID != blogPost.PostID)
+                    .Take(3)
+                    .ToList();
+
+                // Load series navigation if post is part of a series
+                if (blogPost.SeriesId.HasValue)
+                {
+                    seriesNavigation = SeriesService.GetSeriesNavigation(blogPost.PostID);
+                }
+                else
+                {
+                    seriesNavigation = null;
+                }
+
+                // Load favorite state (FIX-014)
+                await LoadFavoriteState();
+            }
+        }
+        catch
+        {
+            notFound = true;
+        }
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Loads the current user's favorite state for this post.
+    /// </summary>
+    private async Task LoadFavoriteState()
+    {
+        try
+        {
+            // Get authentication state
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                isAuthenticated = true;
+                var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.PrimarySid)?.Value;
+                if (long.TryParse(userIdClaim, out var userId))
+                {
+                    currentUserId = userId;
+                    isFavorited = FavoriteService.IsFavorited(blogPost.PostID, userId);
+                }
+            }
+            else
+            {
+                isAuthenticated = false;
+            }
+
+            // Get favorite count for the post
+            favoriteCount = FavoriteService.GetFavoriteCount(blogPost.PostID);
+        }
+        catch
+        {
+            isAuthenticated = false;
+            isFavorited = false;
+            favoriteCount = 0;
+        }
+    }
+
+    /// <summary>
+    /// Handles favorite toggle from the FavoriteToggle component.
+    /// </summary>
+    private void HandleFavoriteToggle(bool newState)
+    {
+        isFavorited = newState;
+        // Count is updated by the component
+    }
+
+    /// <summary>
+    /// Gets the first tag as category, or "General".
+    /// </summary>
+    private string GetCategory(string tags)
+    {
+        if (string.IsNullOrWhiteSpace(tags))
+            return "General";
+
+        var firstTag = tags.Split(',').FirstOrDefault()?.Trim();
+        return string.IsNullOrEmpty(firstTag) ? "General" : firstTag;
+    }
+
+    /// <summary>
+    /// Gets all tags as a list.
+    /// </summary>
+    private List<string> GetTags(string tags)
+    {
+        if (string.IsNullOrWhiteSpace(tags))
+            return new List<string>();
+
+        return tags.Split(',')
+            .Select(t => t.Trim())
+            .Where(t => !string.IsNullOrEmpty(t))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Creates a URL-friendly slug from text.
+    /// </summary>
+    private string GetSlug(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return string.Empty;
+
+        return text.ToLowerInvariant()
+            .Replace(" ", "-")
+            .Replace("#", "sharp");
+    }
+
+    /// <summary>
+    /// Gets reading time from content.
+    /// </summary>
+    private string GetReadingTime(string content)
+    {
+        return BlogEngine.Common.ReadingTimeCalculator.Calculate(content);
+    }
+
+    /// <summary>
+    /// Renders Markdown content to HTML using Markdig.
+    /// </summary>
+    private string RenderContent(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            return "<p>No content available.</p>";
+
+        return MarkdownRenderer.ToHtml(content);
+    }
+}

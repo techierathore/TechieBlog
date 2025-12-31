@@ -1,34 +1,64 @@
-﻿@layout BlogUI.Layouts.AuthLayout
-@* @page "/" *@
+@*
+    LoginPage.razor
+    Purpose: Login page for user authentication.
+    Displays email/password form with remember me and forgot password link.
+    Converted from mockups/08-login.html.
+
+    Dependencies: AuthLayout, Fluent UI form components
+    Layout: Uses AuthLayout (centered card)
+*@
+
+@layout BlogUI.Layouts.AuthLayout
+@page "/login"
 @page "/LoginPage"
 @page "/LoginPage/{PageCode}"
 
+<div class="auth-card__header">
+    <h1 class="auth-card__title">Welcome Back</h1>
+</div>
+
 <EditForm Model="@LoginDetails" OnValidSubmit="@ValidateUser">
-    <div>
-        <br /><br /><br /><br /><br />
+    <div class="form-group">
+        <label class="form-label" for="email">Email</label>
+        <FluentTextField Id="email"
+                         TextFieldType="TextFieldType.Email"
+                         Placeholder="your@email.com"
+                         Required="true"
+                         Style="width: 100%;"
+                         @bind-Value="LoginDetails.LoginEmail" />
     </div>
-    <div>
-        <h3 style="font-weight:bold; color:purple">Login</h3>
+
+    <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <FluentTextField Id="password"
+                         TextFieldType="TextFieldType.Password"
+                         Placeholder="Enter your password"
+                         Required="true"
+                         Style="width: 100%;"
+                         @bind-Value="LoginDetails.LoginPass" />
     </div>
-    <div>
-        <br />
+
+    <div class="form-group form-group--inline">
+        <FluentCheckbox @bind-Value="rememberMe">Remember me</FluentCheckbox>
+        <a href="/forgot-password" class="auth-link auth-link--small">Forgot password?</a>
     </div>
-    <div class="col-12 row">
-        <input class="form-control col-12" @bind="LoginDetails.LoginEmail" placeholder="Enter email" />
-    </div>
-    <br />
-    <div class="col-12 row">
-        <input type="password" class="form-control col-12" @bind="LoginDetails.LoginPass" placeholder="Enter Password" />
-    </div>
-    <br />
-    <div class="col-12 row">
-        <span class="col-12"></span>
-        <input type="submit" class="form-control col-6 btn btn-primary" value="Login" />
-        <a href="/signup" class="col-6"> Sign up</a>
-    </div>
-    <br />
-    <div class="col-12 row" style="text-align:left; font-weight:bold">
-        <span class="col-12">@LoginMesssage</span>
-    </div>
+
+    @if (!string.IsNullOrEmpty(LoginMesssage))
+    {
+        <div class="form-error">@LoginMesssage</div>
+    }
+
+    <FluentButton Type="ButtonType.Submit"
+                  Appearance="Appearance.Accent"
+                  Style="width: 100%; margin-top: var(--spacing-md, 16px);">
+        Sign In
+    </FluentButton>
 </EditForm>
 
+<div class="auth-card__footer">
+    Don't have an account? <a href="/register" class="auth-link">Sign up</a>
+</div>
+
+@code {
+    private bool rememberMe = false;
+}

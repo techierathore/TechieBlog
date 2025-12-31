@@ -1,0 +1,202 @@
+@*
+    ProfilePage.razor
+    Purpose: User profile management page.
+    Allows users to update profile information and change password.
+
+    Dependencies: AdminLayout, AuthSvc, Fluent UI form components
+    Authorization: Authenticated users only
+*@
+
+@page "/profile"
+@attribute [Authorize]
+@layout BlogUI.Layouts.AdminLayout
+@inject BlogEngine.Services.AuthSvc AuthService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>My Profile - TechieBlog</PageTitle>
+
+<ContentPanel PanelTitle="My Profile">
+    <RightSection></RightSection>
+    <PanelContent>
+        @if (isLoading)
+        {
+            <div style="display: flex; justify-content: center; padding: 48px;">
+                <FluentProgressRing />
+                <span style="margin-left: 12px;">Loading profile...</span>
+            </div>
+        }
+        else if (currentUser == null)
+        {
+            <FluentMessageBar Intent="MessageIntent.Error" Style="margin-bottom: 16px;">
+                Unable to load profile. Please try logging in again.
+            </FluentMessageBar>
+            <FluentAnchor Href="/admin/login" Appearance="Appearance.Accent">
+                Go to Login
+            </FluentAnchor>
+        }
+        else
+        {
+            @* Profile Information Section *@
+            <FluentCard Style="padding: 24px; margin-bottom: 24px;">
+                <h2 style="margin-top: 0; margin-bottom: 16px; font-size: 1.25rem;">Profile Information</h2>
+
+                <EditForm Model="@profileModel" OnValidSubmit="@SaveProfile">
+                    <DataAnnotationsValidator />
+
+                    <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px; max-width: 600px;">
+                        <FluentStack Orientation="Orientation.Horizontal" Style="gap: 16px;">
+                            <div style="flex: 1;">
+                                <FluentTextField Label="First Name"
+                                                 @bind-Value="profileModel.FirstName"
+                                                 Required="true"
+                                                 Style="width: 100%;"
+                                                 Disabled="@isSavingProfile" />
+                            </div>
+                            <div style="flex: 1;">
+                                <FluentTextField Label="Last Name"
+                                                 @bind-Value="profileModel.LastName"
+                                                 Required="true"
+                                                 Style="width: 100%;"
+                                                 Disabled="@isSavingProfile" />
+                            </div>
+                        </FluentStack>
+
+                        <div>
+                            <FluentTextField Label="Email"
+                                             Value="@currentUser.EmailId"
+                                             ReadOnly="true"
+                                             Style="width: 100%;">
+                                <FluentLabel Slot="end" Style="color: var(--neutral-foreground-hint); font-size: 0.85rem;">
+                                    Cannot be changed
+                                </FluentLabel>
+                            </FluentTextField>
+                        </div>
+
+                        <div>
+                            <FluentTextArea Label="Bio / Description"
+                                            @bind-Value="profileModel.ProfileDescription"
+                                            Rows="4"
+                                            Placeholder="Tell us about yourself..."
+                                            Style="width: 100%;"
+                                            Disabled="@isSavingProfile" />
+                        </div>
+
+                        <h3 style="margin-top: 8px; margin-bottom: 0; font-size: 1rem;">Social Links</h3>
+
+                        <div>
+                            <FluentTextField Label="Twitter URL"
+                                             @bind-Value="profileModel.TwitterUrl"
+                                             Placeholder="https://twitter.com/username"
+                                             Style="width: 100%;"
+                                             Disabled="@isSavingProfile" />
+                        </div>
+
+                        <div>
+                            <FluentTextField Label="LinkedIn URL"
+                                             @bind-Value="profileModel.LinkedInUrl"
+                                             Placeholder="https://linkedin.com/in/username"
+                                             Style="width: 100%;"
+                                             Disabled="@isSavingProfile" />
+                        </div>
+
+                        <div>
+                            <FluentTextField Label="GitHub URL"
+                                             @bind-Value="profileModel.GitHubUrl"
+                                             Placeholder="https://github.com/username"
+                                             Style="width: 100%;"
+                                             Disabled="@isSavingProfile" />
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(profileMessage))
+                        {
+                            <FluentMessageBar Intent="@(profileSuccess ? MessageIntent.Success : MessageIntent.Error)">
+                                @profileMessage
+                            </FluentMessageBar>
+                        }
+
+                        <div>
+                            <FluentButton Type="ButtonType.Submit"
+                                          Appearance="Appearance.Accent"
+                                          Disabled="@isSavingProfile">
+                                @if (isSavingProfile)
+                                {
+                                    <FluentIcon Value="@(new Icons.Regular.Size16.ArrowSync())" />
+                                    <span>Saving...</span>
+                                }
+                                else
+                                {
+                                    <FluentIcon Value="@(new Icons.Regular.Size16.Save())" />
+                                    <span>Save Profile</span>
+                                }
+                            </FluentButton>
+                        </div>
+                    </FluentStack>
+                </EditForm>
+            </FluentCard>
+
+            @* Change Password Section *@
+            <FluentCard Style="padding: 24px;">
+                <h2 style="margin-top: 0; margin-bottom: 16px; font-size: 1.25rem;">Change Password</h2>
+
+                <EditForm Model="@passwordModel" OnValidSubmit="@ChangePassword">
+                    <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px; max-width: 400px;">
+                        <div>
+                            <FluentTextField Label="Current Password"
+                                             TextFieldType="TextFieldType.Password"
+                                             @bind-Value="passwordModel.CurrentPassword"
+                                             Required="true"
+                                             Style="width: 100%;"
+                                             Disabled="@isChangingPassword" />
+                        </div>
+
+                        <div>
+                            <FluentTextField Label="New Password"
+                                             TextFieldType="TextFieldType.Password"
+                                             @bind-Value="passwordModel.NewPassword"
+                                             Required="true"
+                                             Style="width: 100%;"
+                                             Disabled="@isChangingPassword" />
+                            <span style="font-size: 0.85rem; color: var(--neutral-foreground-hint);">
+                                Min 8 characters, include uppercase, lowercase, and number
+                            </span>
+                        </div>
+
+                        <div>
+                            <FluentTextField Label="Confirm New Password"
+                                             TextFieldType="TextFieldType.Password"
+                                             @bind-Value="passwordModel.ConfirmPassword"
+                                             Required="true"
+                                             Style="width: 100%;"
+                                             Disabled="@isChangingPassword" />
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(passwordMessage))
+                        {
+                            <FluentMessageBar Intent="@(passwordSuccess ? MessageIntent.Success : MessageIntent.Error)">
+                                @passwordMessage
+                            </FluentMessageBar>
+                        }
+
+                        <div>
+                            <FluentButton Type="ButtonType.Submit"
+                                          Appearance="Appearance.Accent"
+                                          Disabled="@isChangingPassword">
+                                @if (isChangingPassword)
+                                {
+                                    <FluentIcon Value="@(new Icons.Regular.Size16.ArrowSync())" />
+                                    <span>Changing...</span>
+                                }
+                                else
+                                {
+                                    <FluentIcon Value="@(new Icons.Regular.Size16.Key())" />
+                                    <span>Change Password</span>
+                                }
+                            </FluentButton>
+                        </div>
+                    </FluentStack>
+                </EditForm>
+            </FluentCard>
+        }
+    </PanelContent>
+</ContentPanel>

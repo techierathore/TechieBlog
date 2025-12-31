@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en" data-site-theme="developer">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home - TechieBlog 2.0 (Developer Theme)</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="theme-developer.css">
+    <!-- Developer Theme Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="layout">
+        <!-- Header -->
+        <header class="header">
+            <a href="theme2-01-home.html" class="header__logo">
+                <span>TechieBlog</span>
+            </a>
+            <nav class="header__nav">
+                <a href="theme2-01-home.html" class="header__nav-link active">~/home</a>
+                <a href="#" class="header__nav-link">~/categories</a>
+                <a href="#" class="header__nav-link">~/series</a>
+                <a href="#" class="header__nav-link">~/search</a>
+            </nav>
+            <div class="header__actions">
+                <button class="btn btn--icon" title="Search">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M8.5 3a5.5 5.5 0 014.383 8.823l3.896 3.9a.75.75 0 01-1.061 1.06l-3.895-3.897A5.5 5.5 0 118.5 3zm0 1.5a4 4 0 100 8 4 4 0 000-8z"/>
+                    </svg>
+                </button>
+                <!-- Theme Toggle -->
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+                    <svg class="theme-toggle__moon" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+                    </svg>
+                    <svg class="theme-toggle__sun" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+                <button class="btn btn--icon show-mobile" title="Menu">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M2 4.5a.5.5 0 01.5-.5h15a.5.5 0 010 1h-15a.5.5 0 01-.5-.5zm0 5a.5.5 0 01.5-.5h15a.5.5 0 010 1h-15a.5.5 0 01-.5-.5zm.5 4.5a.5.5 0 000 1h15a.5.5 0 000-1h-15z"/>
+                    </svg>
+                </button>
+                <a href="#" class="btn btn--secondary hide-mobile">login</a>
+                <a href="#" class="btn btn--primary hide-mobile">sign up</a>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-wrapper">
+            <main class="main-content">
+                <!-- Featured Post -->
+                <article class="featured-post">
+                    <div class="featured-post__image placeholder-image">
+                        // featured_image.png (800x300)
+                    </div>
+                    <div class="featured-post__content">
+                        <span class="card__category">featured</span>
+                        <h1 class="card__title" style="font-size: 1.75rem;">
+                            <a href="theme2-02-blog-post.html">Building Modern Blazor Applications with Fluent UI</a>
+                        </h1>
+                        <p class="card__excerpt" style="-webkit-line-clamp: 3;">
+                            Learn how to create beautiful, accessible web applications using Microsoft Fluent UI components in Blazor. This comprehensive guide covers setup, component usage, and best practices for production applications.
+                        </p>
+                        <div class="card__meta">
+                            <div class="card__author">
+                                <div class="card__avatar"></div>
+                                <span>@john_dev</span>
+                            </div>
+                            <span>2025-12-15</span>
+                            <span>8 min read</span>
+                            <div class="star-rating">
+                                <span class="star-rating__star star-rating__star--filled">&#9733;</span>
+                                <span class="star-rating__star star-rating__star--filled">&#9733;</span>
+                                <span class="star-rating__star star-rating__star--filled">&#9733;</span>
+                                <span class="star-rating__star star-rating__star--filled">&#9733;</span>
+                                <span class="star-rating__star">&#9733;</span>
+                                <span class="star-rating__count">(24)</span>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Recent Posts Section -->
+                <section>
+                    <h2 style="margin-bottom: var(--spacing-lg);">// recent_posts</h2>
+                    <div class="post-grid">
+                        <!-- Post Card 1 -->
+                        <article class="card">
+                            <div class="card__image placeholder-image">// image.jpg</div>
+                            <div class="card__body">
+                                <span class="card__category">blazor</span>
+                                <h3 class="card__title">
+                                    <a href="theme2-02-blog-post.html">Understanding Blazor Server vs WebAssembly</a>
+                                </h3>
+                                <p class="card__excerpt">
+                                    A deep dive into the differences between Blazor Server and WebAssembly hosting models and when to use each.
+                                </p>
+                                <div class="card__meta">
+                                    <div class="card__author">
+                                        <div class="card__avatar"></div>
+                                        <span>@jane_smith</span>
+                                    </div>
+                                    <span>2025-12-14</span>
+                                </div>
+                            </div>
+                        </article>
+
+                        <!-- Post Card 2 -->
+                        <article class="card">
+                            <div class="card__image placeholder-image">// image.jpg</div>
+                            <div class="card__body">
+                                <span class="card__category">dotnet</span>
+                                <h3 class="card__title">
+                                    <a href="theme2-02-blog-post.html">Getting Started with .NET 10 LTS</a>
+                                </h3>
+                                <p class="card__excerpt">
+                                    Everything you need to know about migrating your applications to .NET 10 LTS and taking advantage of new features.
+                                </p>
+                                <div class="card__meta">
+                                    <div class="card__author">
+                                        <div class="card__avatar"></div>
+                                        <span>@mike_j</span>
+                                    </div>
+                                    <span>2025-12-13</span>
+                                </div>
+                            </div>
+                        </article>
+
+                        <!-- Post Card 3 -->
+                        <article class="card">
+                            <div class="card__image placeholder-image">// image.jpg</div>
+                            <div class="card__body">
+                                <span class="card__category">postgresql</span>
+                                <h3 class="card__title">
+                                    <a href="theme2-02-blog-post.html">PostgreSQL Best Practices for .NET Developers</a>
+                                </h3>
+                                <p class="card__excerpt">
+                                    Learn how to optimize your PostgreSQL database connections and queries in .NET applications.
+                                </p>
+                                <div class="card__meta">
+                                    <div class="card__author">
+                                        <div class="card__avatar"></div>
+                                        <span>@sarah_c</span>
+                                    </div>
+                                    <span>2025-12-12</span>
+                                </div>
+                            </div>
+                        </article>
+
+                        <!-- Post Card 4 -->
+                        <article class="card">
+                            <div class="card__image placeholder-image">// image.jpg</div>
+                            <div class="card__body">
+                                <span class="card__category">csharp</span>
+                                <h3 class="card__title">
+                                    <a href="theme2-02-blog-post.html">Modern C# Features Every Developer Should Know</a>
+                                </h3>
+                                <p class="card__excerpt">
+                                    Explore the latest C# language features that can make your code more readable and maintainable.
+                                </p>
+                                <div class="card__meta">
+                                    <div class="card__author">
+                                        <div class="card__avatar"></div>
+                                        <span>@alex_r</span>
+                                    </div>
+                                    <span>2025-12-11</span>
+                                </div>
+                            </div>
+                        </article>
+
+                        <!-- Post Card 5 -->
+                        <article class="card">
+                            <div class="card__image placeholder-image">// image.jpg</div>
+                            <div class="card__body">
+                                <span class="card__category">testing</span>
+                                <h3 class="card__title">
+                                    <a href="theme2-02-blog-post.html">Unit Testing Blazor Components with bUnit</a>
+                                </h3>
+                                <p class="card__excerpt">
+                                    A practical guide to writing effective unit tests for your Blazor components using bUnit.
+                                </p>
+                                <div class="card__meta">
+                                    <div class="card__author">
+                                        <div class="card__avatar"></div>
+                                        <span>@emily_w</span>
+                                    </div>
+                                    <span>2025-12-10</span>
+                                </div>
+                            </div>
+                        </article>
+
+                        <!-- Post Card 6 -->
+                        <article class="card">
+                            <div class="card__image placeholder-image">// image.jpg</div>
+                            <div class="card__body">
+                                <span class="card__category">architecture</span>
+                                <h3 class="card__title">
+                                    <a href="theme2-02-blog-post.html">Clean Architecture in Blazor Applications</a>
+                                </h3>
+                                <p class="card__excerpt">
+                                    How to structure your Blazor projects following clean architecture principles for maintainability.
+                                </p>
+                                <div class="card__meta">
+                                    <div class="card__author">
+                                        <div class="card__avatar"></div>
+                                        <span>@david_k</span>
+                                    </div>
+                                    <span>2025-12-09</span>
+                                </div>
+                            </div>
+                        </article>
+                    </div>
+
+                    <!-- Pagination -->
+                    <nav class="pagination">
+                        <button class="pagination__btn" disabled>&laquo;</button>
+                        <button class="pagination__btn pagination__btn--active">1</button>
+                        <button class="pagination__btn">2</button>
+                        <button class="pagination__btn">3</button>
+                        <button class="pagination__btn">4</button>
+                        <button class="pagination__btn">&raquo;</button>
+                    </nav>
+                </section>
+            </main>
+
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <!-- Search -->
+                <div class="sidebar__section">
+                    <div class="search-box">
+                        <span class="search-box__icon">
+                            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M8.5 3a5.5 5.5 0 014.383 8.823l3.896 3.9a.75.75 0 01-1.061 1.06l-3.895-3.897A5.5 5.5 0 118.5 3zm0 1.5a4 4 0 100 8 4 4 0 000-8z"/>
+                            </svg>
+                        </span>
+                        <input type="text" class="search-box__input form-input" placeholder="grep -r 'search'...">
+                    </div>
+                </div>
+
+                <!-- Categories -->
+                <div class="sidebar__section">
+                    <h3 class="sidebar__title">categories</h3>
+                    <ul class="nav-menu">
+                        <li class="nav-menu__item">
+                            <a href="#" class="nav-menu__link">
+                                <span>blazor/</span>
+                                <span class="badge badge--primary">12</span>
+                            </a>
+                        </li>
+                        <li class="nav-menu__item">
+                            <a href="#" class="nav-menu__link">
+                                <span>dotnet/</span>
+                                <span class="badge badge--primary">8</span>
+                            </a>
+                        </li>
+                        <li class="nav-menu__item">
+                            <a href="#" class="nav-menu__link">
+                                <span>csharp/</span>
+                                <span class="badge badge--primary">15</span>
+                            </a>
+                        </li>
+                        <li class="nav-menu__item">
+                            <a href="#" class="nav-menu__link">
+                                <span>postgresql/</span>
+                                <span class="badge badge--primary">5</span>
+                            </a>
+                        </li>
+                        <li class="nav-menu__item">
+                            <a href="#" class="nav-menu__link">
+                                <span>architecture/</span>
+                                <span class="badge badge--primary">7</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Popular Tags -->
+                <div class="sidebar__section">
+                    <h3 class="sidebar__title">tags</h3>
+                    <div class="tags-cloud">
+                        <a href="#" class="tag">blazor</a>
+                        <a href="#" class="tag">csharp</a>
+                        <a href="#" class="tag">dotnet</a>
+                        <a href="#" class="tag">postgresql</a>
+                        <a href="#" class="tag">fluent-ui</a>
+                        <a href="#" class="tag">testing</a>
+                        <a href="#" class="tag">clean-code</a>
+                        <a href="#" class="tag">api</a>
+                        <a href="#" class="tag">tutorial</a>
+                        <a href="#" class="tag">beginner</a>
+                    </div>
+                </div>
+
+                <!-- Subscribe -->
+                <div class="sidebar__section">
+                    <div class="subscribe-form">
+                        <h3 class="subscribe-form__title">// subscribe</h3>
+                        <p class="subscribe-form__text">Get the latest posts delivered to your inbox.</p>
+                        <div class="form-group">
+                            <input type="email" class="form-input" placeholder="your@email.com">
+                        </div>
+                        <button class="btn btn--primary" style="width: 100%;">subscribe()</button>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>// &copy; 2025 TechieBlog. All rights reserved.</p>
+            <div style="margin-top: var(--spacing-sm);">
+                <a href="#">about</a> |
+                <a href="#">rss</a> |
+                <span>theme: developer</span>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Theme Toggle Functionality
+        function toggleTheme() {
+            const root = document.documentElement;
+            const currentTheme = root.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Initialize theme from localStorage or system preference
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+</body>
+</html>

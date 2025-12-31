@@ -1,0 +1,328 @@
+@*
+    Settings.razor
+    Purpose: Administrative settings page for blog configuration.
+    Allows admins to configure site-wide settings.
+
+    Usage: Navigate to /settings
+    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+    Authorization: AdminOnly policy required
+*@
+@page "/settings"
+@attribute [Authorize(Policy = "AdminOnly")]
+@layout BlogUI.Layouts.AdminLayout
+@inject ThemeService ThemeService
+
+<div class="settings-page">
+    @* Page Header *@
+    <div class="page-header">
+        <h1>Settings</h1>
+    </div>
+
+    @* Status Messages *@
+    @if (!string.IsNullOrEmpty(StatusMessage))
+    {
+        <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
+                          Style="margin-bottom: 16px;">
+            @StatusMessage
+        </FluentMessageBar>
+    }
+
+    @* Settings Sections *@
+    <div class="settings-grid">
+        @* Theme Settings *@
+        <div class="settings-card">
+            <h2>Theme</h2>
+            <div class="settings-form">
+                <div class="form-group">
+                    <FluentSelect TOption="ThemeInfo"
+                                  Items="@availableThemes"
+                                  OptionValue="@(t => t.Id)"
+                                  OptionText="@(t => t.Name)"
+                                  @bind-SelectedOption="selectedThemeInfo"
+                                  @bind-SelectedOption:after="OnThemeChanged"
+                                  Label="Select Theme"
+                                  Style="width: 100%;" />
+                </div>
+                @if (selectedThemeInfo != null)
+                {
+                    <div class="theme-description">
+                        <p>@selectedThemeInfo.Description</p>
+                        @if (selectedThemeInfo.IsDefault)
+                        {
+                            <span class="theme-badge">Default</span>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        @* General Settings *@
+        <div class="settings-card">
+            <h2>General Settings</h2>
+            <div class="settings-form">
+                <div class="form-group">
+                    <FluentTextField Label="Site Title"
+                                     @bind-Value="SiteTitle"
+                                     Placeholder="TechieBlog"
+                                     Style="width: 100%;" />
+                </div>
+                <div class="form-group">
+                    <FluentTextField Label="Site Tagline"
+                                     @bind-Value="SiteTagline"
+                                     Placeholder="A blog about technology"
+                                     Style="width: 100%;" />
+                </div>
+                <div class="form-group">
+                    <FluentTextField Label="Admin Email"
+                                     @bind-Value="AdminEmail"
+                                     Placeholder="admin@example.com"
+                                     Style="width: 100%;" />
+                </div>
+            </div>
+        </div>
+
+        @* Blog Settings *@
+        <div class="settings-card">
+            <h2>Blog Settings</h2>
+            <div class="settings-form">
+                <div class="form-group">
+                    <FluentNumberField Label="Posts Per Page"
+                                       @bind-Value="PostsPerPage"
+                                       Min="5"
+                                       Max="50"
+                                       Style="width: 100%;" />
+                </div>
+                <div class="form-group">
+                    <FluentCheckbox @bind-Value="AllowComments" Label="Allow Comments" />
+                </div>
+                <div class="form-group">
+                    <FluentCheckbox @bind-Value="ModerateComments" Label="Moderate Comments Before Publishing" />
+                </div>
+                <div class="form-group">
+                    <FluentCheckbox @bind-Value="AllowRegistration" Label="Allow User Registration" />
+                </div>
+            </div>
+        </div>
+
+        @* SEO Settings *@
+        <div class="settings-card">
+            <h2>SEO Settings</h2>
+            <div class="settings-form">
+                <div class="form-group">
+                    <FluentTextArea Label="Meta Description"
+                                    @bind-Value="MetaDescription"
+                                    Placeholder="Default meta description for the site..."
+                                    Rows="3"
+                                    Style="width: 100%;" />
+                </div>
+                <div class="form-group">
+                    <FluentTextField Label="Meta Keywords"
+                                     @bind-Value="MetaKeywords"
+                                     Placeholder="technology, programming, web development"
+                                     Style="width: 100%;" />
+                </div>
+            </div>
+        </div>
+
+        @* Social Media Settings *@
+        <div class="settings-card">
+            <h2>Social Media Links</h2>
+            <div class="settings-form">
+                <div class="form-group">
+                    <FluentTextField Label="Twitter/X URL"
+                                     @bind-Value="TwitterUrl"
+                                     Placeholder="https://twitter.com/yourhandle"
+                                     Style="width: 100%;" />
+                </div>
+                <div class="form-group">
+                    <FluentTextField Label="LinkedIn URL"
+                                     @bind-Value="LinkedInUrl"
+                                     Placeholder="https://linkedin.com/in/yourprofile"
+                                     Style="width: 100%;" />
+                </div>
+                <div class="form-group">
+                    <FluentTextField Label="GitHub URL"
+                                     @bind-Value="GitHubUrl"
+                                     Placeholder="https://github.com/yourusername"
+                                     Style="width: 100%;" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* Save Button *@
+    <div class="settings-footer">
+        <FluentButton Appearance="Appearance.Accent"
+                      OnClick="SaveSettings"
+                      Disabled="@IsSaving">
+            @if (IsSaving)
+            {
+                <FluentProgressRing Style="width: 16px; height: 16px; margin-right: 8px;" />
+            }
+            Save Settings
+        </FluentButton>
+    </div>
+</div>
+
+<style>
+    .settings-page {
+        max-width: 1200px;
+    }
+
+    .page-header {
+        margin-bottom: var(--spacing-lg, 24px);
+    }
+
+    .page-header h1 {
+        margin: 0;
+    }
+
+    .settings-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-lg, 24px);
+    }
+
+    @@media (max-width: 991px) {
+        .settings-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .settings-card {
+        border: 1px solid var(--color-border, #E1E1E1);
+        border-radius: var(--border-radius-lg, 8px);
+        padding: var(--spacing-lg, 24px);
+        background-color: var(--color-background, #fff);
+    }
+
+    .settings-card h2 {
+        font-size: var(--font-size-h3, 1.25rem);
+        margin: 0 0 var(--spacing-md, 16px) 0;
+        padding-bottom: var(--spacing-sm, 8px);
+        border-bottom: 1px solid var(--color-border, #E1E1E1);
+    }
+
+    .settings-form {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-md, 16px);
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-xs, 4px);
+    }
+
+    .settings-footer {
+        margin-top: var(--spacing-xl, 32px);
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .theme-description {
+        color: var(--color-text-secondary, #666);
+        font-size: var(--font-size-small, 0.875rem);
+    }
+
+    .theme-description p {
+        margin: 0 0 var(--spacing-xs, 4px) 0;
+    }
+
+    .theme-badge {
+        display: inline-block;
+        background-color: var(--color-accent, #0078D4);
+        color: white;
+        font-size: 0.75rem;
+        padding: 2px 8px;
+        border-radius: var(--border-radius-sm, 4px);
+    }
+</style>
+
+@code {
+    // Theme Settings
+    private List<ThemeInfo> availableThemes = new();
+    private ThemeInfo? selectedThemeInfo;
+
+    // General Settings
+    private string SiteTitle { get; set; } = "TechieBlog";
+    private string SiteTagline { get; set; } = "";
+    private string AdminEmail { get; set; } = "";
+
+    // Blog Settings
+    private int PostsPerPage { get; set; } = 10;
+    private bool AllowComments { get; set; } = true;
+    private bool ModerateComments { get; set; } = true;
+    private bool AllowRegistration { get; set; } = true;
+
+    // SEO Settings
+    private string MetaDescription { get; set; } = "";
+    private string MetaKeywords { get; set; } = "";
+
+    // Social Media
+    private string TwitterUrl { get; set; } = "";
+    private string LinkedInUrl { get; set; } = "";
+    private string GitHubUrl { get; set; } = "";
+
+    // UI State
+    private string StatusMessage { get; set; } = "";
+    private bool IsError { get; set; } = false;
+    private bool IsSaving { get; set; } = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load theme settings
+        await LoadThemeSettingsAsync();
+
+        // TODO: Load settings from database when settings service is implemented
+        LoadDefaultSettings();
+    }
+
+    private async Task LoadThemeSettingsAsync()
+    {
+        availableThemes = ThemeService.GetAvailableThemes();
+        var currentThemeId = await ThemeService.GetCurrentThemeAsync();
+        selectedThemeInfo = availableThemes.FirstOrDefault(t => t.Id == currentThemeId)
+                            ?? availableThemes.First();
+    }
+
+    private async Task OnThemeChanged()
+    {
+        if (selectedThemeInfo != null)
+        {
+            await ThemeService.SetThemeAsync(selectedThemeInfo.Id);
+        }
+    }
+
+    private void LoadDefaultSettings()
+    {
+        // Default values are already set above
+        // In a real implementation, these would be loaded from a database
+    }
+
+    private async Task SaveSettings()
+    {
+        IsSaving = true;
+        StateHasChanged();
+
+        try
+        {
+            // Simulate save operation
+            await Task.Delay(500);
+
+            // TODO: Implement actual save to database when settings service is created
+            StatusMessage = "Settings saved successfully.";
+            IsError = false;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error saving settings: {ex.Message}";
+            IsError = true;
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+}

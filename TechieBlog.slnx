@@ -1,0 +1,101 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+  </Configurations>
+
+  <Folder Name="/source/">
+    <Project Path="source/TechieBlog/TechieBlog.csproj" />
+    <Project Path="source/BlogDb/BlogDb.csproj" />
+    <Project Path="source/BlogEngine/BlogEngine.csproj" />
+    <Project Path="source/BlogModel/BlogModels.csproj" />
+    <Project Path="source/BlogUI/BlogUI.csproj" />
+  </Folder>
+
+  <Folder Name="/docs/">
+    <File Path="docs/architecture.md" />
+    <File Path="docs/database-migration-guide.md" />
+    <File Path="docs/DataMigrationGuide.md" />
+    <File Path="docs/front-end-spec.md" />
+    <File Path="docs/prd.md" />
+    <File Path="docs/project-brief.md" />
+    <File Path="docs/TechieBlog-Complete-Analysis.md" />
+    <File Path="docs/TechieBlog-Documentation-Direct.md" />
+  </Folder>
+
+  <Folder Name="/docs/architecture/">
+    <File Path="docs/architecture/1-introduction.md" />
+    <File Path="docs/architecture/2-enhancement-scope-and-integration-strategy.md" />
+    <File Path="docs/architecture/4-data-models-and-schema-changes.md" />
+    <File Path="docs/architecture/5-component-architecture.md" />
+    <File Path="docs/architecture/6-api-design-and-integration.md" />
+    <File Path="docs/architecture/8-infrastructure-and-deployment-integration.md" />
+    <File Path="docs/architecture/10-testing-strategy.md" />
+    <File Path="docs/architecture/11-security-integration.md" />
+    <File Path="docs/architecture/12-checklist-results-report.md" />
+    <File Path="docs/architecture/13-next-steps.md" />
+    <File Path="docs/architecture/coding-standards.md" />
+    <File Path="docs/architecture/index.md" />
+    <File Path="docs/architecture/source-tree.md" />
+    <File Path="docs/architecture/tech-stack.md" />
+  </Folder>
+
+  <Folder Name="/docs/prd/">
+    <File Path="docs/prd/1-goals-and-background-context.md" />
+    <File Path="docs/prd/2-requirements.md" />
+    <File Path="docs/prd/3-user-interface-design-goals.md" />
+    <File Path="docs/prd/4-technical-assumptions.md" />
+    <File Path="docs/prd/5-epic-list.md" />
+    <File Path="docs/prd/6-epic-details.md" />
+    <File Path="docs/prd/7-checklist-results-report.md" />
+    <File Path="docs/prd/8-next-steps.md" />
+    <File Path="docs/prd/index.md" />
+  </Folder>
+
+  <Folder Name="/docs/qa/">
+    <File Path="docs/qa/gates/1.1-project-migration-net10.yml" />
+    <File Path="docs/qa/gates/1.2-remove-blogsvc-api-project.yml" />
+    <File Path="docs/qa/gates/1.4-fluent-ui-blazor-integration.yml" />
+    <File Path="docs/qa/gates/1.5-css-theme-infrastructure.yml" />
+    <File Path="docs/qa/gates/1.6-main-layout-navigation-shell.yml" />
+    <File Path="docs/qa/gates/2.1-jwt-authentication.yml" />
+    <File Path="docs/qa/gates/2.3-password-reset.yml" />
+    <File Path="docs/qa/gates/2.4-role-based-authorization.yml" />
+    <File Path="docs/qa/gates/2.5-user-profile-management.yml" />
+    <File Path="docs/qa/gates/3.1-blog-post-crud.yml" />
+    <File Path="docs/qa/gates/3.2-markdown-editor.yml" />
+    <File Path="docs/qa/gates/3.3-category-management.yml" />
+    <File Path="docs/qa/gates/3.4-tag-management.yml" />
+    <File Path="docs/qa/gates/3.5-draft-preview-workflow.yml" />
+    <File Path="docs/qa/gates/3.6-post-scheduling.yml" />
+    <File Path="docs/qa/gates/3.7-series-collections.yml" />
+    <File Path="docs/qa/gates/3.8-public-blog-display.yml" />
+  </Folder>
+
+  <Folder Name="/docs/stories/">
+    <File Path="docs/stories/1.1.story.md" />
+    <File Path="docs/stories/1.2.story.md" />
+    <File Path="docs/stories/1.3.story.md" />
+    <File Path="docs/stories/1.4.story.md" />
+    <File Path="docs/stories/1.5.story.md" />
+    <File Path="docs/stories/1.6.story.md" />
+    <File Path="docs/stories/1.7.story.md" />
+    <File Path="docs/stories/1.8.story.md" />
+    <File Path="docs/stories/2.1.story.md" />
+    <File Path="docs/stories/2.2.story.md" />
+    <File Path="docs/stories/2.3.story.md" />
+    <File Path="docs/stories/2.4.story.md" />
+    <File Path="docs/stories/2.5.story.md" />
+    <File Path="docs/stories/3.1.story.md" />
+    <File Path="docs/stories/3.2.story.md" />
+    <File Path="docs/stories/3.3.story.md" />
+    <File Path="docs/stories/3.4.story.md" />
+    <File Path="docs/stories/3.5.story.md" />
+    <File Path="docs/stories/3.6.story.md" />
+    <File Path="docs/stories/3.7.story.md" />
+    <File Path="docs/stories/3.8.story.md" />
+    <File Path="docs/stories/FAST-TRACK-BACKLOG.md" />
+    <File Path="docs/stories/SM-HANDOFF.md" />
+  </Folder>
+</Solution>

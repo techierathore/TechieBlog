@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Library - TechieBlog 2.0</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <!-- Header -->
+        <header class="header">
+            <a href="01-home.html" class="header__logo">
+                <span>TechieBlog</span>
+            </a>
+            <nav class="header__nav">
+                <a href="01-home.html" class="header__nav-link">Home</a>
+                <a href="03-category-archive.html" class="header__nav-link">Categories</a>
+                <a href="05-series-view.html" class="header__nav-link">Series</a>
+            </nav>
+            <div class="header__actions">
+                <!-- Theme Toggle -->
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+                    <svg class="theme-toggle__moon" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+                    </svg>
+                    <svg class="theme-toggle__sun" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+                <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                    <div class="card__avatar"></div>
+                    <span class="hide-mobile">John Developer</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-wrapper">
+            <!-- Sidebar Navigation -->
+            <aside class="sidebar sidebar--left">
+                <h3 class="sidebar__title">Content</h3>
+                <ul class="nav-menu">
+                    <li class="nav-menu__item">
+                        <a href="18-my-posts.html" class="nav-menu__link">
+                            <span class="nav-menu__icon">&#128196;</span>
+                            <span>My Posts</span>
+                        </a>
+                    </li>
+                    <li class="nav-menu__item">
+                        <a href="17-post-editor.html" class="nav-menu__link">
+                            <span class="nav-menu__icon">&#10133;</span>
+                            <span>New Post</span>
+                        </a>
+                    </li>
+                    <li class="nav-menu__item">
+                        <a href="19-media-library.html" class="nav-menu__link nav-menu__link--active">
+                            <span class="nav-menu__icon">&#128247;</span>
+                            <span>Media Library</span>
+                        </a>
+                    </li>
+                </ul>
+            </aside>
+
+            <main class="main-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+                    <h1>Media Library</h1>
+                    <button class="btn btn--primary">+ Upload Files</button>
+                </div>
+
+                <!-- Upload Area -->
+                <div style="border: 2px dashed var(--color-border); border-radius: var(--border-radius-lg); padding: var(--spacing-2xl); text-align: center; margin-bottom: var(--spacing-xl); background: var(--color-surface);">
+                    <div style="font-size: 48px; color: var(--color-neutral-light); margin-bottom: var(--spacing-md);">&#128247;</div>
+                    <p style="font-size: var(--font-size-h3); font-weight: var(--font-weight-semibold); margin-bottom: var(--spacing-sm);">Drag and drop files here</p>
+                    <p style="color: var(--color-neutral-light); margin-bottom: var(--spacing-md);">or click to browse</p>
+                    <button class="btn btn--secondary">Choose Files</button>
+                    <p style="font-size: var(--font-size-xs); color: var(--color-neutral-light); margin-top: var(--spacing-md);">
+                        Supports: JPG, PNG, GIF, WebP. Max file size: 5MB
+                    </p>
+                </div>
+
+                <!-- Filters -->
+                <div style="display: flex; gap: var(--spacing-md); margin-bottom: var(--spacing-lg); flex-wrap: wrap;">
+                    <select class="form-input form-select" style="width: auto;">
+                        <option>All Files</option>
+                        <option>Images</option>
+                        <option>Documents</option>
+                    </select>
+                    <select class="form-input form-select" style="width: auto;">
+                        <option>Date: Newest</option>
+                        <option>Date: Oldest</option>
+                        <option>Name: A-Z</option>
+                        <option>Size: Largest</option>
+                    </select>
+                    <span style="flex: 1;"></span>
+                    <div class="search-box" style="width: 250px;">
+                        <span class="search-box__icon">
+                            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M8.5 3a5.5 5.5 0 014.383 8.823l3.896 3.9a.75.75 0 01-1.061 1.06l-3.895-3.897A5.5 5.5 0 118.5 3zm0 1.5a4 4 0 100 8 4 4 0 000-8z"/>
+                            </svg>
+                        </span>
+                        <input type="text" class="search-box__input form-input" placeholder="Search files...">
+                    </div>
+                    <span class="badge">48 files</span>
+                </div>
+
+                <!-- Media Grid -->
+                <div class="media-grid" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));">
+                    <div class="media-item" style="border: 2px solid var(--color-primary);">
+                        <div class="media-item__image placeholder-image">blazor-hero.jpg</div>
+                        <div style="position: absolute; top: 8px; right: 8px;">
+                            <input type="checkbox" checked style="width: 18px; height: 18px;">
+                        </div>
+                    </div>
+                    <div class="media-item">
+                        <div class="media-item__image placeholder-image">fluent-ui-demo.png</div>
+                    </div>
+                    <div class="media-item">
+                        <div class="media-item__image placeholder-image">code-sample.png</div>
+                    </div>
+                    <div class="media-item">
+                        <div class="media-item__image placeholder-image">architecture.png</div>
+                    </div>
+                    <div class="media-item">
+                        <div class="media-item__image placeholder-image">postgresql.jpg</div>
+                    </div>
+                    <div class="media-item">
+                        <div class="media-item__image placeholder-image">dotnet-logo.png</div>
+                    </div>
+                    <div class="media-item">
+                        <div class="media-item__image placeholder-image">testing.jpg</div>
+                    </div>
+                    <div class="media-item">
+                        <div class="media-item__image placeholder-image">clean-arch.png</div>
+                    </div>
+                    <div class="media-item">
+                        <div class="media-item__image placeholder-image">api-design.jpg</div>
+                    </div>
+                    <div class="media-item">
+                        <div class="media-item__image placeholder-image">component.png</div>
+                    </div>
+                    <div class="media-item">
+                        <div class="media-item__image placeholder-image">di-pattern.png</div>
+                    </div>
+                    <div class="media-item">
+                        <div class="media-item__image placeholder-image">csharp-tips.jpg</div>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <nav class="pagination">
+                    <button class="pagination__btn" disabled>&laquo;</button>
+                    <button class="pagination__btn pagination__btn--active">1</button>
+                    <button class="pagination__btn">2</button>
+                    <button class="pagination__btn">3</button>
+                    <button class="pagination__btn">4</button>
+                    <button class="pagination__btn">&raquo;</button>
+                </nav>
+            </main>
+
+            <!-- Image Details Sidebar (when image selected) -->
+            <aside class="sidebar">
+                <h3 class="sidebar__title">Image Details</h3>
+                <div class="placeholder-image" style="width: 100%; height: 150px; border-radius: var(--border-radius); margin-bottom: var(--spacing-md);">blazor-hero.jpg</div>
+
+                <div style="font-size: var(--font-size-small);">
+                    <div style="margin-bottom: var(--spacing-md);">
+                        <strong>File Name</strong>
+                        <p style="color: var(--color-neutral-light); margin: 0;">blazor-hero.jpg</p>
+                    </div>
+                    <div style="margin-bottom: var(--spacing-md);">
+                        <strong>Dimensions</strong>
+                        <p style="color: var(--color-neutral-light); margin: 0;">1200 x 630 px</p>
+                    </div>
+                    <div style="margin-bottom: var(--spacing-md);">
+                        <strong>Size</strong>
+                        <p style="color: var(--color-neutral-light); margin: 0;">245 KB</p>
+                    </div>
+                    <div style="margin-bottom: var(--spacing-md);">
+                        <strong>Uploaded</strong>
+                        <p style="color: var(--color-neutral-light); margin: 0;">Dec 15, 2025</p>
+                    </div>
+                    <div style="margin-bottom: var(--spacing-md);">
+                        <strong>URL</strong>
+                        <div style="display: flex; gap: var(--spacing-xs);">
+                            <input type="text" class="form-input" value="/images/blazor-hero.jpg" readonly style="font-size: var(--font-size-xs);">
+                            <button class="btn btn--secondary" style="padding: var(--spacing-xs) var(--spacing-sm);">Copy</button>
+                        </div>
+                    </div>
+                </div>
+
+                <hr style="margin: var(--spacing-lg) 0; border: none; border-top: 1px solid var(--color-border);">
+
+                <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
+                    <button class="btn btn--secondary" style="width: 100%;">Insert into Post</button>
+                    <button class="btn btn--secondary" style="width: 100%;">Download</button>
+                    <button class="btn btn--secondary" style="width: 100%; color: var(--color-error);">Delete</button>
+                </div>
+            </aside>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2025 TechieBlog. All rights reserved.</p>
+        </footer>
+    </div>
+    <script>
+        // Theme Toggle Functionality
+        function toggleTheme() {
+            const root = document.documentElement;
+            const currentTheme = root.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Initialize theme from localStorage or system preference
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+</body>
+</html>

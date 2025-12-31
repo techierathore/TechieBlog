@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview: Building Modern Blazor Applications - TechieBlog 2.0</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <!-- Preview Banner -->
+        <div style="background: var(--color-warning); color: var(--color-neutral); padding: var(--spacing-sm) var(--spacing-lg); display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                <strong>PREVIEW MODE</strong>
+                <span style="font-size: var(--font-size-small);">This is a draft preview. Only you can see this page.</span>
+            </div>
+            <div style="display: flex; gap: var(--spacing-sm);">
+                <a href="17-post-editor.html" class="btn btn--secondary" style="background: white;">Edit Post</a>
+                <button class="btn btn--primary">Publish Now</button>
+            </div>
+        </div>
+
+        <!-- Header -->
+        <header class="header">
+            <a href="01-home.html" class="header__logo">
+                <span>TechieBlog</span>
+            </a>
+            <nav class="header__nav">
+                <a href="01-home.html" class="header__nav-link">Home</a>
+                <a href="03-category-archive.html" class="header__nav-link">Categories</a>
+                <a href="05-series-view.html" class="header__nav-link">Series</a>
+                <a href="06-search-results.html" class="header__nav-link">Search</a>
+            </nav>
+            <div class="header__actions">
+                <!-- Theme Toggle -->
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+                    <svg class="theme-toggle__moon" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+                    </svg>
+                    <svg class="theme-toggle__sun" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+                <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                    <div class="card__avatar"></div>
+                    <span class="hide-mobile">John Developer</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-wrapper">
+            <main class="main-content main-content--full">
+                <!-- Breadcrumb -->
+                <nav class="breadcrumb">
+                    <a href="01-home.html">Home</a>
+                    <span class="breadcrumb__separator">/</span>
+                    <a href="03-category-archive.html">Blazor</a>
+                    <span class="breadcrumb__separator">/</span>
+                    <span class="breadcrumb__current">Building Modern Blazor Applications</span>
+                </nav>
+
+                <!-- Article -->
+                <article>
+                    <header class="article__header">
+                        <div style="display: flex; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm);">
+                            <span class="article__category">Blazor</span>
+                            <span class="badge badge--warning">Draft</span>
+                        </div>
+                        <h1 class="article__title">Building Modern Blazor Applications with Fluent UI</h1>
+                        <div class="article__meta">
+                            <div class="card__author">
+                                <div class="card__avatar"></div>
+                                <span>John Developer</span>
+                            </div>
+                            <span>December 15, 2025</span>
+                            <span>8 min read</span>
+                        </div>
+                    </header>
+
+                    <!-- Series Navigation -->
+                    <div class="series-nav">
+                        <a href="#" class="btn btn--secondary">&larr; Previous</a>
+                        <div class="series-nav__info">
+                            <div class="series-nav__title">Part 3 of</div>
+                            <a href="05-series-view.html" class="series-nav__name">Blazor Fundamentals Series</a>
+                        </div>
+                        <span class="btn btn--secondary" style="opacity: 0.5;">Next &rarr;</span>
+                    </div>
+
+                    <!-- Article Content -->
+                    <div class="article__content">
+                        <p>
+                            Microsoft Fluent UI provides a comprehensive set of components that follow modern design principles,
+                            making it an excellent choice for building professional Blazor applications. In this guide, we'll
+                            explore how to set up and effectively use Fluent UI components in your Blazor projects.
+                        </p>
+
+                        <h2>Getting Started with Fluent UI</h2>
+                        <p>
+                            First, you'll need to install the Microsoft.FluentUI.AspNetCore.Components NuGet package. This package
+                            provides all the components you need to build modern, accessible web applications.
+                        </p>
+
+                        <pre><code>dotnet add package Microsoft.FluentUI.AspNetCore.Components</code></pre>
+
+                        <p>
+                            After installation, register the Fluent UI services in your <code>Program.cs</code> file:
+                        </p>
+
+                        <pre><code>builder.Services.AddFluentUIComponents();</code></pre>
+
+                        <h2>Understanding Component Architecture</h2>
+                        <p>
+                            Fluent UI components are designed with accessibility in mind. They follow WAI-ARIA guidelines and
+                            provide proper keyboard navigation out of the box. This means your applications will be usable
+                            by everyone, regardless of how they interact with your site.
+                        </p>
+
+                        <h2>Theming and Customization</h2>
+                        <p>
+                            One of the most powerful features of Fluent UI is its theming system. You can customize colors,
+                            typography, and spacing using CSS custom properties, making it easy to match your brand guidelines
+                            without modifying component code.
+                        </p>
+
+                        <pre><code>:root {
+    --accent-fill-rest: #0078d4;
+    --neutral-foreground-rest: #323130;
+    --body-font: 'Segoe UI', sans-serif;
+}</code></pre>
+
+                        <h2>Conclusion</h2>
+                        <p>
+                            Fluent UI provides an excellent foundation for building modern Blazor applications. Its focus on
+                            accessibility, customization, and developer experience makes it a top choice for both personal
+                            projects and enterprise applications.
+                        </p>
+                    </div>
+
+                    <!-- Tags -->
+                    <div style="margin: var(--spacing-xl) 0; padding-top: var(--spacing-lg); border-top: 1px solid var(--color-border);">
+                        <strong>Tags:</strong>
+                        <div class="tags-cloud" style="display: inline-flex; margin-left: var(--spacing-sm);">
+                            <a href="04-tag-archive.html" class="tag">blazor</a>
+                            <a href="04-tag-archive.html" class="tag">fluent-ui</a>
+                            <a href="04-tag-archive.html" class="tag">c#</a>
+                            <a href="04-tag-archive.html" class="tag">tutorial</a>
+                        </div>
+                    </div>
+
+                    <!-- Author Card -->
+                    <div class="author-card">
+                        <div class="author-card__avatar"></div>
+                        <div>
+                            <h3 class="author-card__name">John Developer</h3>
+                            <p class="author-card__bio">
+                                Senior .NET Developer with 10+ years of experience building web applications.
+                                Passionate about Blazor, clean code, and helping developers learn new technologies.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Comments Section (Disabled in Preview) -->
+                    <section style="margin-top: var(--spacing-2xl); opacity: 0.5;">
+                        <h2>Comments</h2>
+                        <p style="text-align: center; padding: var(--spacing-xl); background: var(--color-surface); border-radius: var(--border-radius-lg); color: var(--color-neutral-light);">
+                            Comments are disabled in preview mode
+                        </p>
+                    </section>
+                </article>
+            </main>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2025 TechieBlog. All rights reserved.</p>
+        </footer>
+    </div>
+    <script>
+        // Theme Toggle Functionality
+        function toggleTheme() {
+            const root = document.documentElement;
+            const currentTheme = root.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Initialize theme from localStorage or system preference
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+</body>
+</html>

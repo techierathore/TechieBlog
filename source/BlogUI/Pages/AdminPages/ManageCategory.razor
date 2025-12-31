@@ -1,0 +1,73 @@
+@*
+    ManageCategory.razor
+    Purpose: Create and edit categories for blog posts.
+    Provides form for category management with validation.
+
+    Usage: Navigate to /admin/category or /admin/category/{PageId}
+    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+    Authorization: AdminOnly policy required
+*@
+@page "/admin/category"
+@page "/admin/category/{PageId:long}"
+@attribute [Authorize(Policy = "AdminOnly")]
+@layout BlogUI.Layouts.AdminLayout
+
+<ContentPanel PanelTitle="@PageHeader">
+    <RightSection></RightSection>
+    <PanelContent>
+        <div style="max-width: 600px;">
+            @if (!string.IsNullOrEmpty(StatusMessage))
+            {
+                <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
+                                  Style="margin-bottom: 16px;">
+                    @StatusMessage
+                </FluentMessageBar>
+            }
+
+            @if (PageObj == null)
+            {
+                <FluentProgressRing />
+                <span>Loading...</span>
+            }
+            else
+            {
+                <EditForm Model="@PageObj" OnValidSubmit="@SaveData">
+                    <DataAnnotationsValidator />
+                    <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px;">
+                        <div>
+                            <FluentTextField Label="Category Name"
+                                             @bind-Value="PageObj.CategoryName"
+                                             Placeholder="Enter category name"
+                                             Required="true"
+                                             Style="width: 100%;" />
+                        </div>
+                        <div>
+                            <FluentTextField Label="Slug (URL-friendly name)"
+                                             @bind-Value="PageObj.Slug"
+                                             Placeholder="auto-generated from name"
+                                             Style="width: 100%;" />
+                            <small style="color: var(--neutral-foreground-hint);">
+                                Leave blank to auto-generate from category name
+                            </small>
+                        </div>
+                        <div>
+                            <FluentTextArea Label="Description"
+                                            @bind-Value="PageObj.Description"
+                                            Placeholder="Optional description for this category"
+                                            Rows="3"
+                                            Style="width: 100%;" />
+                        </div>
+                        <FluentStack Orientation="Orientation.Horizontal" Style="gap: 8px;">
+                            <FluentButton Appearance="Appearance.Accent" OnClick="@SaveData">
+                                Save
+                            </FluentButton>
+                            <FluentAnchor Href="/admin/categories" Appearance="Appearance.Outline">
+                                Cancel
+                            </FluentAnchor>
+                        </FluentStack>
+                    </FluentStack>
+                </EditForm>
+            }
+        </div>
+    </PanelContent>
+</ContentPanel>

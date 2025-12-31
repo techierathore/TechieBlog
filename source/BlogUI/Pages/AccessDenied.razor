@@ -1,0 +1,95 @@
+@*
+    AccessDenied.razor
+    Purpose: Displays access denied message for unauthorized users.
+
+    Usage: Redirect to /access-denied when authorization fails
+*@
+@page "/access-denied"
+
+<div class="access-denied-page">
+    <div class="access-denied-content">
+        <div class="access-denied-icon">&#128683;</div>
+        <h1>Access Denied</h1>
+        <p>You don't have permission to access this page.</p>
+        <p class="hint">If you believe this is an error, please contact an administrator.</p>
+        <div class="actions">
+            <a href="/" class="btn btn--primary">Go to Home</a>
+            <a href="/admin" class="btn btn--secondary">Go to Dashboard</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .access-denied-page {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 60vh;
+        padding: var(--spacing-xl, 32px);
+    }
+
+    .access-denied-content {
+        text-align: center;
+        max-width: 500px;
+    }
+
+    .access-denied-icon {
+        font-size: 80px;
+        margin-bottom: var(--spacing-lg, 24px);
+    }
+
+    .access-denied-content h1 {
+        color: var(--color-error, #D13438);
+        margin-bottom: var(--spacing-md, 16px);
+    }
+
+    .access-denied-content p {
+        color: var(--color-neutral, #323130);
+        margin-bottom: var(--spacing-sm, 8px);
+    }
+
+    .access-denied-content .hint {
+        color: var(--color-neutral-light, #605E5C);
+        font-size: var(--font-size-small, 0.875rem);
+        margin-bottom: var(--spacing-lg, 24px);
+    }
+
+    .actions {
+        display: flex;
+        gap: var(--spacing-md, 16px);
+        justify-content: center;
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: var(--spacing-sm, 8px) var(--spacing-lg, 24px);
+        border-radius: var(--border-radius, 4px);
+        font-size: var(--font-size-small, 0.875rem);
+        font-weight: var(--font-weight-semibold, 600);
+        cursor: pointer;
+        text-decoration: none;
+        transition: all var(--transition-fast, 150ms ease);
+        border: 1px solid transparent;
+    }
+
+    .btn--primary {
+        background-color: var(--color-primary, #0078D4);
+        color: white;
+    }
+
+    .btn--primary:hover {
+        background-color: var(--color-primary-hover, #106EBE);
+    }
+
+    .btn--secondary {
+        background-color: transparent;
+        border-color: var(--color-border, #E1E1E1);
+        color: var(--color-neutral, #323130);
+    }
+
+    .btn--secondary:hover {
+        background-color: var(--color-surface, #F5F5F5);
+    }
+</style>

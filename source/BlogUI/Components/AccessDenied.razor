@@ -1,0 +1,32 @@
+@*
+    AccessDenied.razor
+    Purpose: Displays 403 Forbidden message when user lacks permission.
+    Used by AuthorizeRouteView when authenticated user is not authorized.
+    Provides navigation back to allowed areas.
+
+    Dependencies: Fluent UI components, NavigationManager
+*@
+
+<div class="access-denied-container" style="text-align: center; padding: 60px 20px; max-width: 500px; margin: 0 auto;">
+    <div style="font-size: 64px; margin-bottom: 20px;">
+        <FluentIcon Value="@(new Icons.Regular.Size48.ShieldError())" Color="Color.Error" />
+    </div>
+
+    <h1 style="color: var(--color-error, #d32f2f); margin-bottom: 16px;">
+        Access Denied
+    </h1>
+
+    <p style="color: var(--color-neutral-foreground-2); margin-bottom: 24px; font-size: 1.1rem;">
+        You don't have permission to access this page.
+        Please contact an administrator if you believe this is an error.
+    </p>
+
+    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+        <FluentAnchor Href="/" Appearance="Appearance.Accent">
+            Go to Home
+        </FluentAnchor>
+        <FluentAnchor Href="/login" Appearance="Appearance.Outline">
+            Sign in with different account
+        </FluentAnchor>
+    </div>
+</div>

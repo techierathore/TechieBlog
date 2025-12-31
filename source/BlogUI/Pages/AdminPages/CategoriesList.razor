@@ -1,0 +1,329 @@
+@*
+    CategoriesList.razor
+    Purpose: Displays a list of categories for blog posts.
+    Provides editing and deletion capabilities for category management.
+
+    Usage: Navigate to /admin/categories
+    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+    Authorization: AdminOnly policy required
+*@
+@page "/admin/categories"
+@page "/CategoriesList"
+@attribute [Authorize(Policy = "AdminOnly")]
+@layout BlogUI.Layouts.AdminLayout
+@inject BlogEngine.Services.CategorySvc CategoryService
+@inject NavigationManager Navigation
+
+<div class="categories-list-page">
+    @* Page Header *@
+    <div class="page-header">
+        <h1>Categories Management</h1>
+        <FluentAnchor Href="/admin/category" Appearance="Appearance.Accent">+ Add New Category</FluentAnchor>
+    </div>
+
+    @* Status Messages *@
+    @if (!string.IsNullOrEmpty(StatusMessage))
+    {
+        <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
+                          Style="margin-bottom: 16px;">
+            @StatusMessage
+        </FluentMessageBar>
+    }
+
+    @* Search Box *@
+    <div class="filters-row">
+        <div class="search-box">
+            <FluentIcon Value="@(new Icons.Regular.Size16.Search())" Color="Color.Neutral" />
+            <FluentTextField @bind-Value="SearchTerm"
+                             @bind-Value:after="ApplyFilter"
+                             Placeholder="Search categories..."
+                             Style="min-width: 200px;" />
+        </div>
+        <span style="flex: 1;"></span>
+        <span class="result-count">@(FilteredList?.Count ?? 0) categories</span>
+    </div>
+
+    @* Categories Table *@
+    <div class="table-container">
+        @if (ObjectList == null)
+        {
+            <div style="padding: 32px; text-align: center;">
+                <FluentProgressRing />
+                <span style="display: block; margin-top: 8px;">Loading...</span>
+            </div>
+        }
+        else if (FilteredList == null || !FilteredList.Any())
+        {
+            <div style="padding: 32px; text-align: center; color: var(--color-neutral-light);">
+                @if (string.IsNullOrEmpty(SearchTerm))
+                {
+                    <p>No categories found. Click "+ Add New Category" to create your first category.</p>
+                }
+                else
+                {
+                    <p>No categories match your search.</p>
+                    <FluentButton Appearance="Appearance.Outline" OnClick="ClearSearch">Clear Search</FluentButton>
+                }
+            </div>
+        }
+        else
+        {
+            <table class="data-grid">
+                <thead>
+                    <tr>
+                        <th>Category Name</th>
+                        <th style="width: 200px;">Slug</th>
+                        <th>Description</th>
+                        <th style="width: 100px;">Posts</th>
+                        <th style="width: 120px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var category in FilteredList)
+                    {
+                        <tr>
+                            <td class="category-name">@category.CategoryName</td>
+                            <td class="category-slug">/@category.Slug</td>
+                            <td class="category-desc">@(string.IsNullOrEmpty(category.Description) ? "-" : category.Description)</td>
+                            <td>
+                                <span class="badge">@category.PostCount</span>
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    <FluentAnchor Href="@($"/admin/category/{category.CategoryId}")"
+                                                  Appearance="Appearance.Stealth"
+                                                  Title="Edit">
+                                        <FluentIcon Value="@(new Icons.Regular.Size16.Edit())" />
+                                    </FluentAnchor>
+                                    <FluentButton Appearance="Appearance.Stealth"
+                                                  OnClick="@(() => ConfirmDelete(category))"
+                                                  Title="Delete">
+                                        <FluentIcon Value="@(new Icons.Regular.Size16.Delete())" Color="Color.Error" />
+                                    </FluentButton>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    @* Delete Confirmation Dialog *@
+    @if (!HideDeleteDialog)
+    {
+        <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
+            <FluentDialogHeader>
+                <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
+            </FluentDialogHeader>
+            <FluentDialogBody>
+                <p>Are you sure you want to delete the category "<strong>@CategoryToDelete?.CategoryName</strong>"?</p>
+                @if (CategoryToDelete?.PostCount > 0)
+                {
+                    <p style="color: var(--color-warning, #FFB900);">
+                        Warning: This category has @CategoryToDelete.PostCount post(s). They will become uncategorized.
+                    </p>
+                }
+            </FluentDialogBody>
+            <FluentDialogFooter>
+                <FluentButton Appearance="Appearance.Neutral" OnClick="CancelDelete">Cancel</FluentButton>
+                <FluentButton Appearance="Appearance.Accent"
+                              OnClick="DeleteCategory"
+                              Style="background-color: var(--color-error, #D13438);">
+                    Delete
+                </FluentButton>
+            </FluentDialogFooter>
+        </FluentDialog>
+    }
+</div>
+
+<style>
+    .categories-list-page {
+        max-width: 1200px;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--spacing-lg, 24px);
+    }
+
+    .page-header h1 {
+        margin: 0;
+    }
+
+    .filters-row {
+        display: flex;
+        gap: var(--spacing-md, 16px);
+        margin-bottom: var(--spacing-lg, 24px);
+        align-items: center;
+    }
+
+    .search-box {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm, 8px);
+    }
+
+    .result-count {
+        font-size: var(--font-size-small, 0.875rem);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .table-container {
+        border: 1px solid var(--color-border, #E1E1E1);
+        border-radius: var(--border-radius-lg, 8px);
+        overflow: hidden;
+        background-color: var(--color-background, #fff);
+    }
+
+    .data-grid {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--font-size-small, 0.875rem);
+    }
+
+    .data-grid th,
+    .data-grid td {
+        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
+        text-align: left;
+        border-bottom: 1px solid var(--color-border, #E1E1E1);
+    }
+
+    .data-grid th {
+        font-weight: var(--font-weight-semibold, 600);
+        background-color: var(--color-surface, #F5F5F5);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .data-grid tr:hover td {
+        background-color: var(--color-surface, #F5F5F5);
+    }
+
+    .category-name {
+        font-weight: var(--font-weight-semibold, 600);
+    }
+
+    .category-slug {
+        font-size: var(--font-size-xs, 0.75rem);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .category-desc {
+        font-size: var(--font-size-small, 0.875rem);
+        color: var(--color-neutral-light, #605E5C);
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px var(--spacing-sm, 8px);
+        font-size: var(--font-size-xs, 0.75rem);
+        font-weight: var(--font-weight-semibold, 600);
+        border-radius: var(--border-radius, 4px);
+        background-color: var(--color-surface, #F5F5F5);
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 4px;
+    }
+</style>
+
+@code {
+    private List<Category> ObjectList;
+    private List<Category> FilteredList;
+    private Category CategoryToDelete;
+    private bool HideDeleteDialog = true;
+    private string StatusMessage = string.Empty;
+    private bool IsError = false;
+    private string SearchTerm = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        LoadCategories();
+    }
+
+    private void LoadCategories()
+    {
+        try
+        {
+            ObjectList = CategoryService.GetAllWithCounts().ToList();
+            ApplyFilter();
+        }
+        catch
+        {
+            ObjectList = new List<Category>();
+            FilteredList = new List<Category>();
+            StatusMessage = "Failed to load categories.";
+            IsError = true;
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        if (ObjectList == null)
+        {
+            FilteredList = new List<Category>();
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(SearchTerm))
+        {
+            FilteredList = ObjectList.ToList();
+        }
+        else
+        {
+            var searchLower = SearchTerm.ToLower();
+            FilteredList = ObjectList.Where(c =>
+                (c.CategoryName?.ToLower().Contains(searchLower) ?? false) ||
+                (c.Slug?.ToLower().Contains(searchLower) ?? false) ||
+                (c.Description?.ToLower().Contains(searchLower) ?? false)).ToList();
+        }
+    }
+
+    private void ClearSearch()
+    {
+        SearchTerm = string.Empty;
+        ApplyFilter();
+    }
+
+    private void ConfirmDelete(Category category)
+    {
+        CategoryToDelete = category;
+        HideDeleteDialog = false;
+    }
+
+    private void CancelDelete()
+    {
+        CategoryToDelete = null;
+        HideDeleteDialog = true;
+    }
+
+    private void DeleteCategory()
+    {
+        if (CategoryToDelete == null) return;
+
+        var result = CategoryService.DeleteCategory(CategoryToDelete.CategoryId);
+        if (result.IsSuccess)
+        {
+            StatusMessage = $"Category '{CategoryToDelete.CategoryName}' deleted successfully.";
+            IsError = false;
+            LoadCategories();
+        }
+        else
+        {
+            StatusMessage = result.ErrorMessage;
+            IsError = true;
+        }
+
+        CategoryToDelete = null;
+        HideDeleteDialog = true;
+    }
+}

@@ -1,0 +1,251 @@
+@*
+    SearchResults.razor
+    Purpose: Search results page with search box, filters, and result cards.
+    Displays search input, category/date/sort filters, and matching posts.
+    Converted from mockups/06-search-results.html.
+
+    Dependencies: PostCard, Pagination components
+    Layout: Uses MainLayout (with sidebar for popular searches)
+*@
+
+@page "/search"
+@layout MainLayout
+@inject NavigationManager Navigation
+@inject BlogEngine.Services.BlogSvc BlogSvc
+@inject BlogEngine.Services.CategorySvc CategorySvc
+
+@* Search Header *@
+<div class="search-header">
+    <h1>Search</h1>
+    <div class="search-header__form">
+        <FluentTextField Placeholder="Search posts..."
+                         Style="flex: 1;"
+                         @bind-Value="searchQuery"
+                         @onkeydown="HandleSearchKeyDown" />
+        <FluentButton Appearance="Appearance.Accent" OnClick="DoSearch">
+            Search
+        </FluentButton>
+    </div>
+</div>
+
+@* Search Filters *@
+<div class="search-filters">
+    <FluentSelect TOption="string" @bind-Value="categoryFilter" Style="width: auto;">
+        <FluentOption TOption="string" Value="">All Categories</FluentOption>
+        @foreach (var category in categories)
+        {
+            <FluentOption TOption="string" Value="@category.Slug">@category.CategoryName</FluentOption>
+        }
+    </FluentSelect>
+    <FluentSelect TOption="string" @bind-Value="dateFilter" Style="width: auto;">
+        <FluentOption TOption="string" Value="">Any Date</FluentOption>
+        <FluentOption TOption="string" Value="week">Past Week</FluentOption>
+        <FluentOption TOption="string" Value="month">Past Month</FluentOption>
+        <FluentOption TOption="string" Value="year">Past Year</FluentOption>
+    </FluentSelect>
+    <FluentSelect TOption="string" @bind-Value="sortBy" Style="width: auto;">
+        <FluentOption TOption="string" Value="relevance">Sort by Relevance</FluentOption>
+        <FluentOption TOption="string" Value="date">Sort by Date</FluentOption>
+        <FluentOption TOption="string" Value="views">Sort by Views</FluentOption>
+    </FluentSelect>
+</div>
+
+@if (hasSearched)
+{
+    @* Results Count *@
+    <div class="search-results__count">
+        Showing <strong>@searchResults.Count results</strong> for "<strong>@displayQuery</strong>"
+    </div>
+
+    @* Search Results *@
+    <div class="search-results__list">
+        @foreach (var result in searchResults)
+        {
+            <article class="search-result">
+                <div class="search-result__image placeholder-image">Image</div>
+                <div class="search-result__content">
+                    <span class="card__category">@result.Category</span>
+                    <h3 class="card__title">
+                        <a href="/post/@result.Slug">@result.Title</a>
+                    </h3>
+                    <p class="card__excerpt">@((MarkupString)result.ExcerptWithHighlights)</p>
+                    <div class="card__meta">
+                        <div class="card__author">
+                            <div class="card__avatar"></div>
+                            <span>@result.Author</span>
+                        </div>
+                        <span>@result.Date</span>
+                        <span>@result.ReadTime</span>
+                        @if (result.Rating > 0)
+                        {
+                            <StarRating Value="@result.Rating" />
+                        }
+                    </div>
+                </div>
+            </article>
+        }
+    </div>
+
+    @* Pagination *@
+    @if (TotalPages > 1)
+    {
+        <Pagination CurrentPage="@currentPage" TotalPages="@TotalPages" OnPageChanged="HandlePageChanged" />
+    }
+}
+else
+{
+    <p class="search-hint">Enter a search term to find blog posts.</p>
+}
+
+@code {
+    /// <summary>
+    /// Search query parameter from URL.
+    /// </summary>
+    [SupplyParameterFromQuery(Name = "q")]
+    public string? Query { get; set; }
+
+    private string searchQuery = string.Empty;
+    private string displayQuery = string.Empty;
+    private string categoryFilter = string.Empty;
+    private string dateFilter = string.Empty;
+    private string sortBy = "relevance";
+    private bool hasSearched = false;
+    private List<SearchResult> searchResults = new();
+    private List<BlogModels.Category> categories = new();
+    private int totalResults = 0;
+    private int currentPage = 1;
+    private const int PageSize = 10;
+
+    /// <summary>
+    /// Initialize component and perform search if query provided.
+    /// </summary>
+    protected override void OnInitialized()
+    {
+        // Load categories for the filter dropdown
+        categories = CategorySvc.GetAllCategories().ToList();
+        
+        if (!string.IsNullOrEmpty(Query))
+        {
+            searchQuery = Query;
+            PerformSearch();
+        }
+    }
+
+    /// <summary>
+    /// Handle Enter key press to trigger search.
+    /// </summary>
+    private void HandleSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            DoSearch();
+        }
+    }
+
+    /// <summary>
+    /// Navigate to search results with query.
+    /// </summary>
+    private void DoSearch()
+    {
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+        {
+            currentPage = 1;
+            Navigation.NavigateTo($"/search?q={Uri.EscapeDataString(searchQuery)}");
+            PerformSearch();
+        }
+    }
+
+    /// <summary>
+    /// Perform search against the database.
+    /// </summary>
+    private void PerformSearch()
+    {
+        hasSearched = true;
+        displayQuery = searchQuery;
+
+        // Get total count for pagination
+        totalResults = BlogSvc.GetSearchResultCount(searchQuery);
+
+        // Get paginated results from database
+        int offset = (currentPage - 1) * PageSize;
+        var posts = BlogSvc.SearchPosts(searchQuery, PageSize, offset);
+
+        // Convert BlogPost to SearchResult with highlighted excerpts
+        searchResults = posts.Select(post => new SearchResult
+        {
+            Category = "Blog", // Category name would require a join - simplified for now
+            Title = post.Title ?? string.Empty,
+            ExcerptWithHighlights = HighlightSearchTerms(post.Abstract ?? string.Empty, searchQuery),
+            Slug = post.Slug ?? string.Empty,
+            Author = post.BlogWriter ?? "Unknown",
+            Date = post.CreatedOn.ToString("MMM dd, yyyy"),
+            ReadTime = EstimateReadTime(post.PostContent),
+            Rating = 0
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Highlights search terms in the excerpt with mark tags.
+    /// </summary>
+    private string HighlightSearchTerms(string text, string query)
+    {
+        if (string.IsNullOrWhiteSpace(text) || string.IsNullOrWhiteSpace(query))
+            return text;
+
+        // Truncate text to reasonable excerpt length
+        var excerpt = text.Length > 200 ? text.Substring(0, 200) + "..." : text;
+
+        // Split query into words and highlight each
+        var words = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var word in words)
+        {
+            if (word.Length < 2) continue;
+            // Case-insensitive replacement with mark tags
+            var regex = new System.Text.RegularExpressions.Regex(
+                System.Text.RegularExpressions.Regex.Escape(word),
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            excerpt = regex.Replace(excerpt, match => $"<mark>{match.Value}</mark>");
+        }
+        return excerpt;
+    }
+
+    /// <summary>
+    /// Estimates read time based on content length.
+    /// </summary>
+    private string EstimateReadTime(string? content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            return "1 min read";
+
+        // Average reading speed: 200 words per minute
+        var wordCount = content.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+        var minutes = Math.Max(1, (int)Math.Ceiling(wordCount / 200.0));
+        return $"{minutes} min read";
+    }
+
+    /// <summary>
+    /// Handle page change for pagination.
+    /// </summary>
+    private void HandlePageChanged(int page)
+    {
+        currentPage = page;
+        PerformSearch();
+    }
+
+    /// <summary>
+    /// Calculate total pages for pagination.
+    /// </summary>
+    private int TotalPages => (int)Math.Ceiling((double)totalResults / PageSize);
+
+    private class SearchResult
+    {
+        public string Category { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public string ExcerptWithHighlights { get; set; } = string.Empty;
+        public string Slug { get; set; } = string.Empty;
+        public string Author { get; set; } = string.Empty;
+        public string Date { get; set; } = string.Empty;
+        public string ReadTime { get; set; } = string.Empty;
+        public int Rating { get; set; }
+    }
+}
