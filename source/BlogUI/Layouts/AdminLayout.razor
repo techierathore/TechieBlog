@@ -70,6 +70,50 @@
                     <span>Series</span>
                 </NavLink>
             </li>
+
+            @* Resume Management Section - visible to Authors and above *@
+            <AuthorizeView Policy="AuthorOrAbove">
+                <Authorized>
+                    <li class="nav-menu__divider">
+                        <span class="nav-menu__section-title">Resume</span>
+                    </li>
+                    <li class="nav-menu__item">
+                        <NavLink href="/admin/profile" class="nav-menu__link" ActiveClass="nav-menu__link--active">
+                            <span class="nav-menu__icon">&#128100;</span>
+                            <span>My Profile</span>
+                        </NavLink>
+                    </li>
+                    <li class="nav-menu__item">
+                        <NavLink href="/admin/experience" class="nav-menu__link" ActiveClass="nav-menu__link--active">
+                            <span class="nav-menu__icon">&#128188;</span>
+                            <span>Experience</span>
+                        </NavLink>
+                    </li>
+                    <li class="nav-menu__item">
+                        <NavLink href="/admin/skills" class="nav-menu__link" ActiveClass="nav-menu__link--active">
+                            <span class="nav-menu__icon">&#127942;</span>
+                            <span>Skills</span>
+                        </NavLink>
+                    </li>
+                    <li class="nav-menu__item">
+                        <NavLink href="/admin/awards" class="nav-menu__link" ActiveClass="nav-menu__link--active">
+                            <span class="nav-menu__icon">&#127941;</span>
+                            <span>Awards</span>
+                        </NavLink>
+                    </li>
+                </Authorized>
+            </AuthorizeView>
+            <AuthorizeView Policy="AdminOnly">
+                <Authorized>
+                    <li class="nav-menu__item">
+                        <NavLink href="/admin/images" class="nav-menu__link" ActiveClass="nav-menu__link--active">
+                            <span class="nav-menu__icon">&#128247;</span>
+                            <span>Images</span>
+                        </NavLink>
+                    </li>
+                </Authorized>
+            </AuthorizeView>
+
             <AuthorizeView Policy="AdminOnly">
                 <Authorized>
                     <li class="nav-menu__item">
@@ -201,6 +245,20 @@
         font-size: 16px;
         width: 20px;
         text-align: center;
+    }
+
+    .nav-menu__divider {
+        margin-top: var(--spacing-md, 16px);
+        padding: var(--spacing-xs, 4px) var(--spacing-lg, 24px);
+        border-top: 1px solid var(--color-border, #E1E1E1);
+    }
+
+    .nav-menu__section-title {
+        font-size: var(--font-size-xs, 0.75rem);
+        font-weight: var(--font-weight-semibold, 600);
+        color: var(--color-neutral-light, #605E5C);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     /* Main Content Area */

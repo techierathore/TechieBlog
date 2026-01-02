@@ -7,6 +7,55 @@ public interface IBlogUserRepo : IGenericRepository<AppUser>
     AppUser GetLoginUser(string aLoginEmail, string aPassword);
     AppUser GetUserByEmail(string aLoginEmail);
     AppUser GetUserByMobile(string aMobileNo);
+
+    /// <summary>
+    /// Retrieves a user by their username (case-insensitive).
+    /// </summary>
+    /// <param name="username">The username to search for.</param>
+    /// <returns>AppUser if found, null otherwise.</returns>
+    AppUser? GetByUsername(string username);
+
+    /// <summary>
+    /// Retrieves the site owner (user with IsSiteOwner=true).
+    /// </summary>
+    /// <returns>AppUser if found, null otherwise.</returns>
+    AppUser? GetSiteOwner();
+
+    /// <summary>
+    /// Retrieves all users who have written at least one blog post.
+    /// </summary>
+    /// <returns>Collection of authors.</returns>
+    IEnumerable<AppUser> GetAllAuthors();
+
+    /// <summary>
+    /// Updates a user's username.
+    /// </summary>
+    /// <param name="userId">The user's ID.</param>
+    /// <param name="username">The new username.</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    bool UpdateUsername(long userId, string username);
+
+    /// <summary>
+    /// Sets a user as the site owner, removing the flag from any previous owner.
+    /// </summary>
+    /// <param name="userId">The user ID to set as site owner.</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    bool SetSiteOwner(long userId);
+
+    /// <summary>
+    /// Checks if a username is available (not already taken).
+    /// </summary>
+    /// <param name="username">The username to check.</param>
+    /// <returns>True if available, false if taken.</returns>
+    bool IsUsernameAvailable(string username);
+
+    /// <summary>
+    /// Updates only the resume-related fields for a user.
+    /// </summary>
+    /// <param name="userId">The user's ID.</param>
+    /// <param name="resumeData">AppUser object containing resume field values.</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    bool UpdateResumeFields(long userId, AppUser resumeData);
 }
 public interface ISvcTokenRepo : IGenericRepository<SvcToken>
 { SvcToken GetSvcToken(long aAppUserId, string aLoginToken); }
@@ -273,8 +322,31 @@ public interface IBlogCommentRepo : IGenericRepository<BlogComment>
     /// <returns>Pending comment count.</returns>
     int GetPendingCount();
 }
+/// <summary>
+/// Repository interface for UserEvent data access operations.
+/// </summary>
 public interface IUserEventRepo : IGenericRepository<UserEvent>
-{ }
+{
+    /// <summary>
+    /// Gets all events for a user filtered by event type.
+    /// </summary>
+    /// <param name="userId">The user's ID.</param>
+    /// <param name="eventType">The event type to filter by (e.g., "Experience", "Speaking").</param>
+    /// <returns>Collection of matching events ordered by DisplayOrder.</returns>
+    IEnumerable<UserEvent> GetByUserAndType(long userId, string eventType);
+
+    /// <summary>
+    /// Deletes an event by ID.
+    /// </summary>
+    /// <param name="eventId">Event ID to delete.</param>
+    void Delete(long eventId);
+
+    /// <summary>
+    /// Updates the display order for multiple events.
+    /// </summary>
+    /// <param name="eventOrders">Dictionary of EventId to DisplayOrder.</param>
+    void UpdateDisplayOrders(Dictionary<long, int> eventOrders);
+}
 
 /// <summary>
 /// Repository interface for BlogSeries data access operations.

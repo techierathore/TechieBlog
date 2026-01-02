@@ -1,0 +1,75 @@
+@*
+    ResumeAwards.razor
+    Purpose: Displays user awards and recognition in a resume section.
+    Shows badge images, award titles, years, and descriptions.
+
+    Dependencies: BlogEngine.DbAccess.IUserAwardsRepo
+    Usage: Used in Resume page to display user's certifications, awards, and achievements
+*@
+
+@inject BlogModels.Interfaces.IUserAwardsRepo AwardsRepo
+
+<section class="resume-section resume-section--alt">
+    <h2>Awards & Recognition</h2>
+
+    @if (awards != null && awards.Any())
+    {
+        <div class="awards-list">
+            @foreach (var award in awards)
+            {
+                <div class="award-item">
+                    @if (!string.IsNullOrEmpty(award.BadgeImagePath))
+                    {
+                        <img src="@award.BadgeImagePath"
+                             alt="@award.AwardTitle"
+                             class="badge-image" />
+                    }
+                    <div class="award-content">
+                        @if (!string.IsNullOrEmpty(award.AwardUrl))
+                        {
+                            <a href="@award.AwardUrl" target="_blank" rel="noopener noreferrer" class="award-title">
+                                @award.AwardTitle
+                            </a>
+                        }
+                        else
+                        {
+                            <div class="award-title">@award.AwardTitle</div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(award.AwardYear))
+                        {
+                            <div class="award-year">@award.AwardYear</div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(award.AwardDescription))
+                        {
+                            <div class="award-description">@award.AwardDescription</div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <p>No awards to display.</p>
+    }
+</section>
+
+@code {
+    /// <summary>
+    /// The user ID to load awards for.
+    /// </summary>
+    [Parameter]
+    public long UserId { get; set; }
+
+    private IEnumerable<BlogModels.Models.UserAward>? awards;
+
+    protected override void OnParametersSet()
+    {
+        if (UserId > 0)
+        {
+            awards = AwardsRepo.GetByUserId(UserId);
+        }
+    }
+}

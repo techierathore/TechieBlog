@@ -1,6 +1,7 @@
 using BlogEngine.Common;
 using BlogEngine.DbAccess;
 using BlogEngine.Services;
+using BlogModels.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BlogEngine;
@@ -54,6 +55,22 @@ public static class BlogSvcInitializer
         // Favorite services (FIX-014: Favorites/Bookmarks)
         services.AddTransient<IUserFavoriteRepo>(x => new UserFavoriteRepo(dbConnectionString));
         services.AddTransient<Services.FavoriteSvc>();
+
+        // User skills repository (Wave 1: Resume features)
+        services.AddTransient<IUserSkillsRepo>(x => new UserSkillsRepo(dbConnectionString));
+
+        // User awards repository (Resume features)
+        services.AddTransient<IUserAwardsRepo>(x => new UserAwardsRepo(dbConnectionString));
+
+        // User events repository (Experience timeline)
+        services.AddTransient<IUserEventRepo>(x => new UserEventRepo(dbConnectionString));
+
+        // User stats repository (Profile statistics)
+        services.AddTransient<IUserStatsRepo>(x => new UserStatsRepo(dbConnectionString));
+
+        // Image repository and service
+        services.AddTransient<IBlogImageRepo>(x => new BlogImageRepo(dbConnectionString));
+        services.AddScoped<IBlogImageService, BlogImageService>();
 
         // Sitemap service
         services.AddTransient<Services.SitemapSvc>();

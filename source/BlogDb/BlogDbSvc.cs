@@ -44,13 +44,14 @@ public class BlogDbSvc
     /// for ordering: 001-CreateTables.sql, 002-CreateStoredFunctions.sql, etc.</para>
     /// </remarks>
     /// <param name="connectionString">PostgreSQL connection string from configuration.</param>
+    /// <param name="scriptsPath">Path to the folder containing SQL migration scripts. Defaults to "PostgresScripts".</param>
     /// <returns>True if all migrations succeeded, false if any errors occurred.</returns>
-    public bool UpgradeDatabase(string connectionString)
+    public bool UpgradeDatabase(string connectionString, string scriptsPath = "PostgresScripts")
     {
         var upgrader =
             DeployChanges.To
                 .PostgresqlDatabase(connectionString)
-                .WithScriptsFromFileSystem("PostgresScripts")
+                .WithScriptsFromFileSystem(scriptsPath)
                 .LogToConsole()
                 .Build();
 

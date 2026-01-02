@@ -1,0 +1,355 @@
+@*
+    ImagePicker.razor
+    Purpose: Reusable image picker component with gallery modal and upload functionality.
+    Displays current selected image, allows choosing from library or uploading new images.
+
+    Usage: <ImagePicker Category="profiles" @bind-SelectedImagePath="user.ProfileImagePath" UserId="@currentUserId" />
+    Dependencies: BlogEngine.Services.BlogImageService, Fluent UI
+*@
+@namespace BlogUI.Components
+
+<div class="image-picker">
+    @* Current Image Preview *@
+    <div class="image-picker__preview">
+        @if (!string.IsNullOrEmpty(SelectedImagePath))
+        {
+            <div class="image-picker__thumbnail">
+                <img src="@SelectedImagePath" alt="Selected image" />
+                <FluentButton Appearance="Appearance.Stealth"
+                              Class="image-picker__clear"
+                              OnClick="@ClearSelection"
+                              Title="Clear selection">
+                    <FluentIcon Value="@(new Icons.Regular.Size16.Dismiss())" />
+                </FluentButton>
+            </div>
+        }
+        else
+        {
+            <div class="image-picker__placeholder">
+                <FluentIcon Value="@(new Icons.Regular.Size24.Image())" Color="Color.Neutral" />
+                <span>No image selected</span>
+            </div>
+        }
+    </div>
+
+    @* Action Buttons *@
+    <div class="image-picker__actions">
+        <FluentButton Appearance="Appearance.Outline"
+                      OnClick="@OpenGallery"
+                      Size="ButtonSize.Small">
+            <FluentIcon Value="@(new Icons.Regular.Size16.ImageMultiple())" />
+            Choose from Library
+        </FluentButton>
+        <FluentButton Appearance="Appearance.Outline"
+                      OnClick="@OpenUpload"
+                      Size="ButtonSize.Small">
+            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowUpload())" />
+            Upload New
+        </FluentButton>
+    </div>
+
+    @* Category Constraints Info *@
+    <div class="image-picker__info">
+        <small>@GetCategoryConstraintsText()</small>
+    </div>
+
+    @* Gallery Modal *@
+    @if (ShowGalleryModal)
+    {
+        <FluentDialog Hidden="false" Modal="true" TrapFocus="true" Style="--dialog-width: 800px; --dialog-height: 600px;">
+            <FluentDialogHeader>
+                <FluentLabel Typo="Typography.PaneHeader">Choose Image from Library</FluentLabel>
+            </FluentDialogHeader>
+            <FluentDialogBody>
+                @if (IsLoadingGallery)
+                {
+                    <div style="display: flex; justify-content: center; align-items: center; padding: 48px;">
+                        <FluentProgressRing />
+                        <span style="margin-left: 12px;">Loading images...</span>
+                    </div>
+                }
+                else if (GalleryImages == null || !GalleryImages.Any())
+                {
+                    <div style="text-align: center; padding: 48px; color: var(--neutral-foreground-hint);">
+                        <FluentIcon Value="@(new Icons.Regular.Size48.ImageOff())" Color="Color.Neutral" />
+                        <p>No images found in the @Category category.</p>
+                        <p>Upload a new image to get started.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="image-picker__gallery">
+                        @foreach (var image in GalleryImages)
+                        {
+                            <div class="image-picker__gallery-item @(image.ImagePath == SelectedImagePath ? "selected" : "")"
+                                 @onclick="@(() => SelectImage(image.ImagePath))">
+                                <img src="@image.ImagePath" alt="@(image.AltText ?? image.ImageName)" />
+                                <div class="image-picker__gallery-item-overlay">
+                                    <span>@image.ImageName</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </FluentDialogBody>
+            <FluentDialogFooter>
+                <FluentButton Appearance="Appearance.Neutral" OnClick="@CloseGallery">
+                    Cancel
+                </FluentButton>
+            </FluentDialogFooter>
+        </FluentDialog>
+    }
+
+    @* Upload Modal *@
+    @if (ShowUploadModal)
+    {
+        <FluentDialog Hidden="false" Modal="true" TrapFocus="true" Style="--dialog-width: 500px;">
+            <FluentDialogHeader>
+                <FluentLabel Typo="Typography.PaneHeader">Upload New Image</FluentLabel>
+            </FluentDialogHeader>
+            <FluentDialogBody>
+                <div class="image-picker__upload">
+                    <div class="image-picker__upload-zone">
+                        <InputFile OnChange="@OnFileSelected" accept="@GetAcceptedFileTypes()" />
+                        <div class="image-picker__upload-info">
+                            <FluentIcon Value="@(new Icons.Regular.Size24.ArrowUpload())" Color="Color.Accent" />
+                            <p>Click to select a file or drag and drop</p>
+                            <small>@GetCategoryConstraintsText()</small>
+                        </div>
+                    </div>
+
+                    @if (SelectedFile != null)
+                    {
+                        <div class="image-picker__upload-preview">
+                            <p><strong>Selected:</strong> @SelectedFile.Name (@FormatFileSize(SelectedFile.Size))</p>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(UploadError))
+                    {
+                        <FluentMessageBar Intent="MessageIntent.Error" Style="margin-top: 16px;">
+                            @UploadError
+                        </FluentMessageBar>
+                    }
+
+                    @if (IsUploading)
+                    {
+                        <div style="margin-top: 16px;">
+                            <FluentProgressRing />
+                            <span>Uploading...</span>
+                        </div>
+                    }
+                </div>
+            </FluentDialogBody>
+            <FluentDialogFooter>
+                <FluentButton Appearance="Appearance.Neutral" OnClick="@CloseUpload" Disabled="@IsUploading">
+                    Cancel
+                </FluentButton>
+                <FluentButton Appearance="Appearance.Accent"
+                              OnClick="@UploadFile"
+                              Disabled="@(SelectedFile == null || IsUploading)">
+                    @if (IsUploading)
+                    {
+                        <FluentIcon Value="@(new Icons.Regular.Size16.ArrowSync())" />
+                        <span>Uploading...</span>
+                    }
+                    else
+                    {
+                        <FluentIcon Value="@(new Icons.Regular.Size16.ArrowUpload())" />
+                        <span>Upload</span>
+                    }
+                </FluentButton>
+            </FluentDialogFooter>
+        </FluentDialog>
+    }
+</div>
+
+<style>
+    .image-picker {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .image-picker__preview {
+        width: 150px;
+        height: 150px;
+        border: 2px dashed var(--neutral-stroke-rest);
+        border-radius: 8px;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--neutral-layer-2);
+    }
+
+    .image-picker__thumbnail {
+        position: relative;
+        width: 100%;
+        height: 100%;
+    }
+
+    .image-picker__thumbnail img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .image-picker__clear {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        background: rgba(0, 0, 0, 0.6) !important;
+        border-radius: 50%;
+        min-width: 24px !important;
+        width: 24px !important;
+        height: 24px !important;
+        padding: 0 !important;
+    }
+
+    .image-picker__clear:hover {
+        background: rgba(0, 0, 0, 0.8) !important;
+    }
+
+    .image-picker__placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        color: var(--neutral-foreground-hint);
+        text-align: center;
+        padding: 16px;
+    }
+
+    .image-picker__placeholder span {
+        font-size: 0.85rem;
+    }
+
+    .image-picker__actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .image-picker__info {
+        color: var(--neutral-foreground-hint);
+    }
+
+    .image-picker__info small {
+        font-size: 0.8rem;
+    }
+
+    /* Gallery Modal Styles */
+    .image-picker__gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 12px;
+        max-height: 400px;
+        overflow-y: auto;
+        padding: 4px;
+    }
+
+    .image-picker__gallery-item {
+        position: relative;
+        aspect-ratio: 1;
+        border: 2px solid transparent;
+        border-radius: 8px;
+        overflow: hidden;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .image-picker__gallery-item:hover {
+        border-color: var(--accent-fill-rest);
+        transform: scale(1.02);
+    }
+
+    .image-picker__gallery-item.selected {
+        border-color: var(--accent-fill-rest);
+        box-shadow: 0 0 0 2px var(--accent-fill-rest);
+    }
+
+    .image-picker__gallery-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .image-picker__gallery-item-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+        padding: 8px;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+
+    .image-picker__gallery-item:hover .image-picker__gallery-item-overlay {
+        opacity: 1;
+    }
+
+    .image-picker__gallery-item-overlay span {
+        color: white;
+        font-size: 0.75rem;
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Upload Modal Styles */
+    .image-picker__upload {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .image-picker__upload-zone {
+        position: relative;
+        border: 2px dashed var(--neutral-stroke-rest);
+        border-radius: 8px;
+        padding: 32px;
+        text-align: center;
+        transition: border-color 0.2s ease;
+    }
+
+    .image-picker__upload-zone:hover {
+        border-color: var(--accent-fill-rest);
+    }
+
+    .image-picker__upload-zone input[type="file"] {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    .image-picker__upload-info {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        color: var(--neutral-foreground-hint);
+        pointer-events: none;
+    }
+
+    .image-picker__upload-info p {
+        margin: 0;
+    }
+
+    .image-picker__upload-preview {
+        padding: 12px;
+        background: var(--neutral-layer-2);
+        border-radius: 4px;
+    }
+
+    .image-picker__upload-preview p {
+        margin: 0;
+    }
+</style>

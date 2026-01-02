@@ -3,6 +3,7 @@
 // Purpose: Configures and starts the Blazor Server application
 // =============================================================================
 using Blazored.LocalStorage;
+using BlogDb;
 using BlogEngine;
 using BlogEngine.Services;
 using BlogModels;
@@ -105,6 +106,33 @@ try
     builder.Services.AddScoped<ThemeService>();
 
     var app = builder.Build();
+
+    // Run database migrations automatically at startup
+    Log.Information("Running database migrations...");
+    var scriptsPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "BlogDb", "PostgresScripts");
+    if (!Directory.Exists(scriptsPath))
+    {
+        // Fallback for published deployment - scripts should be in a known location
+        scriptsPath = Path.Combine(AppContext.BaseDirectory, "PostgresScripts");
+    }
+
+    if (Directory.Exists(scriptsPath))
+    {
+        var dbSvc = new BlogDbSvc();
+        var migrationSuccess = dbSvc.UpgradeDatabase(sDbConnectionString, scriptsPath);
+        if (!migrationSuccess)
+        {
+            Log.Warning("Database migration completed with warnings - check console output");
+        }
+        else
+        {
+            Log.Information("Database migrations completed successfully");
+        }
+    }
+    else
+    {
+        Log.Warning("PostgresScripts folder not found at {ScriptsPath} - skipping migrations", scriptsPath);
+    }
 
     // Configure the HTTP request pipeline.
     if (!app.Environment.IsDevelopment())

@@ -26,4 +26,9 @@ public class BlogImage
 	/// Gets or sets the UserID value.
 	/// </summary>
 	public long UserID { get; set; }
+	public string Category { get; set; } = "general";
+	public string? AltText { get; set; }
+	public string? MimeType { get; set; }
+	public int? Width { get; set; }
+	public int? Height { get; set; }
 }

@@ -1,0 +1,325 @@
+@*
+    ManageSkills.razor
+    Purpose: Manage user skills for resume/portfolio display.
+    Provides CRUD operations for skills grouped by category.
+
+    Usage: Navigate to /admin/skills
+    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+    Authorization: AuthorOrAdmin policy required
+*@
+@page "/admin/skills"
+@attribute [Authorize(Policy = "AuthorOrAbove")]
+@layout BlogUI.Layouts.AdminLayout
+
+<ContentPanel PanelTitle="Manage Skills">
+    <RightSection>
+        <FluentButton Appearance="Appearance.Accent" OnClick="ShowAddSkillDialog">
+            <FluentIcon Value="@(new Icons.Regular.Size16.Add())" />
+            Add Skill
+        </FluentButton>
+    </RightSection>
+    <PanelContent>
+        <div class="skills-page">
+            @* Status Messages *@
+            @if (!string.IsNullOrEmpty(StatusMessage))
+            {
+                <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
+                                  Style="margin-bottom: 16px;">
+                    @StatusMessage
+                </FluentMessageBar>
+            }
+
+            @* Admin User Selector *@
+            @if (IsAdmin && AllUsers != null && AllUsers.Any())
+            {
+                <div class="user-selector">
+                    <FluentLabel Style="margin-right: 8px;">View skills for:</FluentLabel>
+                    <FluentSelect TOption="string"
+                                  Value="@SelectedUserId.ToString()"
+                                  ValueChanged="@(val => OnUserSelectionChanged(long.Parse(val)))"
+                                  Style="min-width: 250px;">
+                        @foreach (var user in AllUsers)
+                        {
+                            <FluentOption TOption="string" Value="@user.UserId.ToString()">
+                                @user.FirstName @user.LastName (@user.EmailId)
+                            </FluentOption>
+                        }
+                    </FluentSelect>
+                </div>
+            }
+
+            @* Loading State *@
+            @if (IsLoading)
+            {
+                <div style="padding: 32px; text-align: center;">
+                    <FluentProgressRing />
+                    <span style="display: block; margin-top: 8px;">Loading skills...</span>
+                </div>
+            }
+            else if (GroupedSkills == null || !GroupedSkills.Any())
+            {
+                <div style="padding: 32px; text-align: center; color: var(--color-neutral-light);">
+                    <p>No skills found. Click "Add Skill" to create your first skill.</p>
+                </div>
+            }
+            else
+            {
+                @* Skills grouped by category *@
+                @foreach (var categoryGroup in GroupedSkills)
+                {
+                    <div class="category-section">
+                        <div class="category-header" @onclick="() => ToggleCategory(categoryGroup.Key)">
+                            @if (CollapsedCategories.Contains(categoryGroup.Key))
+                            {
+                                <FluentIcon Value="@(new Icons.Regular.Size16.ChevronRight())" />
+                            }
+                            else
+                            {
+                                <FluentIcon Value="@(new Icons.Regular.Size16.ChevronDown())" />
+                            }
+                            <h3>@categoryGroup.Key</h3>
+                            <span class="skill-count">(@categoryGroup.Count())</span>
+                            <span style="flex: 1;"></span>
+                            <FluentButton Appearance="Appearance.Stealth"
+                                          OnClick="@(() => ShowAddSkillToCategory(categoryGroup.Key))"
+                                          OnClick:stopPropagation="true"
+                                          Title="Add skill to this category">
+                                <FluentIcon Value="@(new Icons.Regular.Size16.Add())" />
+                            </FluentButton>
+                        </div>
+
+                        @if (!CollapsedCategories.Contains(categoryGroup.Key))
+                        {
+                            <div class="skills-list">
+                                @foreach (var skill in categoryGroup.OrderBy(s => s.DisplayOrder))
+                                {
+                                    <div class="skill-item">
+                                        @if (EditingSkillId == skill.SkillId)
+                                        {
+                                            @* Inline Edit Mode *@
+                                            <div class="skill-edit-form">
+                                                <FluentTextField @bind-Value="EditSkillName"
+                                                                 Placeholder="Skill name"
+                                                                 Style="flex: 1; min-width: 150px;" />
+                                                <FluentSelect TOption="string"
+                                                              @bind-Value="EditSkillCategory"
+                                                              Style="min-width: 150px;">
+                                                    @foreach (var cat in ExistingCategories)
+                                                    {
+                                                        <FluentOption TOption="string" Value="@cat">@cat</FluentOption>
+                                                    }
+                                                    <FluentOption TOption="string" Value="__new__">+ New Category</FluentOption>
+                                                </FluentSelect>
+                                                @if (EditSkillCategory == "__new__")
+                                                {
+                                                    <FluentTextField @bind-Value="NewCategoryName"
+                                                                     Placeholder="New category name"
+                                                                     Style="min-width: 150px;" />
+                                                }
+                                                <FluentButton Appearance="Appearance.Accent" OnClick="SaveEditedSkill">
+                                                    <FluentIcon Value="@(new Icons.Regular.Size16.Checkmark())" />
+                                                </FluentButton>
+                                                <FluentButton Appearance="Appearance.Stealth" OnClick="CancelEdit">
+                                                    <FluentIcon Value="@(new Icons.Regular.Size16.Dismiss())" />
+                                                </FluentButton>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            @* Display Mode *@
+                                            <span class="skill-name">@skill.SkillName</span>
+                                            <span style="flex: 1;"></span>
+                                            <div class="skill-actions">
+                                                <FluentButton Appearance="Appearance.Stealth"
+                                                              OnClick="@(() => StartEditSkill(skill))"
+                                                              Title="Edit">
+                                                    <FluentIcon Value="@(new Icons.Regular.Size16.Edit())" />
+                                                </FluentButton>
+                                                <FluentButton Appearance="Appearance.Stealth"
+                                                              OnClick="@(() => ConfirmDeleteSkill(skill))"
+                                                              Title="Delete">
+                                                    <FluentIcon Value="@(new Icons.Regular.Size16.Delete())" Color="Color.Error" />
+                                                </FluentButton>
+                                                <FluentButton Appearance="Appearance.Stealth"
+                                                              OnClick="@(() => MoveSkillUp(skill))"
+                                                              Disabled="@(IsFirstInCategory(skill))"
+                                                              Title="Move Up">
+                                                    <FluentIcon Value="@(new Icons.Regular.Size16.ArrowUp())" />
+                                                </FluentButton>
+                                                <FluentButton Appearance="Appearance.Stealth"
+                                                              OnClick="@(() => MoveSkillDown(skill))"
+                                                              Disabled="@(IsLastInCategory(skill))"
+                                                              Title="Move Down">
+                                                    <FluentIcon Value="@(new Icons.Regular.Size16.ArrowDown())" />
+                                                </FluentButton>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            }
+        </div>
+
+        @* Add Skill Dialog *@
+        @if (ShowAddDialog)
+        {
+            <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
+                <FluentDialogHeader>
+                    <FluentLabel Typo="Typography.PaneHeader">Add New Skill</FluentLabel>
+                </FluentDialogHeader>
+                <FluentDialogBody>
+                    <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px; min-width: 350px;">
+                        <div>
+                            <FluentTextField Label="Skill Name"
+                                             @bind-Value="NewSkillName"
+                                             Placeholder="e.g., C#, Azure, React"
+                                             Required="true"
+                                             Style="width: 100%;" />
+                        </div>
+                        <div>
+                            <FluentLabel>Category</FluentLabel>
+                            <FluentSelect TOption="string"
+                                          @bind-Value="NewSkillCategory"
+                                          Style="width: 100%;">
+                                @foreach (var cat in ExistingCategories)
+                                {
+                                    <FluentOption TOption="string" Value="@cat">@cat</FluentOption>
+                                }
+                                <FluentOption TOption="string" Value="__new__">+ Create New Category</FluentOption>
+                            </FluentSelect>
+                        </div>
+                        @if (NewSkillCategory == "__new__")
+                        {
+                            <div>
+                                <FluentTextField Label="New Category Name"
+                                                 @bind-Value="NewCategoryName"
+                                                 Placeholder="e.g., AI/Emerging, Cloud/SaaS"
+                                                 Required="true"
+                                                 Style="width: 100%;" />
+                            </div>
+                        }
+                    </FluentStack>
+                </FluentDialogBody>
+                <FluentDialogFooter>
+                    <FluentButton Appearance="Appearance.Neutral" OnClick="CancelAddSkill">Cancel</FluentButton>
+                    <FluentButton Appearance="Appearance.Accent" OnClick="SaveNewSkill">Add Skill</FluentButton>
+                </FluentDialogFooter>
+            </FluentDialog>
+        }
+
+        @* Delete Confirmation Dialog *@
+        @if (ShowDeleteDialog)
+        {
+            <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
+                <FluentDialogHeader>
+                    <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
+                </FluentDialogHeader>
+                <FluentDialogBody>
+                    <p>Are you sure you want to delete the skill "<strong>@SkillToDelete?.SkillName</strong>"?</p>
+                </FluentDialogBody>
+                <FluentDialogFooter>
+                    <FluentButton Appearance="Appearance.Neutral" OnClick="CancelDelete">Cancel</FluentButton>
+                    <FluentButton Appearance="Appearance.Accent"
+                                  OnClick="DeleteSkill"
+                                  Style="background-color: var(--color-error, #D13438);">
+                        Delete
+                    </FluentButton>
+                </FluentDialogFooter>
+            </FluentDialog>
+        }
+    </PanelContent>
+</ContentPanel>
+
+<style>
+    .skills-page {
+        max-width: 900px;
+    }
+
+    .user-selector {
+        display: flex;
+        align-items: center;
+        margin-bottom: 24px;
+        padding: 12px 16px;
+        background-color: var(--color-surface, #F5F5F5);
+        border-radius: var(--border-radius, 4px);
+    }
+
+    .category-section {
+        margin-bottom: 16px;
+        border: 1px solid var(--color-border, #E1E1E1);
+        border-radius: var(--border-radius-lg, 8px);
+        overflow: hidden;
+        background-color: var(--color-background, #fff);
+    }
+
+    .category-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 16px;
+        background-color: var(--color-surface, #F5F5F5);
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .category-header:hover {
+        background-color: var(--color-surface-hover, #EBEBEB);
+    }
+
+    .category-header h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .skill-count {
+        font-size: 0.875rem;
+        color: var(--color-neutral-light, #605E5C);
+    }
+
+    .skills-list {
+        padding: 8px 0;
+    }
+
+    .skill-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px 8px 40px;
+        border-bottom: 1px solid var(--color-border-light, #F0F0F0);
+    }
+
+    .skill-item:last-child {
+        border-bottom: none;
+    }
+
+    .skill-item:hover {
+        background-color: var(--color-surface, #F5F5F5);
+    }
+
+    .skill-name {
+        font-size: 0.9375rem;
+    }
+
+    .skill-actions {
+        display: flex;
+        gap: 2px;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+    }
+
+    .skill-item:hover .skill-actions {
+        opacity: 1;
+    }
+
+    .skill-edit-form {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+        flex-wrap: wrap;
+    }
+</style>

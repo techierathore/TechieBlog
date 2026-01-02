@@ -13,6 +13,7 @@
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\BlogDb\BlogDb.csproj" />
     <ProjectReference Include="..\BlogEngine\BlogEngine.csproj" />
     <ProjectReference Include="..\BlogModel\BlogModels.csproj" />
     <ProjectReference Include="..\BlogUI\BlogUI.csproj" />

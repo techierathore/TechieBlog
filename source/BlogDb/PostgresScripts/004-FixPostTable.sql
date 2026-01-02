@@ -66,3 +66,20 @@ BEGIN
 EXCEPTION
     WHEN others THEN NULL;
 END $$;
+
+-- Add foreign key for CategoryId to Category table
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'blogpost_categoryid_fkey'
+    ) THEN
+        ALTER TABLE BlogPost ADD CONSTRAINT blogpost_categoryid_fkey
+            FOREIGN KEY (CategoryId) REFERENCES Category(CategoryId) ON DELETE SET NULL;
+    END IF;
+EXCEPTION
+    WHEN others THEN NULL;
+END $$;
+
+-- Create index on CategoryId for faster lookups
+CREATE INDEX IF NOT EXISTS IdxBlogPostCategoryId ON BlogPost(CategoryId);
