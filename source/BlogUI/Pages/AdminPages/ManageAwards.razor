@@ -131,12 +131,15 @@
         @* Add/Edit Award Dialog *@
         @if (ShowAwardDialog)
         {
-            <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
+            <FluentDialog Hidden="false" Modal="true" TrapFocus="true" Style="--dialog-width: 500px;">
                 <FluentDialogHeader>
-                    <FluentLabel Typo="Typography.PaneHeader">@(IsEditMode ? "Edit Award" : "Add New Award")</FluentLabel>
+                    <div style="padding: 16px 24px;">
+                        <FluentLabel Typo="Typography.PaneHeader">@(IsEditMode ? "Edit Award" : "Add New Award")</FluentLabel>
+                    </div>
                 </FluentDialogHeader>
                 <FluentDialogBody>
-                    <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px; min-width: 400px;">
+                    <div style="padding: 0 24px 16px 24px;">
+                    <FluentStack Orientation="Orientation.Vertical" Style="gap: 20px;">
                         <div>
                             <FluentTextField Label="Award Title"
                                              @bind-Value="FormAwardTitle"
@@ -156,7 +159,7 @@
                                              @bind-Value="FormBadgeImagePath"
                                              Placeholder="/images/awards/mvp-badge.png"
                                              Style="width: 100%;" />
-                            <small style="color: var(--neutral-foreground-hint);">
+                            <small style="color: var(--neutral-foreground-hint); display: block; margin-top: 4px;">
                                 Enter the path to the badge image. Upload images via the media library.
                             </small>
                         </div>
@@ -165,7 +168,7 @@
                                              @bind-Value="FormAwardUrl"
                                              Placeholder="https://mvp.microsoft.com/en-US/..."
                                              Style="width: 100%;" />
-                            <small style="color: var(--neutral-foreground-hint);">
+                            <small style="color: var(--neutral-foreground-hint); display: block; margin-top: 4px;">
                                 Link to the official award page or verification.
                             </small>
                         </div>
@@ -181,18 +184,21 @@
                                                  @bind-Value="FormYearEndText"
                                                  Placeholder="Leave empty if ongoing"
                                                  Style="width: 100%;" />
-                                <small style="color: var(--neutral-foreground-hint);">
+                                <small style="color: var(--neutral-foreground-hint); display: block; margin-top: 4px;">
                                     Leave empty if currently active
                                 </small>
                             </div>
                         </FluentStack>
                     </FluentStack>
+                    </div>
                 </FluentDialogBody>
                 <FluentDialogFooter>
-                    <FluentButton Appearance="Appearance.Neutral" OnClick="CancelAwardDialog">Cancel</FluentButton>
-                    <FluentButton Appearance="Appearance.Accent" OnClick="SaveAward">
-                        @(IsEditMode ? "Save Changes" : "Add Award")
-                    </FluentButton>
+                    <div style="padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px;">
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="CancelAwardDialog">Cancel</FluentButton>
+                        <FluentButton Appearance="Appearance.Accent" OnClick="SaveAward">
+                            @(IsEditMode ? "Save Changes" : "Add Award")
+                        </FluentButton>
+                    </div>
                 </FluentDialogFooter>
             </FluentDialog>
         }
@@ -202,18 +208,24 @@
         {
             <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
                 <FluentDialogHeader>
-                    <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
+                    <div style="padding: 16px 24px;">
+                        <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
+                    </div>
                 </FluentDialogHeader>
                 <FluentDialogBody>
-                    <p>Are you sure you want to delete the award "<strong>@AwardToDelete?.AwardTitle</strong>"?</p>
+                    <div style="padding: 0 24px 16px 24px;">
+                        <p style="margin: 0;">Are you sure you want to delete the award "<strong>@AwardToDelete?.AwardTitle</strong>"?</p>
+                    </div>
                 </FluentDialogBody>
                 <FluentDialogFooter>
-                    <FluentButton Appearance="Appearance.Neutral" OnClick="CancelDelete">Cancel</FluentButton>
-                    <FluentButton Appearance="Appearance.Accent"
-                                  OnClick="DeleteAward"
-                                  Style="background-color: var(--color-error, #D13438);">
-                        Delete
-                    </FluentButton>
+                    <div style="padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px;">
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="CancelDelete">Cancel</FluentButton>
+                        <FluentButton Appearance="Appearance.Accent"
+                                      OnClick="DeleteAward"
+                                      Style="background-color: var(--color-error, #D13438);">
+                            Delete
+                        </FluentButton>
+                    </div>
                 </FluentDialogFooter>
             </FluentDialog>
         }

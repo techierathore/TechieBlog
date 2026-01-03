@@ -144,6 +144,9 @@ try
 
     app.UseHttpsRedirection();
 
+    // Serve static files from wwwroot (including uploaded images)
+    app.UseStaticFiles();
+
     // Serilog request logging - shows HTTP requests in console
     app.UseSerilogRequestLogging(options =>
     {

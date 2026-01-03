@@ -58,9 +58,12 @@
     {
         <FluentDialog Hidden="false" Modal="true" TrapFocus="true" Style="--dialog-width: 800px; --dialog-height: 600px;">
             <FluentDialogHeader>
-                <FluentLabel Typo="Typography.PaneHeader">Choose Image from Library</FluentLabel>
+                <div style="padding: 16px 24px;">
+                    <FluentLabel Typo="Typography.PaneHeader">Choose Image from Library</FluentLabel>
+                </div>
             </FluentDialogHeader>
             <FluentDialogBody>
+                <div style="padding: 0 24px 16px 24px;">
                 @if (IsLoadingGallery)
                 {
                     <div style="display: flex; justify-content: center; align-items: center; padding: 48px;">
@@ -91,11 +94,14 @@
                         }
                     </div>
                 }
+                </div>
             </FluentDialogBody>
             <FluentDialogFooter>
-                <FluentButton Appearance="Appearance.Neutral" OnClick="@CloseGallery">
-                    Cancel
-                </FluentButton>
+                <div style="padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px;">
+                    <FluentButton Appearance="Appearance.Neutral" OnClick="@CloseGallery">
+                        Cancel
+                    </FluentButton>
+                </div>
             </FluentDialogFooter>
         </FluentDialog>
     }
@@ -105,9 +111,12 @@
     {
         <FluentDialog Hidden="false" Modal="true" TrapFocus="true" Style="--dialog-width: 500px;">
             <FluentDialogHeader>
-                <FluentLabel Typo="Typography.PaneHeader">Upload New Image</FluentLabel>
+                <div style="padding: 16px 24px;">
+                    <FluentLabel Typo="Typography.PaneHeader">Upload New Image</FluentLabel>
+                </div>
             </FluentDialogHeader>
             <FluentDialogBody>
+                <div style="padding: 0 24px 16px 24px;">
                 <div class="image-picker__upload">
                     <div class="image-picker__upload-zone">
                         <InputFile OnChange="@OnFileSelected" accept="@GetAcceptedFileTypes()" />
@@ -140,25 +149,28 @@
                         </div>
                     }
                 </div>
+                </div>
             </FluentDialogBody>
             <FluentDialogFooter>
-                <FluentButton Appearance="Appearance.Neutral" OnClick="@CloseUpload" Disabled="@IsUploading">
-                    Cancel
-                </FluentButton>
-                <FluentButton Appearance="Appearance.Accent"
-                              OnClick="@UploadFile"
-                              Disabled="@(SelectedFile == null || IsUploading)">
-                    @if (IsUploading)
-                    {
-                        <FluentIcon Value="@(new Icons.Regular.Size16.ArrowSync())" />
-                        <span>Uploading...</span>
-                    }
-                    else
-                    {
-                        <FluentIcon Value="@(new Icons.Regular.Size16.ArrowUpload())" />
-                        <span>Upload</span>
-                    }
-                </FluentButton>
+                <div style="padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px;">
+                    <FluentButton Appearance="Appearance.Neutral" OnClick="@CloseUpload" Disabled="@IsUploading">
+                        Cancel
+                    </FluentButton>
+                    <FluentButton Appearance="Appearance.Accent"
+                                  OnClick="@UploadFile"
+                                  Disabled="@(SelectedFile == null || IsUploading)">
+                        @if (IsUploading)
+                        {
+                            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowSync())" />
+                            <span>Uploading...</span>
+                        }
+                        else
+                        {
+                            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowUpload())" />
+                            <span>Upload</span>
+                        }
+                    </FluentButton>
+                </div>
             </FluentDialogFooter>
         </FluentDialog>
     }

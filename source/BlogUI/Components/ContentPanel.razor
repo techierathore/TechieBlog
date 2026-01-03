@@ -7,14 +7,16 @@
     Dependencies: Microsoft.FluentUI.AspNetCore.Components
 *@
 <FluentCard Style="margin: 16px 0;">
-    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--neutral-stroke-rest); margin-bottom: 16px;">
-        <h6 style="margin: 0;">@PanelTitle</h6>
-        <div>
-            @RightSection
+    <div style="padding: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--neutral-stroke-rest, #e0e0e0); margin-bottom: 24px;">
+            <h6 style="margin: 0; font-size: 1.1rem; font-weight: 600;">@PanelTitle</h6>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                @RightSection
+            </div>
         </div>
-    </div>
-    <div>
-        @PanelContent
+        <div>
+            @PanelContent
+        </div>
     </div>
 </FluentCard>
 

@@ -65,7 +65,7 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 32px;">
                     @* Left Column: Basic Info *@
                     <div>
-                        <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 1rem; color: var(--neutral-foreground-hint);">
+                        <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 0.875rem; font-weight: 600; color: var(--neutral-foreground-hint); text-transform: uppercase; letter-spacing: 0.5px;">
                             BASIC INFO
                         </h3>
                         <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px;">
@@ -148,7 +148,7 @@
 
                     @* Right Column: Social Links *@
                     <div>
-                        <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 1rem; color: var(--neutral-foreground-hint);">
+                        <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 0.875rem; font-weight: 600; color: var(--neutral-foreground-hint); text-transform: uppercase; letter-spacing: 0.5px;">
                             SOCIAL LINKS
                         </h3>
                         <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px;">
@@ -193,7 +193,7 @@
 
                 @* Resume Settings Section *@
                 <div style="border-top: 1px solid var(--neutral-stroke-rest); padding-top: 24px; margin-bottom: 24px;">
-                    <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 1rem; color: var(--neutral-foreground-hint);">
+                    <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 0.875rem; font-weight: 600; color: var(--neutral-foreground-hint); text-transform: uppercase; letter-spacing: 0.5px;">
                         RESUME SETTINGS
                     </h3>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
@@ -237,24 +237,24 @@
                 </div>
 
                 @* Quick Links Section *@
-                <div style="border-top: 1px solid var(--neutral-stroke-rest); padding-top: 24px;">
-                    <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 1rem; color: var(--neutral-foreground-hint);">
+                <div style="border-top: 1px solid var(--neutral-stroke-rest); padding-top: 24px; padding-bottom: 8px;">
+                    <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 0.875rem; font-weight: 600; color: var(--neutral-foreground-hint); text-transform: uppercase; letter-spacing: 0.5px;">
                         Quick Links
                     </h3>
-                    <FluentStack Orientation="Orientation.Horizontal" Style="gap: 16px; flex-wrap: wrap;">
-                        <FluentAnchor Href="/admin/experience" Appearance="Appearance.Outline">
+                    <FluentStack Orientation="Orientation.Horizontal" Style="gap: 12px; flex-wrap: wrap;">
+                        <FluentAnchor Href="/admin/experience" Appearance="Appearance.Outline" Style="display: inline-flex; align-items: center; gap: 8px;">
                             <FluentIcon Value="@(new Icons.Regular.Size16.Briefcase())" />
-                            Manage Experience
+                            <span>Manage Experience</span>
                             <FluentIcon Value="@(new Icons.Regular.Size16.ArrowRight())" />
                         </FluentAnchor>
-                        <FluentAnchor Href="/admin/skills" Appearance="Appearance.Outline">
+                        <FluentAnchor Href="/admin/skills" Appearance="Appearance.Outline" Style="display: inline-flex; align-items: center; gap: 8px;">
                             <FluentIcon Value="@(new Icons.Regular.Size16.Code())" />
-                            Manage Skills
+                            <span>Manage Skills</span>
                             <FluentIcon Value="@(new Icons.Regular.Size16.ArrowRight())" />
                         </FluentAnchor>
-                        <FluentAnchor Href="/admin/awards" Appearance="Appearance.Outline">
+                        <FluentAnchor Href="/admin/awards" Appearance="Appearance.Outline" Style="display: inline-flex; align-items: center; gap: 8px;">
                             <FluentIcon Value="@(new Icons.Regular.Size16.Trophy())" />
-                            Manage Awards
+                            <span>Manage Awards</span>
                             <FluentIcon Value="@(new Icons.Regular.Size16.ArrowRight())" />
                         </FluentAnchor>
                     </FluentStack>

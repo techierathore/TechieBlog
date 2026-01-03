@@ -68,13 +68,13 @@
         {
             @* Add/Edit Form *@
             <div style="max-width: 800px;">
-                <h3 style="margin-top: 0; margin-bottom: 16px;">
+                <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 1.1rem; font-weight: 600;">
                     @(IsEditMode ? "Edit Experience" : "Add New Experience")
                 </h3>
 
                 <EditForm Model="@CurrentEvent" OnValidSubmit="@SaveExperience">
                     <DataAnnotationsValidator />
-                    <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px;">
+                    <FluentStack Orientation="Orientation.Vertical" Style="gap: 20px;">
                         @* Role/Position *@
                         <div>
                             <FluentTextField Label="Role / Position"
@@ -242,21 +242,27 @@
         {
             <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
                 <FluentDialogHeader>
-                    <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
+                    <div style="padding: 16px 24px;">
+                        <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
+                    </div>
                 </FluentDialogHeader>
                 <FluentDialogBody>
-                    <p>Are you sure you want to delete this experience entry?</p>
-                    <p><strong>@EventToDelete?.SessionTitle</strong> at <strong>@EventToDelete?.EventTitle</strong></p>
+                    <div style="padding: 0 24px 16px 24px;">
+                        <p style="margin: 0 0 8px 0;">Are you sure you want to delete this experience entry?</p>
+                        <p style="margin: 0;"><strong>@EventToDelete?.SessionTitle</strong> at <strong>@EventToDelete?.EventTitle</strong></p>
+                    </div>
                 </FluentDialogBody>
                 <FluentDialogFooter>
-                    <FluentButton Appearance="Appearance.Neutral" OnClick="@CancelDelete">
-                        Cancel
-                    </FluentButton>
-                    <FluentButton Appearance="Appearance.Accent"
-                                  OnClick="@DeleteExperience"
-                                  Style="background-color: var(--color-error, #D13438);">
-                        Delete
-                    </FluentButton>
+                    <div style="padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px;">
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="@CancelDelete">
+                            Cancel
+                        </FluentButton>
+                        <FluentButton Appearance="Appearance.Accent"
+                                      OnClick="@DeleteExperience"
+                                      Style="background-color: var(--color-error, #D13438);">
+                            Delete
+                        </FluentButton>
+                    </div>
                 </FluentDialogFooter>
             </FluentDialog>
         }

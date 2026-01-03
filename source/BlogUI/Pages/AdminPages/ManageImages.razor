@@ -154,21 +154,24 @@
         @* Upload Dialog *@
         @if (ShowUploadDialog)
         {
-            <FluentDialog Hidden="false" Modal="true" TrapFocus="true" Style="--dialog-width: 500px;">
+            <FluentDialog Hidden="false" Modal="true" TrapFocus="true" Style="--dialog-width: 480px;">
                 <FluentDialogHeader>
-                    <FluentLabel Typo="Typography.PaneHeader">Upload New Image</FluentLabel>
+                    <div style="padding: 16px 24px;">
+                        <FluentLabel Typo="Typography.PaneHeader">Upload New Image</FluentLabel>
+                    </div>
                 </FluentDialogHeader>
                 <FluentDialogBody>
-                    <div class="upload-form">
+                    <div style="padding: 0 24px 16px 24px;">
+                    <div class="upload-form" style="display: flex; flex-direction: column; gap: 20px;">
                         <div class="form-field">
-                            <label>Category</label>
+                            <label style="display: block; margin-bottom: 8px; font-weight: 500;">Category</label>
                             <FluentSelect TOption="string" @bind-Value="UploadCategory" Style="width: 100%;">
                                 @foreach (var category in Categories)
                                 {
                                     <FluentOption TOption="string" Value="@category.Key">@category.Value</FluentOption>
                                 }
                             </FluentSelect>
-                            <small class="field-hint">@GetCategoryConstraintsText(UploadCategory)</small>
+                            <small class="field-hint" style="display: block; margin-top: 6px;">@GetCategoryConstraintsText(UploadCategory)</small>
                         </div>
 
                         <div class="upload-zone">
@@ -201,25 +204,28 @@
                             </div>
                         }
                     </div>
+                    </div>
                 </FluentDialogBody>
                 <FluentDialogFooter>
-                    <FluentButton Appearance="Appearance.Neutral" OnClick="@CloseUploadDialog" Disabled="@IsUploading">
-                        Cancel
-                    </FluentButton>
-                    <FluentButton Appearance="Appearance.Accent"
-                                  OnClick="@UploadFile"
-                                  Disabled="@(SelectedFile == null || IsUploading)">
-                        @if (IsUploading)
-                        {
-                            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowSync())" />
-                            <span>Uploading...</span>
-                        }
-                        else
-                        {
-                            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowUpload())" />
-                            <span>Upload</span>
-                        }
-                    </FluentButton>
+                    <div style="padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px;">
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="@CloseUploadDialog" Disabled="@IsUploading">
+                            Cancel
+                        </FluentButton>
+                        <FluentButton Appearance="Appearance.Accent"
+                                      OnClick="@UploadFile"
+                                      Disabled="@(SelectedFile == null || IsUploading)">
+                            @if (IsUploading)
+                            {
+                                <FluentIcon Value="@(new Icons.Regular.Size16.ArrowSync())" />
+                                <span>Uploading...</span>
+                            }
+                            else
+                            {
+                                <FluentIcon Value="@(new Icons.Regular.Size16.ArrowUpload())" />
+                                <span>Upload</span>
+                            }
+                        </FluentButton>
+                    </div>
                 </FluentDialogFooter>
             </FluentDialog>
         }
@@ -229,29 +235,35 @@
         {
             <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
                 <FluentDialogHeader>
-                    <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
+                    <div style="padding: 16px 24px;">
+                        <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
+                    </div>
                 </FluentDialogHeader>
                 <FluentDialogBody>
-                    <p>Are you sure you want to delete "<strong>@ImageToDelete?.ImageName</strong>"?</p>
-                    <p style="color: var(--neutral-foreground-hint);">This action cannot be undone.</p>
+                    <div style="padding: 0 24px 16px 24px;">
+                        <p style="margin: 0 0 8px 0;">Are you sure you want to delete "<strong>@ImageToDelete?.ImageName</strong>"?</p>
+                        <p style="color: var(--neutral-foreground-hint); margin: 0;">This action cannot be undone.</p>
+                    </div>
                 </FluentDialogBody>
                 <FluentDialogFooter>
-                    <FluentButton Appearance="Appearance.Neutral" OnClick="@CancelDelete">
-                        Cancel
-                    </FluentButton>
-                    <FluentButton Appearance="Appearance.Accent"
-                                  OnClick="@ConfirmDelete"
-                                  Style="background-color: var(--colorPaletteRedBackground3, #D13438);"
-                                  Disabled="@IsDeleting">
-                        @if (IsDeleting)
-                        {
-                            <span>Deleting...</span>
-                        }
-                        else
-                        {
-                            <span>Delete</span>
-                        }
-                    </FluentButton>
+                    <div style="padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px;">
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="@CancelDelete">
+                            Cancel
+                        </FluentButton>
+                        <FluentButton Appearance="Appearance.Accent"
+                                      OnClick="@ConfirmDelete"
+                                      Style="background-color: var(--colorPaletteRedBackground3, #D13438);"
+                                      Disabled="@IsDeleting">
+                            @if (IsDeleting)
+                            {
+                                <span>Deleting...</span>
+                            }
+                            else
+                            {
+                                <span>Delete</span>
+                            }
+                        </FluentButton>
+                    </div>
                 </FluentDialogFooter>
             </FluentDialog>
         }

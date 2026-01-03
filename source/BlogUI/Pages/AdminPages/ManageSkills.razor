@@ -166,46 +166,52 @@
         @* Add Skill Dialog *@
         @if (ShowAddDialog)
         {
-            <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
+            <FluentDialog Hidden="false" Modal="true" TrapFocus="true" Style="--dialog-width: 420px;">
                 <FluentDialogHeader>
-                    <FluentLabel Typo="Typography.PaneHeader">Add New Skill</FluentLabel>
+                    <div style="padding: 16px 24px;">
+                        <FluentLabel Typo="Typography.PaneHeader">Add New Skill</FluentLabel>
+                    </div>
                 </FluentDialogHeader>
                 <FluentDialogBody>
-                    <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px; min-width: 350px;">
-                        <div>
-                            <FluentTextField Label="Skill Name"
-                                             @bind-Value="NewSkillName"
-                                             Placeholder="e.g., C#, Azure, React"
-                                             Required="true"
-                                             Style="width: 100%;" />
-                        </div>
-                        <div>
-                            <FluentLabel>Category</FluentLabel>
-                            <FluentSelect TOption="string"
-                                          @bind-Value="NewSkillCategory"
-                                          Style="width: 100%;">
-                                @foreach (var cat in ExistingCategories)
-                                {
-                                    <FluentOption TOption="string" Value="@cat">@cat</FluentOption>
-                                }
-                                <FluentOption TOption="string" Value="__new__">+ Create New Category</FluentOption>
-                            </FluentSelect>
-                        </div>
-                        @if (NewSkillCategory == "__new__")
-                        {
+                    <div style="padding: 0 24px 16px 24px;">
+                        <FluentStack Orientation="Orientation.Vertical" Style="gap: 20px;">
                             <div>
-                                <FluentTextField Label="New Category Name"
-                                                 @bind-Value="NewCategoryName"
-                                                 Placeholder="e.g., AI/Emerging, Cloud/SaaS"
+                                <FluentTextField Label="Skill Name"
+                                                 @bind-Value="NewSkillName"
+                                                 Placeholder="e.g., C#, Azure, React"
                                                  Required="true"
                                                  Style="width: 100%;" />
                             </div>
-                        }
-                    </FluentStack>
+                            <div>
+                                <FluentLabel Style="display: block; margin-bottom: 8px; font-weight: 500;">Category</FluentLabel>
+                                <FluentSelect TOption="string"
+                                              @bind-Value="NewSkillCategory"
+                                              Style="width: 100%;">
+                                    @foreach (var cat in ExistingCategories)
+                                    {
+                                        <FluentOption TOption="string" Value="@cat">@cat</FluentOption>
+                                    }
+                                    <FluentOption TOption="string" Value="__new__">+ Create New Category</FluentOption>
+                                </FluentSelect>
+                            </div>
+                            @if (NewSkillCategory == "__new__")
+                            {
+                                <div>
+                                    <FluentTextField Label="New Category Name"
+                                                     @bind-Value="NewCategoryName"
+                                                     Placeholder="e.g., AI/Emerging, Cloud/SaaS"
+                                                     Required="true"
+                                                     Style="width: 100%;" />
+                                </div>
+                            }
+                        </FluentStack>
+                    </div>
                 </FluentDialogBody>
                 <FluentDialogFooter>
-                    <FluentButton Appearance="Appearance.Neutral" OnClick="CancelAddSkill">Cancel</FluentButton>
-                    <FluentButton Appearance="Appearance.Accent" OnClick="SaveNewSkill">Add Skill</FluentButton>
+                    <div style="padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px;">
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="CancelAddSkill">Cancel</FluentButton>
+                        <FluentButton Appearance="Appearance.Accent" OnClick="SaveNewSkill">Add Skill</FluentButton>
+                    </div>
                 </FluentDialogFooter>
             </FluentDialog>
         }
@@ -215,18 +221,24 @@
         {
             <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
                 <FluentDialogHeader>
-                    <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
+                    <div style="padding: 16px 24px;">
+                        <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
+                    </div>
                 </FluentDialogHeader>
                 <FluentDialogBody>
-                    <p>Are you sure you want to delete the skill "<strong>@SkillToDelete?.SkillName</strong>"?</p>
+                    <div style="padding: 0 24px 16px 24px;">
+                        <p style="margin: 0;">Are you sure you want to delete the skill "<strong>@SkillToDelete?.SkillName</strong>"?</p>
+                    </div>
                 </FluentDialogBody>
                 <FluentDialogFooter>
-                    <FluentButton Appearance="Appearance.Neutral" OnClick="CancelDelete">Cancel</FluentButton>
-                    <FluentButton Appearance="Appearance.Accent"
-                                  OnClick="DeleteSkill"
-                                  Style="background-color: var(--color-error, #D13438);">
-                        Delete
-                    </FluentButton>
+                    <div style="padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px;">
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="CancelDelete">Cancel</FluentButton>
+                        <FluentButton Appearance="Appearance.Accent"
+                                      OnClick="DeleteSkill"
+                                      Style="background-color: var(--color-error, #D13438);">
+                            Delete
+                        </FluentButton>
+                    </div>
                 </FluentDialogFooter>
             </FluentDialog>
         }
