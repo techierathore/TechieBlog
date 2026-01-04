@@ -36,6 +36,34 @@ git clone https://github.com/user/repo.git MyBlog
 cd MyBlog
 ```
 
+### Rename to Your Project (Optional)
+
+After cloning, you can rename the project from "TechieBlog" to your custom name:
+
+**Windows (PowerShell):**
+```powershell
+.\scripts\Rename-Project.ps1 -NewName "MyBlog"
+
+# Preview changes first (recommended):
+.\scripts\Rename-Project.ps1 -NewName "MyBlog" -DryRun
+```
+
+**Linux/macOS (Bash):**
+```bash
+chmod +x scripts/rename-project.sh
+./scripts/rename-project.sh MyBlog
+
+# Preview changes first (recommended):
+./scripts/rename-project.sh MyBlog --dry-run
+```
+
+This renames:
+- Solution file: `TechieBlog.slnx` → `MyBlog.slnx`
+- Host project: `source/TechieBlog/` → `source/MyBlog/`
+- All related namespaces and references
+
+> **Note:** The component libraries (BlogUI, BlogEngine, BlogModels, BlogDb) keep their generic names for clarity.
+
 ### Setup
 
 1. **Prerequisites**
@@ -85,14 +113,41 @@ cd MyBlog
 - Favorites/bookmarks for readers
 - Multi-author support
 
+### Resume & Author Profiles
+- **Resume Page** - Professional resume display for site owner
+  - Experience timeline with current/past positions
+  - Skills organized by category (Languages, Frameworks, Tools)
+  - Awards, certifications, and achievements
+  - Downloadable CV/resume file support
+  - Contact information and social links
+- **Authors Page** (`/authors`) - Browse all content authors
+  - Author cards with profile images and article counts
+  - Links to individual author profile pages
+- **Author Profile Pages** (`/author/{username}`) - Individual author profiles
+  - Author bio and social media links
+  - Complete list of articles by author
+  - Professional profile presentation
+
+### Image Management
+- **Categorized Image Library** - Organize uploads by type
+  - Profiles, Logos, Awards, Icons, Blog, CV, General categories
+  - Category-specific file size limits and format validation
+  - Admin interface for browsing and managing all images
+- **Image Picker Component** - Reusable image selection for forms
+  - Browse existing images or upload new
+  - Category filtering and search
+  - Copy image URL to clipboard
+- **Validation & Security**
+  - File type and size validation per category
+  - Secure file storage with user ownership tracking
+
 ### User Management
 - JWT authentication (email/password)
 - 5-tier role system: Admin, Editor, Author, Contributor, Reader
 - Self-service registration
 - Password reset via email
 
-### Media & Subscribers
-- Image upload and media library
+### Subscribers & Newsletter
 - Subscriber management
 - Newsletter sending capability
 - CSV export for subscriber lists
@@ -209,6 +264,9 @@ TechieBlog/
 │   ├── architecture/        # Architecture docs
 │   └── prd.md              # Product requirements (for reference)
 ├── mockups/                 # HTML/CSS mockups (design reference)
+├── scripts/                 # Utility scripts
+│   ├── Rename-Project.ps1  # Windows rename script
+│   └── rename-project.sh   # Linux/macOS rename script
 ├── source/                  # Source code
 │   ├── BlogDb/             # Database project
 │   ├── BlogEngine/         # Business logic

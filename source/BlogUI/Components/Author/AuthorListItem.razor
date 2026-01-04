@@ -1,0 +1,79 @@
+@*
+    AuthorListItem.razor
+    Purpose: Reusable card component for displaying an author in a list.
+    Shows avatar, name, username, title, and article count with a link to profile.
+
+    Dependencies: CSS from author.css
+    Usage: Used on Authors listing page to show each author as a clickable card
+*@
+
+@using BlogModels.Models
+
+<a href="/author/@Author.Username" class="author-list-item">
+    <img src="@GetAvatarUrl()"
+         alt="@Author.FullName"
+         class="avatar"
+         onerror="this.onerror=null; this.src='/img/avatars/default-avatar.png';" />
+
+    <div class="author-info">
+        <div class="author-name">@Author.FullName</div>
+        <div class="author-username">@@@Author.Username</div>
+        @if (!string.IsNullOrEmpty(Author.Title))
+        {
+            <div class="author-title">@Author.Title</div>
+        }
+        @if (!string.IsNullOrEmpty(Author.ProfileDescription))
+        {
+            <div class="author-bio">@GetBioExcerpt()</div>
+        }
+        <div class="author-stats">
+            <span class="article-count">
+                <FluentIcon Value="@(new Icons.Regular.Size16.Document())" />
+                @ArticleCount @(ArticleCount == 1 ? "article" : "articles")
+            </span>
+        </div>
+    </div>
+
+    <span class="view-btn">View Profile</span>
+</a>
+
+@code {
+    /// <summary>
+    /// The author to display.
+    /// </summary>
+    [Parameter]
+    public AppUser Author { get; set; } = new();
+
+    /// <summary>
+    /// The number of published articles by this author.
+    /// </summary>
+    [Parameter]
+    public int ArticleCount { get; set; }
+
+    /// <summary>
+    /// Gets the avatar URL or default placeholder.
+    /// </summary>
+    private string GetAvatarUrl()
+    {
+        if (!string.IsNullOrEmpty(Author.ProfileImagePath))
+        {
+            return Author.ProfileImagePath;
+        }
+        return "/img/avatars/default-avatar.png";
+    }
+
+    /// <summary>
+    /// Gets a truncated bio excerpt for display.
+    /// </summary>
+    private string GetBioExcerpt()
+    {
+        if (string.IsNullOrEmpty(Author.ProfileDescription))
+            return string.Empty;
+
+        const int maxLength = 120;
+        if (Author.ProfileDescription.Length <= maxLength)
+            return Author.ProfileDescription;
+
+        return Author.ProfileDescription.Substring(0, maxLength).TrimEnd() + "...";
+    }
+}

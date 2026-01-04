@@ -27,34 +27,40 @@
 
         @if (PageObj == null)
         {
-            <FluentProgressRing />
-            <span>Loading...</span>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 24px;">
+                <FluentProgressRing />
+                <span>Loading...</span>
+            </div>
         }
         else
         {
             <EditForm Model="@PageObj" OnValidSubmit="@SaveData">
                 <DataAnnotationsValidator />
-                <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px; max-width: 600px;">
-                    <FluentTextField Label="Tag Name"
-                                     Value="@PageObj.TagName"
-                                     ValueChanged="@OnNameChanged"
-                                     Placeholder="Enter tag name"
-                                     Required="true"
-                                     Style="width: 100%;" />
+                <FluentStack Orientation="Orientation.Vertical" Style="gap: 20px; max-width: 600px;">
+                    <div>
+                        <FluentTextField Label="Tag Name"
+                                         Value="@PageObj.TagName"
+                                         ValueChanged="@OnNameChanged"
+                                         Placeholder="Enter tag name"
+                                         Required="true"
+                                         Style="width: 100%;" />
+                    </div>
 
-                    <FluentTextField Label="URL Slug"
-                                     @bind-Value="PageObj.Slug"
-                                     Placeholder="auto-generated-from-name"
-                                     Style="width: 100%;">
-                        <FluentLabel Slot="end" Style="color: var(--neutral-foreground-hint);">
-                            @if (!string.IsNullOrEmpty(SlugPreview))
-                            {
-                                <span>/tag/@SlugPreview</span>
-                            }
-                        </FluentLabel>
-                    </FluentTextField>
+                    <div>
+                        <FluentTextField Label="URL Slug"
+                                         @bind-Value="PageObj.Slug"
+                                         Placeholder="auto-generated-from-name"
+                                         Style="width: 100%;">
+                            <FluentLabel Slot="end" Style="color: var(--neutral-foreground-hint);">
+                                @if (!string.IsNullOrEmpty(SlugPreview))
+                                {
+                                    <span>/tag/@SlugPreview</span>
+                                }
+                            </FluentLabel>
+                        </FluentTextField>
+                    </div>
 
-                    <FluentStack Orientation="Orientation.Horizontal" Style="gap: 8px; margin-top: 16px;">
+                    <FluentStack Orientation="Orientation.Horizontal" Style="gap: 12px; margin-top: 8px;">
                         <FluentButton Appearance="Appearance.Accent"
                                       Type="ButtonType.Submit"
                                       Disabled="@IsSaving">

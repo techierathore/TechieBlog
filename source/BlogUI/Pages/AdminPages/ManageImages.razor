@@ -1,0 +1,488 @@
+@*
+    ManageImages.razor
+    Purpose: Admin page for managing uploaded images.
+    Displays a gallery view with category filtering, upload, delete, and copy URL functionality.
+
+    Usage: Navigate to /admin/images
+    Dependencies: Microsoft.FluentUI.AspNetCore.Components, BlogEngine.Services.BlogImageService
+    Authorization: AdminOnly policy required
+*@
+@page "/admin/images"
+@attribute [Authorize(Policy = "AdminOnly")]
+@layout BlogUI.Layouts.AdminLayout
+
+<ContentPanel PanelTitle="Manage Images">
+    <RightSection>
+        <FluentButton Appearance="Appearance.Accent" OnClick="@OpenUploadDialog">
+            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowUpload())" />
+            Upload New
+        </FluentButton>
+    </RightSection>
+    <PanelContent>
+        @* Status Messages *@
+        @if (!string.IsNullOrEmpty(StatusMessage))
+        {
+            <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
+                              Style="margin-bottom: 16px;">
+                @StatusMessage
+            </FluentMessageBar>
+        }
+
+        @* Category Tabs *@
+        <div class="category-tabs">
+            @foreach (var category in Categories)
+            {
+                <span class="tab-item @(SelectedCategory == category.Key ? "tab-item--active" : "")"
+                      @onclick="@(() => SelectCategory(category.Key))">
+                    @category.Value
+                </span>
+            }
+        </div>
+
+        @* User Filter (Admin only) *@
+        <div class="filter-row">
+            <div class="filter-item">
+                <FluentSelect TOption="string" Value="@SelectedUserId.ToString()" ValueChanged="@(async val => { SelectedUserId = long.Parse(val); await LoadImages(); })" Style="min-width: 200px;">
+                    <FluentOption TOption="string" Value="0">All Users</FluentOption>
+                    @if (UserList != null)
+                    {
+                        @foreach (var user in UserList)
+                        {
+                            <FluentOption TOption="string" Value="@user.Key.ToString()">@user.Value</FluentOption>
+                        }
+                    }
+                </FluentSelect>
+            </div>
+            <div class="filter-info">
+                @if (TotalImages > 0)
+                {
+                    <span>Showing @FilteredImages.Count() of @TotalImages images</span>
+                }
+            </div>
+        </div>
+
+        @* Image Gallery *@
+        <div class="image-gallery-container">
+            @if (IsLoading)
+            {
+                <div class="loading-state">
+                    <FluentProgressRing />
+                    <span>Loading images...</span>
+                </div>
+            }
+            else if (FilteredImages == null || !FilteredImages.Any())
+            {
+                <div class="empty-state">
+                    <FluentIcon Value="@(new Icons.Regular.Size48.ImageOff())" Color="Color.Neutral" />
+                    <p>No images found in the @GetCategoryDisplayName(SelectedCategory) category.</p>
+                    <FluentButton Appearance="Appearance.Outline" OnClick="@OpenUploadDialog">
+                        Upload an Image
+                    </FluentButton>
+                </div>
+            }
+            else
+            {
+                <div class="image-gallery">
+                    @foreach (var image in PagedImages)
+                    {
+                        <div class="image-card">
+                            <div class="image-preview">
+                                @if (image.MimeType == "application/pdf")
+                                {
+                                    <div class="pdf-placeholder">
+                                        <FluentIcon Value="@(new Icons.Regular.Size24.DocumentPdf())" Color="Color.Accent" />
+                                        <span>PDF</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <img src="@image.ImagePath" alt="@(image.AltText ?? image.ImageName)" loading="lazy" />
+                                }
+                            </div>
+                            <div class="image-info">
+                                <span class="image-name" title="@image.ImageName">@TruncateFileName(image.ImageName)</span>
+                                <span class="image-meta">@FormatFileSize(image.Size)</span>
+                            </div>
+                            <div class="image-actions">
+                                <FluentButton Appearance="Appearance.Stealth"
+                                              OnClick="@(() => CopyImageUrl(image))"
+                                              Title="Copy URL">
+                                    <FluentIcon Value="@(new Icons.Regular.Size16.Copy())" />
+                                </FluentButton>
+                                <FluentButton Appearance="Appearance.Stealth"
+                                              OnClick="@(() => ShowDeleteConfirmation(image))"
+                                              Title="Delete">
+                                    <FluentIcon Value="@(new Icons.Regular.Size16.Delete())" Color="Color.Error" />
+                                </FluentButton>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                @* Pagination *@
+                @if (TotalPages > 1)
+                {
+                    <div class="pagination">
+                        <FluentButton Appearance="Appearance.Stealth"
+                                      OnClick="@PreviousPage"
+                                      Disabled="@(CurrentPage <= 1)"
+                                      Title="Previous">
+                            <FluentIcon Value="@(new Icons.Regular.Size16.ChevronLeft())" />
+                        </FluentButton>
+
+                        @for (int i = 1; i <= TotalPages; i++)
+                        {
+                            var pageNum = i;
+                            <FluentButton Appearance="@(pageNum == CurrentPage ? Appearance.Accent : Appearance.Outline)"
+                                          OnClick="@(() => GoToPage(pageNum))"
+                                          Style="min-width: 36px;">
+                                @pageNum
+                            </FluentButton>
+                        }
+
+                        <FluentButton Appearance="Appearance.Stealth"
+                                      OnClick="@NextPage"
+                                      Disabled="@(CurrentPage >= TotalPages)"
+                                      Title="Next">
+                            <FluentIcon Value="@(new Icons.Regular.Size16.ChevronRight())" />
+                        </FluentButton>
+                    </div>
+                }
+            }
+        </div>
+
+        @* Upload Dialog *@
+        @if (ShowUploadDialog)
+        {
+            <FluentDialog Hidden="false" Modal="true" TrapFocus="true" Style="--dialog-width: 480px;">
+                <FluentDialogHeader>
+                    <div style="padding: 16px 24px;">
+                        <FluentLabel Typo="Typography.PaneHeader">Upload New Image</FluentLabel>
+                    </div>
+                </FluentDialogHeader>
+                <FluentDialogBody>
+                    <div style="padding: 0 24px 16px 24px;">
+                    <div class="upload-form" style="display: flex; flex-direction: column; gap: 20px;">
+                        <div class="form-field">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 500;">Category</label>
+                            <FluentSelect TOption="string" @bind-Value="UploadCategory" Style="width: 100%;">
+                                @foreach (var category in Categories)
+                                {
+                                    <FluentOption TOption="string" Value="@category.Key">@category.Value</FluentOption>
+                                }
+                            </FluentSelect>
+                            <small class="field-hint" style="display: block; margin-top: 6px;">@GetCategoryConstraintsText(UploadCategory)</small>
+                        </div>
+
+                        <div class="upload-zone">
+                            <InputFile OnChange="@OnFileSelected" accept="@GetAcceptedFileTypes(UploadCategory)" />
+                            <div class="upload-zone-content">
+                                <FluentIcon Value="@(new Icons.Regular.Size24.ArrowUpload())" Color="Color.Accent" />
+                                <p>Click to select a file or drag and drop</p>
+                            </div>
+                        </div>
+
+                        @if (SelectedFile != null)
+                        {
+                            <div class="selected-file">
+                                <strong>Selected:</strong> @SelectedFile.Name (@FormatFileSize(SelectedFile.Size))
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(UploadError))
+                        {
+                            <FluentMessageBar Intent="MessageIntent.Error" Style="margin-top: 16px;">
+                                @UploadError
+                            </FluentMessageBar>
+                        }
+
+                        @if (IsUploading)
+                        {
+                            <div class="uploading-state">
+                                <FluentProgressRing />
+                                <span>Uploading...</span>
+                            </div>
+                        }
+                    </div>
+                    </div>
+                </FluentDialogBody>
+                <FluentDialogFooter>
+                    <div style="padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px;">
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="@CloseUploadDialog" Disabled="@IsUploading">
+                            Cancel
+                        </FluentButton>
+                        <FluentButton Appearance="Appearance.Accent"
+                                      OnClick="@UploadFile"
+                                      Disabled="@(SelectedFile == null || IsUploading)">
+                            @if (IsUploading)
+                            {
+                                <FluentIcon Value="@(new Icons.Regular.Size16.ArrowSync())" />
+                                <span>Uploading...</span>
+                            }
+                            else
+                            {
+                                <FluentIcon Value="@(new Icons.Regular.Size16.ArrowUpload())" />
+                                <span>Upload</span>
+                            }
+                        </FluentButton>
+                    </div>
+                </FluentDialogFooter>
+            </FluentDialog>
+        }
+
+        @* Delete Confirmation Dialog *@
+        @if (ShowDeleteDialog)
+        {
+            <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
+                <FluentDialogHeader>
+                    <div style="padding: 16px 24px;">
+                        <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
+                    </div>
+                </FluentDialogHeader>
+                <FluentDialogBody>
+                    <div style="padding: 0 24px 16px 24px;">
+                        <p style="margin: 0 0 8px 0;">Are you sure you want to delete "<strong>@ImageToDelete?.ImageName</strong>"?</p>
+                        <p style="color: var(--neutral-foreground-hint); margin: 0;">This action cannot be undone.</p>
+                    </div>
+                </FluentDialogBody>
+                <FluentDialogFooter>
+                    <div style="padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px;">
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="@CancelDelete">
+                            Cancel
+                        </FluentButton>
+                        <FluentButton Appearance="Appearance.Accent"
+                                      OnClick="@ConfirmDelete"
+                                      Style="background-color: var(--colorPaletteRedBackground3, #D13438);"
+                                      Disabled="@IsDeleting">
+                            @if (IsDeleting)
+                            {
+                                <span>Deleting...</span>
+                            }
+                            else
+                            {
+                                <span>Delete</span>
+                            }
+                        </FluentButton>
+                    </div>
+                </FluentDialogFooter>
+            </FluentDialog>
+        }
+    </PanelContent>
+</ContentPanel>
+
+<style>
+    .category-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        border-bottom: 1px solid var(--neutral-stroke-rest);
+        margin-bottom: 16px;
+    }
+
+    .tab-item {
+        padding: 8px 16px;
+        font-size: 0.875rem;
+        color: var(--neutral-foreground-hint);
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+        cursor: pointer;
+        transition: all 150ms ease;
+    }
+
+    .tab-item:hover {
+        color: var(--neutral-foreground-rest);
+    }
+
+    .tab-item--active {
+        color: var(--accent-fill-rest);
+        border-bottom-color: var(--accent-fill-rest);
+    }
+
+    .filter-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .filter-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .filter-info {
+        font-size: 0.875rem;
+        color: var(--neutral-foreground-hint);
+    }
+
+    .image-gallery-container {
+        min-height: 300px;
+    }
+
+    .loading-state,
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px;
+        text-align: center;
+        color: var(--neutral-foreground-hint);
+        gap: 16px;
+    }
+
+    .image-gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 16px;
+    }
+
+    .image-card {
+        border: 1px solid var(--neutral-stroke-rest);
+        border-radius: 8px;
+        overflow: hidden;
+        background: var(--neutral-layer-card-container);
+        transition: box-shadow 150ms ease;
+    }
+
+    .image-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .image-preview {
+        aspect-ratio: 1;
+        overflow: hidden;
+        background: var(--neutral-layer-2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .image-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .pdf-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        color: var(--neutral-foreground-hint);
+    }
+
+    .image-info {
+        padding: 8px 12px;
+        border-top: 1px solid var(--neutral-stroke-rest);
+    }
+
+    .image-name {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .image-meta {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--neutral-foreground-hint);
+    }
+
+    .image-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 4px;
+        padding: 4px 8px;
+        border-top: 1px solid var(--neutral-stroke-rest);
+        background: var(--neutral-layer-2);
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-top: 24px;
+        padding-top: 16px;
+        border-top: 1px solid var(--neutral-stroke-rest);
+    }
+
+    /* Upload Dialog Styles */
+    .upload-form {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .form-field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .form-field label {
+        font-weight: 500;
+        font-size: 0.875rem;
+    }
+
+    .field-hint {
+        font-size: 0.8rem;
+        color: var(--neutral-foreground-hint);
+    }
+
+    .upload-zone {
+        position: relative;
+        border: 2px dashed var(--neutral-stroke-rest);
+        border-radius: 8px;
+        padding: 32px;
+        text-align: center;
+        transition: border-color 150ms ease;
+    }
+
+    .upload-zone:hover {
+        border-color: var(--accent-fill-rest);
+    }
+
+    .upload-zone input[type="file"] {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    .upload-zone-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        color: var(--neutral-foreground-hint);
+        pointer-events: none;
+    }
+
+    .upload-zone-content p {
+        margin: 0;
+    }
+
+    .selected-file {
+        padding: 12px;
+        background: var(--neutral-layer-2);
+        border-radius: 4px;
+    }
+
+    .uploading-state {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 16px;
+    }
+</style>

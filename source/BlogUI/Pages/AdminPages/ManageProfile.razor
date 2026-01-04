@@ -1,0 +1,265 @@
+@*
+    ManageProfile.razor
+    Purpose: Self-service profile management page for authors/admins.
+    Allows users to update their profile information, social links, and resume settings.
+
+    Usage: Navigate to /admin/profile
+    Dependencies: AdminLayout, UserRepo, AuthSvc, ImagePicker, FluentUI components
+    Authorization: AuthorOrAdmin policy (any logged in user)
+*@
+@page "/admin/profile"
+@attribute [Authorize(Policy = "AuthorOrAbove")]
+@layout BlogUI.Layouts.AdminLayout
+@using BlogUI.Components
+
+<PageTitle>My Profile - TechieBlog</PageTitle>
+
+<ContentPanel PanelTitle="My Profile">
+    <RightSection>
+        <FluentButton Appearance="Appearance.Accent"
+                      OnClick="@SaveProfile"
+                      Disabled="@IsSaving">
+            @if (IsSaving)
+            {
+                <FluentIcon Value="@(new Icons.Regular.Size16.ArrowSync())" />
+                <span>Saving...</span>
+            }
+            else
+            {
+                <FluentIcon Value="@(new Icons.Regular.Size16.Save())" />
+                <span>Save</span>
+            }
+        </FluentButton>
+    </RightSection>
+    <PanelContent>
+        @if (IsLoading)
+        {
+            <div style="display: flex; justify-content: center; padding: 48px;">
+                <FluentProgressRing />
+                <span style="margin-left: 12px;">Loading profile...</span>
+            </div>
+        }
+        else if (CurrentUser == null)
+        {
+            <FluentMessageBar Intent="MessageIntent.Error" Style="margin-bottom: 16px;">
+                Unable to load profile. Please try logging in again.
+            </FluentMessageBar>
+            <FluentAnchor Href="/admin/login" Appearance="Appearance.Accent">
+                Go to Login
+            </FluentAnchor>
+        }
+        else
+        {
+            @if (!string.IsNullOrEmpty(StatusMessage))
+            {
+                <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
+                                  Style="margin-bottom: 16px;">
+                    @StatusMessage
+                </FluentMessageBar>
+            }
+
+            <EditForm Model="@ProfileModel" OnValidSubmit="@SaveProfile">
+                <DataAnnotationsValidator />
+
+                @* Main Layout: Two Column Grid *@
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 32px;">
+                    @* Left Column: Basic Info *@
+                    <div>
+                        <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 0.875rem; font-weight: 600; color: var(--neutral-foreground-hint); text-transform: uppercase; letter-spacing: 0.5px;">
+                            BASIC INFO
+                        </h3>
+                        <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px;">
+                            @* Avatar Picker *@
+                            <div>
+                                <label style="display: block; margin-bottom: 8px; font-weight: 500;">Avatar</label>
+                                <ImagePicker Category="profiles"
+                                             @bind-SelectedImagePath="ProfileModel.ProfileImagePath"
+                                             UserId="@CurrentUserId" />
+                            </div>
+
+                            @* First Name *@
+                            <div>
+                                <FluentTextField Label="First Name"
+                                                 @bind-Value="ProfileModel.FirstName"
+                                                 Required="true"
+                                                 Style="width: 100%;"
+                                                 Disabled="@IsSaving" />
+                            </div>
+
+                            @* Last Name *@
+                            <div>
+                                <FluentTextField Label="Last Name"
+                                                 @bind-Value="ProfileModel.LastName"
+                                                 Required="true"
+                                                 Style="width: 100%;"
+                                                 Disabled="@IsSaving" />
+                            </div>
+
+                            @* Username *@
+                            <div>
+                                <FluentTextField Label="Username"
+                                                 @bind-Value="ProfileModel.Username"
+                                                 Placeholder="e.g., john-doe"
+                                                 Style="width: 100%;"
+                                                 Disabled="@IsSaving"
+                                                 @oninput="OnUsernameChanged" />
+                                <small style="color: var(--neutral-foreground-hint);">
+                                    URL-safe: letters, numbers, and hyphens only
+                                </small>
+                                @if (!string.IsNullOrEmpty(UsernameValidationMessage))
+                                {
+                                    <div style="margin-top: 4px;">
+                                        <small style="color: @(IsUsernameValid ? "var(--success)" : "var(--error)");">
+                                            @UsernameValidationMessage
+                                        </small>
+                                    </div>
+                                }
+                            </div>
+
+                            @* Title *@
+                            <div>
+                                <FluentTextField Label="Title"
+                                                 @bind-Value="ProfileModel.Title"
+                                                 Placeholder="e.g., Senior Software Engineer"
+                                                 Style="width: 100%;"
+                                                 Disabled="@IsSaving" />
+                            </div>
+
+                            @* Tagline *@
+                            <div>
+                                <FluentTextField Label="Tagline"
+                                                 @bind-Value="ProfileModel.Tagline"
+                                                 Placeholder="e.g., Building the future, one line at a time"
+                                                 Style="width: 100%;"
+                                                 Disabled="@IsSaving" />
+                            </div>
+
+                            @* Bio *@
+                            <div>
+                                <FluentTextArea Label="Bio"
+                                                @bind-Value="ProfileModel.ProfileDescription"
+                                                Placeholder="Tell us about yourself..."
+                                                Rows="4"
+                                                Style="width: 100%;"
+                                                Disabled="@IsSaving" />
+                            </div>
+                        </FluentStack>
+                    </div>
+
+                    @* Right Column: Social Links *@
+                    <div>
+                        <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 0.875rem; font-weight: 600; color: var(--neutral-foreground-hint); text-transform: uppercase; letter-spacing: 0.5px;">
+                            SOCIAL LINKS
+                        </h3>
+                        <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px;">
+                            @* LinkedIn *@
+                            <div>
+                                <FluentTextField Label="LinkedIn"
+                                                 @bind-Value="ProfileModel.LinkedInUrl"
+                                                 Placeholder="https://linkedin.com/in/username"
+                                                 Style="width: 100%;"
+                                                 Disabled="@IsSaving" />
+                            </div>
+
+                            @* GitHub *@
+                            <div>
+                                <FluentTextField Label="GitHub"
+                                                 @bind-Value="ProfileModel.GitHubUrl"
+                                                 Placeholder="https://github.com/username"
+                                                 Style="width: 100%;"
+                                                 Disabled="@IsSaving" />
+                            </div>
+
+                            @* Twitter *@
+                            <div>
+                                <FluentTextField Label="Twitter"
+                                                 @bind-Value="ProfileModel.TwitterUrl"
+                                                 Placeholder="https://twitter.com/username"
+                                                 Style="width: 100%;"
+                                                 Disabled="@IsSaving" />
+                            </div>
+
+                            @* Instagram *@
+                            <div>
+                                <FluentTextField Label="Instagram"
+                                                 @bind-Value="ProfileModel.InstagramUrl"
+                                                 Placeholder="https://instagram.com/username"
+                                                 Style="width: 100%;"
+                                                 Disabled="@IsSaving" />
+                            </div>
+                        </FluentStack>
+                    </div>
+                </div>
+
+                @* Resume Settings Section *@
+                <div style="border-top: 1px solid var(--neutral-stroke-rest); padding-top: 24px; margin-bottom: 24px;">
+                    <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 0.875rem; font-weight: 600; color: var(--neutral-foreground-hint); text-transform: uppercase; letter-spacing: 0.5px;">
+                        RESUME SETTINGS
+                    </h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
+                        <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px;">
+                            @* Resume Enabled Checkbox *@
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <FluentCheckbox @bind-Value="ProfileModel.ResumeEnabled"
+                                                Disabled="@IsSaving" />
+                                <span>Show resume on profile</span>
+                            </div>
+
+                            @* Phone Number *@
+                            <div>
+                                <FluentTextField Label="Phone"
+                                                 @bind-Value="ProfileModel.PhoneNumber"
+                                                 Placeholder="+1 (555) 123-4567"
+                                                 Style="width: 100%;"
+                                                 Disabled="@IsSaving" />
+                            </div>
+                        </FluentStack>
+
+                        <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px;">
+                            @* CV File Picker *@
+                            <div>
+                                <label style="display: block; margin-bottom: 8px; font-weight: 500;">CV</label>
+                                <ImagePicker Category="cv"
+                                             @bind-SelectedImagePath="ProfileModel.CVFilePath"
+                                             UserId="@CurrentUserId" />
+                            </div>
+
+                            @* Location *@
+                            <div>
+                                <FluentTextField Label="Location"
+                                                 @bind-Value="ProfileModel.Location"
+                                                 Placeholder="e.g., San Francisco, CA"
+                                                 Style="width: 100%;"
+                                                 Disabled="@IsSaving" />
+                            </div>
+                        </FluentStack>
+                    </div>
+                </div>
+
+                @* Quick Links Section *@
+                <div style="border-top: 1px solid var(--neutral-stroke-rest); padding-top: 24px; padding-bottom: 8px;">
+                    <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 0.875rem; font-weight: 600; color: var(--neutral-foreground-hint); text-transform: uppercase; letter-spacing: 0.5px;">
+                        Quick Links
+                    </h3>
+                    <FluentStack Orientation="Orientation.Horizontal" Style="gap: 12px; flex-wrap: wrap;">
+                        <FluentAnchor Href="/admin/experience" Appearance="Appearance.Outline" Style="display: inline-flex; align-items: center; gap: 8px;">
+                            <FluentIcon Value="@(new Icons.Regular.Size16.Briefcase())" />
+                            <span>Manage Experience</span>
+                            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowRight())" />
+                        </FluentAnchor>
+                        <FluentAnchor Href="/admin/skills" Appearance="Appearance.Outline" Style="display: inline-flex; align-items: center; gap: 8px;">
+                            <FluentIcon Value="@(new Icons.Regular.Size16.Code())" />
+                            <span>Manage Skills</span>
+                            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowRight())" />
+                        </FluentAnchor>
+                        <FluentAnchor Href="/admin/awards" Appearance="Appearance.Outline" Style="display: inline-flex; align-items: center; gap: 8px;">
+                            <FluentIcon Value="@(new Icons.Regular.Size16.Trophy())" />
+                            <span>Manage Awards</span>
+                            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowRight())" />
+                        </FluentAnchor>
+                    </FluentStack>
+                </div>
+            </EditForm>
+        }
+    </PanelContent>
+</ContentPanel>

@@ -1,0 +1,175 @@
+@*
+    ResumeExperience.razor
+    Purpose: Displays work experience in a vertical timeline layout.
+    Shows experience entries in reverse chronological order with company logos,
+    role titles, date ranges, and markdown-rendered descriptions.
+
+    Dependencies: IUserEventRepo for data access, MarkdownRenderer for descriptions, resume.css for styling
+    Usage: Used on resume/portfolio pages to display professional work history
+*@
+
+@using BlogModels
+@inject IUserEventRepo EventRepo
+@inject BlogEngine.Common.MarkdownRenderer MarkdownRenderer
+
+<section class="resume-section">
+    <h2>Experience</h2>
+
+    @if (_isLoading)
+    {
+        <p>Loading experience...</p>
+    }
+    else if (_experiences == null || !_experiences.Any())
+    {
+        <p>No experience available.</p>
+    }
+    else
+    {
+        <div class="experience-timeline">
+            @foreach (var experience in _experiences)
+            {
+                <div class="experience-item">
+                    <div class="experience-header">
+                        @if (!string.IsNullOrEmpty(experience.LogoIconPath))
+                        {
+                            <img src="@experience.LogoIconPath"
+                                 alt="@experience.EventTitle logo"
+                                 class="company-logo" />
+                        }
+                        else
+                        {
+                            <div class="company-logo" style="display: flex; align-items: center; justify-content: center; background: var(--color-surface-hover); color: var(--color-neutral-light); font-size: 1.5rem; font-weight: 600;">
+                                @GetInitials(experience.EventTitle)
+                            </div>
+                        }
+                        <div class="experience-info">
+                            <div class="role-title">
+                                @experience.SessionTitle
+                                @if (!string.IsNullOrEmpty(experience.EventTitle))
+                                {
+                                    <span> @@ </span>
+                                    @if (!string.IsNullOrEmpty(experience.EventUrl))
+                                    {
+                                        <a href="@experience.EventUrl" class="company-name" target="_blank" rel="noopener noreferrer">@experience.EventTitle</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="company-name">@experience.EventTitle</span>
+                                    }
+                                }
+                            </div>
+                            <div class="date-range">
+                                @FormatDateRange(experience.StartDate, experience.EventDate, experience.IsCurrent)
+                            </div>
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(experience.Description))
+                    {
+                        <div class="description">
+                            @((MarkupString)RenderDescription(experience.Description))
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    /// <summary>
+    /// The user ID to load experience for.
+    /// </summary>
+    [Parameter]
+    public long UserId { get; set; }
+
+    private List<UserEvent>? _experiences;
+    private bool _isLoading = true;
+
+    /// <summary>
+    /// Loads experience events for the specified user.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadExperienceAsync();
+    }
+
+    /// <summary>
+    /// Reloads experience when the UserId parameter changes.
+    /// </summary>
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadExperienceAsync();
+    }
+
+    /// <summary>
+    /// Fetches all experience events for the user and orders them by EventDate DESC.
+    /// </summary>
+    private async Task LoadExperienceAsync()
+    {
+        _isLoading = true;
+
+        try
+        {
+            // Run synchronous repo call on a background thread
+            var allEvents = await Task.Run(() => EventRepo.GetAllById(UserId));
+
+            // Filter for Experience type and order by EventDate descending (newest first)
+            _experiences = allEvents
+                .Where(e => e.EventType?.Equals("Experience", StringComparison.OrdinalIgnoreCase) == true)
+                .OrderByDescending(e => e.EventDate)
+                .ToList();
+        }
+        catch (Exception)
+        {
+            _experiences = new List<UserEvent>();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Formats the date range for display.
+    /// Shows "StartDate - Present" if IsCurrent is true, otherwise "StartDate - EventDate".
+    /// </summary>
+    private string FormatDateRange(DateTime? startDate, DateTime eventDate, bool isCurrent)
+    {
+        var start = startDate.HasValue ? startDate.Value.ToString("MMM yyyy") : "";
+        var end = isCurrent ? "Present" : eventDate.ToString("MMM yyyy");
+
+        if (string.IsNullOrEmpty(start))
+        {
+            return end;
+        }
+
+        return $"{start} - {end}";
+    }
+
+    /// <summary>
+    /// Gets the initials from a company name for placeholder display.
+    /// </summary>
+    private string GetInitials(string companyName)
+    {
+        if (string.IsNullOrWhiteSpace(companyName))
+            return "?";
+
+        var words = companyName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length >= 2)
+        {
+            return $"{words[0][0]}{words[1][0]}".ToUpper();
+        }
+        return companyName.Length >= 2 ? companyName.Substring(0, 2).ToUpper() : companyName.ToUpper();
+    }
+
+    /// <summary>
+    /// Renders the description as markdown to HTML.
+    /// </summary>
+    private string RenderDescription(string description)
+    {
+        if (string.IsNullOrWhiteSpace(description))
+            return string.Empty;
+
+        return MarkdownRenderer.ToHtml(description);
+    }
+}

@@ -1,0 +1,106 @@
+@*
+    ResumeSkills.razor
+    Purpose: Displays user skills grouped by category in a responsive grid layout.
+    Shows skills organized into category cards with skill lists ordered by DisplayOrder.
+
+    Dependencies: IUserSkillsRepo for data access, resume.css for styling
+    Usage: Used on resume/portfolio pages to display skills and expertise
+*@
+
+@using BlogModels.Models
+@using BlogModels.Interfaces
+
+<section class="resume-section">
+    <h2>Skills & Expertise</h2>
+
+    @if (_isLoading)
+    {
+        <p>Loading skills...</p>
+    }
+    else if (_skillsByCategory == null || !_skillsByCategory.Any())
+    {
+        <p>No skills available.</p>
+    }
+    else
+    {
+        <div class="skills-grid">
+            @foreach (var categoryGroup in _skillsByCategory)
+            {
+                <div class="skill-category">
+                    <h3>@categoryGroup.Key</h3>
+                    <ul class="skill-list">
+                        @foreach (var skill in categoryGroup.Value)
+                        {
+                            <li>@skill.SkillName</li>
+                        }
+                    </ul>
+                </div>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    /// <summary>
+    /// The user ID to load skills for.
+    /// </summary>
+    [Parameter]
+    public long UserId { get; set; }
+
+    /// <summary>
+    /// Repository for accessing user skills data.
+    /// </summary>
+    [Inject]
+    public IUserSkillsRepo SkillsRepo { get; set; } = default!;
+
+    private Dictionary<string, List<UserSkill>>? _skillsByCategory;
+    private bool _isLoading = true;
+
+    /// <summary>
+    /// Loads skills for the specified user and groups them by category.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSkillsAsync();
+    }
+
+    /// <summary>
+    /// Reloads skills when the UserId parameter changes.
+    /// </summary>
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadSkillsAsync();
+    }
+
+    /// <summary>
+    /// Fetches all skills for the user and organizes them by category.
+    /// Each category's skills are ordered by DisplayOrder.
+    /// </summary>
+    private async Task LoadSkillsAsync()
+    {
+        _isLoading = true;
+
+        try
+        {
+            // Run synchronous repo call on a background thread
+            var skills = await Task.Run(() => SkillsRepo.GetByUserId(UserId));
+
+            // Group by Category and order each group by DisplayOrder
+            _skillsByCategory = skills
+                .GroupBy(s => s.Category)
+                .OrderBy(g => g.Key)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderBy(s => s.DisplayOrder).ToList()
+                );
+        }
+        catch (Exception)
+        {
+            _skillsByCategory = new Dictionary<string, List<UserSkill>>();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}

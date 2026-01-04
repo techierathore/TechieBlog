@@ -206,3 +206,152 @@ h6 {
 .stat i {
   color: #497aca !important;
   text-align: center !important; }
+
+/* ============================================
+   Admin UI Consistent Padding & Spacing Fixes
+   ============================================ */
+
+/* FluentCard default padding */
+fluent-card {
+  padding: 24px;
+}
+
+/* Dialog improvements - proper padding and spacing */
+fluent-dialog::part(control) {
+  padding: 0;
+}
+
+fluent-dialog-body {
+  padding: 24px;
+}
+
+fluent-dialog-header {
+  padding: 20px 24px 16px 24px;
+  border-bottom: 1px solid var(--neutral-stroke-rest, #E1E1E1);
+}
+
+fluent-dialog-footer {
+  padding: 16px 24px 20px 24px;
+  border-top: 1px solid var(--neutral-stroke-rest, #E1E1E1);
+  gap: 12px;
+}
+
+/* FluentStack vertical spacing consistency */
+fluent-stack[orientation="vertical"] {
+  gap: 16px;
+}
+
+/* Form field consistent spacing */
+.form-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* User selector styling */
+.user-selector {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: var(--neutral-layer-2, #F5F5F5);
+  border-radius: 8px;
+  gap: 12px;
+}
+
+/* Icon and text alignment in buttons */
+fluent-button fluent-icon,
+fluent-anchor fluent-icon {
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+/* Anchor buttons with icons - proper alignment */
+fluent-anchor {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Section headers consistent styling */
+.section-header {
+  margin: 0 0 16px 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--neutral-foreground-hint, #605E5C);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Quick links section */
+.quick-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 0;
+}
+
+/* Message bar spacing */
+fluent-message-bar {
+  margin-bottom: 16px;
+}
+
+/* TextField and TextArea consistent width */
+fluent-text-field,
+fluent-text-area,
+fluent-select {
+  width: 100%;
+}
+
+/* Number field specific width */
+fluent-number-field {
+  max-width: 200px;
+}
+
+/* Checkbox alignment fix */
+fluent-checkbox {
+  display: flex;
+  align-items: center;
+}
+
+/* Loading state centering */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  gap: 16px;
+  color: var(--neutral-foreground-hint, #605E5C);
+}
+
+/* Empty state styling */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  text-align: center;
+  color: var(--neutral-foreground-hint, #605E5C);
+  gap: 16px;
+}
+
+/* Grid layout for two-column forms */
+.form-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+
+@media (max-width: 768px) {
+  .form-grid-2col {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+/* Panel content bottom padding for Quick Links */
+.panel-content-with-footer {
+  padding-bottom: 24px;
+}

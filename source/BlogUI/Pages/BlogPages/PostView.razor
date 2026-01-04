@@ -8,6 +8,7 @@
 *@
 
 @page "/post/{Slug}"
+@page "/post/{Slug}/{PageNumber:int}"
 @layout FullWidthLayout
 @inject BlogEngine.Services.BlogSvc BlogService
 @inject BlogEngine.Services.SeriesSvc SeriesService
@@ -15,6 +16,7 @@
 @inject BlogEngine.Common.MarkdownRenderer MarkdownRenderer
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 
 @if (isLoading)
 {
@@ -71,6 +73,97 @@ else if (blogPost != null)
                 align-items: center;
                 margin-bottom: 8px;
             }
+
+            /* Article Pagination Styles */
+            .article-pagination {
+                margin: var(--spacing-xl, 32px) 0;
+                padding: var(--spacing-lg, 24px);
+                background: var(--neutral-layer-2, #f5f5f5);
+                border-radius: var(--border-radius-lg, 8px);
+                border: 1px solid var(--neutral-stroke-rest, #e0e0e0);
+            }
+
+            .article-pagination__info {
+                text-align: center;
+                font-size: var(--font-size-small, 0.875rem);
+                color: var(--neutral-foreground-hint, #666);
+                margin-bottom: var(--spacing-md, 16px);
+            }
+
+            .article-pagination__controls {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                gap: var(--spacing-md, 16px);
+            }
+
+            .pagination-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: var(--spacing-xs, 4px);
+                padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
+                background: var(--accent-fill-rest, #0078D4);
+                color: white;
+                border-radius: var(--border-radius, 4px);
+                text-decoration: none;
+                font-size: var(--font-size-small, 0.875rem);
+                font-weight: 500;
+                transition: background 150ms ease;
+            }
+
+            .pagination-btn:hover {
+                background: var(--accent-fill-hover, #106ebe);
+            }
+
+            .pagination-btn--disabled {
+                background: var(--neutral-stroke-rest, #e0e0e0);
+                color: var(--neutral-foreground-hint, #999);
+                pointer-events: none;
+            }
+
+            .pagination-pages {
+                display: flex;
+                gap: var(--spacing-xs, 4px);
+            }
+
+            .pagination-page {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 32px;
+                height: 32px;
+                border-radius: var(--border-radius, 4px);
+                text-decoration: none;
+                font-size: var(--font-size-small, 0.875rem);
+                color: var(--neutral-foreground-rest, #333);
+                background: var(--neutral-layer-3, #fff);
+                border: 1px solid var(--neutral-stroke-rest, #e0e0e0);
+                transition: all 150ms ease;
+            }
+
+            .pagination-page:hover {
+                background: var(--accent-fill-rest, #0078D4);
+                color: white;
+                border-color: var(--accent-fill-rest, #0078D4);
+            }
+
+            .pagination-page--active {
+                background: var(--accent-fill-rest, #0078D4);
+                color: white;
+                border-color: var(--accent-fill-rest, #0078D4);
+            }
+
+            @@media (max-width: 480px) {
+                .article-pagination__controls {
+                    flex-direction: column;
+                    gap: var(--spacing-sm, 8px);
+                }
+
+                .pagination-btn {
+                    width: 100%;
+                    justify-content: center;
+                }
+            }
         </style>
 
         @* Article Content *@
@@ -79,9 +172,65 @@ else if (blogPost != null)
             {
                 <p class="article__excerpt"><em>@blogPost.Abstract</em></p>
             }
-            @* Render content - in a real app, you'd use a Markdown renderer *@
-            @((MarkupString)RenderContent(blogPost.PostContent))
+            @* Render paginated content *@
+            @((MarkupString)GetPaginatedContent())
         </div>
+
+        @* Pagination Controls *@
+        @if (totalPages > 1)
+        {
+            <nav class="article-pagination" aria-label="Article pagination">
+                <div class="article-pagination__info">
+                    Page @currentPage of @totalPages
+                </div>
+                <div class="article-pagination__controls">
+                    @if (currentPage > 1)
+                    {
+                        <a href="/post/@Slug/@(currentPage - 1)" class="pagination-btn pagination-btn--prev">
+                            <FluentIcon Value="@(new Icons.Regular.Size16.ChevronLeft())" />
+                            Previous
+                        </a>
+                    }
+                    else
+                    {
+                        <span class="pagination-btn pagination-btn--prev pagination-btn--disabled">
+                            <FluentIcon Value="@(new Icons.Regular.Size16.ChevronLeft())" />
+                            Previous
+                        </span>
+                    }
+
+                    <div class="pagination-pages">
+                        @for (int i = 1; i <= totalPages; i++)
+                        {
+                            var pageNum = i;
+                            @if (pageNum == currentPage)
+                            {
+                                <span class="pagination-page pagination-page--active">@pageNum</span>
+                            }
+                            else
+                            {
+                                <a href="/post/@Slug/@pageNum" class="pagination-page">@pageNum</a>
+                            }
+                        }
+                    </div>
+
+                    @if (currentPage < totalPages)
+                    {
+                        <a href="/post/@Slug/@(currentPage + 1)" class="pagination-btn pagination-btn--next">
+                            Next
+                            <FluentIcon Value="@(new Icons.Regular.Size16.ChevronRight())" />
+                        </a>
+                    }
+                    else
+                    {
+                        <span class="pagination-btn pagination-btn--next pagination-btn--disabled">
+                            Next
+                            <FluentIcon Value="@(new Icons.Regular.Size16.ChevronRight())" />
+                        </span>
+                    }
+                </div>
+            </nav>
+        }
 
         @* Series Navigation - shown when post is part of a series *@
         @if (seriesNavigation != null)
@@ -207,21 +356,35 @@ else if (blogPost != null)
     [Parameter]
     public string Slug { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Optional page number for paginated articles.
+    /// </summary>
+    [Parameter]
+    public int PageNumber { get; set; } = 1;
+
     private List<Breadcrumb.BreadcrumbItem> breadcrumbItems = new();
     private BlogModels.BlogPost blogPost;
     private List<BlogModels.BlogPost> relatedPosts = new();
     private BlogModels.SeriesNavigation seriesNavigation;
     private bool isLoading = true;
     private bool notFound = false;
-    
+
     // Favorite state (FIX-014)
     private bool isAuthenticated = false;
     private long currentUserId = 0;
     private bool isFavorited = false;
     private int favoriteCount = 0;
 
+    // Pagination state
+    private int paginationWordCount = 500;
+    private int currentPage = 1;
+    private int totalPages = 1;
+    private List<string> contentPages = new();
+    private const string PaginationWordCountKey = "techieblog_pagination_word_count";
+
     protected override async Task OnParametersSetAsync()
     {
+        currentPage = PageNumber > 0 ? PageNumber : 1;
         await LoadPost();
     }
 
@@ -232,6 +395,9 @@ else if (blogPost != null)
 
         try
         {
+            // Load pagination setting from local storage
+            await LoadPaginationSetting();
+
             blogPost = BlogService.GetPostBySlug(Slug);
 
             if (blogPost == null || !blogPost.Published)
@@ -240,6 +406,15 @@ else if (blogPost != null)
             }
             else
             {
+                // Paginate content if enabled
+                PaginateContent(blogPost.PostContent);
+
+                // Validate current page
+                if (currentPage > totalPages)
+                {
+                    currentPage = totalPages;
+                }
+
                 // Setup breadcrumb
                 breadcrumbItems = new List<Breadcrumb.BreadcrumbItem>
                 {
@@ -276,6 +451,104 @@ else if (blogPost != null)
 
         isLoading = false;
         StateHasChanged();
+    }
+
+    /// <summary>
+    /// Loads the pagination word count setting from local storage.
+    /// </summary>
+    private async Task LoadPaginationSetting()
+    {
+        try
+        {
+            var storedWordCount = await LocalStorage.GetItemAsync<int?>(PaginationWordCountKey);
+            if (storedWordCount.HasValue && storedWordCount.Value > 0)
+            {
+                paginationWordCount = storedWordCount.Value;
+            }
+        }
+        catch
+        {
+            // Use default if local storage fails
+            paginationWordCount = 500;
+        }
+    }
+
+    /// <summary>
+    /// Splits content into pages based on word count threshold.
+    /// </summary>
+    private void PaginateContent(string content)
+    {
+        contentPages.Clear();
+
+        if (string.IsNullOrWhiteSpace(content) || paginationWordCount <= 0)
+        {
+            contentPages.Add(content ?? string.Empty);
+            totalPages = 1;
+            return;
+        }
+
+        // Count total words
+        var words = content.Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+        var totalWordCount = words.Length;
+
+        if (totalWordCount <= paginationWordCount)
+        {
+            contentPages.Add(content);
+            totalPages = 1;
+            return;
+        }
+
+        // Split content by paragraphs to avoid breaking mid-sentence
+        var paragraphs = content.Split(new[] { "\n\n", "\r\n\r\n" }, StringSplitOptions.None);
+        var currentPageContent = new System.Text.StringBuilder();
+        var currentWordCount = 0;
+
+        foreach (var paragraph in paragraphs)
+        {
+            var paragraphWords = paragraph.Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries).Length;
+
+            // If adding this paragraph would exceed the limit, start a new page
+            if (currentWordCount > 0 && currentWordCount + paragraphWords > paginationWordCount)
+            {
+                contentPages.Add(currentPageContent.ToString().Trim());
+                currentPageContent.Clear();
+                currentWordCount = 0;
+            }
+
+            currentPageContent.AppendLine(paragraph);
+            currentPageContent.AppendLine();
+            currentWordCount += paragraphWords;
+        }
+
+        // Add the last page if there's content
+        if (currentPageContent.Length > 0)
+        {
+            contentPages.Add(currentPageContent.ToString().Trim());
+        }
+
+        totalPages = contentPages.Count;
+        if (totalPages == 0)
+        {
+            contentPages.Add(content);
+            totalPages = 1;
+        }
+    }
+
+    /// <summary>
+    /// Gets the content for the current page.
+    /// </summary>
+    private string GetPaginatedContent()
+    {
+        if (contentPages.Count == 0)
+        {
+            return RenderContent(blogPost?.PostContent ?? string.Empty);
+        }
+
+        var pageIndex = currentPage - 1;
+        if (pageIndex < 0) pageIndex = 0;
+        if (pageIndex >= contentPages.Count) pageIndex = contentPages.Count - 1;
+
+        return RenderContent(contentPages[pageIndex]);
     }
 
     /// <summary>

@@ -1,0 +1,132 @@
+@*
+    AuthorHeader.razor
+    Purpose: Compact header component for author profile pages.
+    Shows profile image, name, title, tagline, social links, and article count.
+
+    Dependencies: IBlogUserRepo, BlogSvc, CSS from author.css
+    Usage: Used at the top of AuthorProfilePage to display author information
+*@
+
+@using BlogModels.Models
+
+<div class="author-header">
+    <img src="@GetAvatarUrl()"
+         alt="@Author.FullName"
+         class="avatar"
+         onerror="this.onerror=null; this.src='/img/avatars/default-avatar.png';" />
+
+    <div class="author-info">
+        <h1 class="author-name">@Author.FullName</h1>
+        <div class="author-username">@@@Author.Username</div>
+
+        @if (!string.IsNullOrEmpty(Author.Title))
+        {
+            <div class="author-title">@Author.Title</div>
+        }
+
+        @if (!string.IsNullOrEmpty(Author.Tagline))
+        {
+            <div class="author-bio">@Author.Tagline</div>
+        }
+        else if (!string.IsNullOrEmpty(Author.ProfileDescription))
+        {
+            <div class="author-bio">@Author.ProfileDescription</div>
+        }
+
+        @* Author Stats *@
+        <div class="author-stats">
+            <div class="stat">
+                <div class="stat-value">@ArticleCount</div>
+                <div class="stat-label">Articles</div>
+            </div>
+            @if (!string.IsNullOrEmpty(Author.Location))
+            {
+                <div class="stat">
+                    <div class="stat-value">
+                        <FluentIcon Value="@(new Icons.Regular.Size20.Location())" />
+                    </div>
+                    <div class="stat-label">@Author.Location</div>
+                </div>
+            }
+        </div>
+
+        @* Social Links *@
+        @if (HasSocialLinks())
+        {
+            <div class="social-links">
+                @if (!string.IsNullOrEmpty(Author.TwiiterUrl))
+                {
+                    <a href="@Author.TwiiterUrl" target="_blank" rel="noopener noreferrer" title="Twitter/X">
+                        <FluentIcon Value="@(new Icons.Regular.Size20.Person())" />
+                    </a>
+                }
+                @if (!string.IsNullOrEmpty(Author.GitHubUrl))
+                {
+                    <a href="@Author.GitHubUrl" target="_blank" rel="noopener noreferrer" title="GitHub">
+                        <FluentIcon Value="@(new Icons.Regular.Size20.Code())" />
+                    </a>
+                }
+                @if (!string.IsNullOrEmpty(Author.LinkedInUrl))
+                {
+                    <a href="@Author.LinkedInUrl" target="_blank" rel="noopener noreferrer" title="LinkedIn">
+                        <FluentIcon Value="@(new Icons.Regular.Size20.PersonBoard())" />
+                    </a>
+                }
+                @if (!string.IsNullOrEmpty(Author.InstagramUrl))
+                {
+                    <a href="@Author.InstagramUrl" target="_blank" rel="noopener noreferrer" title="Instagram">
+                        <FluentIcon Value="@(new Icons.Regular.Size20.Camera())" />
+                    </a>
+                }
+            </div>
+        }
+
+        @* Actions - View Resume if enabled *@
+        @if (Author.ResumeEnabled)
+        {
+            <div class="author-actions">
+                <a href="/resume/@Author.Username" class="author-action-btn secondary">
+                    <FluentIcon Value="@(new Icons.Regular.Size16.DocumentBulletList())" />
+                    View Resume
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// The author to display.
+    /// </summary>
+    [Parameter]
+    public AppUser Author { get; set; } = new();
+
+    /// <summary>
+    /// The number of published articles by this author.
+    /// </summary>
+    [Parameter]
+    public int ArticleCount { get; set; }
+
+    /// <summary>
+    /// Gets the avatar URL or default placeholder.
+    /// </summary>
+    private string GetAvatarUrl()
+    {
+        if (!string.IsNullOrEmpty(Author.ProfileImagePath))
+        {
+            return Author.ProfileImagePath;
+        }
+        return "/img/avatars/default-avatar.png";
+    }
+
+    /// <summary>
+    /// Checks if the author has any social links configured.
+    /// </summary>
+    private bool HasSocialLinks()
+    {
+        return !string.IsNullOrEmpty(Author.TwiiterUrl)
+            || !string.IsNullOrEmpty(Author.GitHubUrl)
+            || !string.IsNullOrEmpty(Author.LinkedInUrl)
+            || !string.IsNullOrEmpty(Author.InstagramUrl);
+    }
+}

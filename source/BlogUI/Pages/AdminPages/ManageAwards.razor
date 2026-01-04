@@ -1,0 +1,333 @@
+@*
+    ManageAwards.razor
+    Purpose: Manage user awards for resume/portfolio display.
+    Provides CRUD operations for awards with badge images.
+
+    Usage: Navigate to /admin/awards
+    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+    Authorization: AuthorOrAbove policy required
+*@
+@page "/admin/awards"
+@attribute [Authorize(Policy = "AuthorOrAbove")]
+@layout BlogUI.Layouts.AdminLayout
+
+<ContentPanel PanelTitle="Manage Awards">
+    <RightSection>
+        <FluentButton Appearance="Appearance.Accent" OnClick="ShowAddAwardDialog">
+            <FluentIcon Value="@(new Icons.Regular.Size16.Add())" />
+            Add Award
+        </FluentButton>
+    </RightSection>
+    <PanelContent>
+        <div class="awards-page">
+            @* Status Messages *@
+            @if (!string.IsNullOrEmpty(StatusMessage))
+            {
+                <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
+                                  Style="margin-bottom: 16px;">
+                    @StatusMessage
+                </FluentMessageBar>
+            }
+
+            @* Admin User Selector *@
+            @if (IsAdmin && AllUsers != null && AllUsers.Any())
+            {
+                <div class="user-selector">
+                    <FluentLabel Style="margin-right: 8px;">View awards for:</FluentLabel>
+                    <FluentSelect TOption="string"
+                                  Value="@SelectedUserId.ToString()"
+                                  ValueChanged="@(val => OnUserSelectionChanged(long.Parse(val)))"
+                                  Style="min-width: 250px;">
+                        @foreach (var user in AllUsers)
+                        {
+                            <FluentOption TOption="string" Value="@user.UserId.ToString()">
+                                @user.FirstName @user.LastName (@user.EmailId)
+                            </FluentOption>
+                        }
+                    </FluentSelect>
+                </div>
+            }
+
+            @* Loading State *@
+            @if (IsLoading)
+            {
+                <div style="padding: 32px; text-align: center;">
+                    <FluentProgressRing />
+                    <span style="display: block; margin-top: 8px;">Loading awards...</span>
+                </div>
+            }
+            else if (AllAwards == null || !AllAwards.Any())
+            {
+                <div style="padding: 32px; text-align: center; color: var(--color-neutral-light);">
+                    <p>No awards found. Click "Add Award" to create your first award.</p>
+                </div>
+            }
+            else
+            {
+                @* Awards List *@
+                <div class="awards-list">
+                    @foreach (var award in AllAwards.OrderBy(a => a.DisplayOrder))
+                    {
+                        <div class="award-item">
+                            <div class="award-badge">
+                                @if (!string.IsNullOrEmpty(award.BadgeImagePath))
+                                {
+                                    <img src="@award.BadgeImagePath" alt="@award.AwardTitle badge" />
+                                }
+                                else
+                                {
+                                    <FluentIcon Value="@(new Icons.Regular.Size24.Trophy())" Color="Color.Accent" />
+                                }
+                            </div>
+                            <div class="award-details">
+                                <div class="award-title">
+                                    @if (!string.IsNullOrEmpty(award.AwardUrl))
+                                    {
+                                        <a href="@award.AwardUrl" target="_blank" rel="noopener noreferrer">
+                                            @award.AwardTitle
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        @award.AwardTitle
+                                    }
+                                    <span class="award-year">(@FormatYearRange(award.AwardYear))</span>
+                                </div>
+                                @if (!string.IsNullOrEmpty(award.AwardDescription))
+                                {
+                                    <div class="award-description">@award.AwardDescription</div>
+                                }
+                            </div>
+                            <div class="award-actions">
+                                <FluentButton Appearance="Appearance.Stealth"
+                                              OnClick="@(() => StartEditAward(award))"
+                                              Title="Edit">
+                                    <FluentIcon Value="@(new Icons.Regular.Size16.Edit())" />
+                                </FluentButton>
+                                <FluentButton Appearance="Appearance.Stealth"
+                                              OnClick="@(() => ConfirmDeleteAward(award))"
+                                              Title="Delete">
+                                    <FluentIcon Value="@(new Icons.Regular.Size16.Delete())" Color="Color.Error" />
+                                </FluentButton>
+                                <FluentButton Appearance="Appearance.Stealth"
+                                              OnClick="@(() => MoveAwardUp(award))"
+                                              Disabled="@(IsFirstAward(award))"
+                                              Title="Move Up">
+                                    <FluentIcon Value="@(new Icons.Regular.Size16.ArrowUp())" />
+                                </FluentButton>
+                                <FluentButton Appearance="Appearance.Stealth"
+                                              OnClick="@(() => MoveAwardDown(award))"
+                                              Disabled="@(IsLastAward(award))"
+                                              Title="Move Down">
+                                    <FluentIcon Value="@(new Icons.Regular.Size16.ArrowDown())" />
+                                </FluentButton>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        @* Add/Edit Award Dialog *@
+        @if (ShowAwardDialog)
+        {
+            <FluentDialog Hidden="false" Modal="true" TrapFocus="true" Style="--dialog-width: 500px;">
+                <FluentDialogHeader>
+                    <div style="padding: 16px 24px;">
+                        <FluentLabel Typo="Typography.PaneHeader">@(IsEditMode ? "Edit Award" : "Add New Award")</FluentLabel>
+                    </div>
+                </FluentDialogHeader>
+                <FluentDialogBody>
+                    <div style="padding: 0 24px 16px 24px;">
+                    <FluentStack Orientation="Orientation.Vertical" Style="gap: 20px;">
+                        <div>
+                            <FluentTextField Label="Award Title"
+                                             @bind-Value="FormAwardTitle"
+                                             Placeholder="e.g., Microsoft MVP"
+                                             Required="true"
+                                             Style="width: 100%;" />
+                        </div>
+                        <div>
+                            <FluentTextArea Label="Description (optional)"
+                                            @bind-Value="FormDescription"
+                                            Placeholder="Brief description of the award..."
+                                            Rows="3"
+                                            Style="width: 100%;" />
+                        </div>
+                        <div>
+                            <FluentTextField Label="Badge Image URL (optional)"
+                                             @bind-Value="FormBadgeImagePath"
+                                             Placeholder="/images/awards/mvp-badge.png"
+                                             Style="width: 100%;" />
+                            <small style="color: var(--neutral-foreground-hint); display: block; margin-top: 4px;">
+                                Enter the path to the badge image. Upload images via the media library.
+                            </small>
+                        </div>
+                        <div>
+                            <FluentTextField Label="Award URL (optional)"
+                                             @bind-Value="FormAwardUrl"
+                                             Placeholder="https://mvp.microsoft.com/en-US/..."
+                                             Style="width: 100%;" />
+                            <small style="color: var(--neutral-foreground-hint); display: block; margin-top: 4px;">
+                                Link to the official award page or verification.
+                            </small>
+                        </div>
+                        <FluentStack Orientation="Orientation.Horizontal" Style="gap: 16px;">
+                            <div style="flex: 1;">
+                                <FluentTextField Label="Year Received"
+                                                 @bind-Value="FormYearReceivedText"
+                                                 Placeholder="e.g., 2015"
+                                                 Style="width: 100%;" />
+                            </div>
+                            <div style="flex: 1;">
+                                <FluentTextField Label="Year End (optional)"
+                                                 @bind-Value="FormYearEndText"
+                                                 Placeholder="Leave empty if ongoing"
+                                                 Style="width: 100%;" />
+                                <small style="color: var(--neutral-foreground-hint); display: block; margin-top: 4px;">
+                                    Leave empty if currently active
+                                </small>
+                            </div>
+                        </FluentStack>
+                    </FluentStack>
+                    </div>
+                </FluentDialogBody>
+                <FluentDialogFooter>
+                    <div style="padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px;">
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="CancelAwardDialog">Cancel</FluentButton>
+                        <FluentButton Appearance="Appearance.Accent" OnClick="SaveAward">
+                            @(IsEditMode ? "Save Changes" : "Add Award")
+                        </FluentButton>
+                    </div>
+                </FluentDialogFooter>
+            </FluentDialog>
+        }
+
+        @* Delete Confirmation Dialog *@
+        @if (ShowDeleteDialog)
+        {
+            <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
+                <FluentDialogHeader>
+                    <div style="padding: 16px 24px;">
+                        <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
+                    </div>
+                </FluentDialogHeader>
+                <FluentDialogBody>
+                    <div style="padding: 0 24px 16px 24px;">
+                        <p style="margin: 0;">Are you sure you want to delete the award "<strong>@AwardToDelete?.AwardTitle</strong>"?</p>
+                    </div>
+                </FluentDialogBody>
+                <FluentDialogFooter>
+                    <div style="padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px;">
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="CancelDelete">Cancel</FluentButton>
+                        <FluentButton Appearance="Appearance.Accent"
+                                      OnClick="DeleteAward"
+                                      Style="background-color: var(--color-error, #D13438);">
+                            Delete
+                        </FluentButton>
+                    </div>
+                </FluentDialogFooter>
+            </FluentDialog>
+        }
+    </PanelContent>
+</ContentPanel>
+
+<style>
+    .awards-page {
+        max-width: 900px;
+    }
+
+    .user-selector {
+        display: flex;
+        align-items: center;
+        margin-bottom: 24px;
+        padding: 12px 16px;
+        background-color: var(--color-surface, #F5F5F5);
+        border-radius: var(--border-radius, 4px);
+    }
+
+    .awards-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .award-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 16px;
+        border: 1px solid var(--color-border, #E1E1E1);
+        border-radius: var(--border-radius-lg, 8px);
+        background-color: var(--color-background, #fff);
+        transition: box-shadow 0.15s ease;
+    }
+
+    .award-item:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .award-badge {
+        flex-shrink: 0;
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--color-surface, #F5F5F5);
+        border-radius: var(--border-radius, 4px);
+        overflow: hidden;
+    }
+
+    .award-badge img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    .award-details {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .award-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-neutral, #323130);
+    }
+
+    .award-title a {
+        color: var(--color-primary, #0078D4);
+        text-decoration: none;
+    }
+
+    .award-title a:hover {
+        text-decoration: underline;
+    }
+
+    .award-year {
+        font-size: 0.875rem;
+        font-weight: 400;
+        color: var(--color-neutral-light, #605E5C);
+        margin-left: 8px;
+    }
+
+    .award-description {
+        margin-top: 4px;
+        font-size: 0.875rem;
+        color: var(--color-neutral-light, #605E5C);
+        line-height: 1.4;
+    }
+
+    .award-actions {
+        display: flex;
+        gap: 2px;
+        flex-shrink: 0;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+    }
+
+    .award-item:hover .award-actions {
+        opacity: 1;
+    }
+</style>

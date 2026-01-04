@@ -11,6 +11,7 @@
 @attribute [Authorize(Policy = "AdminOnly")]
 @layout BlogUI.Layouts.AdminLayout
 @inject ThemeService ThemeService
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 
 <div class="settings-page">
     @* Page Header *@
@@ -91,6 +92,14 @@
                                        Min="5"
                                        Max="50"
                                        Style="width: 100%;" />
+                </div>
+                <div class="form-group">
+                    <FluentNumberField Label="Article Pagination Word Count"
+                                       @bind-Value="PaginationWordCount"
+                                       Min="0"
+                                       Max="10000"
+                                       Style="width: 100%;" />
+                    <span class="form-hint">Split articles longer than this word count into pages. Set to 0 to disable pagination.</span>
                 </div>
                 <div class="form-group">
                     <FluentCheckbox @bind-Value="AllowComments" Label="Allow Comments" />
@@ -238,6 +247,12 @@
         padding: 2px 8px;
         border-radius: var(--border-radius-sm, 4px);
     }
+
+    .form-hint {
+        font-size: var(--font-size-xs, 0.75rem);
+        color: var(--color-text-secondary, #666);
+        margin-top: var(--spacing-xs, 4px);
+    }
 </style>
 
 @code {
@@ -252,9 +267,12 @@
 
     // Blog Settings
     private int PostsPerPage { get; set; } = 10;
+    private int PaginationWordCount { get; set; } = 500;
     private bool AllowComments { get; set; } = true;
     private bool ModerateComments { get; set; } = true;
     private bool AllowRegistration { get; set; } = true;
+
+    private const string PaginationWordCountKey = "techieblog_pagination_word_count";
 
     // SEO Settings
     private string MetaDescription { get; set; } = "";
@@ -275,8 +293,8 @@
         // Load theme settings
         await LoadThemeSettingsAsync();
 
-        // TODO: Load settings from database when settings service is implemented
-        LoadDefaultSettings();
+        // Load settings from local storage
+        await LoadDefaultSettings();
     }
 
     private async Task LoadThemeSettingsAsync()
@@ -295,10 +313,15 @@
         }
     }
 
-    private void LoadDefaultSettings()
+    private async Task LoadDefaultSettings()
     {
-        // Default values are already set above
-        // In a real implementation, these would be loaded from a database
+        // Load pagination word count from local storage
+        var storedWordCount = await LocalStorage.GetItemAsync<int?>(PaginationWordCountKey);
+        if (storedWordCount.HasValue)
+        {
+            PaginationWordCount = storedWordCount.Value;
+        }
+        // In a real implementation, other settings would be loaded from a database
     }
 
     private async Task SaveSettings()
@@ -308,10 +331,10 @@
 
         try
         {
-            // Simulate save operation
-            await Task.Delay(500);
+            // Save pagination word count to local storage
+            await LocalStorage.SetItemAsync(PaginationWordCountKey, PaginationWordCount);
 
-            // TODO: Implement actual save to database when settings service is created
+            // TODO: Implement actual save to database for other settings when settings service is created
             StatusMessage = "Settings saved successfully.";
             IsError = false;
         }

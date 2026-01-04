@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
 	<PackageReference Include="Dapper" Version="2.1.35" />
 	<PackageReference Include="Markdig" Version="0.44.0" />
 	<PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.0" />

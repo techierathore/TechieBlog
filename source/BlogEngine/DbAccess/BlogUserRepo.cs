@@ -167,4 +167,133 @@ public class BlogUserRepo : GenericRepository<AppUser>, IBlogUserRepo
             "SELECT * FROM BlogUser ORDER BY UserId LIMIT @PageSize OFFSET @OffSet",
             new { PageSize, OffSet });
     }
+
+    /// <summary>
+    /// Retrieves a user by their username (case-insensitive).
+    /// </summary>
+    /// <param name="username">The username to search for.</param>
+    /// <returns>AppUser if found, null otherwise.</returns>
+    public AppUser? GetByUsername(string username)
+    {
+        using var vConn = GetOpenConnection();
+        return vConn.QueryFirstOrDefault<AppUser>(
+            "SELECT * FROM BlogUser WHERE LOWER(Username) = LOWER(@Username)",
+            new { Username = username });
+    }
+
+    /// <summary>
+    /// Retrieves the site owner (user with IsSiteOwner=true).
+    /// </summary>
+    /// <returns>AppUser if found, null otherwise.</returns>
+    public AppUser? GetSiteOwner()
+    {
+        using var vConn = GetOpenConnection();
+        return vConn.QueryFirstOrDefault<AppUser>(
+            "SELECT * FROM BlogUser WHERE IsSiteOwner = TRUE LIMIT 1");
+    }
+
+    /// <summary>
+    /// Retrieves all users who have written at least one blog post.
+    /// </summary>
+    /// <returns>Collection of authors.</returns>
+    public IEnumerable<AppUser> GetAllAuthors()
+    {
+        using var vConn = GetOpenConnection();
+        return vConn.Query<AppUser>(
+            "SELECT DISTINCT u.* FROM BlogUser u INNER JOIN BlogPost p ON u.UserId = p.UserID WHERE p.Published = true AND (p.IsDeleted = false OR p.IsDeleted IS NULL)");
+    }
+
+    /// <summary>
+    /// Updates a user's username.
+    /// </summary>
+    /// <param name="userId">The user's ID.</param>
+    /// <param name="username">The new username.</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    public bool UpdateUsername(long userId, string username)
+    {
+        using var vConn = GetOpenConnection();
+        var rowsAffected = vConn.Execute(
+            "UPDATE BlogUser SET Username = @Username WHERE UserId = @UserId",
+            new { Username = username, UserId = userId });
+        return rowsAffected > 0;
+    }
+
+    /// <summary>
+    /// Sets a user as the site owner, removing the flag from any previous owner.
+    /// </summary>
+    /// <param name="userId">The user ID to set as site owner.</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    public bool SetSiteOwner(long userId)
+    {
+        using var vConn = GetOpenConnection();
+        using var transaction = vConn.BeginTransaction();
+        try
+        {
+            // Remove site owner flag from any previous owner
+            vConn.Execute(
+                "UPDATE BlogUser SET IsSiteOwner = FALSE WHERE IsSiteOwner = TRUE",
+                transaction: transaction);
+
+            // Set new site owner
+            var rowsAffected = vConn.Execute(
+                "UPDATE BlogUser SET IsSiteOwner = TRUE WHERE UserId = @UserId",
+                new { UserId = userId },
+                transaction: transaction);
+
+            transaction.Commit();
+            return rowsAffected > 0;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Checks if a username is available (not already taken).
+    /// </summary>
+    /// <param name="username">The username to check.</param>
+    /// <returns>True if available, false if taken.</returns>
+    public bool IsUsernameAvailable(string username)
+    {
+        using var vConn = GetOpenConnection();
+        var count = vConn.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM BlogUser WHERE LOWER(Username) = LOWER(@Username)",
+            new { Username = username });
+        return count == 0;
+    }
+
+    /// <summary>
+    /// Updates only the resume-related fields for a user.
+    /// </summary>
+    /// <param name="userId">The user's ID.</param>
+    /// <param name="resumeData">AppUser object containing resume field values.</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    public bool UpdateResumeFields(long userId, AppUser resumeData)
+    {
+        using var vConn = GetOpenConnection();
+        var rowsAffected = vConn.Execute(
+            @"UPDATE BlogUser SET
+                Title = @Title,
+                Tagline = @Tagline,
+                Location = @Location,
+                PhoneNumber = @PhoneNumber,
+                CVFilePath = @CVFilePath,
+                ResumeEnabled = @ResumeEnabled,
+                InstagramUrl = @InstagramUrl
+              WHERE UserId = @UserId",
+            new
+            {
+                UserId = userId,
+                Title = resumeData.Title,
+                Tagline = resumeData.Tagline,
+                Location = resumeData.Location,
+                PhoneNumber = resumeData.PhoneNumber,
+                CVFilePath = resumeData.CVFilePath,
+                ResumeEnabled = resumeData.ResumeEnabled,
+                InstagramUrl = resumeData.InstagramUrl
+            });
+        return rowsAffected > 0;
+    }
 }

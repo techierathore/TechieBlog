@@ -53,6 +53,15 @@ public class AppUser
 	public string SpeakDescription { get; set; }
 	public string AccessToken { get; set; }
 	public string RefreshToken { get; set; }
+	public string? Username { get; set; }
+	public bool IsSiteOwner { get; set; }
+	public string? Title { get; set; }
+	public string? Tagline { get; set; }
+	public string? InstagramUrl { get; set; }
+	public string? PhoneNumber { get; set; }
+	public string? Location { get; set; }
+	public string? CVFilePath { get; set; }
+	public bool ResumeEnabled { get; set; }
 }
 
 

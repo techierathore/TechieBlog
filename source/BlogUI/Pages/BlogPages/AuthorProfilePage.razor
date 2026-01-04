@@ -1,0 +1,87 @@
+@*
+    AuthorProfilePage.razor
+    Purpose: Public author profile page showing author bio, articles, and optional resume sections.
+    Displays author header, their published articles, and resume components if enabled.
+
+    Dependencies: AuthorHeader, PostCard, ResumeExperience, ResumeSkills, ResumeAwards components
+    Layout: Uses MainLayout (public pages)
+*@
+
+@page "/author/{Username}"
+@layout MainLayout
+
+@if (isLoading)
+{
+    <div class="loading-container" style="display: flex; justify-content: center; padding: 48px;">
+        <FluentProgressRing />
+        <span style="margin-left: 12px;">Loading author profile...</span>
+    </div>
+}
+else if (author == null)
+{
+    <div class="author-profile">
+        <div class="empty-state" style="text-align: center; padding: 48px;">
+            <FluentIcon Value="@(new Icons.Regular.Size48.PersonWarning())" />
+            <h2>Author Not Found</h2>
+            <p>The author you're looking for doesn't exist or has no published articles.</p>
+            <FluentButton Appearance="Appearance.Accent" OnClick="@(() => Navigation.NavigateTo("/authors"))">
+                View All Authors
+            </FluentButton>
+        </div>
+    </div>
+}
+else
+{
+    <div class="author-profile">
+        @* Author Header Component *@
+        <BlogUI.Components.Author.AuthorHeader
+            Author="@author"
+            ArticleCount="@articles.Count" />
+
+        @* Author Articles Section *@
+        <section class="author-articles">
+            <h2>Articles by @author.FirstName</h2>
+
+            @if (articles != null && articles.Count > 0)
+            {
+                <div class="author-articles-grid">
+                    @foreach (var post in articles)
+                    {
+                        <PostCard
+                            Category="@GetCategory(post.Tags)"
+                            Title="@post.Title"
+                            Excerpt="@(string.IsNullOrEmpty(post.Abstract) ? GetExcerpt(post.PostContent) : post.Abstract)"
+                            PostUrl="@($"/post/{post.Slug}")"
+                            AuthorName="@author.FullName"
+                            Date="@post.CreatedOn.ToString("MMM dd, yyyy")"
+                            ReadTime="@GetReadingTime(post.PostContent)"
+                            ImageUrl="@post.FeaturedImage" />
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="no-articles">
+                    <p>No articles published yet.</p>
+                </div>
+            }
+        </section>
+
+        @* Resume Sections (if enabled) *@
+        @if (author.ResumeEnabled)
+        {
+            <div class="author-resume-section">
+                <h2>Professional Background</h2>
+
+                @* Experience Section *@
+                <BlogUI.Components.Resume.ResumeExperience UserId="@author.UserId" />
+
+                @* Skills Section *@
+                <BlogUI.Components.Resume.ResumeSkills UserId="@author.UserId" />
+
+                @* Awards Section *@
+                <BlogUI.Components.Resume.ResumeAwards UserId="@author.UserId" />
+            </div>
+        }
+    </div>
+}
