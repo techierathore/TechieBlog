@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TechieBlog — Usage Guide (Test Users · Test Plan · Setup) &mdash; TechieBlog</title>
+<script>
+/* Resolve the theme BEFORE first paint (no flash). Saved choice wins; otherwise
+   pick by time of day — light 07:00–19:00 local, softened dark at night. */
+(function(){
+  try{
+    var t = localStorage.getItem('tf-theme');
+    if(t!=='light' && t!=='dark'){ var h = new Date().getHours(); t = (h>=7 && h<19) ? 'light' : 'dark'; }
+    document.documentElement.setAttribute('data-theme', t);
+  }catch(e){ document.documentElement.setAttribute('data-theme','light'); }
+})();
+</script>
+<style>/* LIGHT is the default theme — a warm off-white, easy on the eyes (never bright white). */
+:root{
+  --bg:#f4f1e9; --panel:#efe9db; --panel2:#e7e0cd; --line:#d8cfb6;
+  --ink:#2e2a22; --muted:#6f6857; --accent:#2f6f9f; --accent2:#3f7d54;
+  --warn:#9a6b15; --danger:#b03a52; --ok:#3f7d54;
+  --code-bg:#ece5d3; --code-ink:#332f26; --row-alt:#eae2cf;
+  --h3:#3a352b; --h4:#2f6f9f; --quote:#4a4537; --cta-bg:#e6eef5;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+/* DARK — softened near-black (warmer / less harsh than pure #0f1115). */
+html[data-theme="dark"]{
+  --bg:#11141a; --panel:#171b23; --panel2:#1e2430; --line:#2b3240;
+  --ink:#dfe3ea; --muted:#99a2b1; --accent:#7cc4ff; --accent2:#a6e3a1;
+  --warn:#f9c74f; --danger:#f38ba8; --ok:#a6e3a1;
+  --code-bg:#0c1016; --code-ink:#d8dde8; --row-alt:#141821;
+  --h3:#cfd5e3; --h4:#7cc4ff; --quote:#cfd5e3; --cta-bg:#0d2030;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;font-size:15px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:var(--mono);font-size:13px;background:var(--code-bg);color:var(--code-ink);padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+pre{font-family:var(--mono);font-size:12.5px;background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto;color:var(--code-ink);position:relative}
+pre code{background:none;border:none;padding:0}
+.copy{position:absolute;top:8px;right:8px;background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:11px;font-family:var(--sans);cursor:pointer}
+.copy:hover{color:var(--accent);border-color:var(--accent)}
+/* floating light/dark toggle (top-right) */
+.theme-toggle{position:fixed;top:12px;right:14px;z-index:10000;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12.5px;font-family:var(--sans);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.theme-toggle:hover{color:var(--accent);border-color:var(--accent)}
+
+.layout{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+.layout.no-toc{grid-template-columns:1fr}
+nav.side{position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--line);background:var(--panel);padding:18px 14px}
+nav.side h1{font-size:14px;margin:0 0 4px;letter-spacing:.5px;color:var(--ink)}
+nav.side .sub{font-size:11.5px;color:var(--muted);margin-bottom:14px}
+nav.side ol,nav.side ul{list-style:none;padding:0;margin:0}
+nav.side li{font-size:13px;margin:2px 0}
+nav.side li a{display:block;padding:5px 8px;color:var(--ink);border-radius:6px}
+nav.side li a:hover{background:var(--panel2);text-decoration:none}
+nav.side li.h3 a{padding-left:22px;font-size:12.5px;color:var(--h3)}
+nav.side .group{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin:14px 8px 4px}
+
+main{padding:28px 40px 80px;max-width:1100px}
+.layout.no-toc main{margin:0 auto}
+
+h1{font-size:28px;margin:0 0 6px}
+h2{font-size:22px;margin:32px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);scroll-margin-top:16px}
+h3{font-size:17px;margin:22px 0 6px;color:var(--h3);scroll-margin-top:16px}
+h4{font-size:14px;margin:14px 0 4px;color:var(--h4);scroll-margin-top:16px}
+.subtitle{color:var(--muted);font-size:14px;margin-top:-4px;margin-bottom:18px}
+p{margin:6px 0 10px}
+blockquote{border-left:3px solid var(--accent);background:var(--panel);margin:8px 0;padding:8px 14px;color:var(--quote)}
+ul,ol{padding-left:22px}
+li{margin:2px 0}
+
+table{border-collapse:collapse;width:100%;font-size:13.5px;margin:8px 0}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--panel2);color:var(--h3);font-weight:600}
+tr:nth-child(even) td{background:var(--row-alt)}
+
+hr{border:none;border-top:1px solid var(--line);margin:24px 0}
+.anchor-link{color:var(--muted);font-weight:400;font-size:0.85em;margin-left:8px;opacity:0;transition:opacity .15s;text-decoration:none}
+h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
+
+/* inline TOC at top of main content */
+.toc-inline{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 16px;margin:14px 0 24px}
+.toc-inline > div{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.toc-inline ol,.toc-inline ul{margin:4px 0;padding-left:18px}
+.toc-inline li{font-size:13px;margin:1px 0}
+.toc-inline a{color:var(--h3)}
+
+/* NEXT COMMAND call-to-action box */
+.cta{background:var(--cta-bg);border:1px solid var(--accent);border-radius:8px;padding:12px 16px;margin:18px 0}
+.cta .lbl{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+
+/* mermaid diagram wrapper + toolbar */
+.diagram{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--code-bg);margin:14px 0;overflow:hidden}
+.diagram .mermaid{padding:14px;margin:0;background:transparent;border:none;overflow:auto}
+.diagram .dt{display:flex;gap:6px;justify-content:flex-end;padding:6px 8px;background:var(--row-alt);border-bottom:1px solid var(--line)}
+.diagram .dt button{background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 10px;font-size:12px;font-family:var(--sans);cursor:pointer;min-width:30px}
+.diagram .dt button:hover{color:var(--accent);border-color:var(--accent)}
+.diagram .dt .zlabel{padding:3px 6px;font-size:11px;color:var(--muted);font-family:var(--mono);align-self:center}
+.diagram.fs{position:fixed;inset:0;z-index:9999;border-radius:0;border:none}
+.diagram.fs .mermaid{height:calc(100vh - 40px);display:flex;align-items:center;justify-content:center}
+
+@media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{position:static;height:auto}}</style>
+</head>
+<body>
+<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">&#9782; Dark</button>
+<div class="layout">
+<nav class="side">
+<h1>TechieBlog — Usage Guide (Test Users · Test Plan · Setup)</h1>
+<div class="sub">Test users, test plan, setup · last rendered 2026-08-02</div>
+<div class="group">Contents</div>
+<ol>
+<li><a href="#test-users-canonical-use-these-for-all-smoke-verify-uat">Test users (canonical — use THESE for all smoke / verify / UAT)</a></li>
+<li><a href="#how-to-test-screen-by-screen-menu-by-menu">How to test — screen by screen / menu by menu</a></li>
+<li class="h3"><a href="#public-home">Public — Home (<code>/</code>)</a></li>
+<li class="h3"><a href="#public-post-view-post-slug">Public — Post view (<code>/post/{slug}</code>)</a></li>
+<li class="h3"><a href="#public-category-and-tag-archives-category-slug-tag-slug">Public — Category and tag archives (<code>/category/{slug}</code>, <code>/tag/{slug}</code>)</a></li>
+<li class="h3"><a href="#public-series-series-series-slug">Public — Series (<code>/series</code>, <code>/series/{slug}</code>)</a></li>
+<li class="h3"><a href="#public-search-search">Public — Search (<code>/search</code>)</a></li>
+<li class="h3"><a href="#public-authors-and-resume-authors-author-username-resume">Public — Authors and resume (<code>/authors</code>, <code>/author/{username}</code>, <code>/resume</code>)</a></li>
+<li class="h3"><a href="#public-rss-sitemap-robots-rss-sitemap-xml-robots-txt">Public — RSS, sitemap, robots (<code>/rss</code>, <code>/sitemap.xml</code>, <code>/robots.txt</code>)</a></li>
+<li class="h3"><a href="#auth-register-login-reset-register-login-forgot-password-reset-password">Auth — Register, login, reset (<code>/register</code>, <code>/login</code>, <code>/forgot-password</code>, <code>/reset-password</code>)</a></li>
+<li class="h3"><a href="#auth-role-gates-access-denied">Auth — Role gates (<code>/access-denied</code>)</a></li>
+<li class="h3"><a href="#reader-account-profile-and-favourites-profile-my-favorites">Reader account — Profile and favourites (<code>/profile</code>, <code>/my-favorites</code>)</a></li>
+<li class="h3"><a href="#authoring-post-editor-and-lifecycle-managepost-blogslist-admin-preview-id">Authoring — Post editor and lifecycle (<code>/ManagePost</code>, <code>/BlogsList</code>, <code>/admin/preview/{id}</code>)</a></li>
+<li class="h3"><a href="#authoring-media-library-and-image-picker-admin-images">Authoring — Media library and image picker (<code>/admin/images</code>)</a></li>
+<li class="h3"><a href="#authoring-resume-data-admin-profile-admin-experience-admin-skills-admin-awards">Authoring — Resume data (<code>/admin/profile</code>, <code>/admin/experience</code>, <code>/admin/skills</code>, <code>/admin/awards</code>)</a></li>
+<li class="h3"><a href="#editorial-comment-moderation-commentslist">Editorial — Comment moderation (<code>/CommentsList</code>)</a></li>
+<li class="h3"><a href="#admin-dashboard-users-taxonomy-subscribers-settings">Admin — Dashboard, users, taxonomy, subscribers, settings</a></li>
+<li class="h3"><a href="#theming-light-dark-and-site-themes">Theming — Light/dark and site themes</a></li>
+<li class="h3"><a href="#not-testable-yet-features-not-built">Not testable yet (features not built)</a></li>
+<li><a href="#prerequisites">Prerequisites</a></li>
+<li><a href="#setup-deployment-steps-runbook-one-command-per-line-in-order">Setup / Deployment steps (runbook — one command per line, in order)</a></li>
+<li><a href="#test-automated">Test (automated)</a></li>
+<li><a href="#smoke-checklist-quick-capability-pass">Smoke checklist (quick capability pass)</a></li>
+<li><a href="#known-limitations">Known limitations</a></li>
+</ol>
+</nav>
+  <main>
+    <h1>TechieBlog — Usage Guide (Test Users · Test Plan · Setup)</h1>
+    <div class="subtitle">Test users, test plan, setup · last rendered 2026-08-02</div>
+
+<div class="toc-inline">
+<div>Contents</div>
+<ol>
+<li><a href="#test-users-canonical-use-these-for-all-smoke-verify-uat">Test users (canonical — use THESE for all smoke / verify / UAT)</a></li>
+<li><a href="#how-to-test-screen-by-screen-menu-by-menu">How to test — screen by screen / menu by menu</a></li>
+<li class="h3"><a href="#public-home">Public — Home (<code>/</code>)</a></li>
+<li class="h3"><a href="#public-post-view-post-slug">Public — Post view (<code>/post/{slug}</code>)</a></li>
+<li class="h3"><a href="#public-category-and-tag-archives-category-slug-tag-slug">Public — Category and tag archives (<code>/category/{slug}</code>, <code>/tag/{slug}</code>)</a></li>
+<li class="h3"><a href="#public-series-series-series-slug">Public — Series (<code>/series</code>, <code>/series/{slug}</code>)</a></li>
+<li class="h3"><a href="#public-search-search">Public — Search (<code>/search</code>)</a></li>
+<li class="h3"><a href="#public-authors-and-resume-authors-author-username-resume">Public — Authors and resume (<code>/authors</code>, <code>/author/{username}</code>, <code>/resume</code>)</a></li>
+<li class="h3"><a href="#public-rss-sitemap-robots-rss-sitemap-xml-robots-txt">Public — RSS, sitemap, robots (<code>/rss</code>, <code>/sitemap.xml</code>, <code>/robots.txt</code>)</a></li>
+<li class="h3"><a href="#auth-register-login-reset-register-login-forgot-password-reset-password">Auth — Register, login, reset (<code>/register</code>, <code>/login</code>, <code>/forgot-password</code>, <code>/reset-password</code>)</a></li>
+<li class="h3"><a href="#auth-role-gates-access-denied">Auth — Role gates (<code>/access-denied</code>)</a></li>
+<li class="h3"><a href="#reader-account-profile-and-favourites-profile-my-favorites">Reader account — Profile and favourites (<code>/profile</code>, <code>/my-favorites</code>)</a></li>
+<li class="h3"><a href="#authoring-post-editor-and-lifecycle-managepost-blogslist-admin-preview-id">Authoring — Post editor and lifecycle (<code>/ManagePost</code>, <code>/BlogsList</code>, <code>/admin/preview/{id}</code>)</a></li>
+<li class="h3"><a href="#authoring-media-library-and-image-picker-admin-images">Authoring — Media library and image picker (<code>/admin/images</code>)</a></li>
+<li class="h3"><a href="#authoring-resume-data-admin-profile-admin-experience-admin-skills-admin-awards">Authoring — Resume data (<code>/admin/profile</code>, <code>/admin/experience</code>, <code>/admin/skills</code>, <code>/admin/awards</code>)</a></li>
+<li class="h3"><a href="#editorial-comment-moderation-commentslist">Editorial — Comment moderation (<code>/CommentsList</code>)</a></li>
+<li class="h3"><a href="#admin-dashboard-users-taxonomy-subscribers-settings">Admin — Dashboard, users, taxonomy, subscribers, settings</a></li>
+<li class="h3"><a href="#theming-light-dark-and-site-themes">Theming — Light/dark and site themes</a></li>
+<li class="h3"><a href="#not-testable-yet-features-not-built">Not testable yet (features not built)</a></li>
+<li><a href="#prerequisites">Prerequisites</a></li>
+<li><a href="#setup-deployment-steps-runbook-one-command-per-line-in-order">Setup / Deployment steps (runbook — one command per line, in order)</a></li>
+<li><a href="#test-automated">Test (automated)</a></li>
+<li><a href="#smoke-checklist-quick-capability-pass">Smoke checklist (quick capability pass)</a></li>
+<li><a href="#known-limitations">Known limitations</a></li>
+</ol>
+</div>
+<blockquote>The single source for <strong>how to test and run</strong> this app. Every agent (flow-master self-smoke, the verifier) <strong>and</strong> the human UAT use the SAME test users and the SAME walkthrough listed here — no one invents throwaway accounts (enforced by <code>.tfcore/tasks/_smoke-test-policy.md</code>). Keep the Test-users table current: when an account is actually created, flip its <code>Created?</code> to ✅.</blockquote>
+<blockquote><strong>Day-1 note (2026-08-02):</strong> the database could not be inspected — TCP 5432 is unreachable from WSL, and the app's configured connection string is <code>Host=localhost;Port=5432;Database=TechieBlog;Username=PgVectorAdmin</code> (Windows-side). The table below therefore lists the <strong>intended</strong> account set, seeded or created on first build after confirming with the owner. Also note the app currently <strong>does not build</strong> (REQ-FN-043) — fix that before attempting any of the walkthroughs.</blockquote>
+<h2 id="test-users-canonical-use-these-for-all-smoke-verify-uat">Test users (canonical — use THESE for all smoke / verify / UAT)<a class="anchor-link" href="#test-users-canonical-use-these-for-all-smoke-verify-uat">#</a></h2>
+<table>
+<thead><tr><th>#</th><th>Username / Email</th><th>Password</th><th>Role / Permission</th><th>Created?</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><code>Ravi@techieblog.com</code></td><td><code>admin_password</code></td><td>Admin</td><td>⬜</td><td><strong>Seeded by <code>source/BlogDb/PostgresScripts/003-SeedData.sql</code></strong> — exists on any database where migrations have run, but unverified at day-1. ⚠ stored as plaintext in the seed script (REQ-NFR-023); change it after first login.</td></tr>
+<tr><td>2</td><td><code>editor@techieblog.test</code></td><td><code>{ask owner}</code></td><td>Editor</td><td>⬜</td><td>Needed to exercise comment moderation and all-posts management. Create via <code>/AddUser</code> as Admin.</td></tr>
+<tr><td>3</td><td><code>author@techieblog.test</code></td><td><code>{ask owner}</code></td><td>Author</td><td>⬜</td><td>Needed for the post editor, series, media and own-profile/resume screens.</td></tr>
+<tr><td>4</td><td><code>contributor@techieblog.test</code></td><td><code>{ask owner}</code></td><td>Contributor</td><td>⬜</td><td>Exercises the <code>ContributorOrAbove</code> policy (currently unused by any page — confirms the gate).</td></tr>
+<tr><td>5</td><td><code>reader@techieblog.test</code></td><td><code>{ask owner}</code></td><td>Reader</td><td>⬜</td><td>Self-registered via <code>/register</code>; exercises comments, ratings, favourites.</td></tr>
+<tr><td>6</td><td>— (anonymous)</td><td>—</td><td>Guest</td><td>✅</td><td>No account — exercises every public page and the "must sign in to engage" prompts.</td></tr>
+</tbody></table>
+<ul>
+<li><strong>Created?</strong> — ✅ = the account exists in the database now (verified). ⬜ = planned; create it on first build, but <strong>only after confirming with the owner</strong> (see <code>_smoke-test-policy.md</code>). Never auto-create silently.</li>
+<li><strong>To add or confirm an account:</strong> edit this table — it is the registry the whole pipeline reads from.</li>
+<li><strong>Seeding:</strong> user 1 comes from <code>003-SeedData.sql</code>, which DbUp applies automatically at host startup. Users 2–5 have no seed script yet; <code>REQ-FN-041</code> (sample data) should add one user per role so this table becomes reproducible from a clean database.</li>
+<li><strong>Site owner:</strong> exactly one user carries <code>IsSiteOwner = true</code> (enforced by a partial unique index) and is whose resume renders at <code>/resume</code>. Set it on user 1 unless the owner says otherwise.</li>
+</ul>
+<h2 id="how-to-test-screen-by-screen-menu-by-menu">How to test — screen by screen / menu by menu<a class="anchor-link" href="#how-to-test-screen-by-screen-menu-by-menu">#</a></h2>
+<p>Walk these in order; together they exercise every feature in <code>docs/TechieBlog-BRD.md</code> §9.</p>
+<h3 id="public-home">Public — Home (<code>/</code>)<a class="anchor-link" href="#public-home">#</a></h3>
+<ul>
+<li><strong>Log in as:</strong> user 6 (anonymous)</li>
+<li><strong>Steps:</strong> 1) open <code>/</code> → 2) confirm the featured post and the recent-posts grid render → 3) confirm the sidebar shows categories, tags and the subscribe form → 4) click a post card.</li>
+<li><strong>Expected:</strong> real post data (not placeholders); the card click lands on <code>/post/{slug}</code>.</li>
+<li><strong>Covers:</strong> BRD-30, BRD-33 · REQ-UI-005, REQ-UI-006, REQ-UI-045, REQ-FN-020</li>
+</ul>
+<h3 id="public-post-view-post-slug">Public — Post view (<code>/post/{slug}</code>)<a class="anchor-link" href="#public-post-view-post-slug">#</a></h3>
+<ul>
+<li><strong>Log in as:</strong> user 6, then repeat as user 5</li>
+<li><strong>Steps:</strong> 1) open a published post → 2) confirm Markdown renders as formatted HTML → 3) check author, date, category, tags, reading time → 4) scroll to related posts and series navigation → 5) as anonymous, try to comment/rate/favourite → 6) sign in as user 5 and retry.</li>
+<li><strong>Expected:</strong> anonymous sees a sign-in prompt for engagement; signed-in can comment, rate and favourite.</li>
+<li><strong>Covers:</strong> BRD-31, BRD-32, BRD-36, BRD-40, BRD-43 · REQ-UI-007, REQ-UI-027, REQ-UI-028, REQ-UI-029</li>
+</ul>
+<h3 id="public-category-and-tag-archives-category-slug-tag-slug">Public — Category and tag archives (<code>/category/{slug}</code>, <code>/tag/{slug}</code>)<a class="anchor-link" href="#public-category-and-tag-archives-category-slug-tag-slug">#</a></h3>
+<ul>
+<li><strong>Log in as:</strong> user 6</li>
+<li><strong>Steps:</strong> 1) open a category archive from the sidebar → 2) open a tag archive → 3) compare the displayed post count with the number of posts actually listed.</li>
+<li><strong>Expected:</strong> each archive lists only its own published posts; the tag count matches the listing (the Story 7.5 regression).</li>
+<li><strong>Covers:</strong> BRD-25, BRD-26 · REQ-UI-008, REQ-UI-009, REQ-FN-017, REQ-FN-018</li>
+</ul>
+<h3 id="public-series-series-series-slug">Public — Series (<code>/series</code>, <code>/series/{slug}</code>)<a class="anchor-link" href="#public-series-series-series-slug">#</a></h3>
+<ul>
+<li><strong>Log in as:</strong> user 6</li>
+<li><strong>Steps:</strong> 1) open <code>/series</code> → 2) open one series → 3) open part 1 → 4) use next/previous navigation.</li>
+<li><strong>Expected:</strong> parts are listed in reading order; navigation moves within the series only.</li>
+<li><strong>Covers:</strong> BRD-27, BRD-28, BRD-29 · REQ-UI-010, REQ-UI-024, REQ-FN-019</li>
+</ul>
+<h3 id="public-search-search">Public — Search (<code>/search</code>)<a class="anchor-link" href="#public-search-search">#</a></h3>
+<ul>
+<li><strong>Log in as:</strong> user 6</li>
+<li><strong>Steps:</strong> 1) open <code>/search</code> → 2) search a word known to be in a post body → 3) apply a category filter → 4) page through results.</li>
+<li><strong>Expected:</strong> results come from the database with the term highlighted; the category dropdown is populated from live categories, not hardcoded.</li>
+<li><strong>Covers:</strong> BRD-34, BRD-35 · REQ-UI-011, REQ-FN-021</li>
+</ul>
+<h3 id="public-authors-and-resume-authors-author-username-resume">Public — Authors and resume (<code>/authors</code>, <code>/author/{username}</code>, <code>/resume</code>)<a class="anchor-link" href="#public-authors-and-resume-authors-author-username-resume">#</a></h3>
+<ul>
+<li><strong>Log in as:</strong> user 6</li>
+<li><strong>Steps:</strong> 1) open <code>/authors</code> → 2) confirm each author shows title and article count → 3) open one <code>/author/{username}</code> → 4) request a deliberately invalid username → 5) open <code>/resume</code> → 6) use the anchor navigation and click <strong>Download CV</strong>.</li>
+<li><strong>Expected:</strong> invalid username returns 404; the resume shows the site owner's hero, experience, skills, awards, stats and contact; the CV downloads.</li>
+<li><strong>Covers:</strong> BRD-49, BRD-50, BRD-51, BRD-52, BRD-53, BRD-54, BRD-55 · REQ-UI-036, REQ-UI-041, REQ-UI-042, REQ-FN-028, REQ-FN-029</li>
+</ul>
+<h3 id="public-rss-sitemap-robots-rss-sitemap-xml-robots-txt">Public — RSS, sitemap, robots (<code>/rss</code>, <code>/sitemap.xml</code>, <code>/robots.txt</code>)<a class="anchor-link" href="#public-rss-sitemap-robots-rss-sitemap-xml-robots-txt">#</a></h3>
+<ul>
+<li><strong>Log in as:</strong> user 6</li>
+<li><strong>Steps:</strong> 1) open each URL → 2) validate the sitemap XML parses → 3) confirm <code>robots.txt</code> points at the sitemap.</li>
+<li><strong>Expected:</strong> the feed lists recent published posts; the sitemap includes posts, categories and tags.</li>
+<li><strong>Covers:</strong> BRD-63, BRD-64 · REQ-UI-046, REQ-FN-037, REQ-FN-038</li>
+</ul>
+<h3 id="auth-register-login-reset-register-login-forgot-password-reset-password">Auth — Register, login, reset (<code>/register</code>, <code>/login</code>, <code>/forgot-password</code>, <code>/reset-password</code>)<a class="anchor-link" href="#auth-register-login-reset-register-login-forgot-password-reset-password">#</a></h3>
+<div class="diagram">
+  <div class="dt">
+    <button data-zout title="Zoom out">−</button>
+    <span class="zlabel">100%</span>
+    <button data-zin title="Zoom in">+</button>
+    <button data-fit title="Fit to width">Fit</button>
+    <button data-one title="Actual size">1:1</button>
+    <button data-fs title="Fullscreen">⬜</button>
+    <button data-pop title="Open in new tab">↗</button>
+  </div>
+<pre class="mermaid">flowchart LR
+  Reg["register — email, password, confirm"] --> Val{"valid and unique?"}
+  Val -->|"no"| Err["inline validation errors"]
+  Val -->|"yes"| Made["account created with Reader role"]
+  Made --> Login["login"]
+  Login --> Ok{"credentials correct?"}
+  Ok -->|"yes"| Home["redirect to intended page"]
+  Ok -->|"no"| Fail["error, offer forgot password"]
+  Fail --> Forgot["forgot password — enter email"]
+  Forgot --> Token["reset token issued and logged"]
+  Token --> Reset["reset password with token"]
+  Reset --> Login</pre>
+</div>
+<ul>
+<li><strong>Log in as:</strong> user 6 → becomes user 5</li>
+<li><strong>Steps:</strong> 1) register a new reader → 2) confirm weak passwords and duplicate emails are rejected → 3) log in → 4) log out → 5) run forgot-password → 6) retrieve the reset token <strong>from the application log</strong> (email is not actually sent — <code>ConsoleEmailService</code>, REQ-FN-033) → 7) reset and log in with the new password.</li>
+<li><strong>Expected:</strong> each step behaves as above; an expired or invalid token shows a clear error.</li>
+<li><strong>Covers:</strong> BRD-1, BRD-2, BRD-3, BRD-4, BRD-5, BRD-6 · REQ-UI-001, REQ-UI-002, REQ-UI-003, REQ-FN-005…008</li>
+</ul>
+<h3 id="auth-role-gates-access-denied">Auth — Role gates (<code>/access-denied</code>)<a class="anchor-link" href="#auth-role-gates-access-denied">#</a></h3>
+<ul>
+<li><strong>Log in as:</strong> user 5 (Reader), then user 4, 3, 2, 1</li>
+<li><strong>Steps:</strong> for each user, attempt <code>/admin</code>, <code>/users</code>, <code>/settings</code>, <code>/ManagePost</code>, <code>/admin/skills</code>.</li>
+<li><strong>Expected:</strong> each user reaches exactly the pages their policy allows and lands on <code>/access-denied</code> otherwise; navigation items they cannot use are hidden.</li>
+<li><strong>Covers:</strong> BRD-7, BRD-8, BRD-9 · REQ-UI-004, REQ-UI-047, REQ-FN-009</li>
+</ul>
+<h3 id="reader-account-profile-and-favourites-profile-my-favorites">Reader account — Profile and favourites (<code>/profile</code>, <code>/my-favorites</code>)<a class="anchor-link" href="#reader-account-profile-and-favourites-profile-my-favorites">#</a></h3>
+<ul>
+<li><strong>Log in as:</strong> user 5</li>
+<li><strong>Steps:</strong> 1) open <code>/profile</code> → 2) edit display name and bio, save → 3) change the password and re-login → 4) favourite two posts → 5) open <code>/my-favorites</code> → 6) unfavourite one.</li>
+<li><strong>Expected:</strong> changes persist; the favourites list reflects the toggles immediately.</li>
+<li><strong>Covers:</strong> BRD-11, BRD-12, BRD-43, BRD-44 · REQ-UI-013, REQ-UI-014, REQ-FN-011, REQ-FN-024</li>
+<li><strong>Gap:</strong> there is no My-Comments history page yet (REQ-UI-015, BRD-13) — nothing to test.</li>
+</ul>
+<h3 id="authoring-post-editor-and-lifecycle-managepost-blogslist-admin-preview-id">Authoring — Post editor and lifecycle (<code>/ManagePost</code>, <code>/BlogsList</code>, <code>/admin/preview/{id}</code>)<a class="anchor-link" href="#authoring-post-editor-and-lifecycle-managepost-blogslist-admin-preview-id">#</a></h3>
+<div class="diagram">
+  <div class="dt">
+    <button data-zout title="Zoom out">−</button>
+    <span class="zlabel">100%</span>
+    <button data-zin title="Zoom in">+</button>
+    <button data-fit title="Fit to width">Fit</button>
+    <button data-one title="Actual size">1:1</button>
+    <button data-fs title="Fullscreen">⬜</button>
+    <button data-pop title="Open in new tab">↗</button>
+  </div>
+<pre class="mermaid">flowchart LR
+  New["new post"] --> Body["title plus Markdown body"]
+  Body --> Meta["category, tags, series, featured image"]
+  Meta --> Act{"action"}
+  Act -->|"save draft"| Draft["not public"]
+  Act -->|"preview"| Prev["full rendering, author only"]
+  Act -->|"publish"| Live["visible on home"]
+  Act -->|"schedule"| Sched["published later by the background service"]</pre>
+</div>
+<ul>
+<li><strong>Log in as:</strong> user 3 (Author)</li>
+<li><strong>Steps:</strong> 1) create a post, type Markdown and watch the live preview → 2) confirm the slug auto-generates and is editable → 3) pick a category, add an existing tag and create a new tag inline, add it to a series → 4) insert an image from the media library → 5) save as draft and confirm it is absent from <code>/</code> → 6) preview it → 7) publish and confirm it appears on <code>/</code> → 8) create a second post scheduled two minutes out and confirm the background publisher promotes it → 9) edit and then delete a post.</li>
+<li><strong>Expected:</strong> every metadata field persists; drafts never leak to the public site; the scheduled post publishes without user action.</li>
+<li><strong>Covers:</strong> BRD-14…BRD-21, BRD-23, BRD-24 · REQ-UI-016, REQ-UI-017, REQ-UI-018, REQ-FN-012…016</li>
+</ul>
+<h3 id="authoring-media-library-and-image-picker-admin-images">Authoring — Media library and image picker (<code>/admin/images</code>)<a class="anchor-link" href="#authoring-media-library-and-image-picker-admin-images">#</a></h3>
+<ul>
+<li><strong>Log in as:</strong> user 1 (Admin)</li>
+<li><strong>Steps:</strong> 1) open <code>/admin/images</code> → 2) upload one image per category tab → 3) attempt an over-size file and a disallowed format → 4) copy an image URL and open it → 5) delete an image → 6) open <code>/admin/profile</code> and pick an avatar through the ImagePicker.</li>
+<li><strong>Expected:</strong> per-category size/format limits are enforced server-side; uploaded files are reachable under <code>/uploads/{category}/…</code>; the picker binds the chosen path.</li>
+<li><strong>Covers:</strong> BRD-45, BRD-46, BRD-47, BRD-48 · REQ-UI-034, REQ-UI-035, REQ-FN-025, REQ-FN-026</li>
+</ul>
+<h3 id="authoring-resume-data-admin-profile-admin-experience-admin-skills-admin-awards">Authoring — Resume data (<code>/admin/profile</code>, <code>/admin/experience</code>, <code>/admin/skills</code>, <code>/admin/awards</code>)<a class="anchor-link" href="#authoring-resume-data-admin-profile-admin-experience-admin-skills-admin-awards">#</a></h3>
+<ul>
+<li><strong>Log in as:</strong> user 3 (Author), then user 1 (Admin)</li>
+<li><strong>Steps:</strong> 1) as the author, set username, title, tagline, phone, location, upload a CV and enable the resume → 2) add two experience entries, one marked current, with logos and reordering → 3) add skills in two categories → 4) add an award with a badge → 5) view <code>/author/{username}</code> → 6) as Admin, confirm the user selector lets you edit another user's data.</li>
+<li><strong>Expected:</strong> authors see only their own data; admins can switch user; the public author page reflects the edits.</li>
+<li><strong>Covers:</strong> BRD-11, BRD-50, BRD-51, BRD-54 · REQ-UI-037…040, REQ-FN-027, REQ-FN-029</li>
+</ul>
+<h3 id="editorial-comment-moderation-commentslist">Editorial — Comment moderation (<code>/CommentsList</code>)<a class="anchor-link" href="#editorial-comment-moderation-commentslist">#</a></h3>
+<ul>
+<li><strong>Log in as:</strong> user 2 (Editor)</li>
+<li><strong>Steps:</strong> 1) as user 5, post a comment → 2) as the editor, open the moderation queue → 3) approve it and confirm it appears on the post → 4) post another, reject it → 5) edit a comment → 6) bulk-select and process several.</li>
+<li><strong>Expected:</strong> the queue reflects the moderation setting; approved comments appear publicly, rejected ones do not.</li>
+<li><strong>Covers:</strong> BRD-36…BRD-39 · REQ-UI-021, REQ-UI-029, REQ-FN-022</li>
+</ul>
+<h3 id="admin-dashboard-users-taxonomy-subscribers-settings">Admin — Dashboard, users, taxonomy, subscribers, settings<a class="anchor-link" href="#admin-dashboard-users-taxonomy-subscribers-settings">#</a></h3>
+<ul>
+<li><strong>Log in as:</strong> user 1 (Admin)</li>
+<li><strong>Steps:</strong> 1) open <code>/admin</code> and confirm the count tiles show live numbers → 2) <code>/users</code> — search, change a role, disable an account → 3) <code>/CategoriesList</code> — add, rename, delete a category → 4) <code>/admin/tags</code> — same for tags → 5) subscribe from the public sidebar as an anonymous visitor, then <code>/admin/subscribers</code> — search, filter, export, remove → 6) <code>/settings</code> — change the site title, posts-per-page and the site theme, save, and confirm the public site reflects it.</li>
+<li><strong>Expected:</strong> every management action persists and is reflected on the public site.</li>
+<li><strong>Covers:</strong> BRD-10, BRD-22, BRD-24, BRD-56, BRD-57, BRD-58, BRD-62, BRD-68, BRD-69, BRD-70 · REQ-UI-019, REQ-UI-020, REQ-UI-022, REQ-UI-023, REQ-UI-025, REQ-UI-026, REQ-UI-030, REQ-FN-030, REQ-FN-031, REQ-FN-036, REQ-FN-040</li>
+</ul>
+<h3 id="theming-light-dark-and-site-themes">Theming — Light/dark and site themes<a class="anchor-link" href="#theming-light-dark-and-site-themes">#</a></h3>
+<ul>
+<li><strong>Log in as:</strong> user 6, then user 1</li>
+<li><strong>Steps:</strong> 1) toggle light/dark from the header on the home page, a post, an archive, search, about and an admin page → 2) reload and confirm the choice persisted → 3) as Admin, switch the site theme to Developer Dark, then Minimal Clean → 4) re-walk the public pages in each theme, in both modes.</li>
+<li><strong>Expected:</strong> no unreadable text, invisible control or broken contrast in any of the six combinations (visual gate).</li>
+<li><strong>Covers:</strong> BRD-65, BRD-66, BRD-67, BRD-68 · REQ-UI-031, REQ-UI-032, REQ-UI-033, REQ-FN-039</li>
+</ul>
+<h3 id="not-testable-yet-features-not-built">Not testable yet (features not built)<a class="anchor-link" href="#not-testable-yet-features-not-built">#</a></h3>
+<p>Newsletter composition and sending (REQ-UI-043, REQ-FN-032), real SMTP delivery (REQ-FN-033), post-view analytics and the analytics dashboard (REQ-UI-044, REQ-FN-034, REQ-FN-035), the My-Comments page (REQ-UI-015), sample data (REQ-FN-041), health endpoint (REQ-NFR-014).</p>
+<h2 id="prerequisites">Prerequisites<a class="anchor-link" href="#prerequisites">#</a></h2>
+<ul>
+<li>.NET 10 SDK</li>
+<li>PostgreSQL 15 or higher, reachable from the machine running the app</li>
+<li>A modern browser (Chrome, Firefox, Edge, Safari); headless Chromium for Playwright-driven verification</li>
+</ul>
+<h2 id="setup-deployment-steps-runbook-one-command-per-line-in-order">Setup / Deployment steps (runbook — one command per line, in order)<a class="anchor-link" href="#setup-deployment-steps-runbook-one-command-per-line-in-order">#</a></h2>
+<ol>
+<li><code>git clone &lt;repo&gt; &amp;&amp; cd TechieBlog</code></li>
+<li><code>psql -U postgres -c &quot;CREATE DATABASE \&quot;TechieBlog\&quot;;&quot;</code></li>
+<li>Set the connection string — add <code>AppDbConString</code> to <code>source/TechieBlog/appsettings.Development.json</code> (or user secrets): <code>Host=localhost;Port=5432;Database=TechieBlog;Username=&lt;user&gt;;Password=&lt;pass&gt;</code></li>
+<li><code>dotnet restore</code></li>
+<li><code>dotnet build TechieBlog.slnx</code> <em>(currently FAILS — see REQ-FN-043)</em></li>
+<li><code>dotnet run --project source/TechieBlog</code> — DbUp applies <code>source/BlogDb/PostgresScripts/001…013</code> automatically at startup</li>
+<li>Open the URL printed by Kestrel (see <code>source/TechieBlog/Properties/launchSettings.json</code>) and log in as test user 1.</li>
+</ol>
+<p>Optional — migrating an existing MySQL instance: <code>dotnet run --project source/BlogDb</code> (see <code>docs/database-migration-guide.md</code>).</p>
+<h2 id="test-automated">Test (automated)<a class="anchor-link" href="#test-automated">#</a></h2>
+<pre><code class="language-bash">dotnet test</code></pre>
+<p><em>No test project exists yet (REQ-NFR-016) — this command currently finds nothing to run.</em></p>
+<h2 id="smoke-checklist-quick-capability-pass">Smoke checklist (quick capability pass)<a class="anchor-link" href="#smoke-checklist-quick-capability-pass">#</a></h2>
+<ul>
+<li>[ ] Build is green (<code>dotnet build TechieBlog.slnx</code>)</li>
+<li>[ ] Home page loads and lists published posts (user 6)</li>
+<li>[ ] Open a post; Markdown renders with author, date, category, tags, reading time (user 6)</li>
+<li>[ ] Register and log in as a reader; comment, rate and favourite a post (user 5)</li>
+<li>[ ] Log in as Author; create, preview and publish a post with category and tags (user 3)</li>
+<li>[ ] Log in as Editor; approve a pending comment (user 2)</li>
+<li>[ ] Log in as Admin; open the dashboard and change the site theme in Settings (user 1)</li>
+<li>[ ] Upload an image in the media library and pick it through the ImagePicker (user 1)</li>
+<li>[ ] Open <code>/resume</code> and download the CV (user 6)</li>
+<li>[ ] Toggle dark mode on public and admin pages; no unreadable text</li>
+</ul>
+<h2 id="known-limitations">Known limitations<a class="anchor-link" href="#known-limitations">#</a></h2>
+<ul>
+<li><strong>REQ-FN-043 — the solution does not build</strong> (<code>NU1605</code>, FluentUI <code>4.*</code> vs pinned <code>Microsoft.AspNetCore.Components.Web 10.0.0</code>). Everything below is untestable until this is fixed.</li>
+<li><strong>REQ-FN-033 — no real email delivery.</strong> Password-reset "emails" are written to the log by <code>ConsoleEmailService</code>; read the token from <code>logs/techieblog-*.log</code>.</li>
+<li><strong>REQ-NFR-019 — password-reset tokens live in memory</strong> and are lost on restart.</li>
+<li><strong>REQ-NFR-016 / REQ-NFR-017 — no automated tests and no CI</strong>, so this manual walkthrough is the only regression net.</li>
+<li><strong>REQ-NFR-023 / REQ-NFR-002 — ⚠ security:</strong> the seeded admin password is plaintext in the seed script and password hashing is hand-rolled.</li>
+<li>No TrBlazeUI or TechieRag library dependency, so there are no <code>TR-</code> / <code>TR-RAG-</code> feedback items for this project.</li>
+</ul>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+<script>// Light/dark toggle. The initial theme was already applied flash-free by the
+// <head> script (saved choice, else time-of-day). Clicking flips it, saves the
+// choice, and reloads so Mermaid re-renders in the matching theme.
+(function(){
+  var btn = document.getElementById('themeToggle');
+  if(!btn) return;
+  var relabel = function(){
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    btn.textContent = dark ? '☀ Light' : '☾ Dark';
+  };
+  relabel();
+  btn.addEventListener('click', function(){
+    var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    try{ localStorage.setItem('tf-theme', next); }catch(e){}
+    location.reload();
+  });
+})();
+
+// Copy buttons on every code <pre> — but NEVER on a `pre.mermaid`.
+document.querySelectorAll('pre:not(.mermaid)').forEach(pre => {
+  const btn = document.createElement('button');
+  btn.className = 'copy';
+  btn.textContent = 'copy';
+  btn.addEventListener('click', () => {
+    const text = pre.querySelector('code') ? pre.querySelector('code').innerText : pre.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'copied';
+      setTimeout(() => { btn.textContent = 'copy'; }, 1200);
+    });
+  });
+  pre.appendChild(btn);
+});
+
+// Mermaid init — theme follows the resolved light/dark theme
+if (window.mermaid) {
+  var mermaidTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
+  mermaid.initialize({ startOnLoad: true, theme: mermaidTheme, securityLevel: 'loose' });
+}
+
+// Mermaid toolbar wiring — run after mermaid renders
+function wireMermaidToolbars() {
+  document.querySelectorAll('.diagram').forEach(dia => {
+    if (dia.dataset.wired) return;
+    const merm = dia.querySelector('.mermaid');
+    const svg = merm && merm.querySelector('svg');
+    if (!svg) return;
+    dia.dataset.wired = '1';
+    let scale = 1;
+    const label = dia.querySelector('.zlabel');
+    const apply = () => {
+      svg.style.transform = `scale(${scale})`;
+      svg.style.transformOrigin = 'top left';
+      if (label) label.textContent = Math.round(scale * 100) + '%';
+    };
+    const setScale = (s) => { scale = Math.max(0.25, Math.min(4, s)); apply(); };
+    dia.querySelector('[data-zin]').onclick = () => setScale(scale * 1.2);
+    dia.querySelector('[data-zout]').onclick = () => setScale(scale / 1.2);
+    dia.querySelector('[data-fit]').onclick = () => {
+      svg.style.transform = '';
+      svg.removeAttribute('width');
+      svg.style.maxWidth = '100%';
+      svg.style.height = 'auto';
+      scale = 1;
+      if (label) label.textContent = 'Fit';
+    };
+    dia.querySelector('[data-one]').onclick = () => {
+      svg.style.transform = '';
+      svg.style.maxWidth = 'none';
+      svg.style.width = '';
+      svg.style.height = '';
+      scale = 1;
+      if (label) label.textContent = '100%';
+    };
+    dia.querySelector('[data-fs]').onclick = () => {
+      dia.classList.toggle('fs');
+      if (dia.classList.contains('fs')) {
+        document.addEventListener('keydown', escFs);
+      } else {
+        document.removeEventListener('keydown', escFs);
+      }
+    };
+    function escFs(e) { if (e.key === 'Escape') { dia.classList.remove('fs'); document.removeEventListener('keydown', escFs); } }
+    dia.querySelector('[data-pop]').onclick = () => openInNewTab(svg);
+    merm.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setScale(scale * (e.deltaY < 0 ? 1.1 : 1/1.1));
+    }, { passive: false });
+  });
+}
+
+function openInNewTab(svg) {
+  const svgSource = new XMLSerializer().serializeToString(svg);
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Diagram</title>
+<style>
+  html,body{margin:0;height:100%;background:#0f1115;color:#e6e8ee;font-family:system-ui,sans-serif}
+  .bar{position:fixed;top:0;left:0;right:0;padding:8px 12px;background:#161a22;border-bottom:1px solid #2a3142;display:flex;gap:8px;z-index:10}
+  .bar button{background:#1c2230;color:#9aa3b2;border:1px solid #2a3142;border-radius:6px;padding:5px 12px;font-size:13px;cursor:pointer}
+  .bar button:hover{color:#7cc4ff;border-color:#7cc4ff}
+  .bar .hint{margin-left:auto;color:#9aa3b2;font-size:11.5px;align-self:center}
+  #stage{position:absolute;top:42px;bottom:0;left:0;right:0;overflow:hidden}
+  #stage svg{width:100%;height:100%}
+</style>
+</head><body>
+<div class="bar">
+  <button onclick="zpz.zoomIn()">+</button>
+  <button onclick="zpz.zoomOut()">−</button>
+  <button onclick="zpz.fit();zpz.center()">Fit</button>
+  <button onclick="zpz.resetZoom();zpz.center()">1:1</button>
+  <button onclick="window.print()">Print</button>
+  <button onclick="dlPng()">PNG</button>
+  <button onclick="dlSvg()">SVG</button>
+  <span class="hint">Drag to pan · Ctrl+wheel to zoom · + / − keys</span>
+</div>
+<div id="stage">${svgSource}</div>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"><\/script>
+<script>
+  const el = document.querySelector('#stage svg');
+  const zpz = svgPanZoom(el, { zoomScaleSensitivity: .3, minZoom: .2, maxZoom: 10, controlIconsEnabled: false, fit: true, center: true });
+  document.addEventListener('keydown', e => {
+    if (e.key === '+' || e.key === '=') zpz.zoomIn();
+    if (e.key === '-' || e.key === '_') zpz.zoomOut();
+    if (e.key === '0') { zpz.resetZoom(); zpz.center(); }
+  });
+  function dlSvg() {
+    const blob = new Blob([new XMLSerializer().serializeToString(el)], { type: 'image/svg+xml' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'diagram.svg'; a.click();
+  }
+  function dlPng() {
+    const src = new XMLSerializer().serializeToString(el);
+    const img = new Image();
+    const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(src)));
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = el.clientWidth * 2; c.height = el.clientHeight * 2;
+      const ctx = c.getContext('2d'); ctx.scale(2,2); ctx.drawImage(img, 0, 0);
+      c.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'diagram.png'; a.click(); });
+    };
+    img.src = url;
+  }
+<\/script>
+</body></html>`;
+  const w = window.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+if (window.mermaid) {
+  setTimeout(wireMermaidToolbars, 400);
+  setTimeout(wireMermaidToolbars, 1200);
+}</script>
+</body>
+</html>

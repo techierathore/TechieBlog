@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<!-- ============================================================
+  Screen: Post view — full article  ·  Route: /post/{slug}
+  Roles: anonymous (public)  ·  BRD: BRD-31, BRD-32, BRD-36 (anonymous rating), BRD-40 (anonymous,
+         email-identified comments)  ·  REQ: REQ-UI-051  ·  NO SIGN-IN REQUIRED to rate or comment
+  Component map (region → TrBlazeUI control):
+    Top nav          → TbResponsiveNav (public shell; NO login/user menu per BRD-93;
+                       NO Authors entry — personal site, author screens dropped 2026-08-06)
+    Breadcrumb       → TbBreadcrumb (Home / Category / Post)
+    Title + meta     → Typography + TbAvatar (sm, PHOTO not initials; byline is plain text, not a link)
+                       + TbBadge (category) + tag chips
+    Featured image   → styled placeholder (Post.FeaturedImage)
+    Article body     → Typography; code block → TbCard + .mono
+    Series nav       → TbCard (part x of n) + TbButton (outline prev / primary next)
+    Engagement row   → Rating (interactive stars, anonymous — one rating per visitor).
+                       Favourite/bookmark REMOVED (reader accounts dropped)
+    Related posts    → TbCard ×3 (compact post cards)
+    Rating           → TbRating (5 focusable star buttons, keyboard operable) — INTERACTIVE for
+                       anonymous visitors; choosing a star reveals the email + captcha step
+    Captcha          → self-hosted SVG challenge + reload TbButton + TbInput (BRD-99, no 3rd party)
+    Comments         → TbAvatar (initials, other people) + Typography per comment;
+                       comment form → TbCard + TbInput (name) + TbInput (email, private) +
+                       TbTextarea + captcha + TbButton (primary "Post comment")
+    Verify notice    → TbAlert-style panel explaining the one-time confirmation email (BRD-98)
+    Footer           → Typography + TbSeparator
+  States: post not found → 09-404.html; loading → TbSkeleton blocks;
+          no comments → TbEmpty "Be the first to comment"; submit → "check your email" pending state
+          (44-verify-email.html on click-through), then moderation; wrong captcha → inline error;
+          already-verified email → skips confirmation; re-rating replaces the previous value.
+  Data: Post (title, body, featured image, series link), Category, Tags, Author,
+        Comments (name + email + body, verified + moderated), Ratings (email-keyed, verified).
+============================================================ -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Migrating a Blazor app from Fluent UI to TrBlazeUI · TechieBlog</title>
+<link rel="stylesheet" href="trblazeui.css">
+</head>
+<body>
+
+<!-- TbResponsiveNav — public shell. NOTE: no Login / Sign-up / user menu (BRD-93) -->
+<nav class="tb-nav">
+  <div class="tb-nav__inner">
+    <a class="tb-nav__brand" href="01-home.html"><span class="dot"></span> Ravi Rathore</a>
+    <div class="tb-nav__links">
+      <a href="01-home.html">Home</a>
+      <a href="03-category-archive.html">Categories</a>
+      <a href="05-series-list.html">Series</a>
+      <a href="42-newsletter-archive.html">Newsletter</a>
+      <a href="10-resume.html">Resume</a>
+      <a href="08-about.html">About</a>
+    </div>
+    <div class="tb-nav__actions">
+      <a class="btn btn-ghost btn-icon" href="07-search-results.html" title="Search">
+        <svg class="icon icon-lg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></a>
+      <button class="btn btn-ghost btn-icon" onclick="document.documentElement.classList.toggle('dark')" title="Toggle dark mode">
+        <svg class="icon icon-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/></svg></button>
+      <button class="btn btn-ghost btn-icon tb-nav__burger" title="Menu">
+        <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    </div>
+  </div>
+</nav>
+
+<main class="container" style="max-width:820px;padding-top:28px">
+
+  <!-- TbBreadcrumb -->
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="01-home.html">Home</a><span>›</span>
+    <a href="03-category-archive.html">Blazor</a><span>›</span>
+    <b>Migrating a Blazor app from Fluent UI to TrBlazeUI</b>
+  </nav>
+
+  <!-- Title + meta -->
+  <header style="margin:18px 0 20px">
+    <h1 style="font-size:clamp(26px,4vw,36px);font-weight:800">Migrating a Blazor app from Fluent UI to TrBlazeUI</h1>
+    <div class="meta-row" style="margin-top:14px;font-size:13.5px">
+      <span style="display:inline-flex;align-items:center;gap:8px">
+        <img class="avatar avatar-sm" src="profile-photo.svg" alt=""><b>Ravi Rathore</b>
+      </span>
+      <span>·</span><span>Aug 2, 2026</span>
+      <span>·</span><a href="03-category-archive.html"><span class="badge badge-secondary">Blazor</span></a>
+      <span>·</span><span>9 min read</span>
+    </div>
+    <div class="meta-row" style="margin-top:10px">
+      <a class="chip" href="04-tag-archive.html">#blazor</a>
+      <a class="chip" href="04-tag-archive.html">#dotnet</a>
+      <a class="chip" href="04-tag-archive.html">#trblazeui</a>
+      <a class="chip" href="04-tag-archive.html">#migration</a>
+    </div>
+  </header>
+
+  <!-- Featured image placeholder -->
+  <div class="thumb" style="height:320px;border-radius:var(--radius);background:linear-gradient(135deg,color-mix(in srgb,var(--chart-1) 30%,var(--muted)),color-mix(in srgb,var(--chart-3) 25%,var(--muted)));display:flex;align-items:center;justify-content:center;color:var(--muted-foreground);font-size:13px">
+    featured image · 1200×630
+  </div>
+
+  <!-- Article body -->
+  <article style="margin-top:28px;font-size:15.5px">
+    <p>Swapping a component library in a mature Blazor Server app sounds like the kind of project
+      that eats a quarter. It doesn't have to. Over three weeks I moved TechieBlog from Microsoft
+      Fluent UI Blazor to <b>TrBlazeUI</b> — component by component, page by page — with the app
+      shippable at every commit. This is the field guide I wish I'd had on day one.</p>
+
+    <p style="margin-top:14px">The trick is that both libraries render plain HTML with CSS-variable
+      theming, so you can host them side by side during the transition. Map each Fluent control to
+      its TrBlazeUI counterpart (<code class="mono">FluentCard → TbCard</code>,
+      <code class="mono">FluentDataGrid → TbDataTable</code>), migrate one route at a time, and let
+      the router decide which world a page lives in.</p>
+
+    <h2 style="font-size:22px;margin:28px 0 12px">Theming: one token bridge, zero forked styles</h2>
+
+    <p>Rather than restyling twice, I wrote a small bridge that projects TrBlazeUI's design tokens
+      onto Fluent's. Dark mode is just a class toggle on the root element — TrBlazeUI's mechanism —
+      so both libraries flip together:</p>
+
+    <!-- Code block → TbCard + .mono -->
+    <div class="card" style="margin:16px 0">
+      <div class="card-content mono" style="font-size:13px;overflow-x:auto;white-space:pre">// Program.cs — register TrBlazeUI alongside Fluent during migration
+builder.Services.AddTrBlazeUI(options =&gt;
+{
+    options.Theme = TbTheme.Zinc;
+    options.DarkModeClass = "dark";   // html.dark toggled by TbThemeToggle
+});
+
+// _Imports.razor
+@using TrBlazeUI.Components</div>
+    </div>
+
+    <p>With the bridge in place, the remaining work is mechanical: replace markup, delete the Fluent
+      package reference per project, and run the Playwright smoke suite after each page. The final
+      commit removes the bridge itself — 41 lines in, 41 lines out.</p>
+
+    <p style="margin-top:14px">Next in this series we'll tackle the interactive heavy-hitters:
+      dialogs, toasts and the data table's server-side paging — where the two libraries disagree
+      the most about who owns the render tree.</p>
+  </article>
+
+  <!-- Series navigation → TbCard + TbButton -->
+  <div class="card" style="margin:32px 0">
+    <div class="card-content" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px">
+        <div class="muted" style="font-size:12.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase">Part 2 of 5 · Series</div>
+        <a href="06-series-view.html" style="font-size:16px;font-weight:600;color:var(--primary)">Blazor Deep Dives</a>
+      </div>
+      <div style="display:flex;gap:8px">
+        <a class="btn btn-outline" href="06-series-view.html">← Part 1: Render modes</a>
+        <a class="btn btn-primary" href="06-series-view.html">Part 3: Dialogs &amp; toasts →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Engagement: Rating — a REAL interactive control for anonymous visitors (BRD-40/41).
+       Click a star → the email + captcha step appears → submit → verification email (BRD-98/99).
+       Stars are TbRating: 5 focusable buttons, keyboard operable, aria-checked per value. -->
+  <div class="card">
+    <div class="card-content">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="font-weight:600;font-size:14px">Rate this article</div>
+        <div class="rate" id="rate" role="radiogroup" aria-label="Rate this article from 1 to 5 stars">
+          <button type="button" role="radio" aria-label="1 star" aria-checked="false" onclick="setRating(1)"><svg viewBox="0 0 24 24"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.9L12 17.8 5.8 21.1 7 14.2l-5-4.9 6.9-1Z"/></svg></button>
+          <button type="button" role="radio" aria-label="2 stars" aria-checked="false" onclick="setRating(2)"><svg viewBox="0 0 24 24"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.9L12 17.8 5.8 21.1 7 14.2l-5-4.9 6.9-1Z"/></svg></button>
+          <button type="button" role="radio" aria-label="3 stars" aria-checked="false" onclick="setRating(3)"><svg viewBox="0 0 24 24"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.9L12 17.8 5.8 21.1 7 14.2l-5-4.9 6.9-1Z"/></svg></button>
+          <button type="button" role="radio" aria-label="4 stars" aria-checked="false" onclick="setRating(4)"><svg viewBox="0 0 24 24"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.9L12 17.8 5.8 21.1 7 14.2l-5-4.9 6.9-1Z"/></svg></button>
+          <button type="button" role="radio" aria-label="5 stars" aria-checked="false" onclick="setRating(5)"><svg viewBox="0 0 24 24"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.9L12 17.8 5.8 21.1 7 14.2l-5-4.9 6.9-1Z"/></svg></button>
+        </div>
+        <span class="muted" style="font-size:13px"><b id="rate-avg">4.2</b> · 31 ratings</span>
+        <span class="hint" style="margin-left:auto">One rating per email — no sign-in needed</span>
+      </div>
+
+      <!-- Revealed once a star is chosen: identify + prove human (BRD-98, BRD-99) -->
+      <div id="rate-step2" hidden style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
+        <div class="field" style="max-width:320px">
+          <label class="label" for="rate-email">Your email <span class="muted">(never published)</span></label>
+          <input class="input" id="rate-email" type="email" placeholder="you@example.com">
+          <span class="hint">We email you a one-time confirmation link so each rating counts once.</span>
+        </div>
+        <div class="field">
+          <label class="label" for="rate-captcha">Type the characters shown</label>
+          <div class="captcha">
+            <div class="captcha__img">
+              <svg viewBox="0 0 150 52" width="150" height="52" role="img" aria-label="CAPTCHA challenge image">
+                <rect width="150" height="52" fill="var(--muted)"/>
+                <path d="M4 38C34 12 62 44 96 18s38 22 50 8" stroke="var(--muted-foreground)" stroke-width="1" fill="none" opacity=".5"/>
+                <path d="M2 16c30 20 58-8 92 16s34-6 54 2" stroke="var(--muted-foreground)" stroke-width="1" fill="none" opacity=".4"/>
+                <g font-family="var(--font-mono)" font-size="25" font-weight="700" fill="var(--foreground)">
+                  <text x="12"  y="37" transform="rotate(-11 22 32)">7</text>
+                  <text x="36"  y="34" transform="rotate(7 44 30)">K</text>
+                  <text x="62"  y="38" transform="rotate(-6 70 33)">2</text>
+                  <text x="88"  y="33" transform="rotate(12 96 29)">m</text>
+                  <text x="114" y="37" transform="rotate(-9 122 32)">9</text>
+                </g>
+              </svg>
+            </div>
+            <button class="btn btn-ghost btn-icon captcha__reload" type="button" title="New image" aria-label="Get a new captcha image">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
+            </button>
+            <input class="input" id="rate-captcha" placeholder="Characters" autocomplete="off">
+          </div>
+          <span class="hint">Generated and checked by this site — no third-party service.</span>
+        </div>
+        <button class="btn btn-primary" type="button">Submit rating</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function setRating(v){
+      document.querySelectorAll('#rate button').forEach(function(b,i){
+        b.classList.toggle('on', i < v);
+        b.setAttribute('aria-checked', i === v-1 ? 'true' : 'false');
+      });
+      document.getElementById('rate-step2').hidden = false;
+    }
+  </script>
+
+  <hr class="separator">
+
+  <!-- Related posts -->
+  <section aria-label="Related posts">
+    <h2 style="font-size:20px;margin-bottom:16px">Related articles</h2>
+    <div class="post-grid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">
+      <article class="card post-card">
+        <div class="card-content">
+          <div class="meta-row"><span class="badge badge-secondary">Blazor</span><span>Jul 24, 2026</span></div>
+          <h3 style="font-size:15px;margin:8px 0 4px"><a href="02-post-view.html">Blazor render modes, demystified</a></h3>
+          <p class="muted" style="font-size:13px">Server, WebAssembly, Auto — when each one actually earns its keep.</p>
+        </div>
+      </article>
+      <article class="card post-card">
+        <div class="card-content">
+          <div class="meta-row"><span class="badge badge-secondary">PostgreSQL</span><span>Jul 28, 2026</span></div>
+          <h3 style="font-size:15px;margin:8px 0 4px"><a href="02-post-view.html">Dapper + PostgreSQL functions: a pragmatic data layer</a></h3>
+          <p class="muted" style="font-size:13px">Stored functions plus a micro-ORM for read-mostly workloads.</p>
+        </div>
+      </article>
+      <article class="card post-card">
+        <div class="card-content">
+          <div class="meta-row"><span class="badge badge-secondary">MAUI</span><span>Jul 19, 2026</span></div>
+          <h3 style="font-size:15px;margin:8px 0 4px"><a href="02-post-view.html">One RCL, two heads: sharing Blazor UI with a desktop app</a></h3>
+          <p class="muted" style="font-size:13px">The same Razor Class Library in Blazor Server and MAUI Hybrid.</p>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <hr class="separator">
+
+  <!-- Comments (anonymous — no account needed; email identifies the commenter, BRD-40) -->
+  <section aria-label="Comments" style="margin-bottom:8px">
+    <h2 style="font-size:20px;margin-bottom:16px">Comments <span class="muted" style="font-weight:400">(2)</span></h2>
+
+    <div style="display:flex;gap:12px;margin-bottom:20px">
+      <span class="avatar avatar-md">AK</span>
+      <div>
+        <div style="font-size:13.5px"><b>Anita Kulkarni</b> <span class="muted">· Aug 3, 2026</span></div>
+        <p style="font-size:14px;margin-top:4px">The token bridge idea saved us weeks — we're mid-migration on a 60-page
+          admin app and running both libraries side by side works exactly as described.</p>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-bottom:20px">
+      <span class="avatar avatar-md">JM</span>
+      <div>
+        <div style="font-size:13.5px"><b>James Mathew</b> <span class="muted">· Aug 4, 2026</span></div>
+        <p style="font-size:14px;margin-top:4px">Curious how you handled FluentDialog's provider model — looking forward
+          to part 3. Does TbDialog own the render tree the same way?</p>
+      </div>
+    </div>
+
+    <!-- Anonymous comment form → TbCard + TbInput ×2 + TbTextarea + TbButton (no account required) -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title" style="font-size:16px">Leave a comment</div>
+        <p class="card-desc">No account needed — just your name and email.</p>
+      </div>
+      <div class="card-content" style="display:flex;flex-direction:column;gap:14px;padding-top:14px">
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <div class="field" style="flex:1;min-width:200px;margin-bottom:0">
+            <label class="label" for="c-name">Name</label>
+            <input class="input" id="c-name" type="text" placeholder="Your name" autocomplete="name">
+          </div>
+          <div class="field" style="flex:1;min-width:200px;margin-bottom:0">
+            <label class="label" for="c-email">Email</label>
+            <input class="input" id="c-email" type="email" placeholder="you@example.com" autocomplete="email">
+            <span class="hint">Your email is never published — used only for moderation and reply notifications</span>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label class="label" for="c-body">Comment</label>
+          <textarea class="textarea" id="c-body" rows="4" placeholder="Share your thoughts…"></textarea>
+        </div>
+      </div>
+      <!-- Prove-you're-human step — self-hosted challenge, no third-party service (BRD-99) -->
+      <div class="field" style="padding:0 20px">
+        <label class="label" for="c-captcha">Type the characters shown</label>
+        <div class="captcha">
+          <div class="captcha__img">
+            <svg viewBox="0 0 150 52" width="150" height="52" role="img" aria-label="CAPTCHA challenge image">
+              <rect width="150" height="52" fill="var(--muted)"/>
+              <path d="M3 34C31 10 60 42 94 16s40 24 53 10" stroke="var(--muted-foreground)" stroke-width="1" fill="none" opacity=".5"/>
+              <path d="M5 18c28 22 56-6 90 18s30-8 52 0" stroke="var(--muted-foreground)" stroke-width="1" fill="none" opacity=".4"/>
+              <g font-family="var(--font-mono)" font-size="25" font-weight="700" fill="var(--foreground)">
+                <text x="12"  y="36" transform="rotate(9 20 31)">b</text>
+                <text x="37"  y="38" transform="rotate(-8 45 33)">4</text>
+                <text x="62"  y="34" transform="rotate(6 70 29)">Q</text>
+                <text x="88"  y="37" transform="rotate(-12 96 32)">x</text>
+                <text x="114" y="35" transform="rotate(10 122 30)">3</text>
+              </g>
+            </svg>
+          </div>
+          <button class="btn btn-ghost btn-icon captcha__reload" type="button" title="New image" aria-label="Get a new captcha image">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
+          </button>
+          <input class="input" id="c-captcha" placeholder="Characters" autocomplete="off">
+        </div>
+        <span class="hint">Generated and checked by this site — no third-party service.</span>
+      </div>
+
+      <!-- What happens after submit (BRD-98 double opt-in) -->
+      <div style="padding:0 20px 4px">
+        <div class="verify-note">
+          <svg class="icon" viewBox="0 0 24 24" style="color:var(--primary);margin-top:2px"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-9 5.7a2 2 0 0 1-2 0L2 7"/></svg>
+          <div><b>First time here?</b> We'll email you a one-time confirmation link. Your comment is
+            published only after you click it — and only after moderation. Verify once and future
+            comments from the same address skip this step.</div>
+        </div>
+      </div>
+
+      <div class="card-footer" style="padding-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <button class="btn btn-primary" type="submit">Post comment</button>
+        <span class="hint">Comments appear after email confirmation and moderation</span>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container cols">
+    <span>© 2026 Ravi Rathore · Built with <b>TechieBlog</b> (Blazor + TrBlazeUI)</span>
+    <span><a href="02-post-view.html">RSS</a> · <a href="42-newsletter-archive.html">Newsletter</a> · <a href="08-about.html">About</a> · <a href="10-resume.html">Resume</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

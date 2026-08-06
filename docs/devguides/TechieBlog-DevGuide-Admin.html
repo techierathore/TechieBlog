@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TechieBlog — Developer Guide · Admin &mdash; TechieBlog</title>
+<script>
+/* Resolve the theme BEFORE first paint (no flash). Saved choice wins; otherwise
+   pick by time of day — light 07:00–19:00 local, softened dark at night. */
+(function(){
+  try{
+    var t = localStorage.getItem('tf-theme');
+    if(t!=='light' && t!=='dark'){ var h = new Date().getHours(); t = (h>=7 && h<19) ? 'light' : 'dark'; }
+    document.documentElement.setAttribute('data-theme', t);
+  }catch(e){ document.documentElement.setAttribute('data-theme','light'); }
+})();
+</script>
+<style>/* LIGHT is the default theme — a warm off-white, easy on the eyes (never bright white). */
+:root{
+  --bg:#f4f1e9; --panel:#efe9db; --panel2:#e7e0cd; --line:#d8cfb6;
+  --ink:#2e2a22; --muted:#6f6857; --accent:#2f6f9f; --accent2:#3f7d54;
+  --warn:#9a6b15; --danger:#b03a52; --ok:#3f7d54;
+  --code-bg:#ece5d3; --code-ink:#332f26; --row-alt:#eae2cf;
+  --h3:#3a352b; --h4:#2f6f9f; --quote:#4a4537; --cta-bg:#e6eef5;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+/* DARK — softened near-black (warmer / less harsh than pure #0f1115). */
+html[data-theme="dark"]{
+  --bg:#11141a; --panel:#171b23; --panel2:#1e2430; --line:#2b3240;
+  --ink:#dfe3ea; --muted:#99a2b1; --accent:#7cc4ff; --accent2:#a6e3a1;
+  --warn:#f9c74f; --danger:#f38ba8; --ok:#a6e3a1;
+  --code-bg:#0c1016; --code-ink:#d8dde8; --row-alt:#141821;
+  --h3:#cfd5e3; --h4:#7cc4ff; --quote:#cfd5e3; --cta-bg:#0d2030;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;font-size:15px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:var(--mono);font-size:13px;background:var(--code-bg);color:var(--code-ink);padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+pre{font-family:var(--mono);font-size:12.5px;background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto;color:var(--code-ink);position:relative}
+pre code{background:none;border:none;padding:0}
+.copy{position:absolute;top:8px;right:8px;background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:11px;font-family:var(--sans);cursor:pointer}
+.copy:hover{color:var(--accent);border-color:var(--accent)}
+/* floating light/dark toggle (top-right) */
+.theme-toggle{position:fixed;top:12px;right:14px;z-index:10000;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12.5px;font-family:var(--sans);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.theme-toggle:hover{color:var(--accent);border-color:var(--accent)}
+
+.layout{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+.layout.no-toc{grid-template-columns:1fr}
+nav.side{position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--line);background:var(--panel);padding:18px 14px}
+nav.side h1{font-size:14px;margin:0 0 4px;letter-spacing:.5px;color:var(--ink)}
+nav.side .sub{font-size:11.5px;color:var(--muted);margin-bottom:14px}
+nav.side ol,nav.side ul{list-style:none;padding:0;margin:0}
+nav.side li{font-size:13px;margin:2px 0}
+nav.side li a{display:block;padding:5px 8px;color:var(--ink);border-radius:6px}
+nav.side li a:hover{background:var(--panel2);text-decoration:none}
+nav.side li.h3 a{padding-left:22px;font-size:12.5px;color:var(--h3)}
+nav.side .group{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin:14px 8px 4px}
+
+main{padding:28px 40px 80px;max-width:1100px}
+.layout.no-toc main{margin:0 auto}
+
+h1{font-size:28px;margin:0 0 6px}
+h2{font-size:22px;margin:32px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);scroll-margin-top:16px}
+h3{font-size:17px;margin:22px 0 6px;color:var(--h3);scroll-margin-top:16px}
+h4{font-size:14px;margin:14px 0 4px;color:var(--h4);scroll-margin-top:16px}
+.subtitle{color:var(--muted);font-size:14px;margin-top:-4px;margin-bottom:18px}
+p{margin:6px 0 10px}
+blockquote{border-left:3px solid var(--accent);background:var(--panel);margin:8px 0;padding:8px 14px;color:var(--quote)}
+ul,ol{padding-left:22px}
+li{margin:2px 0}
+
+table{border-collapse:collapse;width:100%;font-size:13.5px;margin:8px 0}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--panel2);color:var(--h3);font-weight:600}
+tr:nth-child(even) td{background:var(--row-alt)}
+
+hr{border:none;border-top:1px solid var(--line);margin:24px 0}
+.anchor-link{color:var(--muted);font-weight:400;font-size:0.85em;margin-left:8px;opacity:0;transition:opacity .15s;text-decoration:none}
+h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
+
+/* inline TOC at top of main content */
+.toc-inline{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 16px;margin:14px 0 24px}
+.toc-inline > div{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.toc-inline ol,.toc-inline ul{margin:4px 0;padding-left:18px}
+.toc-inline li{font-size:13px;margin:1px 0}
+.toc-inline a{color:var(--h3)}
+
+/* NEXT COMMAND call-to-action box */
+.cta{background:var(--cta-bg);border:1px solid var(--accent);border-radius:8px;padding:12px 16px;margin:18px 0}
+.cta .lbl{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+
+/* mermaid diagram wrapper + toolbar */
+.diagram{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--code-bg);margin:14px 0;overflow:hidden}
+.diagram .mermaid{padding:14px;margin:0;background:transparent;border:none;overflow:auto}
+.diagram .dt{display:flex;gap:6px;justify-content:flex-end;padding:6px 8px;background:var(--row-alt);border-bottom:1px solid var(--line)}
+.diagram .dt button{background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 10px;font-size:12px;font-family:var(--sans);cursor:pointer;min-width:30px}
+.diagram .dt button:hover{color:var(--accent);border-color:var(--accent)}
+.diagram .dt .zlabel{padding:3px 6px;font-size:11px;color:var(--muted);font-family:var(--mono);align-self:center}
+.diagram.fs{position:fixed;inset:0;z-index:9999;border-radius:0;border:none}
+.diagram.fs .mermaid{height:calc(100vh - 40px);display:flex;align-items:center;justify-content:center}
+
+@media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{position:static;height:auto}}</style>
+</head>
+<body>
+<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">&#9782; Dark</button>
+<div class="layout">
+<nav class="side">
+<h1>TechieBlog — Developer Guide · Admin</h1>
+<div class="sub">Generated 2026-08-02 · code as built · STATIC-ONLY</div>
+<div class="group">Contents</div>
+<ol>
+<li><a href="#admin-users-users">Admin · Users (<code>/users</code>)</a></li>
+<li><a href="#admin-add-user-adduser">Admin · Add user (<code>/AddUser</code>)</a></li>
+<li><a href="#admin-categories-admin-categories-categorieslist-and-category-editor-admin-category-admin-category-pageid-long">Admin · Categories (<code>/admin/categories</code>, <code>/CategoriesList</code>) and category editor (<code>/admin/category</code>, <code>/admin/category/{PageId:long}</code>)</a></li>
+<li><a href="#admin-tags-admin-tags-tagslist-and-tag-editor-managetag-managetag-pageid-long">Admin · Tags (<code>/admin/tags</code>, <code>/TagsList</code>) and tag editor (<code>/ManageTag</code>, <code>/ManageTag/{PageId:long}</code>)</a></li>
+<li><a href="#admin-subscribers-admin-subscribers">Admin · Subscribers (<code>/admin/subscribers</code>)</a></li>
+<li><a href="#admin-media-library-admin-images">Admin · Media library (<code>/admin/images</code>)</a></li>
+<li><a href="#admin-site-settings-settings">Admin · Site settings (<code>/settings</code>)</a></li>
+<li><a href="#admin-resume-data-screens">Admin · Resume data screens</a></li>
+<li><a href="#admin-everything-else">Admin · Everything else</a></li>
+<li><a href="#admin-relevant-cross-cutting-risks">Admin-relevant cross-cutting risks</a></li>
+</ol>
+</nav>
+  <main>
+    <h1>TechieBlog — Developer Guide · Admin</h1>
+    <div class="subtitle">Generated 2026-08-02 · code as built · STATIC-ONLY</div>
+
+<div class="toc-inline">
+<div>Contents</div>
+<ol>
+<li><a href="#admin-users-users">Admin · Users (<code>/users</code>)</a></li>
+<li><a href="#admin-add-user-adduser">Admin · Add user (<code>/AddUser</code>)</a></li>
+<li><a href="#admin-categories-admin-categories-categorieslist-and-category-editor-admin-category-admin-category-pageid-long">Admin · Categories (<code>/admin/categories</code>, <code>/CategoriesList</code>) and category editor (<code>/admin/category</code>, <code>/admin/category/{PageId:long}</code>)</a></li>
+<li><a href="#admin-tags-admin-tags-tagslist-and-tag-editor-managetag-managetag-pageid-long">Admin · Tags (<code>/admin/tags</code>, <code>/TagsList</code>) and tag editor (<code>/ManageTag</code>, <code>/ManageTag/{PageId:long}</code>)</a></li>
+<li><a href="#admin-subscribers-admin-subscribers">Admin · Subscribers (<code>/admin/subscribers</code>)</a></li>
+<li><a href="#admin-media-library-admin-images">Admin · Media library (<code>/admin/images</code>)</a></li>
+<li><a href="#admin-site-settings-settings">Admin · Site settings (<code>/settings</code>)</a></li>
+<li><a href="#admin-resume-data-screens">Admin · Resume data screens</a></li>
+<li><a href="#admin-everything-else">Admin · Everything else</a></li>
+<li><a href="#admin-relevant-cross-cutting-risks">Admin-relevant cross-cutting risks</a></li>
+</ol>
+</div>
+<blockquote>⚠ <strong>STATIC-ONLY (2026-08-02)</strong> — built from code reading; NOT yet runtime-verified. Render-status is unconfirmed until <code>*verify</code> runs against the running app (the solution currently does not compile — REQ-FN-043).</blockquote>
+<p>Index: <a href="./TechieBlog-DevGuide.html">TechieBlog-DevGuide.md</a></p>
+<p>An Admin sees every screen in the app. The eleven below are guarded by <code>@attribute [Authorize(Policy = &quot;AdminOnly&quot;)]</code> and use <code>AdminLayout</code>.</p>
+<h2 id="admin-users-users">Admin · Users (<code>/users</code>)<a class="anchor-link" href="#admin-users-users">#</a></h2>
+<p><strong>File:</strong> <code>source/BlogUI/Pages/AdminPages/UsersList.razor</code> + <code>.razor.cs</code> — <strong>injects the repository directly; there is no user service.</strong></p>
+<table>
+<thead><tr><th>Control</th><th>What it does</th><th>Source call</th><th>Render status</th></tr></thead>
+<tbody>
+<tr><td>User table</td><td>Lists all users</td><td><code>BlogUserRepo.GetAll(...)</code></td><td>static-only (unconfirmed)</td></tr>
+<tr><td>Role change / enable-disable</td><td>Persists the edited user</td><td><code>BlogUserRepo.Update(...)</code></td><td>static-only (unconfirmed)</td></tr>
+</tbody></table>
+<p><strong>Data lineage:</strong> page → <code>IBlogUserRepo</code> → <code>BlogUserRepo.cs</code> → <code>SELECT * FROM BlogUser</code> (and the stored function <code>SelectBlogUserById</code> for single reads) / inline <code>UPDATE BlogUser</code>.</p>
+<p><strong>Known issues (static):</strong> Story 2.6 specifies search/filter, last-login display, delete with confirmation and an audit-log entry per admin action. Only list + update were found — <code>{unresolved — TODO: confirm whether search/delete exist in the markup}</code>. No audit-log write was located anywhere in the codebase.</p>
+<h2 id="admin-add-user-adduser">Admin · Add user (<code>/AddUser</code>)<a class="anchor-link" href="#admin-add-user-adduser">#</a></h2>
+<p><strong>File:</strong> <code>source/BlogUI/Pages/AdminPages/AddUser.razor</code> — <code>@inject BlogModels.IBlogUserRepo UserRepo</code></p>
+<table>
+<thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead>
+<tbody>
+<tr><td>Create user form</td><td><code>{unresolved — TODO: the insert call was not located in the page; BlogUserRepo exposes Insert / InsertToGetId and the stored function InsertBlogUser}</code></td><td>unresolved</td></tr>
+</tbody></table>
+<p><strong>Known issue (static):</strong> if this page writes a password, confirm it hashes through <code>AppEncrypt.CreateHash</code> rather than storing plaintext — the seed script sets a plaintext password (REQ-NFR-023, ⚠ SECURITY), so the pattern is already present in the repo.</p>
+<h2 id="admin-categories-admin-categories-categorieslist-and-category-editor-admin-category-admin-category-pageid-long">Admin · Categories (<code>/admin/categories</code>, <code>/CategoriesList</code>) and category editor (<code>/admin/category</code>, <code>/admin/category/{PageId:long}</code>)<a class="anchor-link" href="#admin-categories-admin-categories-categorieslist-and-category-editor-admin-category-admin-category-pageid-long">#</a></h2>
+<p><strong>Files:</strong> <code>Pages/AdminPages/CategoriesList.razor</code>, <code>Pages/AdminPages/ManageCategory.razor</code> + <code>.razor.cs</code></p>
+<table>
+<thead><tr><th>Screen</th><th>Control</th><th>Source call</th></tr></thead>
+<tbody>
+<tr><td>CategoriesList</td><td>Table with post counts</td><td><code>CategoryService.GetAllWithCounts()</code></td></tr>
+<tr><td>CategoriesList</td><td>Delete</td><td><code>CategoryService.DeleteCategory(...)</code></td></tr>
+<tr><td>ManageCategory</td><td>Load</td><td><code>CategoryService.GetCategory(PageId)</code></td></tr>
+<tr><td>ManageCategory</td><td>Save</td><td><code>CategoryService.SaveCategory(...)</code></td></tr>
+</tbody></table>
+<p><strong>Lineage:</strong> page → <code>CategorySvc</code> → <code>CategoryRepo</code> → <code>INSERT INTO Category</code>, <code>UPDATE Category</code>, <code>DELETE FROM Category</code>, <code>SELECT c.CategoryId …</code> joined for counts.</p>
+<h2 id="admin-tags-admin-tags-tagslist-and-tag-editor-managetag-managetag-pageid-long">Admin · Tags (<code>/admin/tags</code>, <code>/TagsList</code>) and tag editor (<code>/ManageTag</code>, <code>/ManageTag/{PageId:long}</code>)<a class="anchor-link" href="#admin-tags-admin-tags-tagslist-and-tag-editor-managetag-managetag-pageid-long">#</a></h2>
+<p><strong>Files:</strong> <code>Pages/AdminPages/TagsList.razor</code>, <code>Pages/AdminPages/ManageTag.razor</code></p>
+<table>
+<thead><tr><th>Screen</th><th>Control</th><th>Source call</th></tr></thead>
+<tbody>
+<tr><td>TagsList</td><td>Table with post counts</td><td><code>TagService.GetAllWithCounts()</code></td></tr>
+<tr><td>TagsList</td><td>Delete</td><td><code>TagService.DeleteTag(...)</code></td></tr>
+<tr><td>ManageTag</td><td>Load</td><td><code>TagService.GetSingleTag(PageId)</code></td></tr>
+<tr><td>ManageTag</td><td>Slug</td><td><code>SlugGenerator.GenerateSlug(...)</code> (static helper, called in the page)</td></tr>
+<tr><td>ManageTag</td><td>Save</td><td><code>TagService.SaveTag(...)</code></td></tr>
+</tbody></table>
+<p><strong>Lineage:</strong> page → <code>TagSvc</code> → <code>BlogTagRepo</code> → <code>INSERT INTO Tag</code>, <code>DELETE FROM Tag</code>, <code>INSERT INTO PostTag</code>, <code>DELETE FROM PostTag</code>, <code>SELECT t.TagId …</code> with the <code>COUNT</code> that Story 7.5 fixed.</p>
+<p><strong>Known issue (static):</strong> the tag-merge capability indicated in mockup <code>26-admin-tags.html</code> was not found. <code>{unresolved — TODO: confirm whether merge exists.}</code></p>
+<h2 id="admin-subscribers-admin-subscribers">Admin · Subscribers (<code>/admin/subscribers</code>)<a class="anchor-link" href="#admin-subscribers-admin-subscribers">#</a></h2>
+<p><strong>File:</strong> <code>source/BlogUI/Pages/AdminPages/SubscribersList.razor</code></p>
+<table>
+<thead><tr><th>Control</th><th>What it does</th><th>Source call</th><th>Render status</th></tr></thead>
+<tbody>
+<tr><td>Subscriber table</td><td>Lists subscribers</td><td><code>SubscriberService.GetAllSubscribers()</code></td><td>static-only</td></tr>
+<tr><td>Status change</td><td>Activate / unsubscribe</td><td><code>SubscriberService.UpdateSubscriberStatus(...)</code></td><td>static-only</td></tr>
+<tr><td>Export</td><td>CSV download via JS interop</td><td><code>SubscriberService.GetSubscribersForExport()</code> + <code>IJSRuntime</code></td><td>static-only</td></tr>
+</tbody></table>
+<p><strong>Lineage:</strong> page → <code>SubscriberSvc</code> → <code>SubscriberRepo</code> → <code>INSERT INTO Subscriber</code>, <code>UPDATE Subscriber</code>, <code>SELECT SubscriberId …</code>.</p>
+<p><strong>Known issue (static):</strong> no newsletter composer or send action exists on this page — the "Newsletter management" claim in the migrated plan (Story 7.7) covers the subscriber list only. Newsletter composition and SMTP delivery are REQ-UI-043 / REQ-FN-032 / REQ-FN-033, all Not Started.</p>
+<h2 id="admin-media-library-admin-images">Admin · Media library (<code>/admin/images</code>)<a class="anchor-link" href="#admin-media-library-admin-images">#</a></h2>
+<p><strong>File:</strong> <code>source/BlogUI/Pages/AdminPages/ManageImages.razor</code> + <code>.razor.cs</code></p>
+<div class="diagram">
+  <div class="dt">
+    <button data-zout title="Zoom out">−</button>
+    <span class="zlabel">100%</span>
+    <button data-zin title="Zoom in">+</button>
+    <button data-fit title="Fit to width">Fit</button>
+    <button data-one title="Actual size">1:1</button>
+    <button data-fs title="Fullscreen">⬜</button>
+    <button data-pop title="Open in new tab">↗</button>
+  </div>
+<pre class="mermaid">flowchart LR
+  MI["ManageImages.razor.cs"] --> IS["IBlogImageService"]
+  IS --> Disk[/"wwwroot/uploads/{category}"/]
+  IS --> IR["BlogImageRepo"]
+  IR --> DB[("blogimage")]
+  MI --> UR["IBlogUserRepo.GetAll — user filter"]</pre>
+</div>
+<table>
+<thead><tr><th>Control</th><th>What it does</th><th>Source call</th><th>Render status</th></tr></thead>
+<tbody>
+<tr><td>Gallery by category</td><td>Lists images</td><td><code>ImageService.GetImagesByCategoryAsync(...)</code></td><td>static-only</td></tr>
+<tr><td>Upload</td><td>Validates then stores</td><td><code>ImageService.ValidateImageAsync(...)</code> → <code>UploadImageAsync(...)</code></td><td>static-only</td></tr>
+<tr><td>Delete</td><td>Removes row and file</td><td><code>ImageService.DeleteImageAsync(...)</code></td><td>static-only</td></tr>
+<tr><td>Copy URL</td><td>Public path for an image</td><td><code>ImageService.GetImageUrl(...)</code></td><td>static-only</td></tr>
+<tr><td>User filter</td><td>Owner selection</td><td><code>UserRepo.GetAll(...)</code></td><td>static-only</td></tr>
+</tbody></table>
+<p><strong>Lineage:</strong> page → <code>IBlogImageService</code> (<code>BlogEngine/Services/BlogImageService.cs</code>) → disk write under <code>source/BlogUI/wwwroot/uploads/{category}/</code> <strong>and</strong> <code>BlogImageRepo</code> → <code>INSERT INTO blogimage</code> / <code>UPDATE blogimage</code> / <code>SELECT * FROM blogimage</code>.</p>
+<p><strong>Business rules:</strong> seven categories with per-category size and format limits (profiles 2 MB; logos, awards 500 KB; icons 200 KB; blog, general 5 MB; cv 10 MB / PDF only). Filenames are <code>{category}_{userId}_{timestamp}_{guid}.{ext}</code>.</p>
+<p><strong>Known issues (static):</strong></p>
+<ol>
+<li>The screen is <code>AdminOnly</code> while <code>ImagePicker</code> (which uploads through the same service) is used on</li>
+</ol>
+<p>   <code>AuthorOrAbove</code> pages — Authors can create uploads they can never browse or delete (REQ-UI-034).</p>
+<ol>
+<li>Files live on local disk with no storage abstraction (REQ-FN-042) — a container redeploy without a</li>
+</ol>
+<p>   mounted volume loses every upload.</p>
+<ol>
+<li>Thumbnail generation (feature-ideation §2.3 item 4) was not found.</li>
+</ol>
+<p>   <code>{unresolved — TODO: confirm whether thumbnails are generated.}</code></p>
+<h2 id="admin-site-settings-settings">Admin · Site settings (<code>/settings</code>)<a class="anchor-link" href="#admin-site-settings-settings">#</a></h2>
+<p><strong>File:</strong> <code>source/BlogUI/Pages/AdminPages/Settings.razor</code></p>
+<div class="diagram">
+  <div class="dt">
+    <button data-zout title="Zoom out">−</button>
+    <span class="zlabel">100%</span>
+    <button data-zin title="Zoom in">+</button>
+    <button data-fit title="Fit to width">Fit</button>
+    <button data-one title="Actual size">1:1</button>
+    <button data-fs title="Fullscreen">⬜</button>
+    <button data-pop title="Open in new tab">↗</button>
+  </div>
+<pre class="mermaid">flowchart LR
+  ST["Settings.razor"] --> TS["ThemeService"]
+  ST --> LS[/"browser localStorage"/]
+  TS --> LS
+  ST -.->|"never reached"| DB[("database")]</pre>
+</div>
+<table>
+<thead><tr><th>Control</th><th>What it claims to do</th><th>What it actually does</th><th>Render status</th></tr></thead>
+<tbody>
+<tr><td>Theme selector</td><td>Set the <strong>site</strong> theme</td><td><code>ThemeService.SetThemeAsync(...)</code> → writes <code>techieblog-theme</code> to <strong>browser local storage</strong> (<code>Common/ThemeService.cs:46</code>)</td><td><strong>DEFECT (static) — per-visitor, not site-wide</strong></td></tr>
+<tr><td>Pagination word count</td><td>Persist a blog setting</td><td><code>LocalStorage.SetItemAsync(PaginationWordCountKey, ...)</code> (<code>Settings.razor:335</code>)</td><td>static-only — browser-scoped</td></tr>
+<tr><td>General settings (site title, tagline)</td><td>Persist</td><td><strong>nothing</strong> — <code>// TODO: Implement actual save to database for other settings when settings service is created</code> (<code>Settings.razor:337</code>)</td><td><strong>DEFECT (static) — silently discarded</strong></td></tr>
+<tr><td>Blog settings (posts per page, comment moderation)</td><td>Persist</td><td><strong>nothing</strong> — same TODO</td><td><strong>DEFECT (static) — silently discarded</strong></td></tr>
+<tr><td>SEO settings</td><td>Persist</td><td><strong>nothing</strong> — same TODO</td><td><strong>DEFECT (static) — silently discarded</strong></td></tr>
+<tr><td>Social media settings</td><td>Persist</td><td><strong>nothing</strong> — same TODO</td><td><strong>DEFECT (static) — silently discarded</strong></td></tr>
+<tr><td>Save button</td><td>Confirms success</td><td>Sets <code>StatusMessage = &quot;Settings saved successfully.&quot;</code> regardless (<code>Settings.razor:338-339</code>)</td><td><strong>DEFECT (static) — false success message</strong></td></tr>
+</tbody></table>
+<p><strong>This is the second-highest-value finding.</strong> The page presents five settings sections and reports success, but only the pagination word count is written — to the current browser's local storage, not the database. <code>LoadDefaultSettings()</code> even carries the comment <em>"In a real implementation, other settings would be loaded from a database"</em> (<code>Settings.razor:325</code>). There is no <code>SiteSettings</code> table in any migration and no settings repository or service in <code>BlogEngine</code>. Logged to REQ-FN-040 (dropped from <code>In Progress 90%</code>) and REQ-UI-026.</p>
+<p><strong>Knock-on effects:</strong></p>
+<ul>
+<li>BRD-68 ("admin selects the site theme") is not met — the selection is per-visitor.</li>
+<li>BRD-69 (site title, tagline, posts-per-page, SMTP, storage settings) is not met.</li>
+<li>The comment-moderation toggle has no persistent home, so whatever gates comment approval at runtime</li>
+</ul>
+<p>  is <code>{unresolved — TODO}</code>.</p>
+<p><strong>Fix sketch:</strong> add a <code>SiteSettings</code> table + migration, a <code>SettingsRepo</code> and <code>SettingsSvc</code> (both are named in the archived architecture doc §5.1/§7.2 but were never built), load through them at startup, and cache per the caching design (REQ-NFR-018).</p>
+<h2 id="admin-resume-data-screens">Admin · Resume data screens<a class="anchor-link" href="#admin-resume-data-screens">#</a></h2>
+<p><code>/admin/profile</code>, <code>/admin/experience</code>, <code>/admin/skills</code>, <code>/admin/awards</code> are <code>AuthorOrAbove</code> and are documented in the <a href="./TechieBlog-DevGuide-Author.html">Author guide</a>. For Admins these pages additionally render a <strong>user selector</strong> fed by <code>UserRepo.GetAll(...)</code>, so an Admin can edit any user's resume data.</p>
+<p>The missing <code>ManageStats</code> screen (for <code>UserStats</code>, whose repository <em>is</em> registered at <code>BlogSvcInitializer.cs:69</code>) is also covered there.</p>
+<h2 id="admin-everything-else">Admin · Everything else<a class="anchor-link" href="#admin-everything-else">#</a></h2>
+<p>Admins inherit the Editor screens (dashboard, comment moderation, all posts — see the <a href="./TechieBlog-DevGuide-Editor.html">Editor guide</a>), the Author screens, and every public screen.</p>
+<h2 id="admin-relevant-cross-cutting-risks">Admin-relevant cross-cutting risks<a class="anchor-link" href="#admin-relevant-cross-cutting-risks">#</a></h2>
+<table>
+<thead><tr><th>Risk</th><th>Where</th><th>REQ</th></tr></thead>
+<tbody>
+<tr><td>Seeded admin password is plaintext</td><td><code>source/BlogDb/PostgresScripts/003-SeedData.sql:59</code></td><td>REQ-NFR-023</td></tr>
+<tr><td>Password hashing is hand-rolled</td><td><code>source/BlogModel/Common/AppEncrypt.cs:93</code></td><td>REQ-NFR-002</td></tr>
+<tr><td>No rate limiting on login</td><td><code>source/TechieBlog/Program.cs</code> (no rate-limit middleware)</td><td>REQ-NFR-005</td></tr>
+<tr><td>No audit log for admin actions</td><td>nowhere</td><td>REQ-FN-010</td></tr>
+<tr><td>DbUp runs with DDL rights at every startup</td><td><code>Program.cs:110-135</code></td><td>operational note</td></tr>
+</tbody></table>
+<hr>
+<p>Generated 2026-08-02 · reflects code as built · ⚠ STATIC-ONLY</p>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+<script>// Light/dark toggle. The initial theme was already applied flash-free by the
+// <head> script (saved choice, else time-of-day). Clicking flips it, saves the
+// choice, and reloads so Mermaid re-renders in the matching theme.
+(function(){
+  var btn = document.getElementById('themeToggle');
+  if(!btn) return;
+  var relabel = function(){
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    btn.textContent = dark ? '☀ Light' : '☾ Dark';
+  };
+  relabel();
+  btn.addEventListener('click', function(){
+    var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    try{ localStorage.setItem('tf-theme', next); }catch(e){}
+    location.reload();
+  });
+})();
+
+// Copy buttons on every code <pre> — but NEVER on a `pre.mermaid`.
+document.querySelectorAll('pre:not(.mermaid)').forEach(pre => {
+  const btn = document.createElement('button');
+  btn.className = 'copy';
+  btn.textContent = 'copy';
+  btn.addEventListener('click', () => {
+    const text = pre.querySelector('code') ? pre.querySelector('code').innerText : pre.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'copied';
+      setTimeout(() => { btn.textContent = 'copy'; }, 1200);
+    });
+  });
+  pre.appendChild(btn);
+});
+
+// Mermaid init — theme follows the resolved light/dark theme
+if (window.mermaid) {
+  var mermaidTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
+  mermaid.initialize({ startOnLoad: true, theme: mermaidTheme, securityLevel: 'loose' });
+}
+
+// Mermaid toolbar wiring — run after mermaid renders
+function wireMermaidToolbars() {
+  document.querySelectorAll('.diagram').forEach(dia => {
+    if (dia.dataset.wired) return;
+    const merm = dia.querySelector('.mermaid');
+    const svg = merm && merm.querySelector('svg');
+    if (!svg) return;
+    dia.dataset.wired = '1';
+    let scale = 1;
+    const label = dia.querySelector('.zlabel');
+    const apply = () => {
+      svg.style.transform = `scale(${scale})`;
+      svg.style.transformOrigin = 'top left';
+      if (label) label.textContent = Math.round(scale * 100) + '%';
+    };
+    const setScale = (s) => { scale = Math.max(0.25, Math.min(4, s)); apply(); };
+    dia.querySelector('[data-zin]').onclick = () => setScale(scale * 1.2);
+    dia.querySelector('[data-zout]').onclick = () => setScale(scale / 1.2);
+    dia.querySelector('[data-fit]').onclick = () => {
+      svg.style.transform = '';
+      svg.removeAttribute('width');
+      svg.style.maxWidth = '100%';
+      svg.style.height = 'auto';
+      scale = 1;
+      if (label) label.textContent = 'Fit';
+    };
+    dia.querySelector('[data-one]').onclick = () => {
+      svg.style.transform = '';
+      svg.style.maxWidth = 'none';
+      svg.style.width = '';
+      svg.style.height = '';
+      scale = 1;
+      if (label) label.textContent = '100%';
+    };
+    dia.querySelector('[data-fs]').onclick = () => {
+      dia.classList.toggle('fs');
+      if (dia.classList.contains('fs')) {
+        document.addEventListener('keydown', escFs);
+      } else {
+        document.removeEventListener('keydown', escFs);
+      }
+    };
+    function escFs(e) { if (e.key === 'Escape') { dia.classList.remove('fs'); document.removeEventListener('keydown', escFs); } }
+    dia.querySelector('[data-pop]').onclick = () => openInNewTab(svg);
+    merm.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setScale(scale * (e.deltaY < 0 ? 1.1 : 1/1.1));
+    }, { passive: false });
+  });
+}
+
+function openInNewTab(svg) {
+  const svgSource = new XMLSerializer().serializeToString(svg);
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Diagram</title>
+<style>
+  html,body{margin:0;height:100%;background:#0f1115;color:#e6e8ee;font-family:system-ui,sans-serif}
+  .bar{position:fixed;top:0;left:0;right:0;padding:8px 12px;background:#161a22;border-bottom:1px solid #2a3142;display:flex;gap:8px;z-index:10}
+  .bar button{background:#1c2230;color:#9aa3b2;border:1px solid #2a3142;border-radius:6px;padding:5px 12px;font-size:13px;cursor:pointer}
+  .bar button:hover{color:#7cc4ff;border-color:#7cc4ff}
+  .bar .hint{margin-left:auto;color:#9aa3b2;font-size:11.5px;align-self:center}
+  #stage{position:absolute;top:42px;bottom:0;left:0;right:0;overflow:hidden}
+  #stage svg{width:100%;height:100%}
+</style>
+</head><body>
+<div class="bar">
+  <button onclick="zpz.zoomIn()">+</button>
+  <button onclick="zpz.zoomOut()">−</button>
+  <button onclick="zpz.fit();zpz.center()">Fit</button>
+  <button onclick="zpz.resetZoom();zpz.center()">1:1</button>
+  <button onclick="window.print()">Print</button>
+  <button onclick="dlPng()">PNG</button>
+  <button onclick="dlSvg()">SVG</button>
+  <span class="hint">Drag to pan · Ctrl+wheel to zoom · + / − keys</span>
+</div>
+<div id="stage">${svgSource}</div>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"><\/script>
+<script>
+  const el = document.querySelector('#stage svg');
+  const zpz = svgPanZoom(el, { zoomScaleSensitivity: .3, minZoom: .2, maxZoom: 10, controlIconsEnabled: false, fit: true, center: true });
+  document.addEventListener('keydown', e => {
+    if (e.key === '+' || e.key === '=') zpz.zoomIn();
+    if (e.key === '-' || e.key === '_') zpz.zoomOut();
+    if (e.key === '0') { zpz.resetZoom(); zpz.center(); }
+  });
+  function dlSvg() {
+    const blob = new Blob([new XMLSerializer().serializeToString(el)], { type: 'image/svg+xml' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'diagram.svg'; a.click();
+  }
+  function dlPng() {
+    const src = new XMLSerializer().serializeToString(el);
+    const img = new Image();
+    const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(src)));
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = el.clientWidth * 2; c.height = el.clientHeight * 2;
+      const ctx = c.getContext('2d'); ctx.scale(2,2); ctx.drawImage(img, 0, 0);
+      c.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'diagram.png'; a.click(); });
+    };
+    img.src = url;
+  }
+<\/script>
+</body></html>`;
+  const w = window.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+if (window.mermaid) {
+  setTimeout(wireMermaidToolbars, 400);
+  setTimeout(wireMermaidToolbars, 1200);
+}</script>
+</body>
+</html>

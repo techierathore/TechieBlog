@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<!-- ============================================================
+  Screen: Home — portfolio landing  ·  Route: /
+  Roles: anonymous (public)  ·  BRD: BRD-30 (revised 2026-08-06), BRD-93  ·  REQ: REQ-UI-049, REQ-UI-050
+  Component map (region → TrBlazeUI control):
+    Top nav          → TbResponsiveNav (brand + links + theme TbToggle; NO login/user menu per BRD-93;
+                       NO Authors entry — personal site, author screens dropped 2026-08-06;
+                       links: Home · Categories · Series · Newsletter · Resume · About)
+    Hero             → Typography + TbAvatar (xl, PHOTO not initials) + TbButton (primary/outline)
+                       + social brand-icon links (LinkedIn/GitHub/X/YouTube/RSS)
+    Stats row        → TbCard ×4 (stat tiles, from UserStats)
+    About summary    → TbCard + Typography
+    Latest articles  → TbCard ×3 (post cards: image, TbBadge category, meta, Rating read-only)
+    Contact          → TbCard + TbButton; social links
+    Footer           → Typography + TbSeparator
+  States: hero/stats/about render from IsSiteOwner user (empty → hide section);
+          articles empty → TbEmpty "No posts yet"; loading → TbSkeleton cards.
+  Data: site-owner resume fields (BlogUser + UserStats), recent published posts.
+============================================================ -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ravi Rathore — .NET Architect &amp; Blogger · TechieBlog</title>
+<link rel="stylesheet" href="trblazeui.css">
+</head>
+<body>
+
+<!-- TbResponsiveNav — public shell. NOTE: no Login / Sign-up / user menu (BRD-93) -->
+<nav class="tb-nav">
+  <div class="tb-nav__inner">
+    <a class="tb-nav__brand" href="01-home.html"><span class="dot"></span> Ravi Rathore</a>
+    <div class="tb-nav__links">
+      <a class="active" href="01-home.html">Home</a>
+      <a href="03-category-archive.html">Categories</a>
+      <a href="05-series-list.html">Series</a>
+      <a href="42-newsletter-archive.html">Newsletter</a>
+      <a href="10-resume.html">Resume</a>
+      <a href="08-about.html">About</a>
+    </div>
+    <div class="tb-nav__actions">
+      <a class="btn btn-ghost btn-icon" href="07-search-results.html" title="Search">
+        <svg class="icon icon-lg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></a>
+      <button class="btn btn-ghost btn-icon" onclick="document.documentElement.classList.toggle('dark')" title="Toggle dark mode">
+        <svg class="icon icon-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/></svg></button>
+      <button class="btn btn-ghost btn-icon tb-nav__burger" title="Menu">
+        <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero — driven by IsSiteOwner resume data -->
+<header class="hero container">
+  <img class="avatar avatar-xl" src="profile-photo.svg" alt="Ravi Rathore" style="margin:0 auto">
+  <h1>Hi, I'm <span class="accent">Ravi Rathore</span></h1>
+  <div class="role">Senior .NET Architect · Microsoft MVP</div>
+  <p class="tagline">I build cloud-native products with .NET, Blazor and PostgreSQL — and write about
+    what I learn along the way. 20+ years of shipping software, 200+ articles, and a soft spot for
+    clean architecture.</p>
+  <div class="ctas">
+    <a class="btn btn-primary btn-lg" href="#contact">Get In Touch</a>
+    <a class="btn btn-outline btn-lg" href="10-resume.html">⬇ Download CV</a>
+  </div>
+  <div class="social-row">
+    <a class="s-linkedin" href="#" title="LinkedIn" aria-label="LinkedIn"><svg class="icon-brand" viewBox="0 0 24 24"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13Zm1.78 13.02H3.56V9h3.56v11.45ZM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0Z"/></svg></a>
+    <a class="s-github" href="#" title="GitHub" aria-label="GitHub"><svg class="icon-brand" viewBox="0 0 24 24"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.2 4.9 18.2 5.2 18.2 5.2c.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3Z"/></svg></a>
+    <a class="s-x" href="#" title="X" aria-label="X (Twitter)"><svg class="icon-brand" viewBox="0 0 24 24"><path d="M18.9 1.15h3.68l-8.04 9.19L24 22.85h-7.4l-5.8-7.59-6.64 7.59H.47l8.6-9.83L0 1.15h7.59l5.24 6.93 6.07-6.93Zm-1.29 19.49h2.04L6.49 3.24H4.3l13.31 17.4Z"/></svg></a>
+    <a class="s-youtube" href="#" title="YouTube" aria-label="YouTube"><svg class="icon-brand" viewBox="0 0 24 24"><path d="M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.5 3.55 12 3.55 12 3.55s-7.5 0-9.38.5A3.02 3.02 0 0 0 .5 6.19C0 8.07 0 12 0 12s0 3.93.5 5.81a3.02 3.02 0 0 0 2.12 2.14c1.87.5 9.38.5 9.38.5s7.5 0 9.38-.5a3.02 3.02 0 0 0 2.12-2.14C24 15.93 24 12 24 12s0-3.93-.5-5.81ZM9.55 15.57V8.43L15.82 12l-6.27 3.57Z"/></svg></a>
+    <a class="s-rss" href="#" title="RSS" aria-label="RSS feed"><svg class="icon" viewBox="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1" fill="currentColor"/></svg></a>
+  </div>
+</header>
+
+<!-- Stats — UserStats -->
+<section class="container" aria-label="Highlights">
+  <div class="stat-grid">
+    <div class="stat"><b>20+</b><span>Years in software</span></div>
+    <div class="stat"><b>200+</b><span>Articles &amp; tutorials</span></div>
+    <div class="stat"><b>40+</b><span>Conference talks</span></div>
+    <div class="stat"><b>10×</b><span>Microsoft MVP</span></div>
+  </div>
+</section>
+
+<!-- About summary -->
+<section class="section container" id="about">
+  <h2 class="section-title">About</h2>
+  <p class="section-sub">A short introduction — the full story lives on the <a href="10-resume.html" style="color:var(--primary)">resume page</a>.</p>
+  <div class="card"><div class="card-content" style="font-size:15px">
+    I'm a hands-on architect focused on the Microsoft stack: Blazor front ends, ASP.NET Core services,
+    PostgreSQL data layers and MAUI apps. I've led engineering teams at product companies and
+    consultancies, mentor developers in the .NET community, and maintain open-source libraries
+    including <b>TrBlazeUI</b>. This site is where I publish deep-dive articles, multi-part series and
+    the occasional hot take on software design.
+  </div></div>
+</section>
+
+<!-- Latest articles — recent published posts -->
+<section class="section container" id="articles" style="padding-top:8px">
+  <h2 class="section-title">Latest Articles</h2>
+  <p class="section-sub">Fresh from the editor — <a href="07-search-results.html" style="color:var(--primary)">browse all articles</a>.</p>
+  <div class="post-grid">
+    <article class="card post-card">
+      <div class="thumb">featured image · 800×400</div>
+      <div class="card-content">
+        <div class="meta-row"><span class="badge badge-secondary">Blazor</span><span>Aug 2, 2026</span><span>·</span><span>9 min read</span></div>
+        <h3 style="font-size:16.5px;margin:10px 0 6px"><a href="02-post-view.html">Migrating a Blazor app from Fluent UI to TrBlazeUI</a></h3>
+        <p class="muted" style="font-size:13.5px">A component-by-component field guide to swapping UI libraries without a big-bang rewrite — themes, portals and all.</p>
+        <div class="meta-row" style="margin-top:12px">
+          <img class="avatar avatar-sm" src="profile-photo.svg" alt=""><span>Ravi Rathore</span>
+          <span class="stars" style="margin-left:auto">★★★★<span class="off">★</span> <span class="muted">(31)</span></span>
+        </div>
+      </div>
+    </article>
+    <article class="card post-card">
+      <div class="thumb">featured image · 800×400</div>
+      <div class="card-content">
+        <div class="meta-row"><span class="badge badge-secondary">PostgreSQL</span><span>Jul 28, 2026</span><span>·</span><span>12 min read</span></div>
+        <h3 style="font-size:16.5px;margin:10px 0 6px"><a href="02-post-view.html">Dapper + PostgreSQL functions: a pragmatic data layer</a></h3>
+        <p class="muted" style="font-size:13.5px">Why stored functions plus a micro-ORM still beat heavyweight abstractions for read-mostly workloads.</p>
+        <div class="meta-row" style="margin-top:12px">
+          <img class="avatar avatar-sm" src="profile-photo.svg" alt=""><span>Ravi Rathore</span>
+          <span class="stars" style="margin-left:auto">★★★★★ <span class="muted">(48)</span></span>
+        </div>
+      </div>
+    </article>
+    <article class="card post-card">
+      <div class="thumb">featured image · 800×400</div>
+      <div class="card-content">
+        <div class="meta-row"><span class="badge badge-secondary">MAUI</span><span>Jul 19, 2026</span><span>·</span><span>7 min read</span></div>
+        <h3 style="font-size:16.5px;margin:10px 0 6px"><a href="02-post-view.html">One RCL, two heads: sharing Blazor UI with a desktop app</a></h3>
+        <p class="muted" style="font-size:13.5px">Hosting the same Razor Class Library in Blazor Server and MAUI Blazor Hybrid — pitfalls and payoffs.</p>
+        <div class="meta-row" style="margin-top:12px">
+          <img class="avatar avatar-sm" src="profile-photo.svg" alt=""><span>Ravi Rathore</span>
+          <span class="stars" style="margin-left:auto">★★★★<span class="off">★</span> <span class="muted">(19)</span></span>
+        </div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- Contact -->
+<section class="section container" id="contact" style="padding-top:8px">
+  <h2 class="section-title">Get In Touch</h2>
+  <p class="section-sub">Talks, consulting, or just to say hi.</p>
+  <div class="card" style="max-width:620px;margin:0 auto"><div class="card-content" style="display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center">
+    <div>📧 <b>ravi@techieblog.dev</b> &nbsp;·&nbsp; 📍 Hyderabad, India</div>
+    <div class="social-row social-row--sm" style="margin-top:4px">
+      <a class="s-linkedin" href="#" title="LinkedIn" aria-label="LinkedIn"><svg class="icon-brand" viewBox="0 0 24 24"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13Zm1.78 13.02H3.56V9h3.56v11.45ZM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0Z"/></svg></a>
+      <a class="s-github" href="#" title="GitHub" aria-label="GitHub"><svg class="icon-brand" viewBox="0 0 24 24"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.2 4.9 18.2 5.2 18.2 5.2c.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3Z"/></svg></a>
+      <a class="s-x" href="#" title="X" aria-label="X (Twitter)"><svg class="icon-brand" viewBox="0 0 24 24"><path d="M18.9 1.15h3.68l-8.04 9.19L24 22.85h-7.4l-5.8-7.59-6.64 7.59H.47l8.6-9.83L0 1.15h7.59l5.24 6.93 6.07-6.93Zm-1.29 19.49h2.04L6.49 3.24H4.3l13.31 17.4Z"/></svg></a>
+    </div>
+    <a class="btn btn-primary" href="#" style="margin-top:6px">Send an email</a>
+  </div></div>
+</section>
+
+<footer class="site-footer">
+  <div class="container cols">
+    <span>© 2026 Ravi Rathore · Built with <b>TechieBlog</b> (Blazor + TrBlazeUI)</span>
+    <span><a href="02-post-view.html">RSS</a> · <a href="42-newsletter-archive.html">Newsletter</a> · <a href="08-about.html">About</a> · <a href="10-resume.html">Resume</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

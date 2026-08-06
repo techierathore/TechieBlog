@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<!-- ============================================================
+  Screen: Newsletter issue — public read view  ·  Route: /newsletter/{slug}
+  Roles: anonymous (public)  ·  BRD: BRD-98 (double opt-in), BRD-100, BRD-101, BRD-93
+  REQ: REQ-UI-054
+  Component map (region → TrBlazeUI control):
+    Top nav          → TbResponsiveNav (public shell; NO login/user menu per BRD-93;
+                       NO Authors entry — personal site, author screens dropped 2026-08-06)
+    Breadcrumb       → TbBreadcrumb (Home / Newsletter / Issue #24)
+    Header           → TbBadge (issue number) + Typography (H1, sent date, recipient count)
+    Issue body       → Typography (paragraphs, H2 subheading, bulleted article links) —
+                       same body scale as the article in 02-post-view.html
+    Prev/next nav    → TbCard + TbButton (outline prev / primary next), same pattern as the
+                       series-nav card in 02-post-view.html
+    Subscribe CTA    → TbCard (compact) + TbInput (email) + TbButton (primary) +
+                       double-opt-in one-liner + link to the archive
+    Footer           → Typography + TbSeparator
+  States: issue not found or not yet sent → 09-404.html; loading → TbSkeleton blocks;
+          first issue → prev button disabled; latest issue → next button disabled;
+          subscribe submit → "check your email" pending state (44-verify-email.html on click-through).
+  Data: NewsletterIssue (number, title, sent date, recipient count, rendered HTML body, slug),
+        adjacent issue numbers/slugs, NewsletterSubscriber (confirmed count).
+============================================================ -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Issue #24 — Shipping a MAUI admin app · TechieBlog</title>
+<link rel="stylesheet" href="trblazeui.css">
+</head>
+<body>
+
+<!-- TbResponsiveNav — public shell. NOTE: no Login / Sign-up / user menu (BRD-93) -->
+<nav class="tb-nav">
+  <div class="tb-nav__inner">
+    <a class="tb-nav__brand" href="01-home.html"><span class="dot"></span> Ravi Rathore</a>
+    <div class="tb-nav__links">
+      <a href="01-home.html">Home</a>
+      <a href="03-category-archive.html">Categories</a>
+      <a href="05-series-list.html">Series</a>
+      <a class="active" href="42-newsletter-archive.html">Newsletter</a>
+      <a href="10-resume.html">Resume</a>
+      <a href="08-about.html">About</a>
+    </div>
+    <div class="tb-nav__actions">
+      <a class="btn btn-ghost btn-icon" href="07-search-results.html" title="Search">
+        <svg class="icon icon-lg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></a>
+      <button class="btn btn-ghost btn-icon" onclick="document.documentElement.classList.toggle('dark')" title="Toggle dark mode">
+        <svg class="icon icon-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/></svg></button>
+      <button class="btn btn-ghost btn-icon tb-nav__burger" title="Menu">
+        <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    </div>
+  </div>
+</nav>
+
+<main class="container" style="max-width:820px;padding-top:28px">
+
+  <!-- TbBreadcrumb -->
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="01-home.html">Home</a><span>›</span>
+    <a href="42-newsletter-archive.html">Newsletter</a><span>›</span>
+    <b>Issue #24</b>
+  </nav>
+
+  <!-- Header -->
+  <header style="margin:18px 0 24px">
+    <span class="badge badge-default">Issue #24</span>
+    <h1 style="font-size:clamp(26px,4vw,36px);font-weight:800;margin-top:12px">Issue #24 — Shipping a MAUI admin app</h1>
+    <div class="meta-row" style="margin-top:14px;font-size:13.5px">
+      <span style="display:inline-flex;align-items:center;gap:8px">
+        <img class="avatar avatar-sm" src="profile-photo.svg" alt=""><b>Ravi Rathore</b>
+      </span>
+      <span>·</span>
+      <span style="display:inline-flex;align-items:center;gap:6px">
+        <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Sent Aug 1, 2026
+      </span>
+    </div>
+    <div class="meta-row" style="margin-top:8px">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/></svg>
+      <span class="muted">Sent to 1,240 subscribers</span>
+    </div>
+  </header>
+
+  <hr class="separator">
+
+  <!-- Issue body — rendered newsletter HTML, article-body typography -->
+  <article style="margin-top:24px;font-size:15.5px">
+    <p>This was the month the admin console stopped being a browser-only thing. I'd been carrying a
+      laptop to conferences just to moderate comments over hotel wifi, so I gave the same Razor Class
+      Library a second host — a MAUI Blazor Hybrid shell — and now the moderation queue lives one
+      double-click away. It took a weekend, and about a third of that weekend was spent on two
+      problems I'd cheerfully forgotten existed.</p>
+
+    <p style="margin-top:14px">The RCL itself needed no changes. Every component in
+      <code class="mono">BlogUI</code> already renders from injected services rather than reaching for
+      <code class="mono">HttpContext</code>, which is the one discipline that makes a shared UI layer
+      portable. What did need work was everything around the edges: configuration, the connection
+      string, and the assumption — buried in three places — that there is always a circuit.</p>
+
+    <h2 style="font-size:22px;margin:28px 0 12px">What actually broke</h2>
+
+    <p>Two things. First, the desktop head has no reverse proxy in front of it, so anything that read
+      forwarded headers to build absolute URLs produced links pointing at nothing. Second, PostgreSQL
+      connections from a laptop that sleeps mid-query behave very differently from connections inside
+      a datacentre — the retry policy that had never once fired in production fired constantly, and
+      it turned out to be retrying the wrong class of error.</p>
+
+    <p style="margin-top:14px">Both were cheap to fix once they were visible, which is the real
+      argument for a second host: it exercises assumptions your server environment quietly satisfies
+      for you. If you've been meaning to try MAUI Blazor Hybrid, do it against an app you already
+      know well. The bugs it surfaces will be the interesting kind.</p>
+
+    <h2 style="font-size:22px;margin:28px 0 12px">From the blog this month</h2>
+
+    <ul style="margin:12px 0 0 20px;line-height:1.9">
+      <li><a href="02-post-view.html">One RCL, two heads: sharing Blazor UI with a desktop app</a> — the long-form version of the story above.</li>
+      <li><a href="02-post-view.html">Dapper + PostgreSQL functions: a pragmatic data layer</a> — why stored functions plus a micro-ORM still win for read-mostly workloads.</li>
+      <li><a href="02-post-view.html">Migrating a Blazor app from Fluent UI to TrBlazeUI</a> — a component-by-component field guide, no big-bang rewrite required.</li>
+    </ul>
+
+    <p style="margin-top:18px">Next month: the moderation queue itself — how comments get from an
+      anonymous form to a published thread without a single reader account. Reply to this email if
+      there's something you'd rather read about instead.</p>
+  </article>
+
+  <!-- Prev/next issue navigation → TbCard + TbButton (same pattern as the series-nav card) -->
+  <div class="card" style="margin:32px 0">
+    <div class="card-content" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px">
+        <div class="muted" style="font-size:12.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase">Issue 24 of 24 · Newsletter</div>
+        <a href="42-newsletter-archive.html" style="font-size:16px;font-weight:600;color:var(--primary)">All issues</a>
+      </div>
+      <div style="display:flex;gap:8px">
+        <a class="btn btn-outline" href="43-newsletter-view.html">← Issue #23</a>
+        <a class="btn btn-primary" href="43-newsletter-view.html">Issue #25 →</a>
+      </div>
+    </div>
+  </div>
+
+  <hr class="separator">
+
+  <!-- Compact subscribe CTA → TbCard + TbInput + TbButton (BRD-98 double opt-in) -->
+  <div class="card" style="margin:24px 0 8px">
+    <div class="card-content" style="display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:16px;font-weight:600">Get the next issue by email</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+        <div class="field" style="flex:1;min-width:220px;margin-bottom:0">
+          <label class="label" for="cta-email">Email address</label>
+          <input class="input" id="cta-email" type="email" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <button class="btn btn-primary" type="submit">
+          <svg class="icon" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-9 5.7a2 2 0 0 1-2 0L2 7"/></svg>
+          Subscribe
+        </button>
+      </div>
+      <span class="hint">We'll send a confirmation link — your subscription starts once you click it.</span>
+      <a class="btn btn-ghost btn-sm" href="42-newsletter-archive.html" style="align-self:flex-start;padding-left:0">
+        See all issues
+        <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>
+  </div>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container cols">
+    <span>© 2026 Ravi Rathore · Built with <b>TechieBlog</b> (Blazor + TrBlazeUI)</span>
+    <span><a href="02-post-view.html">RSS</a> · <a href="42-newsletter-archive.html">Newsletter</a> · <a href="08-about.html">About</a> · <a href="10-resume.html">Resume</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

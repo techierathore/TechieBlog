@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TechieBlog — Developer Guide (index) &mdash; TechieBlog</title>
+<script>
+/* Resolve the theme BEFORE first paint (no flash). Saved choice wins; otherwise
+   pick by time of day — light 07:00–19:00 local, softened dark at night. */
+(function(){
+  try{
+    var t = localStorage.getItem('tf-theme');
+    if(t!=='light' && t!=='dark'){ var h = new Date().getHours(); t = (h>=7 && h<19) ? 'light' : 'dark'; }
+    document.documentElement.setAttribute('data-theme', t);
+  }catch(e){ document.documentElement.setAttribute('data-theme','light'); }
+})();
+</script>
+<style>/* LIGHT is the default theme — a warm off-white, easy on the eyes (never bright white). */
+:root{
+  --bg:#f4f1e9; --panel:#efe9db; --panel2:#e7e0cd; --line:#d8cfb6;
+  --ink:#2e2a22; --muted:#6f6857; --accent:#2f6f9f; --accent2:#3f7d54;
+  --warn:#9a6b15; --danger:#b03a52; --ok:#3f7d54;
+  --code-bg:#ece5d3; --code-ink:#332f26; --row-alt:#eae2cf;
+  --h3:#3a352b; --h4:#2f6f9f; --quote:#4a4537; --cta-bg:#e6eef5;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+/* DARK — softened near-black (warmer / less harsh than pure #0f1115). */
+html[data-theme="dark"]{
+  --bg:#11141a; --panel:#171b23; --panel2:#1e2430; --line:#2b3240;
+  --ink:#dfe3ea; --muted:#99a2b1; --accent:#7cc4ff; --accent2:#a6e3a1;
+  --warn:#f9c74f; --danger:#f38ba8; --ok:#a6e3a1;
+  --code-bg:#0c1016; --code-ink:#d8dde8; --row-alt:#141821;
+  --h3:#cfd5e3; --h4:#7cc4ff; --quote:#cfd5e3; --cta-bg:#0d2030;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;font-size:15px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:var(--mono);font-size:13px;background:var(--code-bg);color:var(--code-ink);padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+pre{font-family:var(--mono);font-size:12.5px;background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto;color:var(--code-ink);position:relative}
+pre code{background:none;border:none;padding:0}
+.copy{position:absolute;top:8px;right:8px;background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:11px;font-family:var(--sans);cursor:pointer}
+.copy:hover{color:var(--accent);border-color:var(--accent)}
+/* floating light/dark toggle (top-right) */
+.theme-toggle{position:fixed;top:12px;right:14px;z-index:10000;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12.5px;font-family:var(--sans);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.theme-toggle:hover{color:var(--accent);border-color:var(--accent)}
+
+.layout{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+.layout.no-toc{grid-template-columns:1fr}
+nav.side{position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--line);background:var(--panel);padding:18px 14px}
+nav.side h1{font-size:14px;margin:0 0 4px;letter-spacing:.5px;color:var(--ink)}
+nav.side .sub{font-size:11.5px;color:var(--muted);margin-bottom:14px}
+nav.side ol,nav.side ul{list-style:none;padding:0;margin:0}
+nav.side li{font-size:13px;margin:2px 0}
+nav.side li a{display:block;padding:5px 8px;color:var(--ink);border-radius:6px}
+nav.side li a:hover{background:var(--panel2);text-decoration:none}
+nav.side li.h3 a{padding-left:22px;font-size:12.5px;color:var(--h3)}
+nav.side .group{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin:14px 8px 4px}
+
+main{padding:28px 40px 80px;max-width:1100px}
+.layout.no-toc main{margin:0 auto}
+
+h1{font-size:28px;margin:0 0 6px}
+h2{font-size:22px;margin:32px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);scroll-margin-top:16px}
+h3{font-size:17px;margin:22px 0 6px;color:var(--h3);scroll-margin-top:16px}
+h4{font-size:14px;margin:14px 0 4px;color:var(--h4);scroll-margin-top:16px}
+.subtitle{color:var(--muted);font-size:14px;margin-top:-4px;margin-bottom:18px}
+p{margin:6px 0 10px}
+blockquote{border-left:3px solid var(--accent);background:var(--panel);margin:8px 0;padding:8px 14px;color:var(--quote)}
+ul,ol{padding-left:22px}
+li{margin:2px 0}
+
+table{border-collapse:collapse;width:100%;font-size:13.5px;margin:8px 0}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--panel2);color:var(--h3);font-weight:600}
+tr:nth-child(even) td{background:var(--row-alt)}
+
+hr{border:none;border-top:1px solid var(--line);margin:24px 0}
+.anchor-link{color:var(--muted);font-weight:400;font-size:0.85em;margin-left:8px;opacity:0;transition:opacity .15s;text-decoration:none}
+h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
+
+/* inline TOC at top of main content */
+.toc-inline{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 16px;margin:14px 0 24px}
+.toc-inline > div{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.toc-inline ol,.toc-inline ul{margin:4px 0;padding-left:18px}
+.toc-inline li{font-size:13px;margin:1px 0}
+.toc-inline a{color:var(--h3)}
+
+/* NEXT COMMAND call-to-action box */
+.cta{background:var(--cta-bg);border:1px solid var(--accent);border-radius:8px;padding:12px 16px;margin:18px 0}
+.cta .lbl{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+
+/* mermaid diagram wrapper + toolbar */
+.diagram{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--code-bg);margin:14px 0;overflow:hidden}
+.diagram .mermaid{padding:14px;margin:0;background:transparent;border:none;overflow:auto}
+.diagram .dt{display:flex;gap:6px;justify-content:flex-end;padding:6px 8px;background:var(--row-alt);border-bottom:1px solid var(--line)}
+.diagram .dt button{background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 10px;font-size:12px;font-family:var(--sans);cursor:pointer;min-width:30px}
+.diagram .dt button:hover{color:var(--accent);border-color:var(--accent)}
+.diagram .dt .zlabel{padding:3px 6px;font-size:11px;color:var(--muted);font-family:var(--mono);align-self:center}
+.diagram.fs{position:fixed;inset:0;z-index:9999;border-radius:0;border:none}
+.diagram.fs .mermaid{height:calc(100vh - 40px);display:flex;align-items:center;justify-content:center}
+
+@media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{position:static;height:auto}}</style>
+</head>
+<body>
+<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">&#9782; Dark</button>
+<div class="layout no-toc">
+
+  <main>
+    <h1>TechieBlog — Developer Guide (index)</h1>
+    <div class="subtitle">Generated 2026-08-02 · code as built · STATIC-ONLY</div>
+
+<div class="toc-inline">
+<div>Contents</div>
+<ol>
+<li><a href="#how-to-use-this-guide">1. How to use this guide</a></li>
+<li><a href="#architecture-cheat-sheet">2. Architecture cheat-sheet</a></li>
+<li><a href="#roles-and-menu-map">3. Roles and menu map</a></li>
+<li class="h3"><a href="#landing-truth-where-a-user-actually-lands-after-login">LANDING-TRUTH — where a user actually lands after login</a></li>
+<li><a href="#screens">4. Screens</a></li>
+<li><a href="#cross-cutting-notes-for-bug-chasing">5. Cross-cutting notes for bug-chasing</a></li>
+<li><a href="#findings-logged-to-the-checklist">6. Findings logged to the checklist</a></li>
+</ol>
+</div>
+<blockquote>⚠ <strong>STATIC-ONLY (2026-08-02)</strong> — built from code reading; NOT yet runtime-verified. Render-status is unconfirmed until <code>*verify</code> runs against the running app. <strong>Reason:</strong> the solution does not compile — <code>dotnet build</code> / <code>dotnet run</code> fail with <code>NU1605</code> on both ladder rung #2 (<code>~/.dotnet/dotnet</code>) and rung #4 (<code>cmd.exe /c dotnet</code>); <code>BlogUI</code> pins <code>Microsoft.AspNetCore.Components.Web 10.0.0</code> while <code>Microsoft.FluentUI.AspNetCore.Components 4.*</code> resolves to 4.14.4 requiring ≥ 10.0.9 (REQ-FN-043). No screenshots could be captured for the same reason.</blockquote>
+<p><strong>Generated 2026-08-02 · reflects code as built.</strong></p>
+<h2 id="how-to-use-this-guide">1. How to use this guide<a class="anchor-link" href="#how-to-use-this-guide">#</a></h2>
+<p>This is the developer's map from <strong>screen → control → service method → data-access method → SQL / stored function</strong>. Use it to chase a bug without reverse-engineering the repository, and to check whether AI-generated code actually wired what it claims.</p>
+<ul>
+<li>Every path below was <strong>read</strong> in the working tree and is cited as <code>file:line</code> where the claim is</li>
+</ul>
+<p>  non-obvious. Anything that could not be confirmed is marked <code>{unresolved — TODO}</code> rather than guessed.</p>
+<ul>
+<li>Control render-status is <code>static-only (unconfirmed)</code> throughout — the OBSERVE pass could not run.</li>
+</ul>
+<p>  Where static reading shows a control <strong>cannot</strong> show real data, it is marked <strong>DEFECT (static)</strong> and   logged to <code>docs/TechieBlog-Checklist.md</code>.</p>
+<ul>
+<li>Guides are split by role. Screens reachable by several roles are documented once, in the lowest role</li>
+</ul>
+<p>  that can reach them, and cross-referenced from the others.</p>
+<table>
+<thead><tr><th>Role</th><th>File</th><th>Screens</th></tr></thead>
+<tbody>
+<tr><td>Guest (anonymous)</td><td><a href="./TechieBlog-DevGuide-Guest.html">./TechieBlog-DevGuide-Guest.md</a></td><td>12</td></tr>
+<tr><td>Reader</td><td><a href="./TechieBlog-DevGuide-Reader.html">./TechieBlog-DevGuide-Reader.md</a></td><td>4</td></tr>
+<tr><td>Author</td><td><a href="./TechieBlog-DevGuide-Author.html">./TechieBlog-DevGuide-Author.md</a></td><td>10</td></tr>
+<tr><td>Editor</td><td><a href="./TechieBlog-DevGuide-Editor.html">./TechieBlog-DevGuide-Editor.md</a></td><td>3</td></tr>
+<tr><td>Admin</td><td><a href="./TechieBlog-DevGuide-Admin.html">./TechieBlog-DevGuide-Admin.md</a></td><td>11</td></tr>
+</tbody></table>
+<p><strong>Contributor</strong> has no screens of its own. The <code>ContributorOrAbove</code> policy is registered in <code>source/TechieBlog/Program.cs:96</code> but <strong>no page references it</strong> — a Contributor can reach only what a Reader can. Logged as a finding (§6).</p>
+<p><strong>Structure decision:</strong> split per role — 6 roles (≥ 3) and 40 routable screens (&gt; 12), so the auto-rule in <code>devguide.md §3</code> selects the split layout under <code>docs/devguides/</code>.</p>
+<h2 id="architecture-cheat-sheet">2. Architecture cheat-sheet<a class="anchor-link" href="#architecture-cheat-sheet">#</a></h2>
+<p>Full detail: <code>docs/TechieBlog-Architecture.md</code>.</p>
+<div class="diagram">
+  <div class="dt">
+    <button data-zout title="Zoom out">−</button>
+    <span class="zlabel">100%</span>
+    <button data-zin title="Zoom in">+</button>
+    <button data-fit title="Fit to width">Fit</button>
+    <button data-one title="Actual size">1:1</button>
+    <button data-fs title="Fullscreen">⬜</button>
+    <button data-pop title="Open in new tab">↗</button>
+  </div>
+<pre class="mermaid">flowchart LR
+  Page["Razor page — source/BlogUI/Pages"] --> Svc["Service — source/BlogEngine/Services"]
+  Page --> Repo2["Repository directly — some pages inject IBlogUserRepo"]
+  Svc --> Repo["Repository — source/BlogEngine/DbAccess"]
+  Repo2 --> Gen["GenericRepository — source/BlogEngine/DaCore"]
+  Repo --> Gen
+  Gen --> Pg[("PostgreSQL — Npgsql plus Dapper")]</pre>
+</div>
+<table>
+<thead><tr><th>Layer</th><th>Path</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>Host</td><td><code>source/TechieBlog/</code></td><td><code>Program.cs</code> — DI, Serilog, cookie auth + 5 policies, DbUp at startup, <code>/sitemap.xml</code>, <code>/robots.txt</code></td></tr>
+<tr><td>UI (RCL)</td><td><code>source/BlogUI/</code></td><td><code>Pages/</code>, <code>Components/</code>, <code>Layouts/</code>, <code>Common/</code>, <code>wwwroot/Themes/</code></td></tr>
+<tr><td>Services</td><td><code>source/BlogEngine/Services/</code></td><td>14 services, registered in <code>BlogSvcInitializer.cs</code></td></tr>
+<tr><td>Data access</td><td><code>source/BlogEngine/DbAccess/</code></td><td>18 Dapper repositories over <code>DaCore/GenericRepository.cs</code></td></tr>
+<tr><td>Contracts</td><td><code>source/BlogModel/</code></td><td>Entities, interfaces, <code>AppRoles</code>/<code>AppPolicies</code>, <code>Result&lt;T&gt;</code>, <code>AppEncrypt</code></td></tr>
+<tr><td>Migrations</td><td><code>source/BlogDb/PostgresScripts/</code></td><td><code>001</code>…<code>013</code> (011 unused), applied by DbUp on every boot</td></tr>
+</tbody></table>
+<p><strong>Data-access reality check.</strong> The archived architecture doc says stored functions are preferred. In practice only <code>BlogUserRepo</code> calls PostgreSQL functions (<code>GetLoginUser</code>, <code>GetUserByEmail</code>, <code>SelectBlogUserById</code>, <code>InsertBlogUser</code>); every other repository issues <strong>inline parameterised SQL</strong> against the tables. Both forms are safe (Dapper <code>DynamicParameters</code> everywhere), but expect table SQL, not procs, when you go looking.</p>
+<p><strong>Two access patterns coexist.</strong> Most pages inject a <code>*Svc</code> from <code>BlogEngine.Services</code>. Several pages inject a <strong>repository directly</strong> — <code>AddUser</code>, <code>UsersList</code>, <code>ManageProfile</code>, <code>ManageImages</code>, <code>ManageSkills</code>, <code>ManageAwards</code>, <code>ManageExperience</code>, <code>AuthorsPage</code>, <code>AuthorProfilePage</code> and <code>ResumePage</code> all take <code>IBlogUserRepo</code> / <code>IUserSkillsRepo</code> / <code>IUserAwardsRepo</code> / <code>IUserEventRepo</code> straight into the page. There is no user <em>service</em>; that layer simply does not exist. Keep this in mind before "following the service" for a user-related bug — there isn't one.</p>
+<h2 id="roles-and-menu-map">3. Roles and menu map<a class="anchor-link" href="#roles-and-menu-map">#</a></h2>
+<p>Roles come from <code>source/BlogModel/Common/AppRoles.cs</code> and the policies in <code>source/TechieBlog/Program.cs:81-102</code>, reconciled against the test-user table in <code>docs/TechieBlog-UsageGuide.md</code>.</p>
+<table>
+<thead><tr><th>Policy</th><th>Roles</th><th>Registered at</th></tr></thead>
+<tbody>
+<tr><td><code>AdminOnly</code></td><td>Admin</td><td><code>Program.cs:84</code></td></tr>
+<tr><td><code>EditorOrAbove</code></td><td>Admin, Editor</td><td><code>Program.cs:88</code></td></tr>
+<tr><td><code>AuthorOrAbove</code></td><td>Admin, Editor, Author</td><td><code>Program.cs:92</code></td></tr>
+<tr><td><code>ContributorOrAbove</code></td><td>Admin, Editor, Author, Contributor</td><td><code>Program.cs:96</code> — <strong>unused by any page</strong></td></tr>
+<tr><td><code>Authenticated</code></td><td>any signed-in user</td><td><code>Program.cs:100</code></td></tr>
+</tbody></table>
+<p><strong>Public header menu</strong> (<code>source/BlogUI/Components/Header.razor:25-36</code>): Home <code>/</code>, Categories <code>/categories</code>, Series <code>/series</code>, Search <code>/search</code>, plus a search box, the theme toggle and the user menu.</p>
+<p><strong>Admin sidebar menu</strong> (<code>source/BlogUI/Layouts/AdminLayout.razor:19-141</code>): Dashboard <code>/admin</code>, Posts <code>/BlogsList</code>, Users <code>/users</code>, Comments <code>/CommentsList</code>, Categories <code>/CategoriesList</code>, Tags <code>/admin/tags</code>, Series <code>/SeriesList</code>, Profile <code>/admin/profile</code>, Experience <code>/admin/experience</code>, Skills <code>/admin/skills</code>, Awards <code>/admin/awards</code>, Images <code>/admin/images</code>, Subscribers <code>/admin/subscribers</code>, Settings <code>/settings</code>, and a "View Site" link back to <code>/</code>.</p>
+<h3 id="landing-truth-where-a-user-actually-lands-after-login">LANDING-TRUTH — where a user actually lands after login<a class="anchor-link" href="#landing-truth-where-a-user-actually-lands-after-login">#</a></h3>
+<p>Read from <code>source/BlogUI/Pages/AdminPages/LoginPage.razor.cs</code>:</p>
+<ul>
+<li><strong>Successful login → <code>NavigationManager.NavigateTo(&quot;/admin&quot;)</code> at line 106 — for EVERY role</strong>, with no</li>
+</ul>
+<p>  role check anywhere in <code>ValidateUser()</code>.</p>
+<ul>
+<li>An <strong>already-authenticated</strong> user who opens <code>/login</code> is sent to <code>/</code> (<code>line 74</code>, in <code>OnInitializedAsync</code>).</li>
+<li>Registration success → <code>/login</code> (<code>RegisterPage.razor:160</code>).</li>
+</ul>
+<blockquote><strong>DEFECT (static) — role-blind post-login redirect.</strong> <code>/admin</code> is guarded by <code>EditorOrAbove</code> (<code>AdminDashboard.razor:12</code>). A <strong>Reader</strong> or <strong>Contributor</strong> who logs in is therefore redirected straight to a page their policy rejects, landing on <code>/access-denied</code>. The fix is a role-aware redirect (Reader → <code>/</code>, Editor/Admin → <code>/admin</code>). Logged to REQ-UI-001 / REQ-FN-009.</blockquote>
+<h2 id="screens">4. Screens<a class="anchor-link" href="#screens">#</a></h2>
+<p>See the per-role files linked in §1.</p>
+<h2 id="cross-cutting-notes-for-bug-chasing">5. Cross-cutting notes for bug-chasing<a class="anchor-link" href="#cross-cutting-notes-for-bug-chasing">#</a></h2>
+<ul>
+<li><strong>No user service layer</strong> — user reads/writes go page → <code>IBlogUserRepo</code> (see §2).</li>
+<li><strong><code>Result&lt;T&gt;</code></strong> (<code>source/BlogModel/Common/Result.cs</code>) is the service return convention; a page that</li>
+</ul>
+<p>  ignores <code>Result.IsSuccess</code> will silently swallow a failure. Check this first when "save did nothing".</p>
+<ul>
+<li><strong>Markdown</strong> is rendered by <code>MarkdownRenderer.ToHtml</code> (<code>source/BlogEngine/Common/MarkdownRenderer.cs</code>,</li>
+</ul>
+<p>  singleton) — injected directly into <code>PostView.razor</code> and <code>PreviewPost.razor</code>.</p>
+<ul>
+<li><strong>Reading time</strong> comes from the static <code>ReadingTimeCalculator.Calculate</code> — called from the <em>pages</em></li>
+</ul>
+<p>  (Home, PostView, CategoryArchive, TagArchive, SeriesView, PreviewPost), not from a service.</p>
+<ul>
+<li><strong>Slugs</strong> come from the static <code>SlugGenerator.GenerateSlug</code>, called from <code>ManageTag.razor</code> and</li>
+</ul>
+<p>  <code>{unresolved — TODO: confirm where post slugs are generated; ManagePost.razor.cs calls BlogService.SavePost, and slug assignment was not located}</code>.</p>
+<ul>
+<li><strong>Logging</strong>: everything flows through Serilog to <code>logs/techieblog-*.log</code> (daily rolling, 7 retained).</li>
+</ul>
+<p>  For a runtime bug, that file is the first place to look — including password-reset "emails", which   <code>ConsoleEmailService</code> writes to the log instead of sending.</p>
+<h2 id="findings-logged-to-the-checklist">6. Findings logged to the checklist<a class="anchor-link" href="#findings-logged-to-the-checklist">#</a></h2>
+<p>All of these were confirmed by reading the code and are recorded in <code>docs/TechieBlog-Checklist.md</code> Remarks:</p>
+<table>
+<thead><tr><th>#</th><th>Finding</th><th>File:line</th><th>Owning REQ</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Post-login redirect is role-blind — every role is sent to <code>/admin</code>, which Readers/Contributors cannot enter</td><td><code>LoginPage.razor.cs:106</code></td><td>REQ-UI-001, REQ-FN-009</td></tr>
+<tr><td>2</td><td>Admin dashboard stat tiles are <strong>stub data</strong> — <code>TotalUsers = 1</code>, <code>TotalSubscribers = 1</code>, <code>TotalComments = 0</code>, <code>PendingComments = 0</code> are hardcoded, and "Popular posts" is really <em>recent</em> posts with <code>Views = 0</code></td><td><code>AdminDashboard.razor.cs:59-68</code></td><td>REQ-UI-019, REQ-FN-036</td></tr>
+<tr><td>3</td><td>Site Settings does <strong>not persist</strong> — only the pagination word count is written (to browser local storage); everything else reports "Settings saved successfully" while a <code>TODO</code> admits no database save exists</td><td><code>Settings.razor:327-350</code></td><td>REQ-FN-040, REQ-UI-026</td></tr>
+<tr><td>4</td><td>The site theme is stored <strong>per browser</strong> in local storage, so the "admin-selectable <em>site</em> theme" is actually a per-visitor preference</td><td><code>Common/ThemeService.cs:46-50</code>, <code>Settings.razor:14</code></td><td>REQ-UI-032, REQ-FN-039</td></tr>
+<tr><td>5</td><td><code>ContributorOrAbove</code> policy is registered but no page uses it — the Contributor role grants nothing beyond Reader</td><td><code>Program.cs:96</code></td><td>REQ-FN-009</td></tr>
+<tr><td>6</td><td>Orphan code-behinds <code>BlogHome.razor.cs</code> and <code>BlogPage.razor.cs</code> have no matching <code>.razor</code> — dead legacy files</td><td><code>source/BlogUI/Pages/BlogPages/</code></td><td>REQ-NFR-020</td></tr>
+<tr><td>7</td><td>Duplicate <code>AccessDenied</code> exists as both a page and a component</td><td><code>Pages/AccessDenied.razor</code>, <code>Components/AccessDenied.razor</code></td><td>REQ-NFR-020</td></tr>
+<tr><td>8</td><td>Solution does not build (<code>NU1605</code>) — blocks every runtime verification</td><td><code>source/BlogUI/BlogUI.csproj</code></td><td>REQ-FN-043</td></tr>
+</tbody></table>
+<hr>
+<p>Generated 2026-08-02 · reflects code as built · ⚠ STATIC-ONLY</p>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+<script>// Light/dark toggle. The initial theme was already applied flash-free by the
+// <head> script (saved choice, else time-of-day). Clicking flips it, saves the
+// choice, and reloads so Mermaid re-renders in the matching theme.
+(function(){
+  var btn = document.getElementById('themeToggle');
+  if(!btn) return;
+  var relabel = function(){
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    btn.textContent = dark ? '☀ Light' : '☾ Dark';
+  };
+  relabel();
+  btn.addEventListener('click', function(){
+    var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    try{ localStorage.setItem('tf-theme', next); }catch(e){}
+    location.reload();
+  });
+})();
+
+// Copy buttons on every code <pre> — but NEVER on a `pre.mermaid`.
+document.querySelectorAll('pre:not(.mermaid)').forEach(pre => {
+  const btn = document.createElement('button');
+  btn.className = 'copy';
+  btn.textContent = 'copy';
+  btn.addEventListener('click', () => {
+    const text = pre.querySelector('code') ? pre.querySelector('code').innerText : pre.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'copied';
+      setTimeout(() => { btn.textContent = 'copy'; }, 1200);
+    });
+  });
+  pre.appendChild(btn);
+});
+
+// Mermaid init — theme follows the resolved light/dark theme
+if (window.mermaid) {
+  var mermaidTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
+  mermaid.initialize({ startOnLoad: true, theme: mermaidTheme, securityLevel: 'loose' });
+}
+
+// Mermaid toolbar wiring — run after mermaid renders
+function wireMermaidToolbars() {
+  document.querySelectorAll('.diagram').forEach(dia => {
+    if (dia.dataset.wired) return;
+    const merm = dia.querySelector('.mermaid');
+    const svg = merm && merm.querySelector('svg');
+    if (!svg) return;
+    dia.dataset.wired = '1';
+    let scale = 1;
+    const label = dia.querySelector('.zlabel');
+    const apply = () => {
+      svg.style.transform = `scale(${scale})`;
+      svg.style.transformOrigin = 'top left';
+      if (label) label.textContent = Math.round(scale * 100) + '%';
+    };
+    const setScale = (s) => { scale = Math.max(0.25, Math.min(4, s)); apply(); };
+    dia.querySelector('[data-zin]').onclick = () => setScale(scale * 1.2);
+    dia.querySelector('[data-zout]').onclick = () => setScale(scale / 1.2);
+    dia.querySelector('[data-fit]').onclick = () => {
+      svg.style.transform = '';
+      svg.removeAttribute('width');
+      svg.style.maxWidth = '100%';
+      svg.style.height = 'auto';
+      scale = 1;
+      if (label) label.textContent = 'Fit';
+    };
+    dia.querySelector('[data-one]').onclick = () => {
+      svg.style.transform = '';
+      svg.style.maxWidth = 'none';
+      svg.style.width = '';
+      svg.style.height = '';
+      scale = 1;
+      if (label) label.textContent = '100%';
+    };
+    dia.querySelector('[data-fs]').onclick = () => {
+      dia.classList.toggle('fs');
+      if (dia.classList.contains('fs')) {
+        document.addEventListener('keydown', escFs);
+      } else {
+        document.removeEventListener('keydown', escFs);
+      }
+    };
+    function escFs(e) { if (e.key === 'Escape') { dia.classList.remove('fs'); document.removeEventListener('keydown', escFs); } }
+    dia.querySelector('[data-pop]').onclick = () => openInNewTab(svg);
+    merm.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setScale(scale * (e.deltaY < 0 ? 1.1 : 1/1.1));
+    }, { passive: false });
+  });
+}
+
+function openInNewTab(svg) {
+  const svgSource = new XMLSerializer().serializeToString(svg);
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Diagram</title>
+<style>
+  html,body{margin:0;height:100%;background:#0f1115;color:#e6e8ee;font-family:system-ui,sans-serif}
+  .bar{position:fixed;top:0;left:0;right:0;padding:8px 12px;background:#161a22;border-bottom:1px solid #2a3142;display:flex;gap:8px;z-index:10}
+  .bar button{background:#1c2230;color:#9aa3b2;border:1px solid #2a3142;border-radius:6px;padding:5px 12px;font-size:13px;cursor:pointer}
+  .bar button:hover{color:#7cc4ff;border-color:#7cc4ff}
+  .bar .hint{margin-left:auto;color:#9aa3b2;font-size:11.5px;align-self:center}
+  #stage{position:absolute;top:42px;bottom:0;left:0;right:0;overflow:hidden}
+  #stage svg{width:100%;height:100%}
+</style>
+</head><body>
+<div class="bar">
+  <button onclick="zpz.zoomIn()">+</button>
+  <button onclick="zpz.zoomOut()">−</button>
+  <button onclick="zpz.fit();zpz.center()">Fit</button>
+  <button onclick="zpz.resetZoom();zpz.center()">1:1</button>
+  <button onclick="window.print()">Print</button>
+  <button onclick="dlPng()">PNG</button>
+  <button onclick="dlSvg()">SVG</button>
+  <span class="hint">Drag to pan · Ctrl+wheel to zoom · + / − keys</span>
+</div>
+<div id="stage">${svgSource}</div>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"><\/script>
+<script>
+  const el = document.querySelector('#stage svg');
+  const zpz = svgPanZoom(el, { zoomScaleSensitivity: .3, minZoom: .2, maxZoom: 10, controlIconsEnabled: false, fit: true, center: true });
+  document.addEventListener('keydown', e => {
+    if (e.key === '+' || e.key === '=') zpz.zoomIn();
+    if (e.key === '-' || e.key === '_') zpz.zoomOut();
+    if (e.key === '0') { zpz.resetZoom(); zpz.center(); }
+  });
+  function dlSvg() {
+    const blob = new Blob([new XMLSerializer().serializeToString(el)], { type: 'image/svg+xml' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'diagram.svg'; a.click();
+  }
+  function dlPng() {
+    const src = new XMLSerializer().serializeToString(el);
+    const img = new Image();
+    const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(src)));
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = el.clientWidth * 2; c.height = el.clientHeight * 2;
+      const ctx = c.getContext('2d'); ctx.scale(2,2); ctx.drawImage(img, 0, 0);
+      c.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'diagram.png'; a.click(); });
+    };
+    img.src = url;
+  }
+<\/script>
+</body></html>`;
+  const w = window.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+if (window.mermaid) {
+  setTimeout(wireMermaidToolbars, 400);
+  setTimeout(wireMermaidToolbars, 1200);
+}</script>
+</body>
+</html>

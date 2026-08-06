@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TechieBlog — Developer Guide · Editor &mdash; TechieBlog</title>
+<script>
+/* Resolve the theme BEFORE first paint (no flash). Saved choice wins; otherwise
+   pick by time of day — light 07:00–19:00 local, softened dark at night. */
+(function(){
+  try{
+    var t = localStorage.getItem('tf-theme');
+    if(t!=='light' && t!=='dark'){ var h = new Date().getHours(); t = (h>=7 && h<19) ? 'light' : 'dark'; }
+    document.documentElement.setAttribute('data-theme', t);
+  }catch(e){ document.documentElement.setAttribute('data-theme','light'); }
+})();
+</script>
+<style>/* LIGHT is the default theme — a warm off-white, easy on the eyes (never bright white). */
+:root{
+  --bg:#f4f1e9; --panel:#efe9db; --panel2:#e7e0cd; --line:#d8cfb6;
+  --ink:#2e2a22; --muted:#6f6857; --accent:#2f6f9f; --accent2:#3f7d54;
+  --warn:#9a6b15; --danger:#b03a52; --ok:#3f7d54;
+  --code-bg:#ece5d3; --code-ink:#332f26; --row-alt:#eae2cf;
+  --h3:#3a352b; --h4:#2f6f9f; --quote:#4a4537; --cta-bg:#e6eef5;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+/* DARK — softened near-black (warmer / less harsh than pure #0f1115). */
+html[data-theme="dark"]{
+  --bg:#11141a; --panel:#171b23; --panel2:#1e2430; --line:#2b3240;
+  --ink:#dfe3ea; --muted:#99a2b1; --accent:#7cc4ff; --accent2:#a6e3a1;
+  --warn:#f9c74f; --danger:#f38ba8; --ok:#a6e3a1;
+  --code-bg:#0c1016; --code-ink:#d8dde8; --row-alt:#141821;
+  --h3:#cfd5e3; --h4:#7cc4ff; --quote:#cfd5e3; --cta-bg:#0d2030;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;font-size:15px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:var(--mono);font-size:13px;background:var(--code-bg);color:var(--code-ink);padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+pre{font-family:var(--mono);font-size:12.5px;background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto;color:var(--code-ink);position:relative}
+pre code{background:none;border:none;padding:0}
+.copy{position:absolute;top:8px;right:8px;background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:11px;font-family:var(--sans);cursor:pointer}
+.copy:hover{color:var(--accent);border-color:var(--accent)}
+/* floating light/dark toggle (top-right) */
+.theme-toggle{position:fixed;top:12px;right:14px;z-index:10000;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12.5px;font-family:var(--sans);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.theme-toggle:hover{color:var(--accent);border-color:var(--accent)}
+
+.layout{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+.layout.no-toc{grid-template-columns:1fr}
+nav.side{position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--line);background:var(--panel);padding:18px 14px}
+nav.side h1{font-size:14px;margin:0 0 4px;letter-spacing:.5px;color:var(--ink)}
+nav.side .sub{font-size:11.5px;color:var(--muted);margin-bottom:14px}
+nav.side ol,nav.side ul{list-style:none;padding:0;margin:0}
+nav.side li{font-size:13px;margin:2px 0}
+nav.side li a{display:block;padding:5px 8px;color:var(--ink);border-radius:6px}
+nav.side li a:hover{background:var(--panel2);text-decoration:none}
+nav.side li.h3 a{padding-left:22px;font-size:12.5px;color:var(--h3)}
+nav.side .group{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin:14px 8px 4px}
+
+main{padding:28px 40px 80px;max-width:1100px}
+.layout.no-toc main{margin:0 auto}
+
+h1{font-size:28px;margin:0 0 6px}
+h2{font-size:22px;margin:32px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);scroll-margin-top:16px}
+h3{font-size:17px;margin:22px 0 6px;color:var(--h3);scroll-margin-top:16px}
+h4{font-size:14px;margin:14px 0 4px;color:var(--h4);scroll-margin-top:16px}
+.subtitle{color:var(--muted);font-size:14px;margin-top:-4px;margin-bottom:18px}
+p{margin:6px 0 10px}
+blockquote{border-left:3px solid var(--accent);background:var(--panel);margin:8px 0;padding:8px 14px;color:var(--quote)}
+ul,ol{padding-left:22px}
+li{margin:2px 0}
+
+table{border-collapse:collapse;width:100%;font-size:13.5px;margin:8px 0}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--panel2);color:var(--h3);font-weight:600}
+tr:nth-child(even) td{background:var(--row-alt)}
+
+hr{border:none;border-top:1px solid var(--line);margin:24px 0}
+.anchor-link{color:var(--muted);font-weight:400;font-size:0.85em;margin-left:8px;opacity:0;transition:opacity .15s;text-decoration:none}
+h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
+
+/* inline TOC at top of main content */
+.toc-inline{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 16px;margin:14px 0 24px}
+.toc-inline > div{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.toc-inline ol,.toc-inline ul{margin:4px 0;padding-left:18px}
+.toc-inline li{font-size:13px;margin:1px 0}
+.toc-inline a{color:var(--h3)}
+
+/* NEXT COMMAND call-to-action box */
+.cta{background:var(--cta-bg);border:1px solid var(--accent);border-radius:8px;padding:12px 16px;margin:18px 0}
+.cta .lbl{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+
+/* mermaid diagram wrapper + toolbar */
+.diagram{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--code-bg);margin:14px 0;overflow:hidden}
+.diagram .mermaid{padding:14px;margin:0;background:transparent;border:none;overflow:auto}
+.diagram .dt{display:flex;gap:6px;justify-content:flex-end;padding:6px 8px;background:var(--row-alt);border-bottom:1px solid var(--line)}
+.diagram .dt button{background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 10px;font-size:12px;font-family:var(--sans);cursor:pointer;min-width:30px}
+.diagram .dt button:hover{color:var(--accent);border-color:var(--accent)}
+.diagram .dt .zlabel{padding:3px 6px;font-size:11px;color:var(--muted);font-family:var(--mono);align-self:center}
+.diagram.fs{position:fixed;inset:0;z-index:9999;border-radius:0;border:none}
+.diagram.fs .mermaid{height:calc(100vh - 40px);display:flex;align-items:center;justify-content:center}
+
+@media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{position:static;height:auto}}</style>
+</head>
+<body>
+<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">&#9782; Dark</button>
+<div class="layout no-toc">
+
+  <main>
+    <h1>TechieBlog — Developer Guide · Editor</h1>
+    <div class="subtitle">Generated 2026-08-02 · code as built · STATIC-ONLY</div>
+
+<div class="toc-inline">
+<div>Contents</div>
+<ol>
+<li><a href="#editor-admin-dashboard-admin-admindashboard">Editor · Admin dashboard (<code>/admin</code>, <code>/AdminDashboard</code>)</a></li>
+<li><a href="#editor-comment-moderation-commentslist-comments">Editor · Comment moderation (<code>/CommentsList</code>, <code>/comments</code>)</a></li>
+<li><a href="#editor-all-posts-blogslist">Editor · All posts (<code>/BlogsList</code>)</a></li>
+</ol>
+</div>
+<blockquote>⚠ <strong>STATIC-ONLY (2026-08-02)</strong> — built from code reading; NOT yet runtime-verified. Render-status is unconfirmed until <code>*verify</code> runs against the running app (the solution currently does not compile — REQ-FN-043).</blockquote>
+<p>Index: <a href="./TechieBlog-DevGuide.html">TechieBlog-DevGuide.md</a></p>
+<p>An Editor sees every Author screen plus the three below. All are guarded by <code>@attribute [Authorize(Policy = &quot;EditorOrAbove&quot;)]</code> (Admin, Editor) and use <code>AdminLayout</code>. Editors are also the lowest role that the post-login redirect (<code>/admin</code>) actually works for.</p>
+<h2 id="editor-admin-dashboard-admin-admindashboard">Editor · Admin dashboard (<code>/admin</code>, <code>/AdminDashboard</code>)<a class="anchor-link" href="#editor-admin-dashboard-admin-admindashboard">#</a></h2>
+<p><strong>File:</strong> <code>source/BlogUI/Pages/AdminPages/AdminDashboard.razor</code> + <code>.razor.cs</code></p>
+<div class="diagram">
+  <div class="dt">
+    <button data-zout title="Zoom out">−</button>
+    <span class="zlabel">100%</span>
+    <button data-zin title="Zoom in">+</button>
+    <button data-fit title="Fit to width">Fit</button>
+    <button data-one title="Actual size">1:1</button>
+    <button data-fs title="Fullscreen">⬜</button>
+    <button data-pop title="Open in new tab">↗</button>
+  </div>
+<pre class="mermaid">flowchart LR
+  AD["AdminDashboard.razor.cs"] --> B["BlogSvc.GetAllPosts"]
+  B --> R["BlogPostRepo"]
+  R --> DB[("BlogPost")]
+  AD --> Stub["TotalUsers, TotalSubscribers, TotalComments — hardcoded"]</pre>
+</div>
+<table>
+<thead><tr><th>Control</th><th>What it shows</th><th>Source</th><th>Render status</th></tr></thead>
+<tbody>
+<tr><td>Total posts tile</td><td><code>posts.Count</code></td><td><code>BlogService.GetAllPosts(0, true)</code> — <code>AdminDashboard.razor.cs:46-47</code></td><td>static-only (unconfirmed)</td></tr>
+<tr><td>Posts this month</td><td><code>posts.Count(p =&gt; p.CreatedOn &gt;= startOfMonth)</code></td><td><code>:51-52</code></td><td>static-only (unconfirmed)</td></tr>
+<tr><td>Draft / scheduled counts</td><td>LINQ over the same list</td><td><code>:48-49</code></td><td>static-only (unconfirmed)</td></tr>
+<tr><td><strong>Total users tile</strong></td><td><strong><code>TotalUsers = 1</code> — hardcoded</strong></td><td><code>:63</code></td><td><strong>DEFECT (static) — stub data</strong></td></tr>
+<tr><td><strong>Users this month</strong></td><td><strong><code>UsersThisMonth = 0</code> — hardcoded</strong></td><td><code>:64</code></td><td><strong>DEFECT (static) — stub data</strong></td></tr>
+<tr><td><strong>Subscribers tile</strong></td><td><strong><code>TotalSubscribers = 1</code> — hardcoded</strong></td><td><code>:65</code></td><td><strong>DEFECT (static) — stub data</strong></td></tr>
+<tr><td><strong>Subscribers this month</strong></td><td><strong><code>SubscribersThisMonth = 0</code> — hardcoded</strong></td><td><code>:66</code></td><td><strong>DEFECT (static) — stub data</strong></td></tr>
+<tr><td><strong>Comments tile</strong></td><td><strong><code>TotalComments = 0</code> — hardcoded</strong></td><td><code>:67</code></td><td><strong>DEFECT (static) — stub data</strong></td></tr>
+<tr><td><strong>Pending comments badge</strong></td><td><strong><code>PendingComments = 0</code> — hardcoded</strong>, so the badge always reads "All reviewed"</td><td><code>:68</code>, markup <code>AdminDashboard.razor:33-40</code></td><td><strong>DEFECT (static) — stub data</strong></td></tr>
+<tr><td><strong>"Popular posts"</strong></td><td>Recent <em>published</em> posts with <code>Views = 0</code></td><td><code>:55-59</code></td><td><strong>DEFECT (static) — mislabelled; no view data exists</strong></td></tr>
+<tr><td>Recent activity feed</td><td>Derived from published posts</td><td><code>BuildRecentActivity(...)</code> <code>:85-92</code></td><td>static-only (unconfirmed)</td></tr>
+</tbody></table>
+<p><strong>This is the highest-value finding in the guide.</strong> <code>CommentSvc.GetAdminCounts()</code> and the <code>AdminCounts</code> model exist and would supply real comment counts, and <code>IBlogUserRepo</code> / <code>ISubscriberRepo</code> could supply the rest — but the dashboard injects <strong>only <code>BlogSvc</code></strong> (<code>AdminDashboard.razor.cs:15-16</code>) and fills the other three tiles with constants. The screen renders and looks correct; the numbers are fiction. Logged to REQ-UI-019 and REQ-FN-036 as <code>Needs re-verify</code>.</p>
+<p><strong>Data lineage</strong></p>
+<table>
+<thead><tr><th>Step</th><th>Symbol</th><th>File</th></tr></thead>
+<tbody>
+<tr><td>Page</td><td><code>AdminDashboard.razor.cs</code> <code>[Inject] BlogSvc BlogService</code></td><td><code>Pages/AdminPages/AdminDashboard.razor.cs:15</code></td></tr>
+<tr><td>Service</td><td><code>BlogSvc.GetAllPosts(int, bool)</code></td><td><code>BlogEngine/Services/BlogSvc.cs</code></td></tr>
+<tr><td>Data access</td><td><code>BlogPostRepo</code></td><td><code>BlogEngine/DbAccess/BlogPostRepo.cs</code></td></tr>
+<tr><td>SQL</td><td>inline <code>SELECT p.PostID …</code> on <code>BlogPost</code></td><td><code>BlogPostRepo.cs</code></td></tr>
+<tr><td>Users / comments / subscribers</td><td><strong>none — constants in the page</strong></td><td><code>AdminDashboard.razor.cs:63-68</code></td></tr>
+</tbody></table>
+<p><strong>Fix sketch:</strong> inject <code>CommentSvc</code>, <code>IBlogUserRepo</code> and <code>SubscriberSvc</code>; replace lines 63–68 with <code>CommentService.GetAdminCounts()</code>, <code>UserRepo.GetAll(...).Count()</code> and <code>SubscriberService.GetAllSubscribers().Count()</code>; leave <code>PopularPosts</code> stubbed until REQ-FN-034 (view tracking) lands, but rename it so it does not claim to be popularity.</p>
+<h2 id="editor-comment-moderation-commentslist-comments">Editor · Comment moderation (<code>/CommentsList</code>, <code>/comments</code>)<a class="anchor-link" href="#editor-comment-moderation-commentslist-comments">#</a></h2>
+<p><strong>File:</strong> <code>source/BlogUI/Pages/AdminPages/CommentsList.razor</code></p>
+<div class="diagram">
+  <div class="dt">
+    <button data-zout title="Zoom out">−</button>
+    <span class="zlabel">100%</span>
+    <button data-zin title="Zoom in">+</button>
+    <button data-fit title="Fit to width">Fit</button>
+    <button data-one title="Actual size">1:1</button>
+    <button data-fs title="Fullscreen">⬜</button>
+    <button data-pop title="Open in new tab">↗</button>
+  </div>
+<pre class="mermaid">flowchart LR
+  CL["CommentsList.razor"] --> CS["CommentSvc"]
+  CL --> BS["BlogSvc.GetSinglePost"]
+  CS --> CR["BlogCommentRepo"]
+  CR --> DB[("blogcomment")]</pre>
+</div>
+<table>
+<thead><tr><th>Control</th><th>What it does</th><th>Source call</th><th>Render status</th></tr></thead>
+<tbody>
+<tr><td>Comment table</td><td>All comments, paged</td><td><code>CommentService.GetAllComments(...)</code></td><td>static-only (unconfirmed)</td></tr>
+<tr><td>Post title per row</td><td>Resolves the owning post</td><td><code>BlogService.GetSinglePost(...)</code></td><td>static-only (unconfirmed) — <em>per-row lookup; potential N+1</em></td></tr>
+<tr><td>Approve</td><td>Publishes a pending comment</td><td><code>CommentService.ApproveComment(...)</code></td><td>static-only (unconfirmed)</td></tr>
+<tr><td>Delete</td><td>Removes a comment</td><td><code>CommentService.DeleteComment(...)</code></td><td>static-only (unconfirmed)</td></tr>
+</tbody></table>
+<p><strong>Data lineage:</strong> page → <code>CommentSvc</code> (<code>BlogEngine/Services/CommentSvc.cs</code>, 313 lines, FIX-005) → <code>BlogCommentRepo</code> → <code>SELECT * FROM blogcomment</code>, <code>UPDATE blogcomment</code>, <code>DELETE FROM blogcomment</code>, <code>INSERT INTO blogcomment</code>.</p>
+<p><strong>Business rules:</strong> approval is required only when comment moderation is enabled — but that setting is never persisted (see the Admin guide, Settings). <code>{unresolved — TODO: locate the runtime source of the moderation flag.}</code></p>
+<p><strong>Known issues (static):</strong></p>
+<ol>
+<li><code>GetSinglePost</code> is called per row to render the post title — an N+1 query pattern on a page that</li>
+</ol>
+<p>   pages through all comments. Worth a join in <code>CommentSvc.GetAllComments</code>.</p>
+<ol>
+<li>Story 4.2 specifies bulk approve/reject and a rejection reason; only single approve and delete were</li>
+</ol>
+<p>   found. <code>{unresolved — TODO: confirm whether bulk actions exist in the markup.}</code></p>
+<ol>
+<li><code>ManageComments.razor</code> exists with an 11-line code-behind containing only a <code>partial class</code></li>
+</ol>
+<p>   declaration — an empty scaffold. Confirm whether it is reachable or dead    (<code>Pages/AdminPages/ManageComments.razor.cs:9</code>).</p>
+<h2 id="editor-all-posts-blogslist">Editor · All posts (<code>/BlogsList</code>)<a class="anchor-link" href="#editor-all-posts-blogslist">#</a></h2>
+<p>Documented in the Author guide (the page is guarded <code>EditorOrAbove</code>, so in practice it is an Editor screen — that mismatch is itself a logged finding).</p>
+<hr>
+<p>Generated 2026-08-02 · reflects code as built · ⚠ STATIC-ONLY</p>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+<script>// Light/dark toggle. The initial theme was already applied flash-free by the
+// <head> script (saved choice, else time-of-day). Clicking flips it, saves the
+// choice, and reloads so Mermaid re-renders in the matching theme.
+(function(){
+  var btn = document.getElementById('themeToggle');
+  if(!btn) return;
+  var relabel = function(){
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    btn.textContent = dark ? '☀ Light' : '☾ Dark';
+  };
+  relabel();
+  btn.addEventListener('click', function(){
+    var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    try{ localStorage.setItem('tf-theme', next); }catch(e){}
+    location.reload();
+  });
+})();
+
+// Copy buttons on every code <pre> — but NEVER on a `pre.mermaid`.
+document.querySelectorAll('pre:not(.mermaid)').forEach(pre => {
+  const btn = document.createElement('button');
+  btn.className = 'copy';
+  btn.textContent = 'copy';
+  btn.addEventListener('click', () => {
+    const text = pre.querySelector('code') ? pre.querySelector('code').innerText : pre.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'copied';
+      setTimeout(() => { btn.textContent = 'copy'; }, 1200);
+    });
+  });
+  pre.appendChild(btn);
+});
+
+// Mermaid init — theme follows the resolved light/dark theme
+if (window.mermaid) {
+  var mermaidTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
+  mermaid.initialize({ startOnLoad: true, theme: mermaidTheme, securityLevel: 'loose' });
+}
+
+// Mermaid toolbar wiring — run after mermaid renders
+function wireMermaidToolbars() {
+  document.querySelectorAll('.diagram').forEach(dia => {
+    if (dia.dataset.wired) return;
+    const merm = dia.querySelector('.mermaid');
+    const svg = merm && merm.querySelector('svg');
+    if (!svg) return;
+    dia.dataset.wired = '1';
+    let scale = 1;
+    const label = dia.querySelector('.zlabel');
+    const apply = () => {
+      svg.style.transform = `scale(${scale})`;
+      svg.style.transformOrigin = 'top left';
+      if (label) label.textContent = Math.round(scale * 100) + '%';
+    };
+    const setScale = (s) => { scale = Math.max(0.25, Math.min(4, s)); apply(); };
+    dia.querySelector('[data-zin]').onclick = () => setScale(scale * 1.2);
+    dia.querySelector('[data-zout]').onclick = () => setScale(scale / 1.2);
+    dia.querySelector('[data-fit]').onclick = () => {
+      svg.style.transform = '';
+      svg.removeAttribute('width');
+      svg.style.maxWidth = '100%';
+      svg.style.height = 'auto';
+      scale = 1;
+      if (label) label.textContent = 'Fit';
+    };
+    dia.querySelector('[data-one]').onclick = () => {
+      svg.style.transform = '';
+      svg.style.maxWidth = 'none';
+      svg.style.width = '';
+      svg.style.height = '';
+      scale = 1;
+      if (label) label.textContent = '100%';
+    };
+    dia.querySelector('[data-fs]').onclick = () => {
+      dia.classList.toggle('fs');
+      if (dia.classList.contains('fs')) {
+        document.addEventListener('keydown', escFs);
+      } else {
+        document.removeEventListener('keydown', escFs);
+      }
+    };
+    function escFs(e) { if (e.key === 'Escape') { dia.classList.remove('fs'); document.removeEventListener('keydown', escFs); } }
+    dia.querySelector('[data-pop]').onclick = () => openInNewTab(svg);
+    merm.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setScale(scale * (e.deltaY < 0 ? 1.1 : 1/1.1));
+    }, { passive: false });
+  });
+}
+
+function openInNewTab(svg) {
+  const svgSource = new XMLSerializer().serializeToString(svg);
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Diagram</title>
+<style>
+  html,body{margin:0;height:100%;background:#0f1115;color:#e6e8ee;font-family:system-ui,sans-serif}
+  .bar{position:fixed;top:0;left:0;right:0;padding:8px 12px;background:#161a22;border-bottom:1px solid #2a3142;display:flex;gap:8px;z-index:10}
+  .bar button{background:#1c2230;color:#9aa3b2;border:1px solid #2a3142;border-radius:6px;padding:5px 12px;font-size:13px;cursor:pointer}
+  .bar button:hover{color:#7cc4ff;border-color:#7cc4ff}
+  .bar .hint{margin-left:auto;color:#9aa3b2;font-size:11.5px;align-self:center}
+  #stage{position:absolute;top:42px;bottom:0;left:0;right:0;overflow:hidden}
+  #stage svg{width:100%;height:100%}
+</style>
+</head><body>
+<div class="bar">
+  <button onclick="zpz.zoomIn()">+</button>
+  <button onclick="zpz.zoomOut()">−</button>
+  <button onclick="zpz.fit();zpz.center()">Fit</button>
+  <button onclick="zpz.resetZoom();zpz.center()">1:1</button>
+  <button onclick="window.print()">Print</button>
+  <button onclick="dlPng()">PNG</button>
+  <button onclick="dlSvg()">SVG</button>
+  <span class="hint">Drag to pan · Ctrl+wheel to zoom · + / − keys</span>
+</div>
+<div id="stage">${svgSource}</div>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"><\/script>
+<script>
+  const el = document.querySelector('#stage svg');
+  const zpz = svgPanZoom(el, { zoomScaleSensitivity: .3, minZoom: .2, maxZoom: 10, controlIconsEnabled: false, fit: true, center: true });
+  document.addEventListener('keydown', e => {
+    if (e.key === '+' || e.key === '=') zpz.zoomIn();
+    if (e.key === '-' || e.key === '_') zpz.zoomOut();
+    if (e.key === '0') { zpz.resetZoom(); zpz.center(); }
+  });
+  function dlSvg() {
+    const blob = new Blob([new XMLSerializer().serializeToString(el)], { type: 'image/svg+xml' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'diagram.svg'; a.click();
+  }
+  function dlPng() {
+    const src = new XMLSerializer().serializeToString(el);
+    const img = new Image();
+    const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(src)));
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = el.clientWidth * 2; c.height = el.clientHeight * 2;
+      const ctx = c.getContext('2d'); ctx.scale(2,2); ctx.drawImage(img, 0, 0);
+      c.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'diagram.png'; a.click(); });
+    };
+    img.src = url;
+  }
+<\/script>
+</body></html>`;
+  const w = window.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+if (window.mermaid) {
+  setTimeout(wireMermaidToolbars, 400);
+  setTimeout(wireMermaidToolbars, 1200);
+}</script>
+</body>
+</html>

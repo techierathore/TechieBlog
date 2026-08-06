@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<!-- ============================================================
+  Screen: BlogApp — Sign in  ·  Route: (MAUI window · login page)
+  Roles: anonymous → authenticates as web admin users (same credentials/roles as the website)  ·  BRD: BRD-95  ·  REQ: REQ-UI-051
+  NOTE: BlogApp is the MAUI Blazor Hybrid DESKTOP head hosting the SAME BlogUI pages as the website.
+        Auth validates against the site's PostgreSQL over the saved connection — network reach required,
+        no local DB, no sync (BRD-96).
+  Component map (region → TrBlazeUI control):
+    Window chrome      → desktop mock chrome (not a TrBlazeUI control)
+    Card               → TbCard + Typography (brand, heading)
+    Connected-to row   → TbBadge(success dot) + mono text + TbButton(ghost) "Change connection" → 39
+    Form               → TbInput(email) + TbInput(password) + TbButton(primary) "Sign in"
+  States: bad credentials → destructive TbAlert; DB unreachable → destructive TbAlert
+          "Cannot reach database — check network / connection settings" with link to 39; signing in → button loading.
+  Data: same BlogUser credentials & roles as the web admin (Admin / Author).
+============================================================ -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in · BlogApp (TechieBlog Desktop)</title>
+<link rel="stylesheet" href="trblazeui.css">
+</head>
+<body>
+<div class="desktop-bg">
+  <div class="window window--sm">
+    <div class="window__title">● TechieBlog — BlogApp <div class="window__controls"><span>—</span><span>▢</span><span>✕</span></div></div>
+
+    <div style="padding:40px 34px 34px;display:flex;flex-direction:column;align-items:center">
+      <div style="display:inline-flex;align-items:center;gap:9px;font-weight:700;font-size:18px">
+        <span style="width:12px;height:12px;border-radius:50%;background:var(--primary);display:inline-block"></span> TechieBlog · BlogApp
+      </div>
+      <h1 style="font-size:21px;margin:14px 0 4px">Sign in to manage your blog</h1>
+      <p class="muted" style="font-size:13.5px;margin-bottom:18px">Same credentials and roles as the web admin.</p>
+
+      <!-- Connected-to line -->
+      <div style="display:flex;gap:10px;align-items:center;border:1px solid var(--border);border-radius:999px;padding:6px 14px;font-size:13px;margin-bottom:22px">
+        <span style="color:#16a34a">●</span><b>Connected</b>
+        <span class="mono muted">blog.ravirathore.dev · PostgreSQL</span>
+        <a class="btn btn-ghost btn-sm" href="39-blogapp-connection-setup.html">Change connection</a>
+      </div>
+
+      <div style="width:100%;max-width:340px">
+        <div class="field"><label class="label">Email</label><input class="input" value="ravi@techieblog.dev"></div>
+        <div class="field"><label class="label">Password</label><input class="input" type="password" value="••••••••••"></div>
+        <button class="btn btn-primary btn-lg" style="width:100%;margin-top:4px">Sign in</button>
+        <p class="hint" style="text-align:center;margin-top:14px">Roles (Admin / Author) are enforced exactly as on the website.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
