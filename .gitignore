@@ -411,3 +411,10 @@ playwright-report/
 logs/
 /docs/.last-verify.json
 .DS_Store
+
+# Local NuGet feed credentials (REQ-NFR-025). Holds a GitHub PAT in <ClearTextPassword>
+# for the TrBlazeUI GitHub Packages feed, so it must never be committed.
+# NOTE: this file is ALREADY TRACKED — ignoring it does not untrack it and does not remove it
+# from history. It still needs `git rm --cached nuget.config`, and the PAT still needs REVOKING
+# on GitHub. CI does not use it: .github/workflows/ci.yml writes a throwaway nuget.ci.config.
+/nuget.config
