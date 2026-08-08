@@ -1,150 +1,123 @@
 @*
     About.razor
     Purpose: About page for TechieBlog.
-    Displays information about the blog and its author.
+    Displays information about the blog, its mission, the stack it is built on and contact links.
+
+    REQ-UI-048 — migrated from Microsoft Fluent UI to TrBlazeUI; the page-level
+    <style> block and its hardcoded colours were replaced by semantic Tailwind tokens,
+    so dark mode now comes for free (REQ-UI-033).
 
     Usage: Navigate to /about
-    Dependencies: Microsoft.FluentUI.AspNetCore.Components
     Layout: MainLayout (public site layout)
 *@
 @page "/about"
 @layout MainLayout
 
-<div class="about-page">
-    <article class="about-content">
-        <h1>About TechieBlog</h1>
+<PageTitle>About · TechieBlog</PageTitle>
 
-        <section class="about-section">
-            <h2>Welcome</h2>
-            <p>
-                TechieBlog is a platform dedicated to sharing knowledge about technology,
-                programming, and software development. We aim to provide valuable insights,
-                tutorials, and discussions on the latest trends in the tech industry.
-            </p>
-        </section>
+<div class="mx-auto w-full max-w-[760px] py-8" data-testid="about-page">
 
-        <section class="about-section">
-            <h2>Our Mission</h2>
-            <p>
-                Our mission is to make technology accessible to everyone. Whether you're
-                a seasoned developer or just starting your journey in tech, we strive to
-                create content that is informative, engaging, and practical.
-            </p>
-        </section>
+    <header class="mb-8 flex items-center gap-4">
+        <Avatar Size="AvatarSize.ExtraLarge">
+            <AvatarFallback>TB</AvatarFallback>
+        </Avatar>
+        <TypographyH1>About TechieBlog</TypographyH1>
+    </header>
 
-        <section class="about-section">
-            <h2>What We Cover</h2>
-            <ul>
-                <li>Web Development (Frontend & Backend)</li>
-                <li>.NET, C#, and Microsoft Technologies</li>
-                <li>Cloud Computing and DevOps</li>
-                <li>Software Architecture and Best Practices</li>
-                <li>Database Technologies</li>
-                <li>And much more!</li>
-            </ul>
-        </section>
+    <Card data-testid="about-card">
+        <CardContent Class="flex flex-col gap-8 p-6">
 
-        <section class="about-section">
-            <h2>Connect With Us</h2>
-            <p>
-                We love hearing from our readers! Feel free to reach out through comments
-                on our posts or connect with us on social media.
-            </p>
-            <div class="social-links">
-                <FluentAnchor Href="https://github.com" Appearance="Appearance.Outline" Target="_blank">
-                    <FluentIcon Value="@(new Icons.Regular.Size20.Code())" Style="margin-right: 8px;" />
-                    GitHub
-                </FluentAnchor>
-                <FluentAnchor Href="https://twitter.com" Appearance="Appearance.Outline" Target="_blank">
-                    <FluentIcon Value="@(new Icons.Regular.Size20.Chat())" Style="margin-right: 8px;" />
-                    Twitter
-                </FluentAnchor>
-                <FluentAnchor Href="https://linkedin.com" Appearance="Appearance.Outline" Target="_blank">
-                    <FluentIcon Value="@(new Icons.Regular.Size20.People())" Style="margin-right: 8px;" />
-                    LinkedIn
-                </FluentAnchor>
-            </div>
-        </section>
-    </article>
+            <section class="flex flex-col gap-3">
+                <TypographyH2>Welcome</TypographyH2>
+                <p class="leading-7 text-muted-foreground">
+                    TechieBlog is a platform dedicated to sharing knowledge about technology,
+                    programming, and software development. We aim to provide valuable insights,
+                    tutorials, and discussions on the latest trends in the tech industry.
+                </p>
+            </section>
+
+            <section class="flex flex-col gap-3">
+                <TypographyH2>Our Mission</TypographyH2>
+                <p class="leading-7 text-muted-foreground">
+                    Our mission is to make technology accessible to everyone. Whether you're
+                    a seasoned developer or just starting your journey in tech, we strive to
+                    create content that is informative, engaging, and practical.
+                </p>
+            </section>
+
+            <section class="flex flex-col gap-3">
+                <TypographyH2>What We Cover</TypographyH2>
+                <ul class="list-disc pl-6 leading-8 text-muted-foreground">
+                    <li>Web Development (Frontend &amp; Backend)</li>
+                    <li>.NET, C#, and Microsoft Technologies</li>
+                    <li>Cloud Computing and DevOps</li>
+                    <li>Software Architecture and Best Practices</li>
+                    <li>Database Technologies</li>
+                    <li>And much more!</li>
+                </ul>
+            </section>
+
+            <section class="flex flex-col gap-3">
+                <TypographyH2>Built With</TypographyH2>
+                <div class="flex flex-wrap gap-2" data-testid="about-stack">
+                    @foreach (var tech in StackChips)
+                    {
+                        <Badge Variant="BadgeVariant.Secondary">@tech</Badge>
+                    }
+                </div>
+            </section>
+
+            <section class="flex flex-col gap-3">
+                <TypographyH2>Connect With Us</TypographyH2>
+                <p class="leading-7 text-muted-foreground">
+                    We love hearing from our readers! Feel free to reach out through comments
+                    on our posts or connect with us on social media.
+                </p>
+                <div class="flex flex-wrap gap-3" data-testid="about-links">
+                    <Button Href="https://github.com"
+                            Target="_blank"
+                            Variant="ButtonVariant.Outline"
+                            data-testid="about-github">
+                        <LucideIcon Name="code" Size="16" />
+                        GitHub
+                    </Button>
+                    <Button Href="https://twitter.com"
+                            Target="_blank"
+                            Variant="ButtonVariant.Outline"
+                            data-testid="about-twitter">
+                        <LucideIcon Name="message-square" Size="16" />
+                        Twitter
+                    </Button>
+                    <Button Href="https://linkedin.com"
+                            Target="_blank"
+                            Variant="ButtonVariant.Outline"
+                            data-testid="about-linkedin">
+                        <LucideIcon Name="users" Size="16" />
+                        LinkedIn
+                    </Button>
+                    <Button Href="/resume" Variant="ButtonVariant.Outline" data-testid="about-resume">
+                        <LucideIcon Name="file-text" Size="16" />
+                        View my resume
+                    </Button>
+                </div>
+            </section>
+
+        </CardContent>
+    </Card>
 </div>
 
-<style>
-    .about-page {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: var(--spacing-lg, 24px);
-    }
-
-    .about-content h1 {
-        font-size: var(--font-size-h1, 2.5rem);
-        margin-bottom: var(--spacing-lg, 24px);
-        color: var(--color-primary, #0078D4);
-    }
-
-    .about-section {
-        margin-bottom: var(--spacing-xl, 32px);
-    }
-
-    .about-section h2 {
-        font-size: var(--font-size-h2, 1.75rem);
-        margin-bottom: var(--spacing-md, 16px);
-        color: var(--color-neutral, #323130);
-    }
-
-    .about-section p {
-        line-height: 1.7;
-        color: var(--color-neutral-light, #605E5C);
-        margin-bottom: var(--spacing-md, 16px);
-    }
-
-    .about-section ul {
-        line-height: 1.8;
-        color: var(--color-neutral-light, #605E5C);
-        padding-left: var(--spacing-lg, 24px);
-    }
-
-    .about-section li {
-        margin-bottom: var(--spacing-sm, 8px);
-    }
-
-    .social-links {
-        display: flex;
-        gap: var(--spacing-md, 16px);
-        flex-wrap: wrap;
-        margin-top: var(--spacing-md, 16px);
-    }
-
-    /* Dark mode support */
-    :global([data-theme="dark"]) .about-content h1,
-    :global([data-theme="dark"]) .about-section h2 {
-        color: var(--color-primary-light, #2899F5);
-    }
-
-    :global([data-theme="dark"]) .about-section p,
-    :global([data-theme="dark"]) .about-section ul {
-        color: var(--color-neutral-light-dark, #A19F9D);
-    }
-
-    /* Dark mode - Social Links (Connect With Us) */
-    :global([data-theme="dark"]) .social-links :global(fluent-anchor[appearance="outline"]) {
-        color: var(--color-neutral, #E5E5E5) !important;
-        border-color: var(--color-border, #404040) !important;
-    }
-
-    :global([data-theme="dark"]) .social-links :global(fluent-anchor[appearance="outline"]):hover {
-        color: var(--color-primary, #2899F5) !important;
-        border-color: var(--color-primary, #2899F5) !important;
-        background-color: var(--color-surface-hover, #3D3D3D) !important;
-    }
-
-    :global([data-theme="dark"]) .social-links :global(fluent-anchor[appearance="outline"] svg),
-    :global([data-theme="dark"]) .social-links :global(fluent-anchor) :global(svg) {
-        color: var(--color-neutral, #E5E5E5) !important;
-        fill: currentColor !important;
-    }
-
-    :global([data-theme="dark"]) .social-links :global(fluent-anchor[appearance="outline"]):hover :global(svg) {
-        color: var(--color-primary, #2899F5) !important;
-        fill: var(--color-primary, #2899F5) !important;
-    }
-</style>
+@code {
+    /// <summary>
+    /// Technology chips shown in the "Built With" section.
+    /// </summary>
+    private static readonly string[] StackChips =
+    {
+        ".NET 10",
+        "Blazor Server",
+        "TrBlazeUI",
+        "PostgreSQL",
+        "Dapper + DbUp",
+        "Serilog",
+        "Playwright"
+    };
+}

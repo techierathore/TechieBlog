@@ -1,0 +1,41 @@
+/*
+    app.css — desktop-head-only tweaks for BlogApp.
+
+    Everything visual comes from the shared token sets in _content/BlogUI/css/theme.css.
+    No colour, font, spacing or radius literal belongs in this file (Coding Standards
+    §CSS and theming) — only the handful of rules that exist because this is a desktop
+    WebView rather than a browser tab.
+*/
+
+html,
+body {
+    height: 100%;
+    /* A desktop window is not a document: the shell manages its own scrolling regions. */
+    overscroll-behavior: none;
+}
+
+/* No browser chrome means no accidental text selection of the shell furniture. */
+.sidebar,
+[data-testid="admin-sidebar"] {
+    user-select: none;
+}
+
+/* The Blazor error strip, themed with the shared tokens instead of the template's yellow. */
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 1000;
+    padding: 0.75rem 1.25rem;
+    background: var(--destructive);
+    color: var(--destructive-foreground);
+    box-shadow: 0 -1px 2px rgb(0 0 0 / 20%);
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 0.75rem;
+    top: 0.5rem;
+}

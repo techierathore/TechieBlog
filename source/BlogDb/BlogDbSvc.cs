@@ -52,6 +52,11 @@ public class BlogDbSvc
             DeployChanges.To
                 .PostgresqlDatabase(connectionString)
                 .WithScriptsFromFileSystem(scriptsPath)
+                // PostgreSQL dollar-quoted bodies ($$ ... $$, $tag$ ... $tag$) collide with DbUp's
+                // $variable$ substitution syntax, which aborts the upgrade with "Variable ... has no
+                // value defined" on every CREATE FUNCTION script. No script uses DbUp variables, so
+                // substitution is switched off rather than escaped script by script (REQ-FN-003).
+                .WithVariablesDisabled()
                 .LogToConsole()
                 .Build();
 

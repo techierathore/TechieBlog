@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TechieBlog — Status &mdash; TechieBlog</title>
+<title>TechieBlog — Status</title>
 <script>
 /* Resolve the theme BEFORE first paint (no flash). Saved choice wins; otherwise
    pick by time of day — light 07:00–19:00 local, softened dark at night. */
@@ -15,7 +15,8 @@
   }catch(e){ document.documentElement.setAttribute('data-theme','light'); }
 })();
 </script>
-<style>/* LIGHT is the default theme — a warm off-white, easy on the eyes (never bright white). */
+<style>
+/* LIGHT is the default theme — a warm off-white, easy on the eyes (never bright white). */
 :root{
   --bg:#f4f1e9; --panel:#efe9db; --panel2:#e7e0cd; --line:#d8cfb6;
   --ink:#2e2a22; --muted:#6f6857; --accent:#2f6f9f; --accent2:#3f7d54;
@@ -87,10 +88,6 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 .toc-inline li{font-size:13px;margin:1px 0}
 .toc-inline a{color:var(--h3)}
 
-/* NEXT COMMAND call-to-action box */
-.cta{background:var(--cta-bg);border:1px solid var(--accent);border-radius:8px;padding:12px 16px;margin:18px 0}
-.cta .lbl{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
-
 /* mermaid diagram wrapper + toolbar */
 .diagram{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--code-bg);margin:14px 0;overflow:hidden}
 .diagram .mermaid{padding:14px;margin:0;background:transparent;border:none;overflow:auto}
@@ -101,123 +98,157 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 .diagram.fs{position:fixed;inset:0;z-index:9999;border-radius:0;border:none}
 .diagram.fs .mermaid{height:calc(100vh - 40px);display:flex;align-items:center;justify-content:center}
 
-@media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{position:static;height:auto}}</style>
+@media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{position:static;height:auto}}
+</style>
 </head>
 <body>
-<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">&#9782; Dark</button>
+<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">☾ Dark</button>
 <div class="layout">
-<nav class="side">
-<h1>TechieBlog — Status</h1>
-<div class="sub">Status snapshot · 2026-08-06</div>
-<div class="group">Contents</div>
-<ol>
-<li><a href="#where-i-am">Where I am</a></li>
-<li><a href="#next-command-to-run">Next command to run</a></li>
-<li><a href="#open-requirements">Open requirements</a></li>
-<li><a href="#known-blockers">Known blockers</a></li>
-<li><a href="#verification-log">Verification log</a></li>
-<li><a href="#library-feedback-summary">Library feedback summary</a></li>
-<li><a href="#standards-compliance-last-verifier-check">Standards compliance (last verifier check)</a></li>
-<li><a href="#deferred-future">Deferred / future</a></li>
-</ol>
-</nav>
+  <nav class="side">
+    <h1>TechieBlog — Status</h1>
+    <div class="sub">Last rendered: 2026-08-08 · Phase: Verify</div>
+    <div class="group">Contents</div>
+    <ol>
+      <li><a href="#where-i-am">Where I am</a></li>
+      <li><a href="#next-command-to-run">Next command to run</a></li>
+      <li><a href="#open-requirements">Open requirements</a></li>
+      <li><a href="#known-blockers">Known blockers</a></li>
+      <li><a href="#verification-log">Verification log</a></li>
+      <li><a href="#library-feedback-summary">Library feedback summary</a></li>
+      <li><a href="#standards-compliance-2026-08-08">Standards compliance (2026-08-08)</a></li>
+      <li><a href="#deferred-future">Deferred / future</a></li>
+    </ol>
+  </nav>
   <main>
     <h1>TechieBlog — Status</h1>
-    <div class="subtitle">Status snapshot · 2026-08-06</div>
-<div class="cta"><div class="lbl">Next command to run</div><pre><code>/TechieFlow:agents:flow-master *build-phase TechieBlog</code></pre></div>
-<div class="toc-inline">
-<div>Contents</div>
-<ol>
-<li><a href="#where-i-am">Where I am</a></li>
-<li><a href="#next-command-to-run">Next command to run</a></li>
-<li><a href="#open-requirements">Open requirements</a></li>
-<li><a href="#known-blockers">Known blockers</a></li>
-<li><a href="#verification-log">Verification log</a></li>
-<li><a href="#library-feedback-summary">Library feedback summary</a></li>
-<li><a href="#standards-compliance-last-verifier-check">Standards compliance (last verifier check)</a></li>
-<li><a href="#deferred-future">Deferred / future</a></li>
-</ol>
-</div>
-<hr>
-<p>project: TechieBlog stack: .NET 10 / Blazor Server / TrBlazeUI (migrating from Fluent UI) / PostgreSQL + Dapper + DbUp / Serilog / BlogApp MAUI desktop head (planned) last_updated: 2026-08-06 current_phase: Discovery — docs amended 2026-08-06 (TrBlazeUI, portfolio home, BlogApp); build still blocked on REQ-FN-043 last_verified_build: FAIL last_verified_date: 2026-08-02</p>
-<hr>
-<h2 id="where-i-am">Where I am<a class="anchor-link" href="#where-i-am">#</a></h2>
-<p>A substantial brownfield app (the whole MVP — auth, post lifecycle, taxonomy, series, public reading, search, comments, ratings, media, resume, RSS, theming — is built) that is now mid-redesign on paper. The 2026-08-06 amendment + two owner design-review passes reset the target: TrBlazeUI replaces Fluent UI, the home page becomes a portfolio landing with no public admin entry, a BlogApp MAUI desktop admin head is added, reader accounts / registration / favourites / public author pages are retired, and comments and ratings become anonymous behind email verification and a self-hosted captcha, with a public newsletter archive. The 38-screen TrBlazeUI mockup set (<code>docs/TechieBlog-UIDesign.md</code> + <code>docs/mockups/</code>) is the approved visual contract; library gaps are logged in <code>docs/TechieBlog-TrBlazeUI-Feedback.md</code>. <strong>Nothing is built against it yet and the build is still RED</strong> on the NU1605 package conflict, so the whole redesign plus the pre-existing tail (newsletter delivery, analytics, sample data, health checks, tests, CI) is open work.</p>
-<h2 id="next-command-to-run">Next command to run<a class="anchor-link" href="#next-command-to-run">#</a></h2>
-<pre><code>/TechieFlow:agents:flow-master *build-phase TechieBlog      (OpenCode: /flow-master *build-phase TechieBlog)</code></pre>
-<p>Start with REQ-FN-043 (build blocker) in <code>docs/TechieBlog-Checklist.md</code>; nothing else can be verified until it is green.</p>
-<h2 id="open-requirements">Open requirements<a class="anchor-link" href="#open-requirements">#</a></h2>
-<ul>
-<li>[ ] REQ-FN-043 — Fix NU1605 restore failure and pin package references (Phase 6) — <strong>blocker</strong> (strategic fix = TrBlazeUI swap, REQ-UI-048)</li>
-<li>[ ] REQ-UI-048 — TrBlazeUI migration of all BlogUI pages/components/layouts (Phase 9) — needs owner's nuget.config credentials</li>
-<li>[ ] REQ-UI-049 / REQ-UI-050 — Portfolio home page + remove public login/admin entry points (Phase 9)</li>
-<li>[ ] REQ-FN-046 / REQ-FN-047 / REQ-UI-051 / REQ-UI-052 — BlogApp MAUI desktop admin: scaffold, connection setup, login/shell, full surface (Phase 10)</li>
-<li>[ ] REQ-UI-005 / REQ-UI-006 / REQ-UI-033 — Shell, home and dark-mode rows downgraded to re-verify by the 2026-08-06 amendment</li>
-<li>[ ] REQ-UI-027 / REQ-UI-029 / REQ-FN-022 / REQ-FN-023 — Rework comments + ratings to anonymous email-identified (schema change; needs spam defence)</li>
-<li>[ ] REQ-UI-053 / REQ-UI-054 / REQ-FN-050 — Public newsletter archive + issue view (Phase 9)</li>
-<li>[ ] REQ-UI-055 / REQ-UI-056 / REQ-FN-048 / REQ-FN-049 — Email verification (double opt-in) + self-hosted captcha; <strong>REQ-FN-048 blocked on REQ-FN-033 (real SMTP)</strong></li>
-<li>[ ] REQ-UI-002 / REQ-FN-006 — Registration removed: delete <code>/register</code> + <code>/signup</code>; keep password rules for staff accounts and reset</li>
-<li>[ ] REQ-UI-013 / REQ-UI-014 / REQ-UI-015 / REQ-UI-028 / REQ-UI-041 / REQ-UI-042 / REQ-FN-024 — N/A (removed): built code for authors pages, favourites and reader account pages must be <strong>deleted</strong>, not rebuilt</li>
-<li>[ ] REQ-FN-029 — Narrow to site-owner flag + username; retire author-lookup queries</li>
-<li>[ ] REQ-UI-043 / REQ-FN-032 / REQ-FN-033 — Newsletter composer, send pipeline, real SMTP service (Phase 5)</li>
-<li>[ ] REQ-UI-044 / REQ-FN-034 / REQ-FN-035 — Analytics dashboard, view tracking, popular posts (Phase 5)</li>
-<li>[ ] REQ-UI-019 / REQ-FN-036 — Admin dashboard tiles are stub data (Needs re-verify)</li>
-<li>[ ] REQ-UI-026 / REQ-FN-040 — Site Settings never persists; no settings table or service (Needs re-verify)</li>
-<li>[ ] REQ-UI-001 / REQ-FN-009 — Role-blind post-login redirect; unused Contributor policy (Needs re-verify)</li>
-<li>[ ] REQ-UI-017 — Post list is <code>EditorOrAbove</code>, so Authors cannot reach it (Needs re-verify)</li>
-<li>[ ] REQ-UI-032 / REQ-FN-039 — Site theme is a per-browser preference, not a site setting (PARTIAL)</li>
-<li>[ ] REQ-FN-027 — No admin page maintains <code>UserStats</code> for the resume (PARTIAL)</li>
-<li>[ ] REQ-FN-041 — Seed / sample data set (Phase 6)</li>
-<li>[ ] REQ-FN-042 — Configurable storage-provider abstraction (Phase 5)</li>
-<li>[ ] REQ-NFR-002 / REQ-NFR-005 / REQ-NFR-019 / REQ-NFR-023 — Password hashing, auth rate limiting, persisted reset tokens, hashed seed credential (security)</li>
-<li>[ ] REQ-NFR-001 / REQ-NFR-018 — Performance targets and caching layer</li>
-<li>[ ] REQ-NFR-006 / REQ-NFR-007 — Input-validation audit and WCAG 2.1 AA audit</li>
-<li>[ ] REQ-NFR-008 / REQ-NFR-020 / REQ-NFR-021 / REQ-NFR-022 — XML docs, legacy artifact removal, field-naming remediation, nullable enable</li>
-<li>[ ] REQ-NFR-012 — Resilience: retry, circuit breaker, graceful degradation</li>
-<li>[ ] REQ-NFR-013 — Add unhandled-exception handlers (PARTIAL 80%)</li>
-<li>[ ] REQ-NFR-014 / REQ-NFR-015 — Health endpoint and correlation IDs</li>
-<li>[ ] REQ-NFR-016 / REQ-NFR-017 — Test project and CI pipeline</li>
-</ul>
-<p>Counts: 56 REQ-UI · 50 REQ-FN · 0 REQ-RAG · 23 REQ-NFR = 129 total; 69 terminal (incl. 8 N/A removed), 60 open.</p>
-<h2 id="known-blockers">Known blockers<a class="anchor-link" href="#known-blockers">#</a></h2>
-<ul>
-<li><strong>Build FAILS — <code>NU1605</code> package downgrade.</strong> <code>BlogUI</code> pins <code>Microsoft.AspNetCore.Components.Web 10.0.0</code> while the floating <code>Microsoft.FluentUI.AspNetCore.Components 4.*</code> resolves to 4.14.4, which requires ≥ 10.0.9. Reproduced on ladder rung #2 (<code>~/.dotnet/dotnet</code>) and rung #4 (<code>cmd.exe /c dotnet</code>) — it is a project dependency issue, not an environment one. Tracked as REQ-FN-043.</li>
-<li><strong>⚠ SECURITY — seeded admin credential is plaintext</strong> in <code>source/BlogDb/PostgresScripts/003-SeedData.sql</code> (<code>LoginPass = 'admin_password'</code>). Tracked as REQ-NFR-023.</li>
-<li><strong>⚠ SECURITY — password hashing is hand-rolled</strong> (<code>AppEncrypt.CreateHash</code>), not a standard salted KDF. Tracked as REQ-NFR-002.</li>
-<li><strong>No automated tests and no CI</strong>, so every completion claim in the migrated plan is manual. Tracked as REQ-NFR-016 / REQ-NFR-017.</li>
-</ul>
-<h2 id="verification-log">Verification log<a class="anchor-link" href="#verification-log">#</a></h2>
-<table>
-<thead><tr><th>Date</th><th>Phase</th><th>Result</th><th>Status table</th></tr></thead>
-<tbody>
-<tr><td>2026-08-02</td><td>Discovery (day-1)</td><td>Docs only — no verification run</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
-<tr><td>2026-08-06</td><td>Docs amendment (*amend-docs)</td><td>Docs only — BRD-92…97 added, BRD-30/67 revised, 7 REQ rows added</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
-<tr><td>2026-08-06</td><td>Mockups + owner design review</td><td>Docs only — 38 screens; 8 BRD IDs retired, 4 revised, BRD-98…101 added; 8 REQ N/A, 6 re-verify, 11 new</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
-</tbody></table>
-<h2 id="library-feedback-summary">Library feedback summary<a class="anchor-link" href="#library-feedback-summary">#</a></h2>
-<ul>
-<li>TrBlazeUI: adopted 2026-08-06 (BRD-92) — migration pending (REQ-UI-048); owner to supply GitHub Packages credentials in nuget.config</li>
-<li>TechieRag: not used by this project (no AI/RAG features)</li>
-</ul>
-<h2 id="standards-compliance-last-verifier-check">Standards compliance (last verifier check)<a class="anchor-link" href="#standards-compliance-last-verifier-check">#</a></h2>
-<ul>
-<li>Underscore fields: 32 found across 17 files (drift — REQ-NFR-021)</li>
-<li>Test method underscores: not yet run (no test project)</li>
-<li>Mis-prefixed fields: 1 <code>obj</code>-prefixed field found; project convention is no-prefix camelCase</li>
-</ul>
-<h2 id="deferred-future">Deferred / future<a class="anchor-link" href="#deferred-future">#</a></h2>
-<ul>
-<li><del>MAUI Blazor Hybrid desktop writer</del> — moved in scope 2026-08-06 as BlogApp (Phase 10)</li>
-<li>Social login, magic links, email drip sequences, lead magnets</li>
-<li>Admin theme creator UI, community theme repository</li>
-<li>Multi-tenancy, localization, advanced referrer analytics</li>
-</ul>
+    <div class="subtitle">.NET 10 / Blazor Server / TrBlazeUI / PostgreSQL + Dapper + DbUp / Serilog / BlogApp MAUI (Windows, in progress)<br>
+    Last updated <strong>2026-08-08</strong> · Phase <strong>Verify</strong> · Build <strong>PASS</strong> (verified 2026-08-08)</div>
+
+    <div class="toc-inline">
+      <div>Contents</div>
+      <ol>
+        <li><a href="#where-i-am">Where I am</a></li>
+        <li><a href="#next-command-to-run">Next command to run</a></li>
+        <li><a href="#open-requirements">Open requirements</a></li>
+        <li><a href="#known-blockers">Known blockers</a></li>
+        <li><a href="#verification-log">Verification log</a></li>
+        <li><a href="#library-feedback-summary">Library feedback summary</a></li>
+        <li><a href="#standards-compliance-2026-08-08">Standards compliance (2026-08-08)</a></li>
+        <li><a href="#deferred-future">Deferred / future</a></li>
+      </ol>
+    </div>
+
+    <h2 id="where-i-am">Where I am<a class="anchor-link" href="#where-i-am">#</a></h2>
+
+    <p>A second unified <code>*build-phase</code> ran 2026-08-08 across 15 clusters (7 build + 8 documentation). It opened
+    by finding the <strong>build was RED, not green</strong> as the previous status claimed, and that those 15 declaration
+    errors masked 26 more — <code>BlogUI</code>, the host and the test project had never compiled. This is the first
+    genuinely full green build.</p>
+
+    <p>Closed this pass: the async conversion's last two repositories, BlogApp admin-surface crashes, dark mode
+    on TrBlazeUI, the WCAG re-audit (1.1.1 now genuinely met), secrets out of source, forwarded headers,
+    Serilog size cap and volume, seeded-admin hashing + forced first-login change, the login audit trail,
+    <code>svctoken</code> removal, and XML docs across <code>BlogModels</code> + <code>BlogEngine</code> (694 members). One data-loss defect
+    was found and fixed: <strong>REQ-FN-053</strong> — saving Manage Profile erased the site owner's résumé.</p>
+
+    <p><strong>Nothing is <code>Verified</code>.</strong> <code>*build-phase</code>'s ceiling is <code>Implemented</code>; 67 rows await an executed verify run.</p>
+
+    <h2 id="next-command-to-run">Next command to run<a class="anchor-link" href="#next-command-to-run">#</a></h2>
+
+    <pre><code>/TechieFlow:agents:verifier *verify all TechieBlog</code></pre>
+
+    <p>Build no longer leads: every buildable REQ is built and observable, and 67 rows wait on a verdict. The
+    remaining open rows are owner-action (REQ-NFR-025), verifier work (REQ-UI-005/006), or explicitly
+    deferred scope (REQ-NFR-001 concurrency, REQ-NFR-008 out-of-scope projects).</p>
+
+    <h2 id="open-requirements">Open requirements<a class="anchor-link" href="#open-requirements">#</a></h2>
+
+    <ul>
+      <li>☐ <strong>Not Started (1)</strong> — REQ-NFR-025 <em>(owner: revoke + reissue the committed GitHub PAT)</em></li>
+      <li>☐ <strong>PARTIAL (2)</strong> — REQ-NFR-001 <em>(page-load MET; ≥100 concurrent NOT MET, blocked on REQ-NFR-026 stages 3–4)</em>, REQ-NFR-008 <em>(92%; BlogUI + host out of scope)</em></li>
+      <li>☐ <strong>Needs re-verify (2)</strong> — REQ-UI-005, REQ-UI-006 <em>(build work landed under REQ-UI-048/049/050 + REQ-NFR-007)</em></li>
+      <li>☐ <strong>Implemented, awaiting verifier (67)</strong> — see the checklist Status table</li>
+    </ul>
+
+    <p>Counts: 139 rows. Terminal 67 (59 pre-existing + 8 N/A); <code>Implemented</code> 67; open 5.</p>
+
+    <h2 id="known-blockers">Known blockers<a class="anchor-link" href="#known-blockers">#</a></h2>
+
+    <ul>
+      <li><strong>⚠ SECURITY — live GitHub PAT committed</strong> in <code>nuget.config</code>; it is in git history, so it must be
+        <strong>revoked and reissued on GitHub</strong> by the owner. Left in place by owner decision. → REQ-NFR-025.</li>
+      <li><strong>⚠ Host will not start without <code>JwtSigningKey</code> (≥32) and <code>AppEncryptionKey</code> (≥16)</strong> — by design
+        (REQ-NFR-027). Set in user secrets locally; <strong>production needs its own</strong>. Rotating <code>AppEncryptionKey</code>
+        makes existing <code>SiteSettings</code> ciphertext permanently undecryptable (no key versioning).</li>
+      <li><strong>⚠ JWT signatures are never verified</strong> — <code>SvcUtils.GetUserIDFromToken</code> decodes without validating;
+        session validity is DB-backed. The JWT is a session <em>handle</em>, not a bearer credential.</li>
+      <li><strong>⚠ Projection-completeness is a systemic gap — 4 instances found, gate NOT built.</strong> A read projection
+        omitting columns the write path persists; invisible to compiler and unit tests (the fakes never run
+        SQL). REQ-UI-017, script 021, REQ-NFR-008 (<code>BlogPostRepo</code>), and REQ-FN-053 — the last two are the same
+        stored function fixed hours apart. Fixing the fourth does not prevent a fifth.</li>
+      <li><strong>Admin session dies on any full page load</strong> — JWT is localStorage-only and invisible during prerender;
+        automation must use <code>Blazor.navigateTo</code>, never <code>page.goto</code>.</li>
+      <li><strong>Concurrency ceiling ~3.5 req/s</strong> — REQ-NFR-026 stages 3–4 outstanding; logging volume fixed
+        (65,761 → 144 bytes/request) but the load figure is <strong>not re-measured</strong>.</li>
+      <li><strong><code>source/BlogApp</code> not wired for <code>AppSecrets</code></strong> (throws on first <code>AppEncrypt</code> use); REQ-UI-052 is
+        <code>⚠ STATIC-ONLY</code> — smoked on the web head only.</li>
+      <li><strong>32 critical axe nodes on admin, all library-caused</strong> (TR-054/055); 200% zoom and screen-reader passes
+        uncovered. <strong>Integration tests hang</strong> (Testcontainers), excluded from the 383-test run.</li>
+      <li><strong><code>TagsList.razor</code> / <code>CommentsList.razor</code> headers are a reconstruction</strong> after an agent's revert regex
+        over-matched; they compile, render and smoke clean with all expected test ids — <strong>owner should diff</strong>.</li>
+    </ul>
+
+    <h2 id="verification-log">Verification log<a class="anchor-link" href="#verification-log">#</a></h2>
+
+    <table>
+      <thead><tr><th>Date</th><th>Phase</th><th>Result</th><th>Status table</th></tr></thead>
+      <tbody>
+        <tr><td>2026-08-02</td><td>Discovery (day-1)</td><td>Docs only</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+        <tr><td>2026-08-06</td><td>Docs amendment</td><td>Docs only — BRD-92…97 added</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+        <tr><td>2026-08-06</td><td>Mockups + design review</td><td>Docs only — 38 screens</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+        <tr><td>2026-08-07</td><td>Unified *build-phase (11 clusters)</td><td>Build PASS claimed · no verifier run</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+        <tr><td>2026-08-08</td><td>Unified *build-phase (15 clusters)</td><td>Build was RED (15 errors masking 26) → PASS 0 errors · 383/383 tests · 12 REQs closed · REQ-FN-053 data-loss fixed · ~31 defects found · no verifier run</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="library-feedback-summary">Library feedback summary<a class="anchor-link" href="#library-feedback-summary">#</a></h2>
+
+    <ul>
+      <li><strong>TrBlazeUI:</strong> next free <strong>TR-056</strong>. Root cause logged (TR-051): the AI reference and the <code>trblazeui</code>
+        persona both promise all components splat unmatched attributes — false for <strong>132 of 334</strong> types
+        (machine-classified via <code>MetadataLoadContext</code>). That one false premise caused seven page-killing
+        <code>data-testid</code> crashes; full matrix contributed. A11y: TR-031/044/045 (app-side mitigated),
+        TR-054/055 (Tabs/ItemGroup — not fixable from app code).</li>
+      <li><strong>TechieRag:</strong> not used (no AI/RAG features).</li>
+    </ul>
+
+    <h2 id="standards-compliance-2026-08-08">Standards compliance (2026-08-08)<a class="anchor-link" href="#standards-compliance-2026-08-08">#</a></h2>
+
+    <ul>
+      <li>Underscore fields <strong>0</strong>; <code>obj</code>/Hungarian <strong>0</strong>; <code>a</code>/<code>v</code> prefixes remediated across <code>BlogModels</code>,
+        <code>BlogEngine/{DbAccess,Services,Common}</code> and <code>SvcUtils</code> this pass.</li>
+      <li>XML docs: <strong>694 members newly documented</strong>; <code>BlogModels</code> proves <strong>0 doc warnings</strong> under a forced
+        <code>GenerateDocumentationFile</code> build. <code>BlogUI</code> + host still out of scope → REQ-NFR-008 at 92%.</li>
+      <li>Build 0 errors / 178 warnings (up from 6 only because downstream projects now compile).</li>
+    </ul>
+
+    <h2 id="deferred-future">Deferred / future<a class="anchor-link" href="#deferred-future">#</a></h2>
+
+    <ul>
+      <li>Verify JWT signatures on read (<code>SvcUtils</code>/<code>AuthSvc</code>); build the projection-completeness gate.</li>
+      <li>REQ-NFR-026 stages 3–4, then re-measure the concurrency ceiling.</li>
+      <li>Wire <code>AppSecrets</code> into <code>source/BlogApp</code>; re-smoke REQ-UI-052 on the desktop head.</li>
+      <li>Delete the <code>[Obsolete]</code> <code>AppUser.TwiiterUrl</code> alias once 3 <code>.razor</code> references move to <code>TwitterUrl</code>.</li>
+      <li>macOS (<code>net10.0-maccatalyst</code>) BlogApp head — not buildable from the Windows host.</li>
+      <li>Social login, magic links, drip sequences, lead magnets; admin theme creator; multi-tenancy, localization.</li>
+    </ul>
   </main>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
-<script>// Light/dark toggle. The initial theme was already applied flash-free by the
+<script>
+// Light/dark toggle. The initial theme was already applied flash-free by the
 // <head> script (saved choice, else time-of-day). Clicking flips it, saves the
 // choice, and reloads so Mermaid re-renders in the matching theme.
 (function(){
@@ -235,7 +266,11 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   });
 })();
 
-// Copy buttons on every code <pre> — but NEVER on a `pre.mermaid`.
+// Copy buttons on every code <pre> — but NEVER on a `pre.mermaid`:
+// mermaid reads the <pre>'s textContent as the diagram source, so a button
+// appended here glues "copy" onto the last line and breaks the parse
+// (flowcharts → "Syntax error"; sequence diagrams silently absorb it).
+// Mermaid blocks get copy/export from their own .diagram toolbar instead.
 document.querySelectorAll('pre:not(.mermaid)').forEach(pre => {
   const btn = document.createElement('button');
   btn.className = 'copy';
@@ -300,6 +335,7 @@ function wireMermaidToolbars() {
     };
     function escFs(e) { if (e.key === 'Escape') { dia.classList.remove('fs'); document.removeEventListener('keydown', escFs); } }
     dia.querySelector('[data-pop]').onclick = () => openInNewTab(svg);
+    // Ctrl+wheel zoom
     merm.addEventListener('wheel', (e) => {
       if (!e.ctrlKey) return;
       e.preventDefault();
@@ -364,9 +400,11 @@ function openInNewTab(svg) {
   w.document.close();
 }
 
+// Run wiring after mermaid finishes (it renders async)
 if (window.mermaid) {
   setTimeout(wireMermaidToolbars, 400);
-  setTimeout(wireMermaidToolbars, 1200);
-}</script>
+  setTimeout(wireMermaidToolbars, 1200);  // safety re-run for slow renders
+}
+</script>
 </body>
 </html>

@@ -1,0 +1,177 @@
+@*
+    VerifyEmail.razor
+    Purpose: Public landing page for the double opt-in confirmation link mailed to an
+    anonymous commenter, rater or newsletter subscriber. [REQ-UI-055 / BRD-98]
+
+    Route: /verify/{token}
+    Layout: FullWidthLayout (public shell, no blog sidebar — matches mockup 44-verify-email.html)
+
+    States (exactly one card body renders):
+      loading            — the token has not been checked yet
+      confirmed          — a valid token was redeemed; the copy names what was confirmed
+      subscriptionDone   — a valid Subscription token was redeemed
+      alreadyVerified    — the token was already redeemed; NOTHING is confirmed a second time
+      expiredOrInvalid   — unknown or expired token; a fresh link can be requested
+
+    Colour comes from TrBlazeUI semantic tokens only (text-primary / text-destructive and the
+    Alert variants) — no hardcoded hex values, so all three site themes x light/dark work.
+
+    The heading is a raw <h1> with utility classes rather than <TypographyH1>: the mockup calls
+    for 24px, TypographyH1 bakes in text-4xl/lg:text-5xl, and .text-4xl is emitted AFTER
+    .text-2xl in trblazeui.css, so a Class override loses on equal specificity. Logged as
+    TR-020; same pattern already used by Routes.razor's 404 and error-boundary headings.
+*@
+@page "/verify/{Token}"
+@layout FullWidthLayout
+
+<PageTitle>@PageHeading &middot; TechieBlog</PageTitle>
+
+<div class="mx-auto w-full max-w-lg py-8" data-testid="verify-page">
+
+    <Card data-testid="verify-card">
+        <CardContent Class="p-8 text-center">
+
+            @if (state == VerifyState.Loading)
+            {
+                <div class="flex flex-col items-center gap-4 py-12" data-testid="verify-loading">
+                    <Spinner Size="SpinnerSize.Large" Class="text-primary" />
+                    <p class="text-sm text-muted-foreground">Checking your confirmation link&hellip;</p>
+                </div>
+            }
+            else if (state == VerifyState.Confirmed)
+            {
+                <div data-testid="verify-confirmed">
+                    <div class="mb-6 flex justify-center">
+                        <LucideIcon Name="circle-check" Size="72" Class="text-primary" />
+                    </div>
+
+                    <h1 class="text-2xl font-bold tracking-tight">Email confirmed</h1>
+
+                    <p class="mt-4 text-sm text-muted-foreground" data-testid="verify-purpose">
+                        @ConfirmationSummary
+                    </p>
+
+                    <Alert Variant="AlertVariant.Success" Class="mt-6 text-left" data-testid="verify-success-alert">
+                        <LucideIcon Name="circle-check" Size="16" />
+                        <AlertTitle>@ConfirmedThingTitle</AlertTitle>
+                        <AlertDescription>@ConfirmationDetail</AlertDescription>
+                    </Alert>
+                </div>
+            }
+            else if (state == VerifyState.SubscriptionConfirmed)
+            {
+                <div data-testid="verify-subscribed">
+                    <div class="mb-6 flex justify-center">
+                        <LucideIcon Name="circle-check" Size="72" Class="text-primary" />
+                    </div>
+
+                    <h1 class="text-2xl font-bold tracking-tight">You&rsquo;re subscribed</h1>
+
+                    <p class="mt-4 text-sm text-muted-foreground" data-testid="verify-purpose">
+                        @ConfirmationSummary
+                    </p>
+
+                    <Alert Variant="AlertVariant.Success" Class="mt-6 text-left" data-testid="verify-success-alert">
+                        <LucideIcon Name="circle-check" Size="16" />
+                        <AlertTitle>Newsletter subscription confirmed</AlertTitle>
+                        <AlertDescription>
+                            The next issue lands in your inbox at the start of the month.
+                            Every issue carries a one-click unsubscribe link.
+                        </AlertDescription>
+                    </Alert>
+                </div>
+            }
+            else if (state == VerifyState.AlreadyVerified)
+            {
+                <div data-testid="verify-already">
+                    <div class="mb-6 flex justify-center">
+                        <LucideIcon Name="info" Size="72" Class="text-primary" />
+                    </div>
+
+                    <h1 class="text-2xl font-bold tracking-tight">Already confirmed</h1>
+
+                    <p class="mt-4 text-sm text-muted-foreground" data-testid="verify-purpose">
+                        @ConfirmationSummary
+                    </p>
+
+                    <Alert Variant="AlertVariant.Info" Class="mt-6 text-left" data-testid="verify-already-alert">
+                        <LucideIcon Name="info" Size="16" />
+                        <AlertTitle>Nothing left to do</AlertTitle>
+                        <AlertDescription>
+                            This link was already used, so it was not applied again. Future comments and
+                            ratings from the same address skip the confirmation step.
+                        </AlertDescription>
+                    </Alert>
+                </div>
+            }
+            else
+            {
+                <div data-testid="verify-expired">
+                    <div class="mb-6 flex justify-center">
+                        <LucideIcon Name="circle-alert" Size="72" Class="text-destructive" />
+                    </div>
+
+                    <h1 class="text-2xl font-bold tracking-tight">This link is no longer valid</h1>
+
+                    <p class="mt-4 text-sm text-muted-foreground" data-testid="verify-purpose">
+                        @ConfirmationSummary
+                    </p>
+
+                    <Alert Variant="AlertVariant.Danger" Class="mt-6 text-left" data-testid="verify-expired-alert">
+                        <LucideIcon Name="circle-alert" Size="16" />
+                        <AlertTitle>Confirmation failed</AlertTitle>
+                        <AlertDescription>
+                            The confirmation link is no longer valid &mdash; it either expired after 24 hours
+                            or was never issued. Nothing has been published.
+                        </AlertDescription>
+                    </Alert>
+
+                    @if (!string.IsNullOrEmpty(resendMessage))
+                    {
+                        <Alert Variant="AlertVariant.Info" Class="mt-4 text-left" data-testid="verify-resend-result">
+                            <LucideIcon Name="mail" Size="16" />
+                            <AlertDescription>@resendMessage</AlertDescription>
+                        </Alert>
+                    }
+                </div>
+            }
+
+            @if (state != VerifyState.Loading)
+            {
+                <div class="mt-6 flex flex-wrap justify-center gap-3" data-testid="verify-actions">
+
+                    @if (canResend)
+                    {
+                        <Button OnClick="ResendLinkAsync"
+                                Disabled="@isResending"
+                                data-testid="verify-resend">
+                            <LucideIcon Name="mail" Size="16" />
+                            @(isResending ? "Sending…" : "Send a new link")
+                        </Button>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(returnUrl))
+                    {
+                        <Button Href="@returnUrl" data-testid="verify-back-to-article">
+                            <LucideIcon Name="arrow-left" Size="16" />
+                            Back to the article
+                        </Button>
+                    }
+
+                    <Button Href="/categories"
+                            Variant="ButtonVariant.Outline"
+                            data-testid="verify-browse">
+                        Browse articles
+                    </Button>
+                </div>
+
+                <Separator Class="my-6" />
+
+                <p class="text-sm text-muted-foreground" data-testid="verify-footnote">
+                    Confirmation links expire after 24 hours and can be used once.
+                </p>
+            }
+
+        </CardContent>
+    </Card>
+</div>

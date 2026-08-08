@@ -3,6 +3,7 @@ using BlogModels;
 using BlogModels.Interfaces;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
+using TrBlazeUI.Components.FileUpload;
 
 namespace BlogUI.Components;
 
@@ -55,6 +56,11 @@ public partial class ImagePicker : ComponentBase
     protected IBrowserFile? SelectedFile { get; set; }
     protected bool IsUploading { get; set; }
     protected string? UploadError { get; set; }
+
+    /// <summary>
+    /// Files currently staged in the upload dropzone.
+    /// </summary>
+    protected IReadOnlyList<FileUploadItem>? PendingFiles { get; set; }
 
     /// <summary>
     /// Category constraints for file validation display.
@@ -118,6 +124,29 @@ public partial class ImagePicker : ComponentBase
     }
 
     /// <summary>
+    /// Keeps the gallery dialog state in sync when it is dismissed by Escape or an outside click.
+    /// </summary>
+    /// <param name="isOpen">The dialog's requested open state.</param>
+    protected void OnGalleryOpenChanged(bool isOpen)
+    {
+        if (!isOpen)
+        {
+            CloseGallery();
+        }
+    }
+
+    /// <summary>
+    /// Builds the CSS classes for a gallery tile, highlighting the current selection.
+    /// </summary>
+    /// <param name="imagePath">The tile's image path.</param>
+    /// <returns>The tile's Tailwind class list.</returns>
+    protected string GetGalleryTileClass(string imagePath)
+    {
+        var border = imagePath == SelectedImagePath ? "border-primary" : "border-transparent";
+        return $"aspect-square h-auto w-full overflow-hidden rounded-lg border-2 p-0 {border}";
+    }
+
+    /// <summary>
     /// Selects an image from the gallery.
     /// </summary>
     protected async Task SelectImage(string imagePath)
@@ -134,6 +163,7 @@ public partial class ImagePicker : ComponentBase
     {
         ShowUploadModal = true;
         SelectedFile = null;
+        PendingFiles = null;
         UploadError = null;
         IsUploading = false;
     }
@@ -145,19 +175,38 @@ public partial class ImagePicker : ComponentBase
     {
         ShowUploadModal = false;
         SelectedFile = null;
+        PendingFiles = null;
         UploadError = null;
         IsUploading = false;
     }
 
     /// <summary>
-    /// Handles file selection from the file input.
+    /// Keeps the upload dialog state in sync when it is dismissed by Escape or an outside click.
     /// </summary>
-    protected async Task OnFileSelected(InputFileChangeEventArgs e)
+    /// <param name="isOpen">The dialog's requested open state.</param>
+    protected void OnUploadOpenChanged(bool isOpen)
     {
-        UploadError = null;
-        SelectedFile = e.File;
+        if (!isOpen)
+        {
+            CloseUpload();
+        }
+    }
 
-        // Validate the file immediately
+    /// <summary>
+    /// Handles file selection from the upload dropzone and validates the chosen file.
+    /// </summary>
+    /// <param name="files">Files staged by the dropzone.</param>
+    protected async Task OnFilesChanged(IReadOnlyList<FileUploadItem> files)
+    {
+        PendingFiles = files;
+        UploadError = null;
+        SelectedFile = files.FirstOrDefault()?.File;
+
+        if (SelectedFile is null)
+        {
+            return;
+        }
+
         var validation = await ImageService.ValidateImageAsync(SelectedFile, Category);
         if (!validation.IsValid)
         {

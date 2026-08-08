@@ -25,6 +25,11 @@ public partial class ManageSkills
     [Inject]
     public NavigationManager NavManager { get; set; } = default!;
 
+    /// <summary>
+    /// Sentinel value used by the category select to mean "create a new category".
+    /// </summary>
+    private const string NewCategorySentinel = "__new__";
+
     // State
     private bool IsLoading = true;
     private bool IsAdmin = false;
@@ -37,7 +42,7 @@ public partial class ManageSkills
     private List<string> ExistingCategories = new();
 
     // Status messages
-    private string StatusMessage = string.Empty;
+    private string? StatusMessage;
     private bool IsError = false;
 
     // Add Skill Dialog
@@ -155,6 +160,18 @@ public partial class ManageSkills
         StateHasChanged();
     }
 
+    /// <summary>
+    /// Handles the admin user picker selecting a different author.
+    /// </summary>
+    /// <param name="value">The selected user id as text.</param>
+    private async Task OnSelectedUserChanged(string value)
+    {
+        if (long.TryParse(value, out var userId))
+        {
+            await OnUserSelectionChanged(userId);
+        }
+    }
+
     private void ToggleCategory(string category)
     {
         if (CollapsedCategories.Contains(category))
@@ -193,6 +210,18 @@ public partial class ManageSkills
         NewCategoryName = string.Empty;
     }
 
+    /// <summary>
+    /// Keeps the add-skill dialog state in sync when it is dismissed by Escape or an outside click.
+    /// </summary>
+    /// <param name="isOpen">The dialog's requested open state.</param>
+    private void OnAddDialogOpenChanged(bool isOpen)
+    {
+        if (!isOpen)
+        {
+            CancelAddSkill();
+        }
+    }
+
     private async Task SaveNewSkill()
     {
         if (string.IsNullOrWhiteSpace(NewSkillName))
@@ -202,7 +231,7 @@ public partial class ManageSkills
             return;
         }
 
-        var category = NewSkillCategory == "__new__" ? NewCategoryName : NewSkillCategory;
+        var category = NewSkillCategory == NewCategorySentinel ? NewCategoryName : NewSkillCategory;
 
         if (string.IsNullOrWhiteSpace(category))
         {
@@ -277,7 +306,7 @@ public partial class ManageSkills
             return;
         }
 
-        var category = EditSkillCategory == "__new__" ? NewCategoryName : EditSkillCategory;
+        var category = EditSkillCategory == NewCategorySentinel ? NewCategoryName : EditSkillCategory;
 
         if (string.IsNullOrWhiteSpace(category))
         {
@@ -335,6 +364,18 @@ public partial class ManageSkills
     {
         SkillToDelete = null;
         ShowDeleteDialog = false;
+    }
+
+    /// <summary>
+    /// Keeps the delete confirmation state in sync when it is dismissed by Escape or an outside click.
+    /// </summary>
+    /// <param name="isOpen">The dialog's requested open state.</param>
+    private void OnDeleteOpenChanged(bool isOpen)
+    {
+        if (!isOpen)
+        {
+            CancelDelete();
+        }
     }
 
     private async Task DeleteSkill()

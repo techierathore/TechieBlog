@@ -4,7 +4,7 @@
     Provides form for series management with validation.
 
     Usage: Navigate to /admin/series/new or /admin/series/{PageId}
-    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+    Dependencies: TrBlazeUI (REQ-UI-048)
     Authorization: AuthorOrAbove policy required
 *@
 @page "/admin/series/new"
@@ -12,111 +12,137 @@
 @attribute [Authorize(Policy = "AuthorOrAbove")]
 @layout BlogUI.Layouts.AdminLayout
 
+@* [REQ-NFR-007] WCAG 2.4.2 Page Titled (Level A) — without this the page inherits the
+   shell title and every admin screen announces itself as just the site name. *@
+<PageTitle>Series - TechieBlog</PageTitle>
+
 <ContentPanel PanelTitle="@PageHeader">
     <RightSection></RightSection>
     <PanelContent>
-        <div style="max-width: 600px;">
+        <div class="max-w-lg">
             @if (!string.IsNullOrEmpty(StatusMessage))
             {
-                <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
-                                  Style="margin-bottom: 16px;">
-                    @StatusMessage
-                </FluentMessageBar>
+                <Alert Variant="@(IsError ? AlertVariant.Danger : AlertVariant.Success)"
+                       Class="mb-4"
+                       data-testid="series-status-message">
+                    <LucideIcon Name="@(IsError ? "circle-alert" : "circle-check")" Size="16" />
+                    <AlertDescription>@StatusMessage</AlertDescription>
+                </Alert>
             }
 
             @if (PageObj == null)
             {
-                <FluentProgressRing />
-                <span>Loading...</span>
+                <div class="flex items-center gap-3 py-6" data-testid="series-loading">
+                    <Spinner />
+                    <span class="text-muted-foreground">Loading...</span>
+                </div>
             }
             else
             {
                 <EditForm Model="@PageObj" OnValidSubmit="@SaveData">
                     <DataAnnotationsValidator />
-                    <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px;">
-                        <div>
-                            <FluentTextField Label="Series Name"
-                                             @bind-Value="PageObj.Name"
-                                             Placeholder="Enter series name"
-                                             Required="true"
-                                             Style="width: 100%;" />
-                        </div>
-                        <div>
-                            <FluentTextField Label="Slug (URL-friendly name)"
-                                             @bind-Value="PageObj.Slug"
-                                             Placeholder="auto-generated from name"
-                                             Style="width: 100%;" />
-                            <small style="color: var(--neutral-foreground-hint);">
-                                Leave blank to auto-generate from series name
-                            </small>
-                        </div>
-                        <div>
-                            <FluentTextArea Label="Description"
-                                            @bind-Value="PageObj.Description"
-                                            Placeholder="Description of this series shown on the series page"
-                                            Rows="4"
-                                            Style="width: 100%;" />
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 4px;">Status</label>
-                            <FluentSelect TOption="string"
-                                          @bind-Value="PageObj.Status"
-                                          Style="width: 100%;">
-                                <FluentOption TOption="string" Value="@("In Progress")">In Progress</FluentOption>
-                                <FluentOption TOption="string" Value="@("Complete")">Complete</FluentOption>
-                            </FluentSelect>
-                            <small style="color: var(--neutral-foreground-hint);">
-                                Mark as complete when all parts have been published
-                            </small>
-                        </div>
+                    <div class="flex flex-col gap-4">
+
+                        <Field>
+                            <FieldLabel For="series-name">Series Name</FieldLabel>
+                            <FieldContent>
+                                <Input Id="series-name"
+                                       @bind-Value="PageObj.Name"
+                                       Placeholder="Enter series name"
+                                       Required="true"
+                                       data-testid="series-name-input" />
+                            </FieldContent>
+                        </Field>
+
+                        <Field>
+                            <FieldLabel For="series-slug">Slug (URL-friendly name)</FieldLabel>
+                            <FieldContent>
+                                <Input Id="series-slug"
+                                       @bind-Value="PageObj.Slug"
+                                       Placeholder="auto-generated from name"
+                                       data-testid="series-slug-input" />
+                                <FieldDescription>Leave blank to auto-generate from series name</FieldDescription>
+                            </FieldContent>
+                        </Field>
+
+                        <Field>
+                            <FieldLabel For="series-description">Description</FieldLabel>
+                            <FieldContent>
+                                <Textarea Id="series-description"
+                                          @bind-Value="PageObj.Description"
+                                          Placeholder="Description of this series shown on the series page"
+                                          data-testid="series-description-input" />
+                            </FieldContent>
+                        </Field>
+
+                        <Field>
+                            <FieldLabel>Status</FieldLabel>
+                            <FieldContent>
+                                <Select TValue="string" @bind-Value="PageObj.Status" Class="w-full">
+                                    <SelectTrigger data-testid="series-status-select">
+                                        <SelectValue Placeholder="Select status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem TValue="string" Value="@("In Progress")" Text="In Progress">In Progress</SelectItem>
+                                        <SelectItem TValue="string" Value="@("Complete")" Text="Complete">Complete</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <FieldDescription>Mark as complete when all parts have been published</FieldDescription>
+                            </FieldContent>
+                        </Field>
 
                         @* Show posts in series if editing *@
                         @if (PageId > 0 && SeriesPosts != null && SeriesPosts.Count > 0)
                         {
-                            <FluentCard Style="margin-top: 8px;">
-                                <h4 style="margin-top: 0; margin-bottom: 8px;">Posts in this Series (@SeriesPosts.Count)</h4>
-                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <Card Class="mt-2" data-testid="series-posts-card">
+                                <CardHeader>
+                                    <CardTitle Class="text-base">Posts in this Series (@SeriesPosts.Count)</CardTitle>
+                                </CardHeader>
+                                <CardContent Class="flex flex-col gap-1">
                                     @foreach (var post in SeriesPosts.OrderBy(p => p.SeriesPartNumber))
                                     {
-                                        <div style="display: flex; align-items: center; gap: 8px; padding: 4px 0;">
-                                            <span style="font-weight: 500; min-width: 60px;">Part @post.SeriesPartNumber:</span>
-                                            <FluentAnchor Href="@($"/ManagePost/{post.PostID}")" Style="flex: 1;">
+                                        <div class="flex items-center gap-2 py-1" data-testid="series-post-row">
+                                            <span class="font-medium">Part @post.SeriesPartNumber:</span>
+                                            <Button Href="@($"/ManagePost/{post.PostID}")"
+                                                    Variant="ButtonVariant.Link"
+                                                    Class="flex-1 justify-start px-1"
+                                                    data-testid="series-post-title">
                                                 @post.Title
-                                            </FluentAnchor>
+                                            </Button>
                                             @if (post.Published)
                                             {
-                                                <FluentBadge Appearance="Appearance.Accent" Style="background-color: #107c10; font-size: 0.75rem;">
-                                                    Published
-                                                </FluentBadge>
+                                                <Badge Class="text-xs" data-testid="series-post-status">Published</Badge>
                                             }
                                             else
                                             {
-                                                <FluentBadge Appearance="Appearance.Neutral" Style="font-size: 0.75rem;">
-                                                    Draft
-                                                </FluentBadge>
+                                                <Badge Variant="BadgeVariant.Secondary" Class="text-xs" data-testid="series-post-status">Draft</Badge>
                                             }
                                         </div>
                                     }
-                                </div>
-                            </FluentCard>
+                                </CardContent>
+                            </Card>
                         }
 
-                        <FluentStack Orientation="Orientation.Horizontal" Style="gap: 8px; margin-top: 8px;">
-                            <FluentButton Appearance="Appearance.Accent" OnClick="@SaveData">
+                        <div class="flex flex-wrap items-center gap-2 pt-2">
+                            <Button Type="ButtonType.Submit" data-testid="save-series">
+                                <LucideIcon Name="save" Size="16" />
                                 Save
-                            </FluentButton>
-                            <FluentAnchor Href="/admin/series" Appearance="Appearance.Outline">
+                            </Button>
+                            <Button Href="/admin/series" Variant="ButtonVariant.Outline" data-testid="cancel-series">
                                 Cancel
-                            </FluentAnchor>
+                            </Button>
                             @if (PageId > 0)
                             {
-                                <FluentAnchor Href="@($"/series/{PageObj.Slug}")" Appearance="Appearance.Outline" Target="_blank">
-                                    <FluentIcon Value="@(new Icons.Regular.Size16.Eye())" />
+                                <Button Href="@($"/series/{PageObj.Slug}")"
+                                        Target="_blank"
+                                        Variant="ButtonVariant.Outline"
+                                        data-testid="view-series">
+                                    <LucideIcon Name="eye" Size="16" />
                                     View Series
-                                </FluentAnchor>
+                                </Button>
                             }
-                        </FluentStack>
-                    </FluentStack>
+                        </div>
+                    </div>
                 </EditForm>
             }
         </div>

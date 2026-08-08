@@ -1,0 +1,107 @@
+@*
+    NewsletterSubscribeCard.razor
+    Purpose: Public newsletter sign-up card shared by the archive page
+    (/newsletters, REQ-UI-053) and the issue view (/newsletter/{slug}, REQ-UI-054).
+
+    BRD-98 — double opt-in: the address is stored as a PENDING subscriber
+             (IsConfirmed = false) and a confirmation link is mailed; nothing is
+             ever sent to an address that has not clicked it.
+    BRD-99 — the human check is the self-hosted CaptchaWidget, no third-party service.
+
+    Dependencies: ISubscriberRepo (pending row), IEmailVerificationService
+                  (confirmation token + mail), CaptchaWidget (REQ-UI-056).
+    Styling: TrBlazeUI tokens/utilities only — no hardcoded colours or spacing.
+*@
+
+<Card Class="@(Compact ? "w-full" : "w-full")" data-testid="@TestId">
+
+    @if (!Compact)
+    {
+        <CardHeader>
+            <CardTitle Class="text-lg">Subscribe</CardTitle>
+            <CardDescription>One email a month. Nothing else, ever.</CardDescription>
+        </CardHeader>
+    }
+
+    <CardContent Class="@(Compact ? "flex flex-col gap-3 pt-6" : "flex flex-col gap-4 pt-4")">
+
+        @if (Compact)
+        {
+            <div class="text-base font-semibold text-foreground" data-testid="@($"{TestId}-heading")">
+                Get the next issue by email
+            </div>
+        }
+
+        <div class="flex flex-wrap items-end gap-3">
+            <Field Class="mb-0 min-w-[15rem] flex-1">
+                <FieldLabel For="@emailInputId">Email address</FieldLabel>
+                <FieldContent>
+                    <Input Id="@emailInputId"
+                           Type="InputType.Email"
+                           @bind-Value="emailAddress"
+                           Placeholder="you@example.com"
+                           Disabled="@isSubmitting"
+                           autocomplete="email"
+                           data-testid="@($"{TestId}-email")" />
+                </FieldContent>
+            </Field>
+
+            <Button OnClick="HandleSubscribeAsync"
+                    Disabled="@isSubmitting"
+                    data-testid="@($"{TestId}-submit")">
+                @if (isSubmitting)
+                {
+                    <Spinner Size="SpinnerSize.Small" />
+                }
+                else
+                {
+                    <LucideIcon Name="mail" Size="16" />
+                }
+                Subscribe
+            </Button>
+        </div>
+
+        @* Self-hosted human check (BRD-99 / REQ-UI-056). *@
+        <CaptchaWidget @ref="captcha" data-testid="@($"{TestId}-captcha")" />
+
+        @* What happens after submit — double opt-in (BRD-98). *@
+        <Alert Variant="AlertVariant.Info" data-testid="@($"{TestId}-optin-note")">
+            <LucideIcon Name="mail" Size="16" />
+            <AlertDescription>
+                <b>Double opt-in.</b> We send a confirmation link — your subscription starts once you
+                click it. Nothing is sent to an address that has not confirmed.
+            </AlertDescription>
+        </Alert>
+
+        @if (!string.IsNullOrEmpty(statusMessage))
+        {
+            <Alert Variant="@statusVariant" data-testid="@($"{TestId}-status")">
+                <AlertDescription>@statusMessage</AlertDescription>
+            </Alert>
+        }
+
+        @if (!Compact && ConfirmedSubscriberCount > 0)
+        {
+            <div class="flex items-center gap-2 text-sm text-muted-foreground"
+                 data-testid="@($"{TestId}-count")">
+                <LucideIcon Name="users" Size="16" />
+                <span>@ConfirmedSubscriberCount.ToString("N0") subscribers</span>
+            </div>
+        }
+
+        @if (Compact)
+        {
+            <div>
+                <Button Href="/newsletters"
+                        Variant="ButtonVariant.Link"
+                        Size="ButtonSize.Small"
+                        Class="px-0"
+                        data-testid="@($"{TestId}-all-issues")">
+                    See all issues
+                    <LucideIcon Name="arrow-right" Size="16" />
+                </Button>
+            </div>
+        }
+
+    </CardContent>
+</Card>

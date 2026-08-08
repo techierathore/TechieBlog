@@ -1,4 +1,4 @@
-﻿@using System.Net.Http
+@using System.Net.Http
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Forms
@@ -7,8 +7,82 @@
 @using static Microsoft.AspNetCore.Components.Web.RenderMode
 @using Microsoft.AspNetCore.Components.Web.Virtualization
 @using Microsoft.JSInterop
-@using Microsoft.FluentUI.AspNetCore.Components
-@using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons
+
+@* ---------------------------------------------------------------------------
+   TrBlazeUI component library (REQ-UI-048 — replaces Microsoft Fluent UI Blazor).
+   Namespace set per .trblazeui/TrBlazeUI-AI-Reference.md §1.
+   NOTE: only TrBlazeUI.Primitives.Services is imported from Primitives — importing
+   the other Primitives sub-namespaces makes Label/Checkbox/Switch ambiguous with
+   their styled TrBlazeUI.Components counterparts.
+   --------------------------------------------------------------------------- *@
+@using TrBlazeUI.Components
+@using TrBlazeUI.Primitives
+@using TrBlazeUI.Primitives.Services
+@using TrBlazeUI.Components.Accordion
+@using TrBlazeUI.Components.Alert
+@using TrBlazeUI.Components.AlertDialog
+@using TrBlazeUI.Components.AspectRatio
+@using TrBlazeUI.Components.Avatar
+@using TrBlazeUI.Components.Badge
+@using TrBlazeUI.Components.Breadcrumb
+@using TrBlazeUI.Components.Button
+@using TrBlazeUI.Components.ButtonGroup
+@using TrBlazeUI.Components.Calendar
+@using TrBlazeUI.Components.Card
+@using TrBlazeUI.Components.Carousel
+@using TrBlazeUI.Components.Chart
+@using TrBlazeUI.Components.Checkbox
+@using TrBlazeUI.Components.Collapsible
+@using TrBlazeUI.Components.Combobox
+@using TrBlazeUI.Components.Command
+@using TrBlazeUI.Components.ContextMenu
+@using TrBlazeUI.Components.DataTable
+@using TrBlazeUI.Components.DatePicker
+@using TrBlazeUI.Components.Dialog
+@using TrBlazeUI.Components.Drawer
+@using TrBlazeUI.Components.DropdownMenu
+@using TrBlazeUI.Components.Empty
+@using TrBlazeUI.Components.Field
+@using TrBlazeUI.Components.FileUpload
+@using TrBlazeUI.Components.Grid
+@using TrBlazeUI.Components.HoverCard
+@using TrBlazeUI.Components.Input
+@using TrBlazeUI.Components.InputGroup
+@using TrBlazeUI.Components.InputOTP
+@using TrBlazeUI.Components.Item
+@using TrBlazeUI.Components.Kbd
+@using TrBlazeUI.Components.Label
+@using TrBlazeUI.Components.MarkdownEditor
+@using TrBlazeUI.Components.Menubar
+@using TrBlazeUI.Components.MultiSelect
+@using TrBlazeUI.Components.NativeSelect
+@using TrBlazeUI.Components.NavigationMenu
+@using TrBlazeUI.Components.Pagination
+@using TrBlazeUI.Components.Popover
+@using TrBlazeUI.Components.Progress
+@using TrBlazeUI.Components.RadioGroup
+@using TrBlazeUI.Components.RangeSlider
+@using TrBlazeUI.Components.Rating
+@using TrBlazeUI.Components.Resizable
+@using TrBlazeUI.Components.RichTextEditor
+@using TrBlazeUI.Components.ScrollArea
+@using TrBlazeUI.Components.Select
+@using TrBlazeUI.Components.Separator
+@using TrBlazeUI.Components.Sheet
+@using TrBlazeUI.Components.Sidebar
+@using TrBlazeUI.Components.Skeleton
+@using TrBlazeUI.Components.Slider
+@using TrBlazeUI.Components.Spinner
+@using TrBlazeUI.Components.Switch
+@using TrBlazeUI.Components.Tabs
+@using TrBlazeUI.Components.Textarea
+@using TrBlazeUI.Components.Toast
+@using TrBlazeUI.Components.Toggle
+@using TrBlazeUI.Components.Toolbar
+@using TrBlazeUI.Components.Tooltip
+@using TrBlazeUI.Components.Typography
+@using TrBlazeUI.Icons.Lucide.Components
+@using TrBlazeUI.Icons.Lucide.Data
 
 @using BlogModels
 @using BlogUI

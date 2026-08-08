@@ -2,27 +2,70 @@
 
 > The single source for **how to test and run** this app. Every agent (flow-master self-smoke, the verifier) **and** the human UAT use the SAME test users and the SAME walkthrough listed here — no one invents throwaway accounts (enforced by `.tfcore/tasks/_smoke-test-policy.md`). Keep the Test-users table current: when an account is actually created, flip its `Created?` to ✅.
 
-> **Day-1 note (2026-08-02):** the database could not be inspected — TCP 5432 is unreachable from WSL,
-> and the app's configured connection string is `Host=localhost;Port=5432;Database=TechieBlog;Username=PgVectorAdmin`
-> (Windows-side). The table below therefore lists the **intended** account set, seeded or created on
-> first build after confirming with the owner. Also note the app currently **does not build**
-> (REQ-FN-043) — fix that before attempting any of the walkthroughs.
+> ## ⚠ THE DATABASE — read this before running anything (corrected 2026-08-08)
+>
+> **The database is the `WinPostgre` Docker container, on host port `5550`.** It is a shared,
+> multi-project PostgreSQL instance (`pgvector/pgvector:0.8.6-pg18-trixie`) that also hosts
+> `AppMngrDb` and `TkStoriesDb` — so it is **not** disposable, and no agent may recreate, reset or
+> `docker rm` it.
+>
+> ```bash
+> docker start WinPostgre                                    # it is often stopped; just start it
+> docker exec WinPostgre psql -U PgVectorAdmin -d TechieBlog  # psql lives INSIDE the container
+> ```
+>
+> Connection string (now correct in `source/TechieBlog/appsettings.Development.json`):
+> `Host=localhost;Port=5550;Database=TechieBlog;Username=PgVectorAdmin;Password=AdminPass@2025`
+>
+> **NEVER create a second PostgreSQL container.** The superseded day-1 note below said "TCP 5432 is
+> unreachable from WSL" and recorded the port as 5432. Both were wrong: nothing listens on 5432
+> because `WinPostgre` publishes `5550 -> 5432`. On 2026-08-08 that stale note cost a whole build
+> phase's worth of database work — a build agent found 5432 dead, started an unrelated container,
+> and every cluster then smoked against a throwaway database instead of this one. If the port
+> appears dead, **start `WinPostgre`**; do not stand up your own.
+>
+> Schema and seed data are fully reproducible: boot the host and DbUp applies
+> `source/BlogDb/PostgresScripts/001…022`, seeding 4 users, 10 posts, 7 comments and 5 categories.
+>
+> <details><summary>Superseded day-1 note (2026-08-02) — kept for traceability, do not follow</summary>
+>
+> > the database could not be inspected — TCP 5432 is unreachable from WSL, and the app's configured
+> > connection string is `Host=localhost;Port=5432;Database=TechieBlog;Username=PgVectorAdmin`
+> > (Windows-side). The table below therefore lists the **intended** account set, seeded or created on
+> > first build after confirming with the owner. Also note the app currently **does not build**
+> > (REQ-FN-043) — fix that before attempting any of the walkthroughs.
+>
+> </details>
 
 ## Test users (canonical — use THESE for all smoke / verify / UAT)
 
 | # | Username / Email | Password | Role / Permission | Created? | Notes |
 |---|------------------|----------|-------------------|----------|-------|
-| 1 | `Ravi@techieblog.com` | `admin_password` | Admin | ⬜ | **Seeded by `source/BlogDb/PostgresScripts/003-SeedData.sql`** — exists on any database where migrations have run, but unverified at day-1. ⚠ stored as plaintext in the seed script (REQ-NFR-023); change it after first login. |
-| 2 | `editor@techieblog.test` | `{ask owner}` | Editor | ⬜ | Needed to exercise comment moderation and all-posts management. Create via `/AddUser` as Admin. |
-| 3 | `author@techieblog.test` | `{ask owner}` | Author | ⬜ | Needed for the post editor, series, media and own-profile/resume screens. |
-| 4 | `contributor@techieblog.test` | `{ask owner}` | Contributor | ⬜ | Exercises the `ContributorOrAbove` policy (currently unused by any page — confirms the gate). |
-| 5 | `reader@techieblog.test` | `{ask owner}` | Reader | ⬜ | Self-registered via `/register`; exercises comments, ratings, favourites. |
-| 6 | — (anonymous) | — | Guest | ✅ | No account — exercises every public page and the "must sign in to engage" prompts. |
+| 1 | `Ravi@techieblog.com` | `admin_password` | Admin | ✅ | **Seeded by `source/BlogDb/PostgresScripts/003-SeedData.sql`** — exists on any database where migrations have run. Stored as a PBKDF2-HMAC-SHA256 hash, not plaintext (REQ-NFR-023); the account is flagged `MustChangePassword`. Site owner (`IsSiteOwner = true`) — this is whose resume renders at `/resume`. |
+| 2 | `editor@techieblog.test` | `Editor#Pass1` | Editor | ✅ | **Seeded by `source/BlogDb/PostgresScripts/019-SampleData.sql`** [REQ-FN-041] as *Maya Sharma* (`maya`). Exercises comment moderation and all-posts management; lands on `/admin` after sign-in. Hash: PBKDF2-HMAC-SHA256, 210 000 iterations, seed salt `TechieBlogEdt001`. Flagged `MustChangePassword`. |
+| 3 | `author@techieblog.test` | `Author#Pass1` | Author | ✅ | **Seeded by `019-SampleData.sql`** [REQ-FN-041] as *Arun Nair* (`arun`). Owns the "PostgreSQL for .NET Developers" series and its two posts; lands on `/BlogsList`. Seed salt `TechieBlogAut001`. Flagged `MustChangePassword`. |
+| 4 | `contributor@techieblog.test` | `Contrib#Pass1` | Contributor | ✅ | **Seeded by `019-SampleData.sql`** [REQ-FN-041] as *Priya Menon* (`priya`). Owns one unpublished draft; exercises the `ContributorOrAbove` policy and lands on `/` (no staff surface). Seed salt `TechieBlogCon001`. Flagged `MustChangePassword`. |
+| 5 | ~~`reader@techieblog.test`~~ | — | ~~Reader~~ | **N/A** | **Retired 2026-08-06** — reader accounts and public registration were dropped (BRD-1/13/43/44). `019-SampleData.sql` deliberately seeds **no** Reader account: comments and ratings are now anonymous and email-keyed, so a Reader credential would open nothing. Use user 6 for engagement testing. |
+| 6 | — (anonymous) | — | Guest | ✅ | No account — exercises every public page plus anonymous commenting and rating (name + email + double opt-in). |
+
+> ⚠ **Signing in with any of users 1–4 now lands on `/change-password`, not on the role's usual landing route** — [REQ-NFR-023], implemented 2026-08-08. Every seeded account carries `MustChangePassword`, and that flag is now **enforced**: the account is held on the change-password screen and cannot open any other page until the password is actually replaced (the new one must satisfy the same strength rules as `/reset-password`). This is the requirement, not a defect.
+>
+> **For a test that needs the account past the sign-in screen**, either complete the change (then use the new password for the rest of the run) or clear the flag first and re-arm it afterwards, so this table stays true for the next tester:
+>
+> ```sql
+> -- before the run
+> UPDATE BlogUser SET MustChangePassword = FALSE WHERE UserId IN (1, 5, 6, 7);
+> -- after the run
+> UPDATE BlogUser SET MustChangePassword = TRUE  WHERE UserId IN (1, 5, 6, 7);
+> ```
+>
+> The **passwords in this table are unchanged** — the forced change is a flag, not a rotation. If a test does complete a change, restore both the hash and the flag from `003-SeedData.sql` / `019-SampleData.sql` so the table remains the single source of truth.
 
 - **Created?** — ✅ = the account exists in the database now (verified). ⬜ = planned; create it on first build, but **only after confirming with the owner** (see `_smoke-test-policy.md`). Never auto-create silently.
 - **To add or confirm an account:** edit this table — it is the registry the whole pipeline reads from.
-- **Seeding:** user 1 comes from `003-SeedData.sql`, which DbUp applies automatically at host startup. Users 2–5 have no seed script yet; `REQ-FN-041` (sample data) should add one user per role so this table becomes reproducible from a clean database.
-- **Site owner:** exactly one user carries `IsSiteOwner = true` (enforced by a partial unique index) and is whose resume renders at `/resume`. Set it on user 1 unless the owner says otherwise.
+- **Seeding:** user 1 comes from `003-SeedData.sql`; users 2–4 come from `019-SampleData.sql` [REQ-FN-041]. DbUp applies both automatically at host startup, so the whole table is reproducible from a clean database — no manual `/AddUser` step. **No password is stored in plaintext anywhere in the migration scripts** (REQ-NFR-023): each script carries a PBKDF2-HMAC-SHA256 hash with a fixed per-account seed salt, and the plaintext lives only in this table.
+- **Site owner:** exactly one user carries `IsSiteOwner = true` (enforced by a partial unique index) and is whose resume renders at `/resume`. It is user 1; `019-SampleData.sql` also seeds that user's skills, experience, awards and stats.
+- **Sample content:** `019-SampleData.sql` seeds 10 posts (8 published, 1 scheduled series part, 1 contributor draft), 2 series with ordered parts, category/tag junction rows, 7 approved anonymous comments (one threaded reply) and 21 verified ratings — enough for every public listing to render non-empty on a clean database.
 
 ## How to test — screen by screen / menu by menu
 
@@ -166,12 +209,18 @@ analytics and the analytics dashboard (REQ-UI-044, REQ-FN-034, REQ-FN-035), the 
 ## Setup / Deployment steps (runbook — one command per line, in order)
 
 1. `git clone <repo> && cd TechieBlog`
-2. `psql -U postgres -c "CREATE DATABASE \"TechieBlog\";"`
-3. Set the connection string — add `AppDbConString` to `source/TechieBlog/appsettings.Development.json` (or user secrets): `Host=localhost;Port=5432;Database=TechieBlog;Username=<user>;Password=<pass>`
-4. `dotnet restore`
-5. `dotnet build TechieBlog.slnx` *(currently FAILS — see REQ-FN-043)*
-6. `dotnet run --project source/TechieBlog` — DbUp applies `source/BlogDb/PostgresScripts/001…013` automatically at startup
-7. Open the URL printed by Kestrel (see `source/TechieBlog/Properties/launchSettings.json`) and log in as test user 1.
+2. **Start the existing database — do not create one:** `docker start WinPostgre` (publishes `5550 -> 5432`; the `TechieBlog` database already exists on it). Only on a machine that has never had it: `docker exec WinPostgre psql -U PgVectorAdmin -d postgres -c 'CREATE DATABASE "TechieBlog";'`
+3. Connection string — `AppDbConString` in `source/TechieBlog/appsettings.Development.json` (or user secrets): `Host=localhost;Port=5550;Database=TechieBlog;Username=PgVectorAdmin;Password=<pass>`
+4. **Set the two required secrets — the host refuses to start without them, by design (REQ-NFR-027):**
+   `dotnet user-secrets set JwtSigningKey "$(openssl rand -base64 48)" --project source/TechieBlog` and
+   `dotnet user-secrets set AppEncryptionKey "$(openssl rand -base64 32)" --project source/TechieBlog`
+   (≥32 and ≥16 chars; the two previously committed literals are blocklisted by digest and cannot be reused).
+5. `dotnet restore`
+6. `dotnet build TechieBlog.slnx` *(green as of 2026-08-08 — 0 errors)*
+7. `ASPNETCORE_ENVIRONMENT=Development dotnet run --project source/TechieBlog` — DbUp applies `source/BlogDb/PostgresScripts/001…022` automatically at startup. **The environment must be Development or user secrets are not loaded and startup fails on the missing secret.**
+8. Open the URL printed by Kestrel (see `source/TechieBlog/Properties/launchSettings.json`) and log in as test user 1.
+9. All four seeded accounts are flagged `MustChangePassword` and are redirected to `/change-password` before any authorised page. To bypass for a scripted smoke, clear the flag and **re-arm it afterwards**:
+   `UPDATE bloguser SET mustchangepassword=false WHERE userid=1;` … `UPDATE bloguser SET mustchangepassword=true WHERE userid=1;`
 
 Optional — migrating an existing MySQL instance: `dotnet run --project source/BlogDb` (see `docs/database-migration-guide.md`).
 

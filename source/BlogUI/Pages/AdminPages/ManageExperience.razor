@@ -1,10 +1,10 @@
 @*
     ManageExperience.razor
     Purpose: Manage work experience entries for user resume/portfolio.
-    Provides list view, add, edit, delete, and reorder functionality.
+    Provides list view, add, edit, delete, and display-order control.
 
     Usage: Navigate to /admin/experience or /admin/experience/{EventId}
-    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+    Dependencies: TrBlazeUI (REQ-UI-037 / REQ-UI-048)
     Authorization: AuthorOrAbove policy - authors can manage their own experience
 *@
 @page "/admin/experience"
@@ -14,373 +14,290 @@
 
 <PageTitle>Manage Experience - TechieBlog Admin</PageTitle>
 
-<ContentPanel PanelTitle="@PageTitle">
-    <RightSection>
+<div class="mx-auto flex max-w-5xl flex-col gap-6" data-testid="manage-experience-page">
+
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <h1 class="text-2xl font-semibold tracking-tight">@PageTitle</h1>
         @if (!IsEditMode)
         {
-            <FluentButton Appearance="Appearance.Accent" OnClick="@ShowAddForm">
-                <FluentIcon Value="@(new Icons.Regular.Size16.Add())" />
-                <span>Add Experience</span>
-            </FluentButton>
+            <Button OnClick="@ShowAddForm" data-testid="add-experience">
+                <LucideIcon Name="plus" Size="16" />
+                Add Experience
+            </Button>
         }
-    </RightSection>
-    <PanelContent>
-        @* Status Messages *@
-        @if (!string.IsNullOrEmpty(StatusMessage))
-        {
-            <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
-                              Style="margin-bottom: 16px;">
-                @StatusMessage
-            </FluentMessageBar>
-        }
+    </div>
 
-        @* Admin User Selector *@
-        @if (IsAdmin && !IsEditMode)
-        {
-            <div style="margin-bottom: 16px;">
-                <FluentSelect TOption="string"
-                              Label="View experience for user:"
-                              Value="@(SelectedUserId?.ToString() ?? "")"
-                              ValueChanged="@(async val => { SelectedUserId = string.IsNullOrEmpty(val) ? null : long.Parse(val); await OnUserChanged(); })"
-                              Style="min-width: 250px;">
-                    <FluentOption TOption="string" Value="">-- My Experience --</FluentOption>
-                    @if (AllUsers != null)
+    @if (!string.IsNullOrEmpty(StatusMessage))
+    {
+        <Alert Variant="@(IsError ? AlertVariant.Danger : AlertVariant.Success)" data-testid="experience-status">
+            <LucideIcon Name="@(IsError ? "circle-alert" : "circle-check")" Size="16" />
+            <AlertTitle>@(IsError ? "Something went wrong" : "Done")</AlertTitle>
+            <AlertDescription>@StatusMessage</AlertDescription>
+        </Alert>
+    }
+
+    @* Admin-only: pick whose experience to manage. *@
+    @if (IsAdmin && !IsEditMode)
+    {
+        <div class="flex flex-wrap items-center gap-3">
+            <span class="text-sm font-medium">View experience for user:</span>
+            <Select TValue="string"
+                    Value="@(SelectedUserId?.ToString() ?? string.Empty)"
+                    ValueChanged="@OnSelectedUserChanged"
+                    Class="w-72">
+                <SelectTrigger data-testid="experience-user-select">
+                    <SelectValue Placeholder="-- My Experience --" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem TValue="string" Value="@string.Empty" Text="-- My Experience --">-- My Experience --</SelectItem>
+                    @if (AllUsers is not null)
                     {
                         @foreach (var user in AllUsers)
                         {
-                            <FluentOption TOption="string" Value="@user.UserId.ToString()">
-                                @user.FirstName @user.LastName (@user.EmailId)
-                            </FluentOption>
+                            var label = $"{user.FirstName} {user.LastName} ({user.EmailId})";
+                            <SelectItem TValue="string" Value="@user.UserId.ToString()" Text="@label">@label</SelectItem>
                         }
                     }
-                </FluentSelect>
-            </div>
-        }
+                </SelectContent>
+            </Select>
+        </div>
+    }
 
-        @if (IsLoading)
-        {
-            <div style="display: flex; justify-content: center; padding: 48px;">
-                <FluentProgressRing />
-                <span style="margin-left: 12px;">Loading...</span>
-            </div>
-        }
-        else if (IsEditMode || ShowForm)
-        {
-            @* Add/Edit Form *@
-            <div style="max-width: 800px;">
-                <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 1.1rem; font-weight: 600;">
-                    @(IsEditMode ? "Edit Experience" : "Add New Experience")
-                </h3>
-
-                <EditForm Model="@CurrentEvent" OnValidSubmit="@SaveExperience">
-                    <DataAnnotationsValidator />
-                    <FluentStack Orientation="Orientation.Vertical" Style="gap: 20px;">
-                        @* Role/Position *@
-                        <div>
-                            <FluentTextField Label="Role / Position"
-                                             @bind-Value="CurrentEvent.SessionTitle"
-                                             Placeholder="e.g., Senior Software Engineer"
-                                             Required="true"
-                                             Style="width: 100%;" />
-                        </div>
-
-                        @* Company Name *@
-                        <div>
-                            <FluentTextField Label="Company Name"
-                                             @bind-Value="CurrentEvent.EventTitle"
-                                             Placeholder="e.g., Acme Corporation"
-                                             Required="true"
-                                             Style="width: 100%;" />
-                        </div>
-
-                        @* Company Logo Path *@
-                        <div>
-                            <FluentTextField Label="Company Logo Path"
-                                             @bind-Value="CurrentEvent.LogoIconPath"
-                                             Placeholder="/images/logos/company-logo.png"
-                                             Style="width: 100%;" />
-                            <small style="color: var(--neutral-foreground-hint);">
-                                Path to company logo image (optional)
-                            </small>
-                        </div>
-
-                        @* Date Range *@
-                        <FluentStack Orientation="Orientation.Horizontal" Style="gap: 16px;">
-                            <div style="flex: 1;">
-                                <FluentDatePicker Label="Start Date"
-                                                  @bind-Value="StartDateValue"
-                                                  Style="width: 100%;" />
-                            </div>
-                            <div style="flex: 1;">
-                                <FluentDatePicker Label="End Date"
-                                                  @bind-Value="EndDateValue"
-                                                  Disabled="@CurrentEvent.IsCurrent"
-                                                  Style="width: 100%;" />
-                            </div>
-                        </FluentStack>
-
-                        @* Current Position Checkbox *@
-                        <div>
-                            <FluentCheckbox @bind-Value="CurrentEvent.IsCurrent"
-                                            Label="I currently work here" />
-                        </div>
-
-                        @* Description *@
-                        <div>
-                            <FluentTextArea Label="Description"
-                                            @bind-Value="CurrentEvent.Description"
-                                            Placeholder="Describe your responsibilities and achievements (Markdown supported)"
-                                            Rows="6"
-                                            Style="width: 100%;" />
-                            <small style="color: var(--neutral-foreground-hint);">
-                                Use bullet points to list key responsibilities and achievements
-                            </small>
-                        </div>
-
-                        @* Display Order *@
-                        <div>
-                            <FluentNumberField Label="Display Order"
-                                               @bind-Value="CurrentEvent.DisplayOrder"
-                                               Min="0"
-                                               Style="width: 150px;" />
-                            <small style="color: var(--neutral-foreground-hint);">
-                                Lower numbers appear first
-                            </small>
-                        </div>
-
-                        @* Form Actions *@
-                        <FluentStack Orientation="Orientation.Horizontal" Style="gap: 8px; margin-top: 16px;">
-                            <FluentButton Type="ButtonType.Submit"
-                                          Appearance="Appearance.Accent"
-                                          Disabled="@IsSaving">
-                                @if (IsSaving)
-                                {
-                                    <FluentProgressRing Style="width: 16px; height: 16px;" />
-                                    <span>Saving...</span>
-                                }
-                                else
-                                {
-                                    <FluentIcon Value="@(new Icons.Regular.Size16.Save())" />
-                                    <span>Save</span>
-                                }
-                            </FluentButton>
-                            <FluentButton Appearance="Appearance.Outline" OnClick="@CancelEdit">
-                                Cancel
-                            </FluentButton>
-                        </FluentStack>
-                    </FluentStack>
-                </EditForm>
-            </div>
-        }
-        else
-        {
-            @* Experience List *@
-            @if (ExperienceList == null || !ExperienceList.Any())
+    @if (IsLoading)
+    {
+        <div class="flex items-center justify-center gap-3 py-12" data-testid="experience-loading">
+            <Spinner />
+            <span class="text-muted-foreground">Loading...</span>
+        </div>
+    }
+    else if (ExperienceList is null || !ExperienceList.Any())
+    {
+        <Empty Title="No experience yet"
+               Description="Add your first role to start building the resume timeline."
+               data-testid="experience-empty">
+            <Icon><LucideIcon Name="briefcase" Size="48" /></Icon>
+            <ChildContent>
+                <Button OnClick="@ShowAddForm" data-testid="add-first-experience">
+                    <LucideIcon Name="plus" Size="16" />
+                    Add Experience
+                </Button>
+            </ChildContent>
+        </Empty>
+    }
+    else
+    {
+        <div class="flex flex-col gap-4" data-testid="experience-list">
+            @foreach (var exp in ExperienceList)
             {
-                <div style="padding: 32px; text-align: center; color: var(--neutral-foreground-hint);">
-                    <FluentIcon Value="@(new Icons.Regular.Size48.Briefcase())" Color="Color.Neutral" />
-                    <p style="margin-top: 16px;">No experience entries found.</p>
-                    <p>Click "Add Experience" to create your first entry.</p>
-                </div>
+                var entry = exp;
+                <Card data-testid="experience-card">
+                    <CardContent Class="flex flex-col gap-3 pt-6">
+                        <div class="flex items-start gap-4">
+
+                            @if (!string.IsNullOrEmpty(entry.LogoIconPath))
+                            {
+                                <img src="@entry.LogoIconPath"
+                                     alt="@entry.EventTitle"
+                                     class="h-12 w-12 rounded object-contain" />
+                            }
+                            else
+                            {
+                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
+                                    <LucideIcon Name="briefcase" Size="24" />
+                                </div>
+                            }
+
+                            <div class="min-w-0 flex-1">
+                                <h3 class="text-lg font-semibold" data-testid="experience-role">@entry.SessionTitle</h3>
+                                <div class="text-sm text-muted-foreground" data-testid="experience-company">@entry.EventTitle</div>
+                                <div class="text-xs text-muted-foreground" data-testid="experience-dates">
+                                    @FormatDateRange(entry.StartDate, entry.EventDate, entry.IsCurrent)
+                                </div>
+                            </div>
+
+                            <div class="flex shrink-0 items-center gap-1">
+                                @if (entry.IsCurrent)
+                                {
+                                    <Badge Variant="BadgeVariant.Secondary" data-testid="experience-current-badge">Current</Badge>
+                                }
+                                <Badge Variant="BadgeVariant.Outline"
+                                       title="Display order"
+                                       data-testid="experience-order">@entry.DisplayOrder</Badge>
+                                <Button Variant="ButtonVariant.Ghost"
+                                        Size="ButtonSize.IconSmall"
+                                        AriaLabel="Edit experience"
+                                        OnClick="@(() => EditExperience(entry.EventID))"
+                                        data-testid="edit-experience">
+                                    <LucideIcon Name="pencil" Size="16" />
+                                </Button>
+                                <Button Variant="ButtonVariant.Ghost"
+                                        Size="ButtonSize.IconSmall"
+                                        Class="text-destructive"
+                                        AriaLabel="Delete experience"
+                                        OnClick="@(() => ConfirmDelete(entry))"
+                                        data-testid="delete-experience">
+                                    <LucideIcon Name="trash-2" Size="16" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(entry.Description))
+                        {
+                            <div class="border-t border-border pt-3 text-sm leading-relaxed"
+                                 data-testid="experience-description">
+                                @((MarkupString)FormatDescription(entry.Description))
+                            </div>
+                        }
+                    </CardContent>
+                </Card>
             }
-            else
-            {
-                <div class="experience-list">
-                    @foreach (var exp in ExperienceList)
+        </div>
+    }
+</div>
+
+@* Add/Edit dialog - closed on load, opened by "Add Experience" or a row's Edit action. *@
+<Dialog Open="@ShowForm" OpenChanged="@OnFormOpenChanged">
+    <DialogContent Class="max-w-2xl" data-testid="experience-dialog">
+        <DialogHeader>
+            <DialogTitle>@(IsEditMode ? "Edit Experience" : "Add New Experience")</DialogTitle>
+            <DialogDescription>Roles appear on the public resume ordered by display order.</DialogDescription>
+        </DialogHeader>
+
+        <EditForm Model="@CurrentEvent" OnValidSubmit="@SaveExperience">
+            <DataAnnotationsValidator />
+
+            <div class="flex max-h-[65vh] flex-col gap-5 overflow-y-auto p-1">
+
+                <Field>
+                    <FieldLabel For="experience-role">Role / Position</FieldLabel>
+                    <FieldContent>
+                        <Input Id="experience-role"
+                               @bind-Value="CurrentEvent.SessionTitle"
+                               Placeholder="e.g., Senior Software Engineer"
+                               Required="true"
+                               data-testid="experience-role-input" />
+                    </FieldContent>
+                </Field>
+
+                <Field>
+                    <FieldLabel For="experience-company">Company Name</FieldLabel>
+                    <FieldContent>
+                        <Input Id="experience-company"
+                               @bind-Value="CurrentEvent.EventTitle"
+                               Placeholder="e.g., Acme Corporation"
+                               Required="true"
+                               data-testid="experience-company-input" />
+                    </FieldContent>
+                </Field>
+
+                <Field>
+                    <FieldLabel For="experience-logo">Company Logo Path</FieldLabel>
+                    <FieldContent>
+                        <Input Id="experience-logo"
+                               @bind-Value="CurrentEvent.LogoIconPath"
+                               Placeholder="/images/logos/company-logo.png"
+                               Class="font-mono"
+                               data-testid="experience-logo-input" />
+                        <FieldDescription>Path to the company logo image (optional).</FieldDescription>
+                    </FieldContent>
+                </Field>
+
+                <div class="grid gap-5 sm:grid-cols-2">
+                    <Field>
+                        <FieldLabel>Start Date</FieldLabel>
+                        <FieldContent>
+                            <DatePicker @bind-Value="StartDateValue"
+                                        Placeholder="Pick a start date"
+                                        data-testid="experience-start-date" />
+                        </FieldContent>
+                    </Field>
+
+                    <Field>
+                        <FieldLabel>End Date</FieldLabel>
+                        <FieldContent>
+                            <DatePicker @bind-Value="EndDateValue"
+                                        Placeholder="Pick an end date"
+                                        Disabled="@CurrentEvent.IsCurrent"
+                                        data-testid="experience-end-date" />
+                        </FieldContent>
+                    </Field>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <Checkbox Id="experience-current"
+                              @bind-Checked="CurrentEvent.IsCurrent"
+                              data-testid="experience-current-checkbox" />
+                    <Label For="experience-current">I currently work here</Label>
+                </div>
+
+                <Field>
+                    <FieldLabel For="experience-desc">Description</FieldLabel>
+                    <FieldContent>
+                        <Textarea Id="experience-desc"
+                                  @bind-Value="CurrentEvent.Description"
+                                  Placeholder="Describe your responsibilities and achievements (Markdown supported)"
+                                  Class="min-h-36"
+                                  data-testid="experience-description-input" />
+                        <FieldDescription>Use bullet points to list key responsibilities and achievements.</FieldDescription>
+                    </FieldContent>
+                </Field>
+
+                <Field>
+                    <FieldLabel For="experience-order">Display Order</FieldLabel>
+                    <FieldContent>
+                        <Input Id="experience-order"
+                               Type="InputType.Number"
+                               @bind-Value="DisplayOrderText"
+                               Class="w-40"
+                               data-testid="experience-order-input" />
+                        <FieldDescription>Lower numbers appear first.</FieldDescription>
+                    </FieldContent>
+                </Field>
+
+            </div>
+
+            <DialogFooter>
+                <Button Variant="ButtonVariant.Outline"
+                        Type="ButtonType.Button"
+                        OnClick="@CancelEdit"
+                        data-testid="cancel-experience">
+                    Cancel
+                </Button>
+                <Button Type="ButtonType.Submit" Disabled="@IsSaving" data-testid="save-experience">
+                    @if (IsSaving)
                     {
-                        <div class="experience-card">
-                            <div class="experience-header">
-                                @if (!string.IsNullOrEmpty(exp.LogoIconPath))
-                                {
-                                    <img src="@exp.LogoIconPath" alt="@exp.EventTitle" class="company-logo" />
-                                }
-                                else
-                                {
-                                    <div class="company-logo-placeholder">
-                                        <FluentIcon Value="@(new Icons.Regular.Size24.Building())" Color="Color.Neutral" />
-                                    </div>
-                                }
-                                <div class="experience-info">
-                                    <h4 class="role-title">@exp.SessionTitle</h4>
-                                    <div class="company-name">@exp.EventTitle</div>
-                                    <div class="date-range">
-                                        @FormatDateRange(exp.StartDate, exp.EventDate, exp.IsCurrent)
-                                    </div>
-                                </div>
-                                <div class="experience-actions">
-                                    <span class="display-order-badge" title="Display Order">@exp.DisplayOrder</span>
-                                    <FluentButton Appearance="Appearance.Stealth"
-                                                  OnClick="@(() => EditExperience(exp.EventID))"
-                                                  Title="Edit">
-                                        <FluentIcon Value="@(new Icons.Regular.Size16.Edit())" />
-                                    </FluentButton>
-                                    <FluentButton Appearance="Appearance.Stealth"
-                                                  OnClick="@(() => ConfirmDelete(exp))"
-                                                  Title="Delete">
-                                        <FluentIcon Value="@(new Icons.Regular.Size16.Delete())" Color="Color.Error" />
-                                    </FluentButton>
-                                </div>
-                            </div>
-                            @if (!string.IsNullOrEmpty(exp.Description))
-                            {
-                                <div class="experience-description">
-                                    @((MarkupString)FormatDescription(exp.Description))
-                                </div>
-                            }
-                            @if (exp.IsCurrent)
-                            {
-                                <span class="current-badge">Current</span>
-                            }
-                        </div>
+                        <Spinner Size="SpinnerSize.Small" />
+                        <span>Saving...</span>
                     }
-                </div>
-            }
-        }
+                    else
+                    {
+                        <LucideIcon Name="save" Size="16" />
+                        <span>Save</span>
+                    }
+                </Button>
+            </DialogFooter>
+        </EditForm>
+    </DialogContent>
+</Dialog>
 
-        @* Delete Confirmation Dialog *@
-        @if (ShowDeleteDialog)
-        {
-            <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
-                <FluentDialogHeader>
-                    <div style="padding: 16px 24px;">
-                        <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
-                    </div>
-                </FluentDialogHeader>
-                <FluentDialogBody>
-                    <div style="padding: 0 24px 16px 24px;">
-                        <p style="margin: 0 0 8px 0;">Are you sure you want to delete this experience entry?</p>
-                        <p style="margin: 0;"><strong>@EventToDelete?.SessionTitle</strong> at <strong>@EventToDelete?.EventTitle</strong></p>
-                    </div>
-                </FluentDialogBody>
-                <FluentDialogFooter>
-                    <div style="padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px;">
-                        <FluentButton Appearance="Appearance.Neutral" OnClick="@CancelDelete">
-                            Cancel
-                        </FluentButton>
-                        <FluentButton Appearance="Appearance.Accent"
-                                      OnClick="@DeleteExperience"
-                                      Style="background-color: var(--color-error, #D13438);">
-                            Delete
-                        </FluentButton>
-                    </div>
-                </FluentDialogFooter>
-            </FluentDialog>
-        }
-    </PanelContent>
-</ContentPanel>
-
-<style>
-    .experience-list {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-    }
-
-    .experience-card {
-        position: relative;
-        padding: 16px;
-        border: 1px solid var(--neutral-stroke-rest);
-        border-radius: 8px;
-        background-color: var(--neutral-layer-card-container);
-    }
-
-    .experience-card:hover {
-        border-color: var(--accent-fill-rest);
-    }
-
-    .experience-header {
-        display: flex;
-        align-items: flex-start;
-        gap: 16px;
-    }
-
-    .company-logo {
-        width: 48px;
-        height: 48px;
-        object-fit: contain;
-        border-radius: 4px;
-    }
-
-    .company-logo-placeholder {
-        width: 48px;
-        height: 48px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background-color: var(--neutral-layer-2);
-        border-radius: 4px;
-    }
-
-    .experience-info {
-        flex: 1;
-    }
-
-    .role-title {
-        margin: 0 0 4px 0;
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: var(--neutral-foreground-rest);
-    }
-
-    .company-name {
-        font-size: 0.95rem;
-        color: var(--neutral-foreground-hint);
-        margin-bottom: 4px;
-    }
-
-    .date-range {
-        font-size: 0.85rem;
-        color: var(--neutral-foreground-hint);
-    }
-
-    .experience-actions {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-    .display-order-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 24px;
-        height: 24px;
-        padding: 0 6px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        border-radius: 12px;
-        background-color: var(--neutral-layer-2);
-        color: var(--neutral-foreground-hint);
-        margin-right: 8px;
-    }
-
-    .experience-description {
-        margin-top: 12px;
-        padding-top: 12px;
-        border-top: 1px solid var(--neutral-stroke-rest);
-        font-size: 0.9rem;
-        color: var(--neutral-foreground-rest);
-        line-height: 1.5;
-    }
-
-    .experience-description ul {
-        margin: 8px 0;
-        padding-left: 20px;
-    }
-
-    .experience-description li {
-        margin-bottom: 4px;
-    }
-
-    .current-badge {
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        padding: 2px 8px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        border-radius: 4px;
-        background-color: var(--accent-fill-rest);
-        color: var(--accent-foreground-rest);
-    }
-</style>
+@* Delete confirmation - closed on load, opened by a row's Delete action. *@
+<AlertDialog Open="@ShowDeleteDialog" OpenChanged="@OnDeleteOpenChanged">
+    <AlertDialogContent data-testid="experience-delete-dialog">
+        <AlertDialogHeader>
+            <AlertDialogTitle>Confirm delete</AlertDialogTitle>
+            <AlertDialogDescription>
+                Are you sure you want to delete
+                <strong>@EventToDelete?.SessionTitle</strong> at <strong>@EventToDelete?.EventTitle</strong>?
+                This action cannot be undone.
+            </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+            <Button Variant="ButtonVariant.Outline" OnClick="@CancelDelete" data-testid="delete-cancel">
+                Cancel
+            </Button>
+            <Button Variant="ButtonVariant.Destructive" OnClick="@DeleteExperience" data-testid="delete-confirm">
+                Delete
+            </Button>
+        </AlertDialogFooter>
+    </AlertDialogContent>
+</AlertDialog>

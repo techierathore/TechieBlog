@@ -1,423 +1,294 @@
 @*
     CommentsList.razor
-    Purpose: Displays a list of comments for blog posts.
-    Provides moderation and editing capabilities.
+    Purpose: Displays a list of reader comments for moderation.
+    Provides approve, spam, reply and delete capabilities, individually and in bulk.
 
-    Usage: Navigate to /CommentsList
-    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+    Usage: Navigate to /CommentsList or /comments
+    Dependencies: TrBlazeUI.Components (REQ-UI-048)
     Authorization: EditorOrAbove policy required
 *@
 @page "/CommentsList"
 @page "/comments"
 @attribute [Authorize(Policy = "EditorOrAbove")]
 @layout BlogUI.Layouts.AdminLayout
-@inject NavigationManager Navigation
 @inject BlogEngine.Services.CommentSvc CommentService
 @inject BlogEngine.Services.BlogSvc BlogService
+@inject NavigationManager Navigation
 
-<div class="comments-list-page">
-    @* Page Header *@
-    <div class="page-header">
-        <h1>Comments Management</h1>
+<div class="mx-auto max-w-[1400px] space-y-6">
+
+    @* ---- Page header --------------------------------------------------- *@
+    <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-semibold tracking-tight text-foreground">Comments Management</h1>
+            <p class="text-sm text-muted-foreground">Moderate the conversation on your posts.</p>
+        </div>
     </div>
 
-    @* Status Messages *@
+    @* ---- Status message ------------------------------------------------ *@
     @if (!string.IsNullOrEmpty(StatusMessage))
     {
-        <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
-                          Style="margin-bottom: 16px;">
-            @StatusMessage
-        </FluentMessageBar>
+        <Alert Variant="@(IsError ? AlertVariant.Danger : AlertVariant.Success)"
+               data-testid="comments-status-message">
+            <LucideIcon Name="@(IsError ? "circle-alert" : "circle-check")" Size="16" />
+            <AlertDescription>@StatusMessage</AlertDescription>
+        </Alert>
     }
 
-    @* Filters Row *@
-    <div class="filters-row">
-        @* Status Tabs *@
-        <div class="status-tabs">
-            <span class="tabs__item @(StatusFilter == "all" ? "tabs__item--active" : "")"
-                  @onclick='() => SetFilter("all")'>
-                All (@TotalCount)
-            </span>
-            <span class="tabs__item @(StatusFilter == "pending" ? "tabs__item--active" : "")"
-                  @onclick='() => SetFilter("pending")'>
-                Pending (@PendingCount)
-            </span>
-            <span class="tabs__item @(StatusFilter == "approved" ? "tabs__item--active" : "")"
-                  @onclick='() => SetFilter("approved")'>
-                Approved (@ApprovedCount)
-            </span>
-            <span class="tabs__item @(StatusFilter == "spam" ? "tabs__item--active" : "")"
-                  @onclick='() => SetFilter("spam")'>
-                Spam (@SpamCount)
-            </span>
-        </div>
+    @* ---- Filter row ---------------------------------------------------- *@
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        @*
+            TrBlazeUI's TabsList and TabsTrigger declare no CaptureUnmatchedValues, so a
+            data-testid on either throws at render and the ErrorBoundary swallowed the whole
+            page behind an HTTP 200 — this page was unreachable. Tabs itself does splat, so the
+            container hook lives there and each trigger's hook lives on a span this page owns.
+            Library gap TR-030/TR-046; do not put test hooks back on the
+            TabsList/TabsTrigger elements.
+        *@
+        <Tabs Value="@StatusFilter"
+              ValueChanged="@((string value) => SetFilter(value))"
+              data-testid="comments-status-tabs">
+            <TabsList>
+                <TabsTrigger Value="all"><span data-testid="comments-tab-all">All (@TotalCount)</span></TabsTrigger>
+                <TabsTrigger Value="pending"><span data-testid="comments-tab-pending">Pending (@PendingCount)</span></TabsTrigger>
+                <TabsTrigger Value="approved"><span data-testid="comments-tab-approved">Approved (@ApprovedCount)</span></TabsTrigger>
+                <TabsTrigger Value="spam"><span data-testid="comments-tab-spam">Spam (@SpamCount)</span></TabsTrigger>
+            </TabsList>
+        </Tabs>
 
-        <span style="flex: 1;"></span>
-
-        @* Search Box *@
-        <div class="search-box">
-            <FluentIcon Value="@(new Icons.Regular.Size16.Search())" Color="Color.Neutral" />
-            <FluentTextField @bind-Value="SearchTerm"
-                             @bind-Value:after="ApplyFilter"
-                             Placeholder="Search comments..."
-                             Style="min-width: 200px;" />
+        <div class="flex items-center gap-2">
+            <LucideIcon Name="search" Size="16" Class="text-muted-foreground" />
+            <Input Type="InputType.Search"
+                   @bind-Value="SearchTerm"
+                   @bind-Value:after="ApplyFilter"
+                   Placeholder="Search comments..."
+                   Class="min-w-[200px]"
+                   AriaLabel="Search comments"
+                   data-testid="comments-search" />
         </div>
     </div>
 
-    @* Comments Table *@
-    <div class="table-container">
-        @if (IsLoading)
-        {
-            <div style="padding: 32px; text-align: center;">
-                <FluentProgressRing />
-                <span style="display: block; margin-top: 8px;">Loading...</span>
-            </div>
-        }
-        else if (FilteredList == null || !FilteredList.Any())
-        {
-            <div style="padding: 32px; text-align: center; color: var(--color-neutral-light);">
-                @if (StatusFilter == "all" && string.IsNullOrEmpty(SearchTerm))
-                {
-                    <p>No comments found. Comments will appear here when readers engage with your posts.</p>
-                }
-                else
-                {
-                    <p>No comments match your filters.</p>
-                    <FluentButton Appearance="Appearance.Outline" OnClick="ClearFilters">Clear Filters</FluentButton>
-                }
-            </div>
-        }
-        else
-        {
-            <table class="data-grid">
-                <thead>
-                    <tr>
-                        <th style="width: 40px;"><FluentCheckbox @bind-Value="SelectAll" @bind-Value:after="ToggleSelectAll" /></th>
-                        <th>Comment</th>
-                        <th style="width: 150px;">Author</th>
-                        <th style="width: 200px;">Post</th>
-                        <th style="width: 100px;">Status</th>
-                        <th style="width: 120px;">Date</th>
-                        <th style="width: 140px;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var comment in FilteredList)
-                    {
-                        var rowClass = comment.Status == "Pending" ? "row-pending" : (comment.Status == "Spam" ? "row-spam" : "");
-                        <tr class="@rowClass">
-                            <td><FluentCheckbox @bind-Value="comment.IsSelected" /></td>
-                            <td class="comment-content">
-                                <div class="comment-text">@TruncateText(comment.Content, 100)</div>
-                            </td>
-                            <td>
-                                <div class="author-info">
-                                    <span class="author-name">@comment.AuthorName</span>
-                                    <span class="author-email">@comment.AuthorEmail</span>
-                                </div>
-                            </td>
-                            <td>
-                                <a href="/post/@comment.PostSlug" class="post-link" target="_blank">@TruncateText(comment.PostTitle, 30)</a>
-                            </td>
-                            <td>
-                                @if (comment.Status == "Approved")
-                                {
-                                    <span class="badge badge--success">Approved</span>
-                                }
-                                else if (comment.Status == "Pending")
-                                {
-                                    <span class="badge badge--warning">Pending</span>
-                                }
-                                else if (comment.Status == "Spam")
-                                {
-                                    <span class="badge badge--error">Spam</span>
-                                }
-                                else
-                                {
-                                    <span class="badge">@comment.Status</span>
-                                }
-                            </td>
-                            <td>@comment.CreatedOn.ToString("MMM dd, yyyy")</td>
-                            <td>
-                                <div class="action-buttons">
-                                    @if (comment.Status == "Pending")
-                                    {
-                                        <FluentButton Appearance="Appearance.Stealth"
-                                                      OnClick="@(() => ApproveComment(comment))"
-                                                      Title="Approve">
-                                            <FluentIcon Value="@(new Icons.Regular.Size16.CheckmarkCircle())" Color="Color.Success" />
-                                        </FluentButton>
-                                        <FluentButton Appearance="Appearance.Stealth"
-                                                      OnClick="@(() => MarkAsSpam(comment))"
-                                                      Title="Mark as Spam">
-                                            <FluentIcon Value="@(new Icons.Regular.Size16.Warning())" Color="Color.Warning" />
-                                        </FluentButton>
-                                    }
-                                    else if (comment.Status == "Spam")
-                                    {
-                                        <FluentButton Appearance="Appearance.Stealth"
-                                                      OnClick="@(() => ApproveComment(comment))"
-                                                      Title="Not Spam">
-                                            <FluentIcon Value="@(new Icons.Regular.Size16.CheckmarkCircle())" Color="Color.Success" />
-                                        </FluentButton>
-                                    }
-                                    <FluentButton Appearance="Appearance.Stealth"
-                                                  OnClick="@(() => ReplyToComment(comment))"
-                                                  Title="Reply">
-                                        <FluentIcon Value="@(new Icons.Regular.Size16.ArrowReply())" />
-                                    </FluentButton>
-                                    <FluentButton Appearance="Appearance.Stealth"
-                                                  OnClick="@(() => ConfirmDelete(comment))"
-                                                  Title="Delete">
-                                        <FluentIcon Value="@(new Icons.Regular.Size16.Delete())" Color="Color.Error" />
-                                    </FluentButton>
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        }
-    </div>
-
-    @* Bulk Actions & Pagination Footer *@
-    @if (FilteredList != null && FilteredList.Any())
+    @* ---- Comments table -------------------------------------------------- *@
+    @if (IsLoading)
     {
-        <div class="table-footer">
-            <div class="bulk-actions">
-                <FluentSelect TOption="string" @bind-Value="BulkAction" Style="width: 150px;">
-                    <FluentOption TOption="string" Value="">Bulk Actions</FluentOption>
-                    <FluentOption TOption="string" Value="approve">Approve</FluentOption>
-                    <FluentOption TOption="string" Value="spam">Mark as Spam</FluentOption>
-                    <FluentOption TOption="string" Value="delete">Delete</FluentOption>
-                </FluentSelect>
-                <FluentButton Appearance="Appearance.Outline"
-                              OnClick="ApplyBulkAction"
-                              Disabled="@(string.IsNullOrEmpty(BulkAction) || !HasSelectedComments)">
+        <div class="flex flex-col items-center gap-2 py-8" data-testid="comments-loading">
+            <Spinner />
+            <span class="text-sm text-muted-foreground">Loading...</span>
+        </div>
+    }
+    else if (FilteredList == null || !FilteredList.Any())
+    {
+        <Empty Title="@EmptyTitle" Description="@EmptyDescription" data-testid="comments-empty">
+            <Icon><LucideIcon Name="message-square" Size="48" /></Icon>
+            <ChildContent>
+                @if (HasActiveFilters)
+                {
+                    <Button Variant="ButtonVariant.Outline" OnClick="ClearFilters" data-testid="comments-clear-filters">
+                        Clear Filters
+                    </Button>
+                }
+            </ChildContent>
+        </Empty>
+    }
+    else
+    {
+        <DataTable TData="CommentViewModel"
+                   Data="@FilteredList"
+                   InitialPageSize="20"
+                   AriaLabel="Comments"
+                   data-testid="comments-grid">
+            <Columns>
+                <DataTableColumn TData="CommentViewModel" TValue="bool" Property="@(c => c.IsSelected)" Header="" Width="48px">
+                    <CellTemplate Context="row">
+                        <Checkbox @bind-Checked="row.IsSelected"
+                                  AriaLabel="Select comment"
+                                  data-testid="comment-row-select" />
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="CommentViewModel" TValue="string" Property="@(c => c.Content)" Header="Comment" Filterable>
+                    <CellTemplate Context="row">
+                        <div class="max-w-[300px] text-sm text-foreground" data-testid="comment-row-text">
+                            @TruncateText(row.Content, 100)
+                        </div>
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="CommentViewModel" TValue="string" Property="@(c => c.AuthorName)" Header="Author" Sortable>
+                    <CellTemplate Context="row">
+                        <div class="flex flex-col">
+                            <span class="font-semibold text-foreground" data-testid="comment-row-author">@row.AuthorName</span>
+                            <span class="text-xs text-muted-foreground" data-testid="comment-row-email">@row.AuthorEmail</span>
+                        </div>
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="CommentViewModel" TValue="string" Property="@(c => c.PostTitle)" Header="Post" Sortable>
+                    <CellTemplate Context="row">
+                        <a href="/post/@row.PostSlug"
+                           target="_blank"
+                           class="text-primary hover:underline"
+                           data-testid="comment-row-post">@TruncateText(row.PostTitle, 30)</a>
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="CommentViewModel" TValue="string" Property="@(c => c.Status)" Header="Status" Sortable>
+                    <CellTemplate Context="row">
+                        <Badge Variant="@GetStatusVariant(row.Status)" data-testid="comment-row-status">@row.Status</Badge>
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="CommentViewModel" TValue="DateTime" Property="@(c => c.CreatedOn)" Header="Date" Sortable>
+                    <CellTemplate Context="row">
+                        <span data-testid="comment-row-date">@row.CreatedOn.ToString("MMM dd, yyyy")</span>
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="CommentViewModel" TValue="long" Property="@(c => c.CommentId)" Header="Actions" Width="160px">
+                    <CellTemplate Context="row">
+                        <div class="flex flex-nowrap items-center gap-1">
+                            @if (row.Status == "Pending")
+                            {
+                                <Button Size="ButtonSize.IconSmall"
+                                        Variant="ButtonVariant.Ghost"
+                                        OnClick="@(() => ApproveComment(row))"
+                                        AriaLabel="Approve comment"
+                                        data-testid="comment-approve">
+                                    <LucideIcon Name="circle-check" Size="16" />
+                                </Button>
+                                <Button Size="ButtonSize.IconSmall"
+                                        Variant="ButtonVariant.Ghost"
+                                        OnClick="@(() => MarkAsSpam(row))"
+                                        AriaLabel="Mark as spam"
+                                        data-testid="comment-spam">
+                                    <LucideIcon Name="triangle-alert" Size="16" />
+                                </Button>
+                            }
+                            else if (row.Status == "Spam")
+                            {
+                                <Button Size="ButtonSize.IconSmall"
+                                        Variant="ButtonVariant.Ghost"
+                                        OnClick="@(() => ApproveComment(row))"
+                                        AriaLabel="Not spam"
+                                        data-testid="comment-approve">
+                                    <LucideIcon Name="circle-check" Size="16" />
+                                </Button>
+                            }
+                            <Button Size="ButtonSize.IconSmall"
+                                    Variant="ButtonVariant.Ghost"
+                                    OnClick="@(() => ReplyToComment(row))"
+                                    AriaLabel="Reply to comment"
+                                    data-testid="comment-reply">
+                                <LucideIcon Name="message-square" Size="16" />
+                            </Button>
+                            <Button Size="ButtonSize.IconSmall"
+                                    Variant="ButtonVariant.Ghost"
+                                    Class="text-destructive"
+                                    OnClick="@(() => ConfirmDelete(row))"
+                                    AriaLabel="Delete comment"
+                                    data-testid="comment-delete">
+                                <LucideIcon Name="trash-2" Size="16" />
+                            </Button>
+                        </div>
+                    </CellTemplate>
+                </DataTableColumn>
+            </Columns>
+        </DataTable>
+
+        @* ---- Bulk actions footer --------------------------------------- *@
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
+                    <Checkbox Id="comments-select-all"
+                              Checked="@SelectAll"
+                              CheckedChanged="@OnSelectAllChanged"
+                              data-testid="comments-select-all" />
+                    <Label For="comments-select-all">Select all</Label>
+                </div>
+
+                <Select TValue="string" @bind-Value="BulkAction" Class="w-[180px]">
+                    <SelectTrigger data-testid="comments-bulk-action">
+                        <SelectValue Placeholder="Bulk Actions" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem TValue="string" Value="@("approve")" Text="Approve">Approve</SelectItem>
+                        <SelectItem TValue="string" Value="@("spam")" Text="Mark as Spam">Mark as Spam</SelectItem>
+                        <SelectItem TValue="string" Value="@("delete")" Text="Delete">Delete</SelectItem>
+                    </SelectContent>
+                </Select>
+
+                <Button Variant="ButtonVariant.Outline"
+                        OnClick="ApplyBulkAction"
+                        Disabled="@(string.IsNullOrEmpty(BulkAction) || !HasSelectedComments)"
+                        data-testid="comments-bulk-apply">
                     Apply
-                </FluentButton>
+                </Button>
             </div>
 
-            <div class="pagination-info">
+            <span class="text-sm text-muted-foreground" data-testid="comments-count">
                 Showing @FilteredList.Count of @TotalCount comments
-            </div>
+            </span>
         </div>
-    }
-
-    @* Delete Confirmation Dialog *@
-    @if (!HideDeleteDialog)
-    {
-        <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
-            <FluentDialogHeader>
-                <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
-            </FluentDialogHeader>
-            <FluentDialogBody>
-                <p>Are you sure you want to delete this comment by "<strong>@CommentToDelete?.AuthorName</strong>"?</p>
-                <p style="color: var(--color-neutral-light, #605E5C);">This action cannot be undone.</p>
-            </FluentDialogBody>
-            <FluentDialogFooter>
-                <FluentButton Appearance="Appearance.Neutral" OnClick="CancelDelete">Cancel</FluentButton>
-                <FluentButton Appearance="Appearance.Accent"
-                              OnClick="DeleteComment"
-                              Style="background-color: var(--color-error, #D13438);">
-                    Delete
-                </FluentButton>
-            </FluentDialogFooter>
-        </FluentDialog>
     }
 </div>
 
-<style>
-    .comments-list-page {
-        max-width: 1400px;
-    }
-
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: var(--spacing-lg, 24px);
-    }
-
-    .page-header h1 {
-        margin: 0;
-    }
-
-    .filters-row {
-        display: flex;
-        gap: var(--spacing-md, 16px);
-        margin-bottom: var(--spacing-lg, 24px);
-        flex-wrap: wrap;
-        align-items: center;
-    }
-
-    .status-tabs {
-        display: flex;
-        border-bottom: 1px solid var(--color-border, #E1E1E1);
-    }
-
-    .tabs__item {
-        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
-        font-size: var(--font-size-small, 0.875rem);
-        color: var(--color-neutral-light, #605E5C);
-        border-bottom: 2px solid transparent;
-        margin-bottom: -1px;
-        cursor: pointer;
-        transition: all var(--transition-fast, 150ms ease);
-    }
-
-    .tabs__item:hover {
-        color: var(--color-neutral, #323130);
-    }
-
-    .tabs__item--active {
-        color: var(--color-primary, #0078D4);
-        border-bottom-color: var(--color-primary, #0078D4);
-    }
-
-    .search-box {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-sm, 8px);
-    }
-
-    .table-container {
-        border: 1px solid var(--color-border, #E1E1E1);
-        border-radius: var(--border-radius-lg, 8px);
-        overflow: hidden;
-        background-color: var(--color-background, #fff);
-    }
-
-    .data-grid {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: var(--font-size-small, 0.875rem);
-    }
-
-    .data-grid th,
-    .data-grid td {
-        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
-        text-align: left;
-        border-bottom: 1px solid var(--color-border, #E1E1E1);
-    }
-
-    .data-grid th {
-        font-weight: var(--font-weight-semibold, 600);
-        background-color: var(--color-surface, #F5F5F5);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .data-grid tr:hover td {
-        background-color: var(--color-surface, #F5F5F5);
-    }
-
-    .data-grid tr.row-pending td {
-        background-color: rgba(255, 185, 0, 0.05);
-    }
-
-    .data-grid tr.row-spam td {
-        background-color: rgba(209, 52, 56, 0.05);
-    }
-
-    .comment-content {
-        max-width: 300px;
-    }
-
-    .comment-text {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-    }
-
-    .author-info {
-        display: flex;
-        flex-direction: column;
-    }
-
-    .author-name {
-        font-weight: var(--font-weight-semibold, 600);
-    }
-
-    .author-email {
-        font-size: var(--font-size-xs, 0.75rem);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .post-link {
-        color: var(--color-primary, #0078D4);
-        text-decoration: none;
-    }
-
-    .post-link:hover {
-        text-decoration: underline;
-    }
-
-    .badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 2px var(--spacing-sm, 8px);
-        font-size: var(--font-size-xs, 0.75rem);
-        font-weight: var(--font-weight-semibold, 600);
-        border-radius: var(--border-radius, 4px);
-        background-color: var(--color-surface, #F5F5F5);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .badge--success {
-        background-color: var(--color-success, #107C10);
-        color: white;
-    }
-
-    .badge--warning {
-        background-color: var(--color-warning, #FFB900);
-        color: var(--color-neutral, #323130);
-    }
-
-    .badge--error {
-        background-color: var(--color-error, #D13438);
-        color: white;
-    }
-
-    .action-buttons {
-        display: flex;
-        gap: 2px;
-        flex-wrap: nowrap;
-    }
-
-    .table-footer {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: var(--spacing-md, 16px);
-    }
-
-    .bulk-actions {
-        display: flex;
-        gap: var(--spacing-sm, 8px);
-        align-items: center;
-    }
-
-    .pagination-info {
-        font-size: var(--font-size-small, 0.875rem);
-        color: var(--color-neutral-light, #605E5C);
-    }
-</style>
+@* ---- Delete confirmation ------------------------------------------------ *@
+<Dialog Open="@(!HideDeleteDialog)" OpenChanged="@OnDeleteDialogOpenChanged">
+    <DialogContent data-testid="comment-delete-dialog">
+        <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+            <DialogDescription>This action cannot be undone.</DialogDescription>
+        </DialogHeader>
+        <p class="text-sm text-foreground">
+            Are you sure you want to delete this comment by
+            "<strong data-testid="comment-delete-author">@CommentToDelete?.AuthorName</strong>"?
+        </p>
+        <DialogFooter>
+            <Button Variant="ButtonVariant.Outline" OnClick="CancelDelete" data-testid="comment-delete-cancel">
+                Cancel
+            </Button>
+            <Button Variant="ButtonVariant.Destructive" OnClick="DeleteComment" data-testid="comment-delete-confirm">
+                Delete
+            </Button>
+        </DialogFooter>
+    </DialogContent>
+</Dialog>
 
 @code {
-    // Comment view model for UI
+    /// <summary>Comment view model for the moderation grid.</summary>
     private class CommentViewModel
     {
+        /// <summary>Comment identifier.</summary>
         public long CommentId { get; set; }
+
+        /// <summary>Comment body.</summary>
         public string Content { get; set; } = string.Empty;
+
+        /// <summary>Display name of the commenter.</summary>
         public string AuthorName { get; set; } = string.Empty;
+
+        /// <summary>Email of the commenter.</summary>
         public string AuthorEmail { get; set; } = string.Empty;
+
+        /// <summary>Identifier of the commented post.</summary>
         public long PostId { get; set; }
+
+        /// <summary>Title of the commented post.</summary>
         public string PostTitle { get; set; } = string.Empty;
+
+        /// <summary>Slug of the commented post.</summary>
         public string PostSlug { get; set; } = string.Empty;
+
+        /// <summary>Moderation status: Unconfirmed, Pending, Approved, Rejected or Spam.</summary>
         public string Status { get; set; } = "Pending";
+
+        /// <summary>Creation timestamp.</summary>
         public DateTime CreatedOn { get; set; }
+
+        /// <summary>True once the commenter confirmed their address; only then can it be approved.</summary>
+        public bool IsEmailVerified { get; set; }
+
+        /// <summary>True when the row is ticked for a bulk action.</summary>
         public bool IsSelected { get; set; }
     }
 
@@ -439,11 +310,61 @@
     private int ApprovedCount => ObjectList?.Count(c => c.Status == "Approved") ?? 0;
     private int SpamCount => ObjectList?.Count(c => c.Status == "Spam") ?? 0;
     private bool HasSelectedComments => FilteredList?.Any(c => c.IsSelected) ?? false;
+    private bool HasActiveFilters => StatusFilter != "all" || !string.IsNullOrEmpty(SearchTerm);
 
+    private string EmptyTitle => HasActiveFilters ? "No comments match your filters" : "No comments yet";
+
+    private string EmptyDescription => HasActiveFilters
+        ? "Try a different status tab or clear the search term."
+        : "Comments will appear here when readers engage with your posts.";
+
+    /// <inheritdoc />
     protected override void OnInitialized()
     {
         LoadComments();
     }
+
+    /// <summary>Maps a moderation status onto a badge variant.</summary>
+    /// <param name="status">Moderation status value.</param>
+    /// <returns>The badge variant to render.</returns>
+    private BadgeVariant GetStatusVariant(string status) => status switch
+    {
+        "Approved" => BadgeVariant.Default,
+        "Pending" => BadgeVariant.Outline,
+        "Spam" => BadgeVariant.Destructive,
+        _ => BadgeVariant.Secondary
+    };
+
+    /// <summary>Handles the select-all checkbox toggle.</summary>
+    /// <param name="isChecked">New checked state.</param>
+    private void OnSelectAllChanged(bool isChecked)
+    {
+        SelectAll = isChecked;
+        ToggleSelectAll();
+    }
+
+    /// <summary>Keeps the legacy hide-flag in sync with the dialog open state.</summary>
+    /// <param name="isOpen">True when the dialog is open.</param>
+    private void OnDeleteDialogOpenChanged(bool isOpen)
+    {
+        HideDeleteDialog = !isOpen;
+        if (!isOpen)
+        {
+            CommentToDelete = null;
+        }
+    }
+
+    // [REQ-FN-022] The grid used to derive the status from Published alone, which collapsed
+    // Spam and Rejected into "Pending" and left the Spam tab permanently empty. The
+    // moderation status is the single source of truth, so read it directly.
+    private static string MapStatus(string moderationStatus) => moderationStatus switch
+    {
+        BlogModels.CommentModerationStatus.Approved => "Approved",
+        BlogModels.CommentModerationStatus.Spam => "Spam",
+        BlogModels.CommentModerationStatus.Rejected => "Rejected",
+        BlogModels.CommentModerationStatus.PendingVerification => "Unconfirmed",
+        _ => "Pending"
+    };
 
     private void LoadComments()
     {
@@ -453,12 +374,12 @@
             // Load all comments from service
             var comments = CommentService.GetAllComments();
             ObjectList = new List<CommentViewModel>();
-            
+
             foreach (var comment in comments)
             {
                 // Get post details for the comment
                 var post = BlogService.GetSinglePost(comment.PostID);
-                
+
                 ObjectList.Add(new CommentViewModel
                 {
                     CommentId = comment.CommentID,
@@ -468,12 +389,13 @@
                     PostId = comment.PostID,
                     PostTitle = post?.Title ?? "Unknown Post",
                     PostSlug = post?.Slug ?? comment.PostID.ToString(),
-                    Status = comment.Published ? "Approved" : "Pending",
+                    Status = MapStatus(comment.ModerationStatus),
                     CreatedOn = comment.GivenOn,
+                    IsEmailVerified = comment.IsEmailVerified,
                     IsSelected = false
                 });
             }
-            
+
             ApplyFilter();
         }
         catch (Exception ex)
@@ -542,58 +464,65 @@
         }
     }
 
-    private void ApplyBulkAction()
+    // [REQ-FN-022 / BRD-39] One set-based call per action instead of a per-row loop.
+    // The previous version applied "Mark as Spam" to the view model only, so the grid
+    // showed Spam while the database still held the comment as approved.
+    private async Task ApplyBulkAction()
     {
         if (string.IsNullOrEmpty(BulkAction) || !HasSelectedComments) return;
 
         var selectedComments = FilteredList.Where(c => c.IsSelected).ToList();
-        int successCount = 0;
-        int failCount = 0;
+        var selectedIds = selectedComments.Select(c => c.CommentId).ToList();
 
-        foreach (var comment in selectedComments)
+        BlogModels.Result<int> result = BulkAction switch
         {
-            BlogModels.Result result;
-            switch (BulkAction)
-            {
-                case "approve":
-                    result = CommentService.ApproveComment(comment.CommentId);
-                    if (result.IsSuccess)
-                    {
-                        comment.Status = "Approved";
-                        successCount++;
-                    }
-                    else failCount++;
-                    break;
-                case "spam":
-                    comment.Status = "Spam";
-                    successCount++;
-                    break;
-                case "delete":
-                    result = CommentService.DeleteComment(comment.CommentId);
-                    if (result.IsSuccess)
-                    {
-                        ObjectList.Remove(comment);
-                        successCount++;
-                    }
-                    else failCount++;
-                    break;
-            }
+            "approve" => await CommentService.ApproveCommentsAsync(selectedIds),
+            "spam" => await CommentService.RejectCommentsAsync(selectedIds, isSpam: true),
+            "delete" => await CommentService.DeleteCommentsAsync(selectedIds),
+            _ => BlogModels.Result<int>.Success(0)
+        };
+
+        if (result.IsSuccess)
+        {
+            ApplyBulkOutcome(selectedComments, result.Data);
+        }
+        else
+        {
+            StatusMessage = result.ErrorMessage;
+            IsError = true;
         }
 
         BulkAction = string.Empty;
         SelectAll = false;
         ApplyFilter();
-        
-        if (failCount > 0)
+    }
+
+    // Reflects the rows the database actually changed. Approving skips comments whose
+    // address was never confirmed, so affected can be lower than the selection.
+    private void ApplyBulkOutcome(List<CommentViewModel> selectedComments, int affected)
+    {
+        if (BulkAction == "delete")
         {
-            StatusMessage = $"Bulk action completed: {successCount} succeeded, {failCount} failed.";
-            IsError = failCount > successCount;
+            foreach (var comment in selectedComments)
+            {
+                ObjectList.Remove(comment);
+            }
         }
         else
         {
-            StatusMessage = $"Bulk action applied to {successCount} comment(s).";
-            IsError = false;
+            var newStatus = BulkAction == "approve" ? "Approved" : "Spam";
+            foreach (var comment in selectedComments.Where(c => BulkAction != "approve" || c.IsEmailVerified))
+            {
+                comment.Status = newStatus;
+                comment.IsSelected = false;
+            }
         }
+
+        var skipped = selectedComments.Count - affected;
+        StatusMessage = skipped > 0
+            ? $"Bulk action applied to {affected} comment(s); {skipped} skipped (email not confirmed)."
+            : $"Bulk action applied to {affected} comment(s).";
+        IsError = false;
     }
 
     private void ApproveComment(CommentViewModel comment)

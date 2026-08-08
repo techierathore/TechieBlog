@@ -1,230 +1,416 @@
+using System.Net.Mail;
 using BlogModels;
 using Microsoft.Extensions.Logging;
 
 namespace BlogEngine.Services;
 
 /// <summary>
-/// Service layer for post rating operations.
+/// Business logic for the star rating system, keyed by email address.
 /// </summary>
 /// <remarks>
-/// <para><b>Purpose:</b> Provides business logic for the star rating system.</para>
-/// <para><b>Dependencies:</b> IPostRatingRepo for data access.</para>
-/// <para><b>Story:</b> FIX-013 - Star Ratings Implementation (Epic 4, FR15-16)</para>
+/// <para><b>Purpose:</b> [REQ-FN-023] re-keyed ratings from a signed-in user id to an email
+/// address, so an anonymous reader can rate a post - once - and change their mind later.</para>
+///
+/// <para><b>Code Flow:</b> <see cref="SubmitRatingAsync"/> validates the score, makes an
+/// anonymous submitter answer a captcha, upserts the rating on (post, email) and - unless the
+/// address is already on the verified registry - issues a double opt-in link. Only verified
+/// ratings feed the average, the count and the top-rated list, so an unconfirmed score cannot
+/// move the public numbers.</para>
+///
+/// <para><b>The security-relevant rule: an unverified rating must never affect the public
+/// average.</b> A rating is stored with a verified flag, and <i>every</i> aggregate read —
+/// <see cref="GetAverageRating"/>, <see cref="GetRatingCount"/>,
+/// <see cref="GetPostRatingStats"/> and <see cref="GetTopRatedPostIds"/> — goes through repository
+/// SQL that filters on it. Without that filter the star rating would be an open ballot box: anyone
+/// could type an address they do not own and move a post's score, repeatedly, with different
+/// addresses. The parked row is deliberately kept and shown back to <i>its own submitter</i> via
+/// <see cref="GetRatingByEmailAsync"/> so the stars they clicked stay selected, but it contributes
+/// nothing to any public number until the confirmation link is opened. <b>Any new aggregate query
+/// must carry the same filter</b> — that is the one invariant to preserve when changing this
+/// class.</para>
+///
+/// <para><b>One rating per email per post, and it is changeable.</b> Identity is the email address,
+/// not the user id, so an anonymous reader can rate. A second submission from the same address
+/// <i>updates</i> the first through an upsert rather than adding a second vote, and
+/// <see cref="RemoveRatingAsync"/> withdraws it. Case and whitespace: the address is trimmed before
+/// the upsert, so uniqueness depends on the repository's own comparison — do not assume a
+/// case-difference creates a second rating.</para>
+///
+/// <para><b>Authorization:</b> none is enforced here and none is required — rating is an anonymous
+/// public action. The two gates that stand in for a policy are the <b>captcha</b>, demanded of any
+/// submitter without a signed-in user id, and the <b>double opt-in</b>, demanded of any address not
+/// already verified. Note the asymmetry: a signed-in user skips the captcha but <i>not</i> the
+/// verification check, so a signed-in user whose address has never been confirmed still has their
+/// rating parked. Read methods are safe to call from an anonymous page; only
+/// <see cref="GetRatingByEmailAsync"/> reveals anything about an individual, and the caller must
+/// pass an address the visitor has already proved is theirs rather than one from a query
+/// string.</para>
+///
+/// <para><b>Result contract:</b> expected failures — a score outside 1..5, a malformed address, a
+/// failed captcha, no rating to remove — are <i>returned</i> as <c>Result.Failure</c> with a
+/// visitor-safe message. Unexpected failures are caught, logged with the post id, and converted
+/// into a generic message; nothing throws out of this class.</para>
+///
+/// <para><b>Dependencies:</b> <see cref="IPostRatingRepo"/>, <see cref="ICaptchaService"/> —
+/// which resolves to the rate-limited decorator, so a scripted submitter is capped —
+/// <see cref="IEmailVerificationService"/> and <see cref="ILogger{TCategoryName}"/>.</para>
+///
+/// <para><b>Usage:</b> Registered transient by <c>BlogSvcInitializer</c>. Read methods swallow
+/// errors and return neutral values (0, null, empty), because a broken rating widget must never
+/// take a blog post down with it — which also means a zero average cannot be distinguished from a
+/// read failure without checking the log. Note the mixed sync/async surface: the aggregate reads
+/// are synchronous while the per-address reads and every mutation are asynchronous, following the
+/// repository they sit on.</para>
 /// </remarks>
 public class RatingSvc
 {
-    private readonly IPostRatingRepo _ratingRepo;
-    private readonly ILogger<RatingSvc> _logger;
+    /// <summary>Lowest acceptable score.</summary>
+    private const int MinimumRating = 1;
 
-    public RatingSvc(IPostRatingRepo ratingRepo, ILogger<RatingSvc> logger)
+    /// <summary>Highest acceptable score.</summary>
+    private const int MaximumRating = 5;
+
+    private readonly IPostRatingRepo ratingRepo;
+    private readonly ICaptchaService captchaService;
+    private readonly IEmailVerificationService emailVerificationService;
+    private readonly ILogger<RatingSvc> logger;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RatingSvc"/> class.
+    /// </summary>
+    /// <param name="ratingRepo">Rating data access.</param>
+    /// <param name="captchaService">Proves an anonymous submitter is human.</param>
+    /// <param name="emailVerificationService">Issues and tracks double opt-in confirmations.</param>
+    /// <param name="logger">Logger for operational and security events.</param>
+    public RatingSvc(
+        IPostRatingRepo ratingRepo,
+        ICaptchaService captchaService,
+        IEmailVerificationService emailVerificationService,
+        ILogger<RatingSvc> logger)
     {
-        _ratingRepo = ratingRepo;
-        _logger = logger;
+        this.ratingRepo = ratingRepo;
+        this.captchaService = captchaService;
+        this.emailVerificationService = emailVerificationService;
+        this.logger = logger;
     }
 
     /// <summary>
-    /// Rates a post (insert or update existing rating).
+    /// Records or changes the rating an email address has given a post.
     /// </summary>
-    /// <param name="postId">Post ID to rate.</param>
-    /// <param name="userId">User ID submitting the rating.</param>
-    /// <param name="rating">Rating value (1-5).</param>
-    /// <returns>Result indicating success or failure.</returns>
-    public Result RatePost(long postId, long userId, int rating)
+    /// <remarks>
+    /// <para><b>Business Logic:</b> One rating per address per post; a second submission updates
+    /// the first. An anonymous submitter must answer a captcha. An address that has never been
+    /// confirmed gets a verification link and its score is parked, uncounted, until the link is
+    /// clicked.</para>
+    /// <para><b>Flow:</b> validate, captcha, upsert, issue token when unverified.</para>
+    /// <para><b>Side Effects:</b> Inserts or updates one rating row; <b>consumes the captcha
+    /// challenge</b> (single-use — a retry needs a fresh one) and counts against the client's
+    /// captcha rate limits; <b>may send a real confirmation email</b> when the address has never
+    /// been verified. The row is written <i>before</i> the mail is attempted, and is deliberately
+    /// left in place if the mail fails — a parked rating is invisible and harmless, and keeping it
+    /// means the visitor's score survives to be confirmed by a later link.</para>
+    /// <para><b>The score does not count yet unless the address was already verified.</b> Check
+    /// <c>RatingSubmissionOutcome.IsEmailVerificationRequired</c> before telling the visitor their
+    /// rating has been recorded, and do not re-read the public average expecting it to have
+    /// moved.</para>
+    /// </remarks>
+    /// <param name="submission">The visitor's rating submission.</param>
+    /// <returns>What the visitor should be told, or a failure carrying a safe message.</returns>
+    public async Task<Result<RatingSubmissionOutcome>> SubmitRatingAsync(RatingSubmission submission)
     {
-        // Validate rating value
-        if (rating < 1 || rating > 5)
-            return Result.Failure("Rating must be between 1 and 5.");
+        var validation = ValidateSubmission(submission);
+        if (validation.IsFailure)
+            return Result<RatingSubmissionOutcome>.Failure(validation.ErrorMessage);
 
-        if (postId <= 0)
+        if (submission.UserId is not > 0)
+        {
+            var captchaResult = captchaService.Validate(submission.CaptchaChallengeId, submission.CaptchaAnswer);
+            if (captchaResult.IsFailure)
+                return Result<RatingSubmissionOutcome>.Failure(captchaResult.ErrorMessage);
+        }
+
+        try
+        {
+            var isVerified = await emailVerificationService
+                .IsAddressVerifiedAsync(submission.Email).ConfigureAwait(false);
+            var ratingId = await ratingRepo.UpsertByEmailAsync(
+                submission.PostId, submission.Email.Trim(), submission.Rating,
+                submission.UserId, isVerified).ConfigureAwait(false);
+            return await FinishSubmissionAsync(submission, ratingId, isVerified).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to record a rating for post {PostId}", submission.PostId);
+            return Result<RatingSubmissionOutcome>.Failure("Failed to submit rating. Please try again.");
+        }
+    }
+
+    /// <summary>
+    /// Issues the confirmation link, or reports that the score already counts.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> A verified address is done immediately. An unverified one
+    /// keeps its parked row even when the mail cannot be sent - unlike a comment, a stray
+    /// unverified rating is invisible and harmless, and keeping it means the visitor's score is
+    /// not lost if they confirm through a later link.</para>
+    /// <para><b>Side Effects:</b> May send an email.</para>
+    /// </remarks>
+    /// <param name="submission">The original submission.</param>
+    /// <param name="ratingId">The upserted rating id.</param>
+    /// <param name="isVerified">Whether the address was already verified.</param>
+    /// <returns>The outcome to show the visitor.</returns>
+    private async Task<Result<RatingSubmissionOutcome>> FinishSubmissionAsync(
+        RatingSubmission submission, long ratingId, bool isVerified)
+    {
+        if (isVerified)
+        {
+            logger.LogInformation("Rating {RatingId} recorded for post {PostId}", ratingId, submission.PostId);
+            return Result<RatingSubmissionOutcome>.Success(new RatingSubmissionOutcome
+            {
+                RatingId = ratingId,
+                IsEmailVerificationRequired = false,
+                Message = "Thank you for rating this post."
+            });
+        }
+
+        var issued = await emailVerificationService.IssueAsync(
+            submission.Email, submission.DisplayName, EmailVerificationPurpose.Rating,
+            ratingId, submission.IpAddress).ConfigureAwait(false);
+
+        if (issued.IsFailure)
+            return Result<RatingSubmissionOutcome>.Failure(issued.ErrorMessage);
+
+        return Result<RatingSubmissionOutcome>.Success(new RatingSubmissionOutcome
+        {
+            RatingId = ratingId,
+            IsEmailVerificationRequired = true,
+            Message = "Almost there - check your inbox and click the link to confirm your rating."
+        });
+    }
+
+    /// <summary>
+    /// Checks the submitted fields.
+    /// </summary>
+    /// <param name="submission">The submission under test.</param>
+    /// <returns>Success when every field is acceptable.</returns>
+    private static Result ValidateSubmission(RatingSubmission submission)
+    {
+        if (submission == null)
+            return Result.Failure("No rating was supplied.");
+
+        if (submission.PostId <= 0)
             return Result.Failure("Invalid post ID.");
 
-        if (userId <= 0)
-            return Result.Failure("You must be logged in to rate posts.");
+        if (submission.Rating < MinimumRating || submission.Rating > MaximumRating)
+            return Result.Failure("Rating must be between 1 and 5.");
 
-        try
-        {
-            // Check for existing rating
-            var existing = _ratingRepo.GetByPostAndUser(postId, userId);
+        if (string.IsNullOrWhiteSpace(submission.Email) || !MailAddress.TryCreate(submission.Email.Trim(), out _))
+            return Result.Failure("Please enter a valid email address.");
 
-            if (existing != null)
-            {
-                // Update existing rating
-                existing.Rating = rating;
-                existing.UpdatedOn = DateTime.UtcNow;
-                _ratingRepo.Update(existing);
-                _logger.LogInformation("User {UserId} updated rating for post {PostId} to {Rating}", 
-                    userId, postId, rating);
-            }
-            else
-            {
-                // Insert new rating
-                var newRating = new PostRating
-                {
-                    PostId = postId,
-                    UserId = userId,
-                    Rating = rating,
-                    CreatedOn = DateTime.UtcNow
-                };
-                _ratingRepo.Insert(newRating);
-                _logger.LogInformation("User {UserId} rated post {PostId} with {Rating} stars", 
-                    userId, postId, rating);
-            }
-
-            return Result.Success();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error rating post {PostId} by user {UserId}", postId, userId);
-            return Result.Failure("Failed to submit rating. Please try again.");
-        }
+        return Result.Success();
     }
 
     /// <summary>
-    /// Gets the current user's rating for a post.
+    /// Gets the score an address gave a post.
     /// </summary>
-    /// <param name="postId">Post ID.</param>
-    /// <param name="userId">User ID.</param>
-    /// <returns>Rating value (1-5) or null if not rated.</returns>
-    public int? GetUserRating(long postId, long userId)
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Returns the parked score too, so a visitor who has not yet
+    /// confirmed still sees their own stars selected.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <param name="postId">The post id.</param>
+    /// <param name="email">The rater's address.</param>
+    /// <returns>The score, or null when the address has not rated this post.</returns>
+    public async Task<int?> GetRatingByEmailAsync(long postId, string email)
     {
-        if (userId <= 0) return null;
+        if (string.IsNullOrWhiteSpace(email))
+            return null;
 
         try
         {
-            var rating = _ratingRepo.GetByPostAndUser(postId, userId);
-            return rating?.Rating;
+            var existing = await ratingRepo.GetByPostAndEmailAsync(postId, email).ConfigureAwait(false);
+            return existing?.Rating;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting user rating for post {PostId}", postId);
+            logger.LogError(ex, "Error getting the rating for post {PostId}", postId);
             return null;
         }
     }
 
     /// <summary>
-    /// Gets rating statistics for a post.
+    /// Gets the aggregate figures for a post.
     /// </summary>
-    /// <param name="postId">Post ID.</param>
-    /// <returns>PostRatingStats with average and count.</returns>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Average and count over <b>verified ratings only</b> — the
+    /// filter lives in the repository's SQL, and it is what stops an unconfirmed submission moving
+    /// a public number.</para>
+    /// <para><b>Side Effects:</b> None beyond logging. A read failure returns zeroes, which render
+    /// as an unrated post rather than an error.</para>
+    /// </remarks>
+    /// <param name="postId">The post id.</param>
+    /// <returns>Average and count over the verified ratings; zeroed on error.</returns>
     public PostRatingStats GetPostRatingStats(long postId)
     {
         try
         {
-            return _ratingRepo.GetStatsByPost(postId);
+            return ratingRepo.GetStatsByPost(postId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting rating stats for post {PostId}", postId);
+            logger.LogError(ex, "Error getting rating stats for post {PostId}", postId);
             return new PostRatingStats { AverageRating = 0, RatingCount = 0 };
         }
     }
 
     /// <summary>
-    /// Gets rating statistics for a post including the current user's rating.
+    /// Gets the aggregate figures for a post together with one address's own score.
     /// </summary>
-    /// <param name="postId">Post ID.</param>
-    /// <param name="userId">Current user ID (0 if not logged in).</param>
-    /// <returns>PostRatingStats with average, count, and user's rating.</returns>
-    public PostRatingStats GetPostRatingStatsWithUserRating(long postId, long userId)
+    /// <remarks>
+    /// <para><b>Business Logic:</b> One call for the whole widget: the public average, the
+    /// public count and the visitor's own selection. Note the two halves obey different rules —
+    /// the aggregates count verified ratings only, while <c>UserRating</c> reflects this visitor's
+    /// row whether or not it has been confirmed. That is why a visitor can see their own five
+    /// stars selected while the public average has not moved.</para>
+    /// <para><b>Side Effects:</b> None beyond logging.</para>
+    /// <para><b>Pass only an address the visitor has proved is theirs</b> — supplying an arbitrary
+    /// address discloses whether that person rated the post, and what they gave it.</para>
+    /// </remarks>
+    /// <param name="postId">The post id.</param>
+    /// <param name="email">The visitor's address; may be null for a first-time reader.</param>
+    /// <returns>Populated statistics; zeroed on error.</returns>
+    public async Task<PostRatingStats> GetPostRatingStatsForEmailAsync(long postId, string email)
     {
         try
         {
-            var stats = _ratingRepo.GetStatsByPost(postId);
-            
-            if (userId > 0)
+            var stats = ratingRepo.GetStatsByPost(postId);
+            if (!string.IsNullOrWhiteSpace(email))
             {
-                var userRating = _ratingRepo.GetByPostAndUser(postId, userId);
-                stats.UserRating = userRating?.Rating;
+                var existing = await ratingRepo.GetByPostAndEmailAsync(postId, email).ConfigureAwait(false);
+                stats.UserRating = existing?.Rating;
             }
 
             return stats;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting rating stats with user rating for post {PostId}", postId);
+            logger.LogError(ex, "Error getting rating stats with the visitor's score for post {PostId}", postId);
             return new PostRatingStats { AverageRating = 0, RatingCount = 0 };
         }
     }
 
     /// <summary>
-    /// Gets the average rating for a post.
+    /// Gets the average of the verified ratings for a post.
     /// </summary>
-    /// <param name="postId">Post ID.</param>
-    /// <returns>Average rating (0.0 - 5.0).</returns>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Verified ratings only. A post with no verified ratings and a
+    /// post whose read failed both return 0 — check <see cref="GetRatingCount"/> to tell "unrated"
+    /// from "rated zero", which cannot otherwise be distinguished.</para>
+    /// <para><b>Side Effects:</b> None beyond logging.</para>
+    /// </remarks>
+    /// <param name="postId">The post id.</param>
+    /// <returns>The average, 0 to 5; 0 on error.</returns>
     public double GetAverageRating(long postId)
     {
         try
         {
-            return _ratingRepo.GetAverageByPost(postId);
+            return ratingRepo.GetAverageByPost(postId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting average rating for post {PostId}", postId);
+            logger.LogError(ex, "Error getting average rating for post {PostId}", postId);
             return 0;
         }
     }
 
     /// <summary>
-    /// Gets the rating count for a post.
+    /// Gets the number of verified ratings for a post.
     /// </summary>
-    /// <param name="postId">Post ID.</param>
-    /// <returns>Number of ratings.</returns>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Verified ratings only, so the "based on N ratings" caption
+    /// matches the average beside it. Parked submissions are invisible to this count.</para>
+    /// <para><b>Side Effects:</b> None beyond logging.</para>
+    /// </remarks>
+    /// <param name="postId">The post id.</param>
+    /// <returns>The count; 0 on error.</returns>
     public int GetRatingCount(long postId)
     {
         try
         {
-            return _ratingRepo.GetCountByPost(postId);
+            return ratingRepo.GetCountByPost(postId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting rating count for post {PostId}", postId);
+            logger.LogError(ex, "Error getting rating count for post {PostId}", postId);
             return 0;
         }
     }
 
     /// <summary>
-    /// Gets top-rated post IDs for popular content lists.
+    /// Gets the ids of the best-rated posts.
     /// </summary>
-    /// <param name="count">Number of posts to return.</param>
-    /// <param name="minRatings">Minimum number of ratings required.</param>
-    /// <returns>List of post IDs ordered by average rating.</returns>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Ranks on verified ratings only, so a post cannot be pushed into
+    /// the "top rated" list by unconfirmed submissions. <paramref name="minRatings"/> is the
+    /// small-sample guard: a single five-star rating would otherwise outrank a post with fifty
+    /// ratings averaging 4.8, so raise it above the default of 1 on a busy site.</para>
+    /// <para><b>Side Effects:</b> None beyond logging. Returns ids only — the caller resolves the
+    /// posts, and must apply its own published filter before rendering them.</para>
+    /// </remarks>
+    /// <param name="count">Maximum number of posts to return.</param>
+    /// <param name="minRatings">Minimum verified ratings a post needs to qualify.</param>
+    /// <returns>Post ids ordered by average score; empty on error.</returns>
     public IEnumerable<long> GetTopRatedPostIds(int count = 10, int minRatings = 1)
     {
         try
         {
-            return _ratingRepo.GetTopRatedPostIds(count, minRatings);
+            return ratingRepo.GetTopRatedPostIds(count, minRatings);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting top rated posts");
+            logger.LogError(ex, "Error getting top rated posts");
             return Enumerable.Empty<long>();
         }
     }
 
     /// <summary>
-    /// Removes a user's rating for a post.
+    /// Removes the rating an address gave a post.
     /// </summary>
-    /// <param name="postId">Post ID.</param>
-    /// <param name="userId">User ID.</param>
-    /// <returns>Result indicating success or failure.</returns>
-    public Result RemoveRating(long postId, long userId)
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Removal is keyed by address like every other rating
+    /// operation, so a visitor can withdraw a score they left anonymously. Removing a rating that
+    /// does not exist is reported as a failure rather than treated as success, so the widget can
+    /// tell the visitor there was nothing to withdraw.</para>
+    /// <para><b>Flow:</b> require an address → delete by post and address → report whether a row
+    /// went.</para>
+    /// <para><b>Side Effects:</b> Deletes at most one row, which <b>changes the post's public
+    /// average and count</b> if the removed rating had been verified. Logs the removal without the
+    /// address. No captcha and no verification are required here — withdrawing is not an
+    /// attack.</para>
+    /// <para><b>The address is the only credential.</b> A caller must pass an address the visitor
+    /// has proved is theirs; passing one from a query string would let anyone delete a stranger's
+    /// rating.</para>
+    /// </remarks>
+    /// <param name="postId">The post id.</param>
+    /// <param name="email">The rater's address.</param>
+    /// <returns>Success, or a failure message.</returns>
+    public async Task<Result> RemoveRatingAsync(long postId, string email)
     {
-        if (userId <= 0)
-            return Result.Failure("You must be logged in to remove ratings.");
+        if (string.IsNullOrWhiteSpace(email))
+            return Result.Failure("An email address is required to remove a rating.");
 
         try
         {
-            var existing = _ratingRepo.GetByPostAndUser(postId, userId);
-            if (existing == null)
+            var isRemoved = await ratingRepo.DeleteByPostAndEmailAsync(postId, email).ConfigureAwait(false);
+            if (!isRemoved)
                 return Result.Failure("No rating found for this post.");
 
-            _ratingRepo.Delete(existing.RatingId);
-            _logger.LogInformation("User {UserId} removed rating for post {PostId}", userId, postId);
+            logger.LogInformation("Rating removed for post {PostId}", postId);
             return Result.Success();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error removing rating for post {PostId} by user {UserId}", postId, userId);
+            logger.LogError(ex, "Error removing the rating for post {PostId}", postId);
             return Result.Failure("Failed to remove rating. Please try again.");
         }
     }

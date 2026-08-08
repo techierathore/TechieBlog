@@ -4,14 +4,39 @@
     Used by AuthorizeRouteView when user is not authenticated.
     Preserves the original URL as a return URL parameter.
 
+    REQ-UI-048 — carries no visual surface, so the TrBlazeUI migration leaves
+    its behaviour untouched.
+
     Dependencies: NavigationManager
 *@
 @inject NavigationManager NavigationManager
 
 @code {
+    /// <summary>
+    /// Sends the visitor to the login page, carrying the current URL so that
+    /// sign-in can return them to where they were.
+    /// </summary>
+    /// <remarks>
+    /// REQ-UI-001: the return URL is made SITE-RELATIVE first. It used to carry the absolute
+    /// <c>NavigationManager.Uri</c>, which the login page's open-redirect guard correctly refuses
+    /// (it accepts only values starting with a single "/"), so "redirect to the intended page"
+    /// silently never happened and every sign-in fell back to the role landing route.
+    /// </remarks>
     protected override void OnInitialized()
     {
-        var returnUrl = Uri.EscapeDataString(NavigationManager.Uri);
+        // REQ-UI-001: never redirect during the PRERENDER pass. CustomAuthStateProvider reads its
+        // token from browser local storage, which needs JS interop, so prerendering always sees an
+        // anonymous user. Redirecting there sent every signed-in visitor who opened an admin URL
+        // directly (a deep link, a refresh, a new tab) back to the sign-in page. The interactive
+        // render that follows has the real authentication state; if the visitor genuinely is
+        // anonymous this same method runs again and redirects then.
+        if (!RendererInfo.IsInteractive)
+        {
+            return;
+        }
+
+        var relativePath = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        var returnUrl = Uri.EscapeDataString("/" + relativePath.TrimStart('/'));
         NavigationManager.NavigateTo($"/login?returnUrl={returnUrl}", forceLoad: true);
     }
 }

@@ -1,76 +1,83 @@
 @*
     Routes.razor
-    Purpose: Contains the Blazor router configuration.
-    Handles routing, authorization, and layout selection for the application.
+    Purpose: Blazor router configuration — routing, authorization fallbacks,
+    layout selection and the top-level error boundary.
+
+    REQ-UI-048 — FluentLayout / FluentProgressRing / FluentAnchor / FluentIcon /
+    FluentButton replaced with their TrBlazeUI equivalents.
 *@
+
 @using BlogUI.Layouts
 @using BlogUI.Components
 @using Microsoft.AspNetCore.Components.Authorization
 
 <CascadingAuthenticationState>
+    @* REQ-NFR-023 — renders nothing; holds a MustChangePassword account on /change-password
+       until the password has actually been changed. Placed here so it is alive for every route. *@
+    <ForcePasswordChangeGuard />
     <ThemeProvider>
-        <FluentLayout>
-            <ErrorBoundary @ref="errorBoundary">
-                <ChildContent>
-                    <Router AppAssembly="@typeof(Routes).Assembly">
-                        <Found Context="routeData">
-                            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
-                                <NotAuthorized>
-                            @if (context.User.Identity?.IsAuthenticated != true)
-                            {
-                                <RedirectToLogin />
-                            }
-                            else
-                            {
+        <ErrorBoundary @ref="errorBoundary">
+            <ChildContent>
+                <Router AppAssembly="@typeof(Routes).Assembly">
+                    <Found Context="routeData">
+                        <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                            <NotAuthorized>
+                                @if (context.User.Identity?.IsAuthenticated != true)
+                                {
+                                    <RedirectToLogin />
+                                }
+                                else
+                                {
+                                    <LayoutView Layout="@typeof(AuthLayout)">
+                                        <BlogUI.Pages.AccessDenied />
+                                    </LayoutView>
+                                }
+                            </NotAuthorized>
+                            <Authorizing>
                                 <LayoutView Layout="@typeof(MainLayout)">
-                                    <AccessDenied />
+                                    <div class="flex h-[60vh] items-center justify-center" data-testid="authorizing">
+                                        <Spinner Size="SpinnerSize.Large" Class="text-primary" />
+                                    </div>
                                 </LayoutView>
-                            }
-                        </NotAuthorized>
-                        <Authorizing>
-                            <LayoutView Layout="@typeof(MainLayout)">
-                                <div style="display: flex; justify-content: center; align-items: center; height: 100vh;">
-                                    <FluentProgressRing />
-                                </div>
-                            </LayoutView>
-                        </Authorizing>
-                    </AuthorizeRouteView>
-                    <FocusOnNavigate RouteData="@routeData" Selector="h1" />
-                </Found>
-                <NotFound>
-                    <LayoutView Layout="@typeof(MainLayout)">
-                        <PageTitle>Not Found</PageTitle>
-                        <div style="text-align: center; padding: 40px;">
-                            <h1>404 - Page Not Found</h1>
-                            <p>Sorry, there's nothing at this address.</p>
-                            <FluentAnchor Href="/" Appearance="Appearance.Accent">Go to Home</FluentAnchor>
-                        </div>
-                    </LayoutView>
+                            </Authorizing>
+                        </AuthorizeRouteView>
+                        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+                    </Found>
+                    <NotFound>
+                        <LayoutView Layout="@typeof(MainLayout)">
+                            <PageTitle>Not Found - TechieBlog</PageTitle>
+                            <div class="flex flex-col items-center gap-4 py-16 text-center" data-testid="not-found">
+                                <LucideIcon Name="file-question-mark" Size="48" Class="text-muted-foreground" />
+                                <h1 class="text-2xl font-semibold">404 - Page Not Found</h1>
+                                <p class="text-muted-foreground">Sorry, there's nothing at this address.</p>
+                                <Button Href="/" data-testid="not-found-home">Go to Home</Button>
+                            </div>
+                        </LayoutView>
                     </NotFound>
                 </Router>
-                </ChildContent>
-                <ErrorContent Context="exception">
-                    <LayoutView Layout="@typeof(MainLayout)">
-                        <div style="text-align: center; padding: 40px;">
-                            <FluentIcon Value="@(new Icons.Regular.Size48.ErrorCircle())" Color="Color.Error" />
-                            <h1 style="margin-top: 16px;">Something went wrong</h1>
-                            <p style="color: var(--color-neutral-light);">
-                                We encountered an unexpected error. Please try refreshing the page.
-                            </p>
-                            <FluentButton Appearance="Appearance.Accent" OnClick="RecoverFromError" style="margin-top: 16px;">
-                                Try Again
-                            </FluentButton>
-                        </div>
-                    </LayoutView>
-                </ErrorContent>
-            </ErrorBoundary>
-        </FluentLayout>
+            </ChildContent>
+            <ErrorContent Context="exception">
+                <LayoutView Layout="@typeof(MainLayout)">
+                    <div class="flex flex-col items-center gap-4 py-16 text-center" data-testid="error-boundary">
+                        <LucideIcon Name="circle-alert" Size="48" Class="text-destructive" />
+                        <h1 class="text-2xl font-semibold">Something went wrong</h1>
+                        <p class="text-muted-foreground">
+                            We encountered an unexpected error. Please try refreshing the page.
+                        </p>
+                        <Button OnClick="RecoverFromError" data-testid="error-retry">Try Again</Button>
+                    </div>
+                </LayoutView>
+            </ErrorContent>
+        </ErrorBoundary>
     </ThemeProvider>
 </CascadingAuthenticationState>
 
 @code {
-    private ErrorBoundary? errorBoundary;
+    private ErrorBoundary errorBoundary;
 
+    /// <summary>
+    /// Clears the caught exception so the router can re-render the current route.
+    /// </summary>
     private void RecoverFromError()
     {
         errorBoundary?.Recover();

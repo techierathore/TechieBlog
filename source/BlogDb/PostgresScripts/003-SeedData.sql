@@ -4,6 +4,16 @@
 -- Author: James (Dev Agent)
 -- Created: 2025-12-17
 -- Modified: 2025-12-17 - Initial seed data for PostgreSQL migration
+-- Modified: 2026-08-06 - [REQ-NFR-023] Bootstrap admin credential is now stored as a
+--                        PBKDF2-HMAC-SHA256 hash instead of plain text, and every INSERT
+--                        was made idempotent so re-running the script is safe.
+--
+-- Dependencies: 001-CreateTables.sql (UserRole, BlogUser, Category, UserSettings)
+-- Follow-up:    017-SecurityAndTokenPersistence.sql adds BlogUser.MustChangePassword,
+--               flags this account and repairs databases seeded before this change.
+-- Rollback:     DELETE FROM UserSettings WHERE UserId = 1;
+--               DELETE FROM BlogUser WHERE LOWER(EmailId) = 'ravi@techieblog.com';
+--               DELETE FROM Category; DELETE FROM UserRole;
 -- ============================================================================
 
 -- ============================================================================
@@ -16,24 +26,40 @@
 --   3. Subscriber - Can read posts and leave comments
 -- ============================================================================
 INSERT INTO UserRole (RoleName, RoleDesc)
-VALUES ('Admin', 'Administrator role with full access');
+SELECT 'Admin', 'Administrator role with full access'
+WHERE NOT EXISTS (SELECT 1 FROM UserRole WHERE RoleName = 'Admin');
 
 INSERT INTO UserRole (RoleName, RoleDesc)
-VALUES ('Blogger', 'Blogger role with access to create and manage blog posts');
+SELECT 'Blogger', 'Blogger role with access to create and manage blog posts'
+WHERE NOT EXISTS (SELECT 1 FROM UserRole WHERE RoleName = 'Blogger');
 
 INSERT INTO UserRole (RoleName, RoleDesc)
-VALUES ('Subscriber', 'Subscriber role with access to read and comment on blog posts');
+SELECT 'Subscriber', 'Subscriber role with access to read and comment on blog posts'
+WHERE NOT EXISTS (SELECT 1 FROM UserRole WHERE RoleName = 'Subscriber');
 
 -- ============================================================================
--- DEFAULT ADMIN USER
--- Purpose: Create initial admin user for system access
+-- DEFAULT ADMIN USER  [REQ-NFR-023]
+-- Purpose: Create the bootstrap administrator used to sign in to a fresh install
 --
 -- Credentials:
---   Email: Ravi@techieblog.com
---   Password: admin_password (should be changed immediately after first login)
+--   Email:    Ravi@techieblog.com
+--   Password: admin_password
 --
--- Note: In production, the password should be properly hashed using
--- the application's AppEncrypt.CreateHash() method before deployment.
+-- SECURITY: the password is NOT stored in plain text. LoginPass below holds a
+-- PBKDF2-HMAC-SHA256 hash produced by BlogModels.PasswordHasher:
+--
+--   format     PBKDF2-SHA256$<iterations>$<base64 salt>$<base64 subkey>
+--   algorithm  PBKDF2 with HMAC-SHA256 (Rfc2898DeriveBytes.Pbkdf2, BCL)
+--   iterations 210000   (OWASP recommendation for PBKDF2-HMAC-SHA256)
+--   salt       fixed 16-byte seed salt ("TechieBlogSeed01") so this migration is
+--              deterministic and idempotent; every account created at runtime gets a
+--              fresh random 128-bit salt instead
+--
+-- The account is flagged MustChangePassword by 017-SecurityAndTokenPersistence.sql,
+-- so the very first sign-in has to replace this well-known bootstrap password. To
+-- regenerate the literal below:
+--   BlogModels.PasswordHasher.HashPasswordWithSalt(
+--       "<new password>", Encoding.UTF8.GetBytes("TechieBlogSeed01"))
 -- ============================================================================
 INSERT INTO BlogUser (
     FirstName,
@@ -52,11 +78,11 @@ INSERT INTO BlogUser (
     PodDescription,
     SpeakDescription
 )
-VALUES (
+SELECT
     'S Ravi',
     'Kumar',
     'Ravi@techieblog.com',
-    'admin_password',  -- TODO: Replace with hashed password in production
+    'PBKDF2-SHA256$210000$VGVjaGllQmxvZ1NlZWQwMQ==$m3BUDC+/QWc38+4jGaLfRF6VDV/ksim4+JCoOJJZjw4=',
     NOW(),
     NOW(),
     'Admin',
@@ -68,17 +94,18 @@ VALUES (
     NULL,
     NULL,
     NULL
+WHERE NOT EXISTS (
+    SELECT 1 FROM BlogUser WHERE LOWER(EmailId) = 'ravi@techieblog.com'
 );
 
 -- ============================================================================
 -- DEFAULT CATEGORIES
 -- Purpose: Seed initial blog categories for content organization
 -- ============================================================================
-INSERT INTO Category (CategoryName) VALUES ('Technology');
-INSERT INTO Category (CategoryName) VALUES ('Programming');
-INSERT INTO Category (CategoryName) VALUES ('Web Development');
-INSERT INTO Category (CategoryName) VALUES ('DevOps');
-INSERT INTO Category (CategoryName) VALUES ('Career');
+INSERT INTO Category (CategoryName)
+SELECT c.Name
+FROM (VALUES ('Technology'), ('Programming'), ('Web Development'), ('DevOps'), ('Career')) AS c(Name)
+WHERE NOT EXISTS (SELECT 1 FROM Category ex WHERE ex.CategoryName = c.Name);
 
 -- ============================================================================
 -- DEFAULT USER SETTINGS
@@ -100,7 +127,7 @@ INSERT INTO UserSettings (
     UpdatedTime,
     UserId
 )
-VALUES (
+SELECT
     NULL,
     'Welcome to TechieBlog',
     5,
@@ -108,5 +135,7 @@ VALUES (
     10,
     3,
     NOW(),
-    1  -- Admin user ID
-);
+    u.UserId
+FROM BlogUser u
+WHERE LOWER(u.EmailId) = 'ravi@techieblog.com'
+  AND NOT EXISTS (SELECT 1 FROM UserSettings s WHERE s.UserId = u.UserId);

@@ -1,0 +1,55 @@
+@*
+    BlogBreadcrumb.razor
+    Purpose: Page-hierarchy breadcrumb for public content pages.
+
+    REQ-UI-048 — rebuilt over TrBlazeUI's Breadcrumb composite while keeping the
+    simple `Items` list API the pages already use.
+    Renamed from Breadcrumb.razor: the old name collided with TrBlazeUI's own
+    Breadcrumb component once the library namespaces entered _Imports.
+
+    Usage:
+        <BlogBreadcrumb Items="@(new List<BlogBreadcrumbItem> {
+            new() { Label = "Home", Url = "/" },
+            new() { Label = post.Title } })" />
+*@
+
+@* TR-021 workaround: TrBlazeUI's Breadcrumb/BreadcrumbList declare no
+   CaptureUnmatchedValues parameter, so passing data-testid straight to
+   <Breadcrumb> throws InvalidOperationException and takes the whole page into
+   the router's ErrorBoundary. The hook lives on a wrapper element instead. *@
+<div data-testid="breadcrumb">
+<Breadcrumb>
+    <BreadcrumbList>
+        @for (var index = 0; index < Items.Count; index++)
+        {
+            var item = Items[index];
+            var isLast = index == Items.Count - 1;
+
+            @if (index > 0)
+            {
+                <BreadcrumbSeparator />
+            }
+
+            <BreadcrumbItem>
+                @if (isLast)
+                {
+                    <BreadcrumbPage>@item.Label</BreadcrumbPage>
+                }
+                else
+                {
+                    <BreadcrumbLink Href="@item.Url">@item.Label</BreadcrumbLink>
+                }
+            </BreadcrumbItem>
+        }
+    </BreadcrumbList>
+</Breadcrumb>
+</div>
+
+@code {
+    /// <summary>
+    /// Breadcrumb trail from root to current page. The last entry renders as
+    /// plain text because it represents the page already being viewed.
+    /// </summary>
+    [Parameter]
+    public List<BlogBreadcrumbItem> Items { get; set; } = new();
+}

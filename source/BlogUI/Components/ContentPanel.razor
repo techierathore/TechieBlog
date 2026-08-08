@@ -1,24 +1,23 @@
 @*
     ContentPanel.razor
-    Purpose: Reusable card panel component for admin pages.
-    Provides a consistent layout with title header and content area.
+    Purpose: Reusable card shell for admin pages.
+    Provides a consistent layout with a title header, optional right-hand action slot
+    and a content area.
 
     Usage: Wrap page content in admin pages for consistent styling.
-    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+    Dependencies: TrBlazeUI Card (REQ-UI-048)
 *@
-<FluentCard Style="margin: 16px 0;">
-    <div style="padding: 24px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--neutral-stroke-rest, #e0e0e0); margin-bottom: 24px;">
-            <h6 style="margin: 0; font-size: 1.1rem; font-weight: 600;">@PanelTitle</h6>
-            <div style="display: flex; align-items: center; gap: 8px;">
-                @RightSection
-            </div>
+<Card Class="my-4" data-testid="content-panel">
+    <CardHeader Class="flex flex-row items-center justify-between gap-3 border-b border-border pb-4">
+        <CardTitle Class="text-lg font-semibold" data-testid="content-panel-title">@PanelTitle</CardTitle>
+        <div class="flex items-center gap-2">
+            @RightSection
         </div>
-        <div>
-            @PanelContent
-        </div>
-    </div>
-</FluentCard>
+    </CardHeader>
+    <CardContent Class="pt-6">
+        @PanelContent
+    </CardContent>
+</Card>
 
 @code {
     /// <summary>

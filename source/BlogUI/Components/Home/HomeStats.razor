@@ -1,0 +1,41 @@
+@*
+    HomeStats.razor
+    Purpose: Headline statistics row on the portfolio home page — one tile per
+    UserStats row belonging to the site owner (REQ-UI-049, BRD-30 revised).
+
+    Renders nothing when the owner has no statistics, so an unconfigured site
+    degrades to a shorter page rather than an empty grid (mockup "States" note).
+
+    REQ-UI-048 — TrBlazeUI (Card). Every colour and spacing value is a utility
+    class resolving to a design token; no literals.
+
+    Dependencies: TrBlazeUI Card, BlogModels.Models.UserStat
+    Usage: <HomeStats Stats="@stats" /> from Pages/BlogPages/Home.razor
+*@
+
+@using BlogModels.Models
+
+@if (Stats is not null && Stats.Count > 0)
+{
+    <section class="py-10" aria-label="Highlights" data-testid="home-stats">
+        <div class="grid grid-cols-2 gap-4 md:grid-cols-4" data-testid="home-stats-grid">
+            @foreach (var stat in Stats)
+            {
+                <Card Class="text-center" data-testid="home-stat-card">
+                    <CardContent Class="flex flex-col items-center gap-2 p-6">
+                        <span class="text-3xl font-bold text-primary" data-testid="home-stat-value">@stat.StatValue</span>
+                        <span class="text-sm text-muted-foreground" data-testid="home-stat-label">@stat.StatLabel</span>
+                    </CardContent>
+                </Card>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    /// <summary>
+    /// The site owner's headline statistics, already in display order.
+    /// </summary>
+    [Parameter]
+    public IReadOnlyList<UserStat>? Stats { get; set; }
+}

@@ -1,0 +1,50 @@
+@*
+    DesktopStatusBar.razor
+    Purpose: The always-visible "Connected to ..." chip and its "Change connection" action.
+
+    Mockups: 40-blogapp-login.html (the connected-to row above the sign-in form) and
+    41-blogapp-shell.html (the connection badge in the admin topbar). Both ask for the same
+    thing — the desktop head must always show which database it is pointed at, because unlike
+    the website it can be aimed anywhere.
+
+    Why it lives here rather than in the pages: BlogApp reuses BlogUI's LoginPage, AuthLayout
+    and AdminLayout unchanged (REQ-UI-052 — one RCL, two heads). Rendering the chip once,
+    above the router, keeps every shared page byte-for-byte identical to the website while
+    still giving the desktop head its connection affordance on every screen.
+
+    Anchored bottom-left so it clears the top-right theme toggle and the bottom-right toasts.
+*@
+
+@inject ConnectionContext ConnectionContext
+@inject NavigationManager NavigationManager
+
+@if (ConnectionContext.IsConfigured)
+{
+    <div class="fixed bottom-3 left-3 z-50 flex items-center gap-2 rounded-full border border-border
+                bg-background/95 px-3 py-1 text-xs text-muted-foreground shadow-sm"
+         data-testid="desktop-connection-status">
+        <span class="flex h-2 w-2 rounded-full bg-primary" aria-hidden="true"></span>
+        <span>Connected</span>
+        <span class="font-mono text-foreground" data-testid="desktop-connection-host">@ConnectionContext.DisplayLabel</span>
+        <Button Variant="ButtonVariant.Ghost"
+                Size="ButtonSize.Small"
+                OnClick="OpenConnectionSettings"
+                data-testid="desktop-change-connection">
+            Change connection
+        </Button>
+    </div>
+}
+
+@code {
+    /// <summary>
+    /// Opens the connection-settings screen.
+    /// </summary>
+    /// <remarks>
+    /// Navigates rather than linking so the chip behaves the same inside the admin shell,
+    /// where an anchor would inherit the sidebar's active-link styling.
+    /// </remarks>
+    private void OpenConnectionSettings()
+    {
+        NavigationManager.NavigateTo(ConnectionSetup.SettingsRoute);
+    }
+}

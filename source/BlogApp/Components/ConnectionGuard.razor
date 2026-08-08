@@ -1,0 +1,84 @@
+@*
+    ConnectionGuard.razor
+    Purpose: Keeps an unconfigured BlogApp on the connection-setup screen.
+
+    REQ-FN-047 — BlogApp has no local database. Until a connection string has been
+    captured and stored, every shared BlogUI page would query a server that is not
+    there, so the guard redirects anything other than the connection screens to setup.
+
+    The guard reads ConnectionContext, which records the connection the PROCESS booted
+    with. That is the right source: the BlogEngine repositories are bound to their
+    connection string when the DI graph is registered, so a connection saved after
+    startup only takes effect once BlogApp has relaunched.
+*@
+
+@implements IDisposable
+@inject ConnectionContext ConnectionContext
+@inject NavigationManager NavigationManager
+
+@if (isAllowed)
+{
+    @ChildContent
+
+    @* The connection chip the desktop mockups call for, rendered once above every shared
+       BlogUI page so none of them needs a desktop-specific edit. *@
+    <DesktopStatusBar />
+}
+
+@code {
+    /// <summary>
+    /// The router and pages the guard protects.
+    /// </summary>
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    private bool isAllowed;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        NavigationManager.LocationChanged += HandleLocationChanged;
+        Evaluate();
+    }
+
+    /// <summary>
+    /// Re-evaluates the guard whenever the route changes.
+    /// </summary>
+    /// <param name="sender">The navigation manager.</param>
+    /// <param name="args">The new location.</param>
+    private void HandleLocationChanged(object sender, LocationChangedEventArgs args)
+    {
+        Evaluate();
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Allows the current route through, or redirects to the connection-setup screen.
+    /// </summary>
+    /// <remarks>
+    /// A configured head is never redirected. An unconfigured head is allowed onto the
+    /// connection screens only; everything else is sent to setup.
+    /// </remarks>
+    private void Evaluate()
+    {
+        if (ConnectionContext.IsConfigured)
+        {
+            isAllowed = true;
+            return;
+        }
+
+        var relativePath = "/" + NavigationManager.ToBaseRelativePath(NavigationManager.Uri).Split('?')[0].TrimStart('/');
+        isAllowed = ConnectionSetup.IsConnectionRoute(relativePath);
+
+        if (!isAllowed)
+        {
+            NavigationManager.NavigateTo(ConnectionSetup.SetupRoute, replace: true);
+        }
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= HandleLocationChanged;
+    }
+}

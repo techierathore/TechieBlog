@@ -1,10 +1,13 @@
 @*
     RssFeed.razor
-    Purpose: RSS Feed page for TechieBlog.
-    Provides RSS feed subscription information and preview.
+    Purpose: RSS feed landing page — subscription URL, how-to steps, reader suggestions
+    and a preview of recent posts.
+
+    REQ-UI-048 — migrated from Microsoft Fluent UI to TrBlazeUI; the page-level
+    <style> block and its hardcoded colours were replaced by semantic Tailwind tokens.
 
     Usage: Navigate to /rss
-    Dependencies: Microsoft.FluentUI.AspNetCore.Components, BlogSvc
+    Dependencies: BlogSvc
     Layout: MainLayout (public site layout)
 *@
 @page "/rss"
@@ -12,94 +15,110 @@
 @inject BlogEngine.Services.BlogSvc BlogService
 @inject NavigationManager Navigation
 
-<div class="rss-page">
-    <article class="rss-content">
-        <div class="rss-header">
-            <FluentIcon Value="@(new Icons.Regular.Size48.Document())" Color="Color.Accent" />
-            <h1>RSS Feed</h1>
+@* [REQ-NFR-007] WCAG 2.4.2 Page Titled (Level A) — the 2026-08-07 pass added titles to eight
+   public routes but missed this one, so /rss announced itself as just the site name. *@
+<PageTitle>RSS feed - TechieBlog</PageTitle>
+
+<div class="mx-auto w-full max-w-[800px] py-8" data-testid="rss-page">
+
+    <header class="mb-8 flex items-center gap-4">
+        <LucideIcon Name="rss" Size="40" />
+        <TypographyH1>RSS Feed</TypographyH1>
+    </header>
+
+    <section class="mb-8 flex flex-col gap-4">
+        <TypographyH2>Subscribe to TechieBlog</TypographyH2>
+        <p class="leading-7 text-muted-foreground">
+            Stay updated with our latest posts by subscribing to our RSS feed.
+            Use your favorite RSS reader to get notified when new content is published.
+        </p>
+
+        <div class="flex flex-col gap-3 rounded-lg bg-muted p-4 sm:flex-row sm:items-center">
+            <Input Value="@rssUrl" readonly Class="flex-1" data-testid="rss-url" />
+            <Button OnClick="CopyFeedUrl" data-testid="rss-copy">
+                <LucideIcon Name="copy" Size="16" />
+                Copy
+            </Button>
         </div>
 
-        <section class="rss-section">
-            <h2>Subscribe to TechieBlog</h2>
-            <p>
-                Stay updated with our latest posts by subscribing to our RSS feed.
-                Use your favorite RSS reader to get notified when new content is published.
-            </p>
+        @if (showCopyMessage)
+        {
+            <Alert Variant="AlertVariant.Success" data-testid="rss-copy-confirmation">
+                <LucideIcon Name="circle-check" Size="16" />
+                <AlertTitle>Copied</AlertTitle>
+                <AlertDescription>Feed URL copied to clipboard!</AlertDescription>
+            </Alert>
+        }
+    </section>
 
-            <div class="rss-url-box">
-                <FluentTextField Value="@rssUrl" ReadOnly="true" Style="flex: 1;" />
-                <FluentButton Appearance="Appearance.Accent" OnClick="CopyFeedUrl">
-                    <FluentIcon Value="@(new Icons.Regular.Size16.Copy())" Style="margin-right: 4px;" />
-                    Copy
-                </FluentButton>
-            </div>
+    <section class="mb-8 flex flex-col gap-4">
+        <TypographyH2>How to Subscribe</TypographyH2>
+        <ol class="list-decimal pl-6 leading-8 text-muted-foreground">
+            <li>Copy the RSS feed URL above</li>
+            <li>Open your preferred RSS reader application</li>
+            <li>Add a new feed and paste the URL</li>
+            <li>Start receiving updates automatically!</li>
+        </ol>
+    </section>
 
-            @if (showCopyMessage)
+    <section class="mb-8 flex flex-col gap-4">
+        <TypographyH2>Recommended RSS Readers</TypographyH2>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2" data-testid="rss-readers">
+            @foreach (var reader in RecommendedReaders)
             {
-                <FluentMessageBar Intent="MessageIntent.Success" Style="margin-top: 16px;">
-                    Feed URL copied to clipboard!
-                </FluentMessageBar>
+                <Card>
+                    <CardContent Class="flex flex-col gap-1 p-4">
+                        <span class="font-semibold">@reader.Name</span>
+                        <span class="text-sm text-muted-foreground">@reader.Platforms</span>
+                    </CardContent>
+                </Card>
             }
-        </section>
+        </div>
+    </section>
 
-        <section class="rss-section">
-            <h2>How to Subscribe</h2>
-            <ol class="steps-list">
-                <li>Copy the RSS feed URL above</li>
-                <li>Open your preferred RSS reader application</li>
-                <li>Add a new feed and paste the URL</li>
-                <li>Start receiving updates automatically!</li>
-            </ol>
-        </section>
-
-        <section class="rss-section">
-            <h2>Recommended RSS Readers</h2>
-            <div class="reader-list">
-                <div class="reader-item">
-                    <strong>Feedly</strong>
-                    <span>Web, iOS, Android</span>
-                </div>
-                <div class="reader-item">
-                    <strong>Inoreader</strong>
-                    <span>Web, iOS, Android</span>
-                </div>
-                <div class="reader-item">
-                    <strong>NewsBlur</strong>
-                    <span>Web, iOS, Android</span>
-                </div>
-                <div class="reader-item">
-                    <strong>The Old Reader</strong>
-                    <span>Web-based</span>
-                </div>
-            </div>
-        </section>
-
-        <section class="rss-section">
-            <h2>Recent Posts Preview</h2>
-            @if (recentPosts != null && recentPosts.Any())
-            {
-                <ul class="recent-posts-list">
-                    @foreach (var post in recentPosts)
-                    {
-                        <li>
-                            <a href="/post/@post.Slug">@post.Title</a>
-                            <span class="post-date">@post.CreatedOn.ToString("MMM dd, yyyy")</span>
-                        </li>
-                    }
-                </ul>
-            }
-            else
-            {
-                <p>No posts available yet.</p>
-            }
-        </section>
-    </article>
+    <section class="mb-8 flex flex-col gap-4">
+        <TypographyH2>Recent Posts Preview</TypographyH2>
+        @if (recentPosts != null && recentPosts.Any())
+        {
+            <ul class="flex list-none flex-col p-0" data-testid="rss-recent-posts">
+                @foreach (var post in recentPosts)
+                {
+                    <li class="flex items-center justify-between gap-4 border-b border-border py-2">
+                        <a href="/post/@post.Slug"
+                           class="text-primary no-underline hover:underline"
+                           data-testid="rss-recent-post-title">@post.Title</a>
+                        <span class="text-sm text-muted-foreground">@post.CreatedOn.ToString("MMM dd, yyyy")</span>
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <Empty Title="No posts available yet"
+                   Description="Published posts will appear in the feed preview."
+                   Size="EmptySize.Small"
+                   data-testid="rss-posts-empty">
+                <Icon><LucideIcon Name="inbox" Size="40" /></Icon>
+            </Empty>
+        }
+    </section>
 </div>
 
 @code {
     private string rssUrl = "";
     private bool showCopyMessage = false;
     private List<BlogModels.BlogPost> recentPosts;
+
+    /// <summary>
+    /// Reader suggestions rendered as cards.
+    /// </summary>
+    private static readonly (string Name, string Platforms)[] RecommendedReaders =
+    {
+        ("Feedly", "Web, iOS, Android"),
+        ("Inoreader", "Web, iOS, Android"),
+        ("NewsBlur", "Web, iOS, Android"),
+        ("The Old Reader", "Web-based")
+    };
 
     protected override void OnInitialized()
     {
@@ -131,122 +150,3 @@
         StateHasChanged();
     }
 }
-
-<style>
-    .rss-page {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: var(--spacing-lg, 24px);
-    }
-
-    .rss-header {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-md, 16px);
-        margin-bottom: var(--spacing-xl, 32px);
-    }
-
-    .rss-header h1 {
-        font-size: var(--font-size-h1, 2.5rem);
-        margin: 0;
-        color: var(--color-primary, #0078D4);
-    }
-
-    .rss-section {
-        margin-bottom: var(--spacing-xl, 32px);
-    }
-
-    .rss-section h2 {
-        font-size: var(--font-size-h2, 1.75rem);
-        margin-bottom: var(--spacing-md, 16px);
-        color: var(--color-neutral, #323130);
-    }
-
-    .rss-section p {
-        line-height: 1.7;
-        color: var(--color-neutral-light, #605E5C);
-        margin-bottom: var(--spacing-md, 16px);
-    }
-
-    .rss-url-box {
-        display: flex;
-        gap: var(--spacing-sm, 8px);
-        padding: var(--spacing-md, 16px);
-        background-color: var(--color-surface, #F5F5F5);
-        border-radius: var(--border-radius-lg, 8px);
-    }
-
-    .steps-list {
-        line-height: 2;
-        padding-left: var(--spacing-lg, 24px);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .reader-list {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: var(--spacing-md, 16px);
-    }
-
-    .reader-item {
-        display: flex;
-        flex-direction: column;
-        padding: var(--spacing-md, 16px);
-        background-color: var(--color-surface, #F5F5F5);
-        border-radius: var(--border-radius, 4px);
-        border: 1px solid var(--color-border, #E1E1E1);
-    }
-
-    .reader-item strong {
-        color: var(--color-neutral, #323130);
-        margin-bottom: var(--spacing-xs, 4px);
-    }
-
-    .reader-item span {
-        font-size: var(--font-size-small, 0.875rem);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .recent-posts-list {
-        list-style: none;
-        padding: 0;
-    }
-
-    .recent-posts-list li {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: var(--spacing-sm, 8px) 0;
-        border-bottom: 1px solid var(--color-border, #E1E1E1);
-    }
-
-    .recent-posts-list a {
-        color: var(--color-primary, #0078D4);
-        text-decoration: none;
-    }
-
-    .recent-posts-list a:hover {
-        text-decoration: underline;
-    }
-
-    .post-date {
-        font-size: var(--font-size-small, 0.875rem);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    /* Dark mode support */
-    :global([data-theme="dark"]) .rss-header h1,
-    :global([data-theme="dark"]) .rss-section h2 {
-        color: var(--color-primary-light, #2899F5);
-    }
-
-    :global([data-theme="dark"]) .rss-section p,
-    :global([data-theme="dark"]) .steps-list {
-        color: var(--color-neutral-light-dark, #A19F9D);
-    }
-
-    :global([data-theme="dark"]) .rss-url-box,
-    :global([data-theme="dark"]) .reader-item {
-        background-color: var(--color-surface-dark, #1B1B1B);
-    }
-</style>

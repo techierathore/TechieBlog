@@ -1,0 +1,261 @@
+@*
+    BlogSidebar.razor
+    Purpose: Content sidebar for the public blog pages — search, categories,
+    popular tags and the newsletter subscribe form.
+
+    REQ-UI-048 — rebuilt on TrBlazeUI (Card / Input / Badge / Button / Alert).
+    Renamed from Sidebar.razor: the old name collided with TrBlazeUI's own
+    Sidebar navigation component once the library namespaces entered _Imports.
+*@
+
+@inject BlogEngine.Services.CategorySvc CategoryService
+@inject BlogEngine.Services.TagSvc TagService
+@inject BlogEngine.Services.SubscriberSvc SubscriberService
+@inject NavigationManager Navigation
+
+<aside class="flex w-full flex-col gap-6" data-testid="blog-sidebar">
+
+    @* --- Search ------------------------------------------------------------ *@
+    <Card>
+        <CardHeader>
+            <CardTitle Class="text-base">Search</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <InputGroup>
+                <InputGroupAddon>
+                    <LucideIcon Name="search" Size="16" Class="text-muted-foreground" />
+                </InputGroupAddon>
+                <InputGroupInput Type="InputType.Search"
+                                 Placeholder="Search posts..."
+                                 @bind-Value="searchQuery"
+                                 @onkeydown="HandleSearchKeyDown"
+                                 AriaLabel="Search posts"
+                                 data-testid="sidebar-search-input" />
+            </InputGroup>
+        </CardContent>
+    </Card>
+
+    @* --- Categories -------------------------------------------------------- *@
+    <Card>
+        <CardHeader>
+            <CardTitle Class="text-base">Categories</CardTitle>
+        </CardHeader>
+        <CardContent>
+            @if (categories.Count == 0)
+            {
+                <p class="m-0 text-sm text-muted-foreground" data-testid="sidebar-categories-empty">
+                    No categories yet.
+                </p>
+            }
+            else
+            {
+                <nav class="flex flex-col gap-0.5" data-testid="sidebar-categories">
+                    @foreach (var category in categories)
+                    {
+                        <a href="@($"/category/{category.Slug}")"
+                           class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground no-underline hover:bg-accent hover:text-accent-foreground">
+                            <LucideIcon Name="folder" Size="16" Class="text-muted-foreground" />
+                            <span class="flex-1 truncate">@category.CategoryName</span>
+                            <Badge Variant="BadgeVariant.Secondary">@category.PostCount</Badge>
+                        </a>
+                    }
+                </nav>
+            }
+        </CardContent>
+    </Card>
+
+    @* --- Popular tags ------------------------------------------------------ *@
+    <Card>
+        <CardHeader>
+            <CardTitle Class="text-base">Popular Tags</CardTitle>
+        </CardHeader>
+        <CardContent>
+            @if (popularTags.Count == 0)
+            {
+                <p class="m-0 text-sm text-muted-foreground" data-testid="sidebar-tags-empty">
+                    No tags yet.
+                </p>
+            }
+            else
+            {
+                <div class="flex flex-wrap gap-2" data-testid="sidebar-tags">
+                    @foreach (var tag in popularTags)
+                    {
+                        <a href="@($"/tag/{tag.Slug}")" class="no-underline">
+                            <Badge Variant="BadgeVariant.Outline" Class="hover:bg-accent hover:text-accent-foreground">
+                                @tag.TagName
+                            </Badge>
+                        </a>
+                    }
+                </div>
+            }
+        </CardContent>
+    </Card>
+
+    @* --- Subscribe --------------------------------------------------------- *@
+    <Card data-testid="sidebar-subscribe">
+        <CardHeader>
+            <CardTitle Class="text-base">Stay Updated</CardTitle>
+            <CardDescription>Get the latest posts delivered to your inbox.</CardDescription>
+        </CardHeader>
+        <CardContent Class="flex flex-col gap-3">
+            @if (!string.IsNullOrEmpty(subscribeMessage))
+            {
+                <Alert Variant="@(subscribeSuccess ? AlertVariant.Success : AlertVariant.Danger)"
+                       data-testid="subscribe-message">
+                    <AlertDescription>@subscribeMessage</AlertDescription>
+                </Alert>
+            }
+
+            @if (!subscribeSuccess)
+            {
+                <Input Type="InputType.Email"
+                       Placeholder="Your email address"
+                       @bind-Value="emailAddress"
+                       @onkeydown="HandleSubscribeKeyDown"
+                       AriaLabel="Email address"
+                       data-testid="subscribe-email" />
+
+                <Button OnClick="HandleSubscribe"
+                        Disabled="@isSubscribing"
+                        Class="w-full"
+                        data-testid="subscribe-submit">
+                    @if (isSubscribing)
+                    {
+                        <Spinner Size="SpinnerSize.Small" Class="mr-2" />
+                        <span>Subscribing...</span>
+                    }
+                    else
+                    {
+                        <span>Subscribe</span>
+                    }
+                </Button>
+            }
+        </CardContent>
+    </Card>
+</aside>
+
+@code {
+    private string searchQuery = string.Empty;
+    private string emailAddress = string.Empty;
+    private List<Category> categories = new();
+    private List<BlogTag> popularTags = new();
+
+    private string subscribeMessage = string.Empty;
+    private bool subscribeSuccess;
+    private bool isSubscribing;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        categories = LoadCategories();
+        popularTags = LoadPopularTags();
+    }
+
+    /// <summary>
+    /// Reads every category with its post count, degrading to an empty list.
+    /// </summary>
+    private List<Category> LoadCategories()
+    {
+        try
+        {
+            return CategoryService.GetAllWithCounts().ToList();
+        }
+        catch
+        {
+            return new List<Category>();
+        }
+    }
+
+    /// <summary>
+    /// Reads the ten most-used tags, degrading to an empty list.
+    /// </summary>
+    private List<BlogTag> LoadPopularTags()
+    {
+        try
+        {
+            return TagService.GetAllWithCounts()
+                .OrderByDescending(t => t.PostCount)
+                .Take(10)
+                .ToList();
+        }
+        catch
+        {
+            return new List<BlogTag>();
+        }
+    }
+
+    /// <summary>
+    /// Runs the search when Enter is pressed in the sidebar search box.
+    /// </summary>
+    /// <param name="e">Keyboard event supplied by the browser.</param>
+    private void HandleSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter" || string.IsNullOrWhiteSpace(searchQuery))
+        {
+            return;
+        }
+
+        Navigation.NavigateTo($"/search?q={Uri.EscapeDataString(searchQuery)}");
+    }
+
+    /// <summary>
+    /// Submits the subscribe form when Enter is pressed in the email box.
+    /// </summary>
+    /// <param name="e">Keyboard event supplied by the browser.</param>
+    private async Task HandleSubscribeKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await HandleSubscribe();
+        }
+    }
+
+    /// <summary>
+    /// Registers the supplied address with the subscriber service.
+    /// </summary>
+    private async Task HandleSubscribe()
+    {
+        if (isSubscribing)
+        {
+            return;
+        }
+
+        subscribeMessage = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(emailAddress))
+        {
+            subscribeMessage = "Please enter your email address.";
+            subscribeSuccess = false;
+            return;
+        }
+
+        isSubscribing = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await Task.Run(() => SubscriberService.Subscribe(emailAddress.Trim()));
+
+            subscribeSuccess = result.IsSuccess;
+            subscribeMessage = result.IsSuccess
+                ? "Thank you for subscribing!"
+                : result.ErrorMessage;
+
+            if (result.IsSuccess)
+            {
+                emailAddress = string.Empty;
+            }
+        }
+        catch (Exception)
+        {
+            subscribeMessage = "An error occurred. Please try again.";
+            subscribeSuccess = false;
+        }
+        finally
+        {
+            isSubscribing = false;
+            StateHasChanged();
+        }
+    }
+}

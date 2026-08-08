@@ -1,51 +1,62 @@
 @*
     PostCard.razor
     Purpose: Reusable card component for displaying blog post previews.
-    Shows post image, category, title, excerpt, author info, date, and optional rating.
+    Shows post image, category badge, title, excerpt, author name, date and optional rating.
 
-    Dependencies: StarRating component for ratings display
-    Usage: Used in Home page post grids, archive pages, author profiles, search results
+    REQ-UI-048 — rebuilt over TrBlazeUI Card/Badge with Tailwind utilities.
+    REQ-UI-041/042 — the author byline is plain text; public author profiles are retired.
+    REQ-UI-028 — no favourite toggle.
+
+    Dependencies: TrBlazeUI Card/Badge, StarRating component
+    Usage: Used in Home page post grids, archive pages and search results
 *@
 
-<article class="card">
-    <div class="card__image @(string.IsNullOrEmpty(ImageUrl) ? "placeholder-image" : "")">
+<Card Class="flex h-full flex-col overflow-hidden" data-testid="post-card">
+    <div class="aspect-video w-full overflow-hidden bg-muted">
         @if (!string.IsNullOrEmpty(ImageUrl))
         {
             <img src="@ImageUrl"
                  alt="@Title"
-                 style="width: 100%; height: 100%; object-fit: cover;"
-                 onerror="this.onerror=null; this.style.display='none'; this.parentElement.classList.add('placeholder-image'); this.parentElement.innerHTML='<span>Image</span>';" />
+                 loading="lazy"
+                 class="h-full w-full object-cover"
+                 data-testid="post-card-image" />
         }
         else
         {
-            <span>@(string.IsNullOrEmpty(ImagePlaceholder) ? "Image" : ImagePlaceholder)</span>
+            <div class="flex h-full w-full items-center justify-center text-sm text-muted-foreground"
+                 data-testid="post-card-image-placeholder">
+                @(string.IsNullOrEmpty(ImagePlaceholder) ? "Image" : ImagePlaceholder)
+            </div>
         }
     </div>
-    <div class="card__body">
-        <span class="card__category">@Category</span>
-        <h3 class="card__title">
-            <a href="@PostUrl">@Title</a>
+
+    <CardContent Class="flex flex-1 flex-col gap-2 p-4">
+        <div>
+            <Badge Variant="BadgeVariant.Secondary" data-testid="post-card-category">@Category</Badge>
+        </div>
+
+        <h3 class="text-lg font-semibold leading-snug">
+            <a href="@PostUrl"
+               class="text-foreground no-underline hover:text-primary hover:underline"
+               data-testid="post-card-title">@Title</a>
         </h3>
-        <p class="card__excerpt">
-            @Excerpt
-        </p>
-        <div class="card__meta">
-            <div class="card__author">
-                <div class="card__avatar"></div>
-                <span>@AuthorName</span>
-            </div>
-            <span>@Date</span>
+
+        <p class="text-sm text-muted-foreground" data-testid="post-card-excerpt">@Excerpt</p>
+
+        <div class="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 pt-3 text-xs text-muted-foreground">
+            <span class="text-muted-foreground" data-testid="post-card-author">@AuthorName</span>
+            <span data-testid="post-card-date">@Date</span>
             @if (!string.IsNullOrEmpty(ReadTime))
             {
-                <span>@ReadTime</span>
+                <span data-testid="post-card-readtime">@ReadTime</span>
             }
             @if (ShowRating && Rating > 0)
             {
                 <StarRating Value="@Rating" RatingCount="@RatingCount" />
             }
         </div>
-    </div>
-</article>
+    </CardContent>
+</Card>
 
 @code {
     /// <summary>
@@ -73,7 +84,7 @@
     public string PostUrl { get; set; } = "/post/placeholder";
 
     /// <summary>
-    /// Author's display name.
+    /// Author's display name. Rendered as plain text — public author profiles are retired.
     /// </summary>
     [Parameter]
     public string AuthorName { get; set; } = "[Author]";

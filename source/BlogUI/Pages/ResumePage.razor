@@ -1,10 +1,14 @@
 @*
     ResumePage.razor
-    Purpose: Public resume page displaying site owner's professional profile.
-    Includes hero section, experience timeline, skills, awards, and contact information.
+    Purpose: Public resume page displaying the site owner's professional profile —
+    sticky in-page section nav, hero, experience timeline, skills, awards, contact.
 
-    Dependencies: ResumeHero component, resume.css styles, IBlogUserRepo
-    Layout: Uses FullWidthLayout for full-viewport hero section
+    REQ-UI-036 / REQ-UI-048 — TrBlazeUI (Button / Card / Separator / Spinner / Empty).
+    TrBlazeUI 2.0.1 has no scrollspy component (gap TR-003), so the section nav is a
+    plain anchor chip row built from ghost buttons.
+
+    Dependencies: IBlogUserRepo, the Resume section components, wwwroot/css/resume.css
+    Layout: FullWidthLayout (no blog sidebar)
     Route: /resume
 *@
 
@@ -13,120 +17,63 @@
 @using BlogModels.Models
 @using BlogUI.Components.Resume
 
+@* REQ-NFR-007 / WCAG 2.4.2 Page Titled. *@
+<PageTitle>Resume · TechieBlog</PageTitle>
+
 @if (isLoading)
 {
-    <div class="loading-container" style="display: flex; justify-content: center; align-items: center; min-height: 100vh;">
-        <FluentProgressRing />
-        <span style="margin-left: 12px;">Loading resume...</span>
+    <div class="flex items-center justify-center gap-3 py-20" data-testid="resume-loading">
+        <Spinner Size="SpinnerSize.Large" />
+        <span class="text-muted-foreground">Loading resume...</span>
     </div>
 }
-else if (siteOwner == null)
+else if (siteOwner is null)
 {
-    <div class="empty-state" style="text-align: center; padding: 48px; min-height: 60vh; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-        <FluentIcon Value="@(new Icons.Regular.Size48.PersonWarning())" />
-        <h2>Resume Not Available</h2>
-        <p>The site owner's resume information is not currently available.</p>
-        <a href="/" class="cta-btn primary" style="margin-top: 24px; padding: 12px 24px; background: var(--color-primary); color: white; text-decoration: none; border-radius: 4px;">
-            Return Home
-        </a>
-    </div>
+    <Empty Title="Resume not available"
+           Description="The site owner's resume information is not currently available."
+           data-testid="resume-unavailable">
+        <Icon><LucideIcon Name="user-x" Size="48" /></Icon>
+        <ChildContent>
+            <Button Href="/" data-testid="resume-home-link">Return Home</Button>
+        </ChildContent>
+    </Empty>
 }
 else if (!siteOwner.ResumeEnabled)
 {
-    <div class="empty-state" style="text-align: center; padding: 48px; min-height: 60vh; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-        <FluentIcon Value="@(new Icons.Regular.Size48.Document())" />
-        <h2>Resume Not Published</h2>
-        <p>The resume feature is currently disabled.</p>
-        <a href="/" class="cta-btn primary" style="margin-top: 24px; padding: 12px 24px; background: var(--color-primary); color: white; text-decoration: none; border-radius: 4px;">
-            Return Home
-        </a>
-    </div>
+    <Empty Title="Resume not published"
+           Description="The resume feature is currently disabled."
+           data-testid="resume-disabled">
+        <Icon><LucideIcon Name="file-text" Size="48" /></Icon>
+        <ChildContent>
+            <Button Href="/" data-testid="resume-home-link">Return Home</Button>
+        </ChildContent>
+    </Empty>
 }
 else
 {
-    @* Hero Section - Full viewport introduction *@
-    <ResumeHero User="@siteOwner" />
+    <div class="resume-page" data-testid="resume-page">
 
-    @* Experience Section - Will be implemented in J.2 *@
-    <section class="resume-section" id="experience">
-        <h2>Experience</h2>
-        <p style="color: var(--color-neutral-light);">Experience section coming soon...</p>
-    </section>
+        @* Sticky in-page section nav (anchor chip row — TR-003 fallback) *@
+        <nav class="resume-nav" aria-label="Resume sections" data-testid="resume-section-nav">
+            <Button Href="#about" Variant="ButtonVariant.Ghost" Size="ButtonSize.Small" data-testid="nav-about">About</Button>
+            <Button Href="#experience" Variant="ButtonVariant.Ghost" Size="ButtonSize.Small" data-testid="nav-experience">Experience</Button>
+            <Button Href="#skills" Variant="ButtonVariant.Ghost" Size="ButtonSize.Small" data-testid="nav-skills">Skills</Button>
+            <Button Href="#awards" Variant="ButtonVariant.Ghost" Size="ButtonSize.Small" data-testid="nav-awards">Awards</Button>
+            <Button Href="#contact" Variant="ButtonVariant.Ghost" Size="ButtonSize.Small" data-testid="nav-contact">Contact</Button>
+        </nav>
 
-    @* Skills Section - Will be implemented in J.3 *@
-    <section class="resume-section resume-section--alt" id="skills">
-        <h2>Skills</h2>
-        <p style="color: var(--color-neutral-light);">Skills section coming soon...</p>
-    </section>
+        <ResumeHero User="@siteOwner" />
 
-    @* Awards Section - Will be implemented in J.4 *@
-    <section class="resume-section" id="awards">
-        <h2>Awards & Certifications</h2>
-        <p style="color: var(--color-neutral-light);">Awards section coming soon...</p>
-    </section>
+        <Separator />
 
-    @* Contact Section - Will be implemented in J.4 *@
-    <section class="resume-section resume-section--alt" id="contact">
-        <h2>Contact</h2>
-        <div class="contact-info">
-            @if (!string.IsNullOrEmpty(siteOwner.EmailId))
-            {
-                <div class="contact-item">
-                    <div class="icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                            <polyline points="22,6 12,13 2,6"></polyline>
-                        </svg>
-                    </div>
-                    <div class="contact-details">
-                        <span class="contact-label">Email</span>
-                        <a href="mailto:@siteOwner.EmailId" class="contact-value">@siteOwner.EmailId</a>
-                    </div>
-                </div>
-            }
-            @if (!string.IsNullOrEmpty(siteOwner.PhoneNumber))
-            {
-                <div class="contact-item">
-                    <div class="icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-                        </svg>
-                    </div>
-                    <div class="contact-details">
-                        <span class="contact-label">Phone</span>
-                        <a href="tel:@siteOwner.PhoneNumber" class="contact-value">@siteOwner.PhoneNumber</a>
-                    </div>
-                </div>
-            }
-            @if (!string.IsNullOrEmpty(siteOwner.Location))
-            {
-                <div class="contact-item">
-                    <div class="icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                            <circle cx="12" cy="10" r="3"></circle>
-                        </svg>
-                    </div>
-                    <div class="contact-details">
-                        <span class="contact-label">Location</span>
-                        <span class="contact-value">@siteOwner.Location</span>
-                    </div>
-                </div>
-            }
-            @if (!string.IsNullOrEmpty(siteOwner.LinkedInUrl))
-            {
-                <div class="contact-item">
-                    <div class="icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
-                        </svg>
-                    </div>
-                    <div class="contact-details">
-                        <span class="contact-label">LinkedIn</span>
-                        <a href="@siteOwner.LinkedInUrl" target="_blank" rel="noopener noreferrer" class="contact-value">LinkedIn Profile</a>
-                    </div>
-                </div>
-            }
-        </div>
-    </section>
+        <ResumeStats User="@siteOwner" UserId="@siteOwner.UserId" />
+
+        <ResumeExperience UserId="@siteOwner.UserId" />
+
+        <ResumeSkills UserId="@siteOwner.UserId" />
+
+        <ResumeAwards UserId="@siteOwner.UserId" />
+
+        <ResumeContact User="@siteOwner" />
+    </div>
 }

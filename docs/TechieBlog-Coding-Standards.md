@@ -157,15 +157,28 @@ public class DatabaseService
 - No `_` prefix on private fields (`warning` via custom naming rule)
 
 ### Verifier grep checks
+> **Corrected 2026-08-07 — the previous patterns had a blind spot.** They used `\w+` for the field
+> type, which cannot match a generic (`<`, `>`, `,`), an array (`[]`), a nullable (`?`) or a qualified
+> (`.`) type name. So `private readonly ILogger<X> _logger;` was **never reported** — 7 of the 14
+> underscore fields found during `REQ-NFR-021` were exactly that shape and had been passing the gate
+> for the life of the project. The patterns below accept the full type grammar and also cover
+> `static`. Verified: the old pattern matches `IRepo _repo` but not `ILogger<Foo> _logger`; the new
+> one matches both.
+
 ```bash
-# Forbidden underscore-prefix fields
-grep -rE "private(\s+readonly)?\s+\w+\s+_[a-z]" source/ 2>/dev/null
+# Forbidden underscore-prefix fields (generic/array/nullable/qualified-type aware)
+grep -rEn "private(\s+static)?(\s+readonly)?\s+[\w.<>,\[\]?]+\s+_[a-zA-Z]" source/ \
+  --include=*.cs --include=*.razor 2>/dev/null | grep -v "/obj/\|/bin/"
 
 # Forbidden test-method underscores
-grep -rE "public\s+(async\s+)?Task\s+\w+_\w+\s*\(" tests/ 2>/dev/null
+grep -rE "public\s+(async\s+)?(Task|void)\s+\w+_\w+\s*\(" tests/ 2>/dev/null
 
 # Forbidden Hungarian/obj/a/v prefixes (this project is no-prefix)
-grep -rE "private(\s+readonly)?\s+\w+\s+obj[A-Z]" source/ 2>/dev/null
+grep -rEn "private(\s+static)?(\s+readonly)?\s+[\w.<>,\[\]?]+\s+(obj|str|int|bln)[A-Z]" source/ \
+  --include=*.cs --include=*.razor 2>/dev/null | grep -v "/obj/\|/bin/"
+
+# Forbidden a-/v- prefixed parameters and locals (e.g. aLoggedUser, vIdentity)
+grep -rEn "\b(a|v)[A-Z][a-zA-Z]*\s*[,)=;]" source/ --include=*.cs 2>/dev/null | grep -v "/obj/\|/bin/"
 
 # Hardcoded colours in Razor/CSS outside the theme files
 grep -rnE "#[0-9a-fA-F]{3,6}\b" source/BlogUI --include="*.razor" 2>/dev/null

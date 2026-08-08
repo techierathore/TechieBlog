@@ -14,12 +14,12 @@ public partial class ResumePage
     /// Repository for accessing user data.
     /// </summary>
     [Inject]
-    public IBlogUserRepo UserRepo { get; set; }
+    public IBlogUserRepo UserRepo { get; set; } = default!;
 
     /// <summary>
     /// The site owner's user data.
     /// </summary>
-    private AppUser siteOwner;
+    private AppUser? siteOwner;
 
     /// <summary>
     /// Indicates whether data is currently being loaded.

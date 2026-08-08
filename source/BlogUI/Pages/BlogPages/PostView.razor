@@ -1,9 +1,18 @@
 @*
     PostView.razor
     Purpose: Individual blog post detail page for TechieBlog.
-    Displays full article content with author info, ratings, tags, and comments section.
+    Displays breadcrumb, title, byline, cover image, rendered markdown body,
+    optional in-post pagination, series navigation, tags and comments.
 
-    Dependencies: Breadcrumb, StarRating, PostCard components, FullWidthLayout, BlogSvc
+    REQ-UI-048 — migrated from Microsoft Fluent UI to TrBlazeUI.
+    REQ-UI-028 — the favourite toggle is retired; no favourites UI or state remains.
+    REQ-UI-041/042 — the author byline is plain text; public author profiles are retired.
+    REQ-UI-027 — anonymous, email-keyed star rating (PostRatingPanel).
+    REQ-UI-029 — anonymous comment thread + comment form (CommentThread, CommentForm).
+    REQ-UI-056 — both public write surfaces carry a CaptchaWidget.
+
+    Dependencies: BlogBreadcrumb, PostRatingPanel, CommentThread, CommentForm components;
+    FullWidthLayout, BlogSvc, SeriesSvc, CommentSvc, MarkdownRenderer
     Layout: Uses FullWidthLayout (no sidebar - content focused)
 *@
 
@@ -12,220 +21,143 @@
 @layout FullWidthLayout
 @inject BlogEngine.Services.BlogSvc BlogService
 @inject BlogEngine.Services.SeriesSvc SeriesService
-@inject BlogEngine.Services.FavoriteSvc FavoriteService
+@inject BlogEngine.Services.CommentSvc CommentService
 @inject BlogEngine.Common.MarkdownRenderer MarkdownRenderer
-@inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 
+@* REQ-NFR-007 / WCAG 2.4.2 Page Titled — every route needs a unique, descriptive title. *@
+<PageTitle>@(blogPost == null ? "Post · TechieBlog" : $"{blogPost.Title} · TechieBlog")</PageTitle>
+
 @if (isLoading)
 {
-    <div class="loading-container" style="display: flex; justify-content: center; padding: 48px;">
-        <FluentProgressRing />
-        <span style="margin-left: 12px;">Loading post...</span>
+    <div class="flex items-center justify-center gap-3 py-12" data-testid="post-loading">
+        <Spinner />
+        <span class="text-muted-foreground">Loading post...</span>
     </div>
 }
 else if (notFound)
 {
-    <div class="not-found" style="text-align: center; padding: 48px;">
-        <FluentIcon Value="@(new Icons.Regular.Size48.ShieldError())" Color="Color.Error" />
-        <h1>Post Not Found</h1>
-        <p>The post you're looking for doesn't exist or has been removed.</p>
-        <FluentAnchor Href="/" Appearance="Appearance.Accent">
-            Return to Home
-        </FluentAnchor>
-    </div>
+    <Empty Title="Post not found"
+           Description="The post you're looking for doesn't exist or has been removed."
+           Class="py-12"
+           data-testid="post-not-found">
+        <Icon><LucideIcon Name="circle-alert" Size="48" /></Icon>
+        <ChildContent>
+            <Button Href="/" data-testid="post-not-found-home">Return to home</Button>
+        </ChildContent>
+    </Empty>
 }
 else if (blogPost != null)
 {
-    @* Breadcrumb Navigation *@
-    <Breadcrumb Items="@breadcrumbItems" />
+    <article class="mx-auto w-full max-w-[820px]">
 
-    @* Article *@
-    <article>
+        @* Breadcrumb Navigation *@
+        <BlogBreadcrumb Items="@breadcrumbItems" />
+
         @* Article Header *@
-        <header class="article__header">
-            <div class="article__header-top">
-                <span class="article__category">@GetCategory(blogPost.Tags)</span>
-                <FavoriteToggle PostId="@blogPost.PostID"
-                               IsFavorited="@isFavorited"
-                               IsLoggedIn="@isAuthenticated"
-                               UserId="@currentUserId"
-                               ShowCount="true"
-                               FavoriteCount="@favoriteCount"
-                               OnToggle="@HandleFavoriteToggle" />
+        <header class="mt-6 flex flex-col gap-4">
+            <div>
+                <a href="/category/@GetSlug(GetCategory(blogPost.Tags))" class="no-underline" data-testid="post-category">
+                    <Badge Variant="BadgeVariant.Secondary">@GetCategory(blogPost.Tags)</Badge>
+                </a>
             </div>
-            <h1 class="article__title">@blogPost.Title</h1>
-            <div class="article__meta">
-                <div class="card__author">
-                    <div class="card__avatar"></div>
-                    <span>@(string.IsNullOrEmpty(blogPost.BlogWriter) ? "Unknown Author" : blogPost.BlogWriter)</span>
-                </div>
-                <span>@blogPost.CreatedOn.ToString("MMMM dd, yyyy")</span>
-                <span>@GetReadingTime(blogPost.PostContent)</span>
+
+            <h1 class="text-balance text-4xl font-bold tracking-tight text-foreground" data-testid="post-title">@blogPost.Title</h1>
+
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                <span class="text-muted-foreground" data-testid="post-author">
+                    @(string.IsNullOrEmpty(blogPost.BlogWriter) ? "Unknown Author" : blogPost.BlogWriter)
+                </span>
+                <span data-testid="post-date">@blogPost.CreatedOn.ToString("MMMM dd, yyyy")</span>
+                <span data-testid="post-readtime">@GetReadingTime(blogPost.PostContent)</span>
             </div>
         </header>
 
-        <style>
-            .article__header-top {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 8px;
-            }
-
-            /* Article Pagination Styles */
-            .article-pagination {
-                margin: var(--spacing-xl, 32px) 0;
-                padding: var(--spacing-lg, 24px);
-                background: var(--neutral-layer-2, #f5f5f5);
-                border-radius: var(--border-radius-lg, 8px);
-                border: 1px solid var(--neutral-stroke-rest, #e0e0e0);
-            }
-
-            .article-pagination__info {
-                text-align: center;
-                font-size: var(--font-size-small, 0.875rem);
-                color: var(--neutral-foreground-hint, #666);
-                margin-bottom: var(--spacing-md, 16px);
-            }
-
-            .article-pagination__controls {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                gap: var(--spacing-md, 16px);
-            }
-
-            .pagination-btn {
-                display: inline-flex;
-                align-items: center;
-                gap: var(--spacing-xs, 4px);
-                padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
-                background: var(--accent-fill-rest, #0078D4);
-                color: white;
-                border-radius: var(--border-radius, 4px);
-                text-decoration: none;
-                font-size: var(--font-size-small, 0.875rem);
-                font-weight: 500;
-                transition: background 150ms ease;
-            }
-
-            .pagination-btn:hover {
-                background: var(--accent-fill-hover, #106ebe);
-            }
-
-            .pagination-btn--disabled {
-                background: var(--neutral-stroke-rest, #e0e0e0);
-                color: var(--neutral-foreground-hint, #999);
-                pointer-events: none;
-            }
-
-            .pagination-pages {
-                display: flex;
-                gap: var(--spacing-xs, 4px);
-            }
-
-            .pagination-page {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                width: 32px;
-                height: 32px;
-                border-radius: var(--border-radius, 4px);
-                text-decoration: none;
-                font-size: var(--font-size-small, 0.875rem);
-                color: var(--neutral-foreground-rest, #333);
-                background: var(--neutral-layer-3, #fff);
-                border: 1px solid var(--neutral-stroke-rest, #e0e0e0);
-                transition: all 150ms ease;
-            }
-
-            .pagination-page:hover {
-                background: var(--accent-fill-rest, #0078D4);
-                color: white;
-                border-color: var(--accent-fill-rest, #0078D4);
-            }
-
-            .pagination-page--active {
-                background: var(--accent-fill-rest, #0078D4);
-                color: white;
-                border-color: var(--accent-fill-rest, #0078D4);
-            }
-
-            @@media (max-width: 480px) {
-                .article-pagination__controls {
-                    flex-direction: column;
-                    gap: var(--spacing-sm, 8px);
-                }
-
-                .pagination-btn {
-                    width: 100%;
-                    justify-content: center;
-                }
-            }
-        </style>
+        @* Cover Image *@
+        @if (!string.IsNullOrEmpty(blogPost.FeaturedImage))
+        {
+            <div class="mt-6 aspect-video w-full overflow-hidden rounded-lg bg-muted">
+                <img src="@blogPost.FeaturedImage"
+                     alt="@blogPost.Title"
+                     class="h-full w-full object-cover"
+                     data-testid="post-cover-image" />
+            </div>
+        }
 
         @* Article Content *@
-        <div class="article__content">
+        <div class="mt-8">
             @if (!string.IsNullOrEmpty(blogPost.Abstract))
             {
-                <p class="article__excerpt"><em>@blogPost.Abstract</em></p>
+                <p class="mb-6 border-l-2 border-border pl-4 italic text-muted-foreground" data-testid="post-abstract">
+                    @blogPost.Abstract
+                </p>
             }
-            @* Render paginated content *@
-            @((MarkupString)GetPaginatedContent())
+            @* Render paginated content — styling lives in wwwroot/css/base.css *@
+            <div class="markdown-content" data-testid="post-content">
+                @((MarkupString)GetPaginatedContent())
+            </div>
         </div>
 
-        @* Pagination Controls *@
+        @* In-post Pagination Controls — server-side, one URL per page *@
         @if (totalPages > 1)
         {
-            <nav class="article-pagination" aria-label="Article pagination">
-                <div class="article-pagination__info">
+            <nav class="my-8 rounded-lg border border-border bg-muted p-6" aria-label="Article pagination" data-testid="post-paginator">
+                <div class="mb-4 text-center text-sm text-muted-foreground" data-testid="post-paginator-info">
                     Page @currentPage of @totalPages
                 </div>
-                <div class="article-pagination__controls">
+                <div class="flex flex-col items-center justify-center gap-4 sm:flex-row">
                     @if (currentPage > 1)
                     {
-                        <a href="/post/@Slug/@(currentPage - 1)" class="pagination-btn pagination-btn--prev">
-                            <FluentIcon Value="@(new Icons.Regular.Size16.ChevronLeft())" />
+                        <a href="/post/@Slug/@(currentPage - 1)"
+                           class="inline-flex w-full items-center justify-center gap-1 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground no-underline hover:opacity-90 sm:w-auto"
+                           data-testid="post-paginator-previous">
+                            <LucideIcon Name="chevron-left" Size="16" />
                             Previous
                         </a>
                     }
                     else
                     {
-                        <span class="pagination-btn pagination-btn--prev pagination-btn--disabled">
-                            <FluentIcon Value="@(new Icons.Regular.Size16.ChevronLeft())" />
+                        <span class="pointer-events-none inline-flex w-full items-center justify-center gap-1 rounded-md bg-muted px-4 py-2 text-sm font-medium text-muted-foreground sm:w-auto"
+                              data-testid="post-paginator-previous-disabled">
+                            <LucideIcon Name="chevron-left" Size="16" />
                             Previous
                         </span>
                     }
 
-                    <div class="pagination-pages">
+                    <div class="flex flex-wrap items-center justify-center gap-1">
                         @for (int i = 1; i <= totalPages; i++)
                         {
                             var pageNum = i;
                             @if (pageNum == currentPage)
                             {
-                                <span class="pagination-page pagination-page--active">@pageNum</span>
+                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-primary bg-primary text-sm text-primary-foreground"
+                                      data-testid="@($"post-paginator-page-{pageNum}-active")">@pageNum</span>
                             }
                             else
                             {
-                                <a href="/post/@Slug/@pageNum" class="pagination-page">@pageNum</a>
+                                <a href="/post/@Slug/@pageNum"
+                                   class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-sm text-foreground no-underline hover:bg-accent hover:text-accent-foreground"
+                                   data-testid="@($"post-paginator-page-{pageNum}")">@pageNum</a>
                             }
                         }
                     </div>
 
                     @if (currentPage < totalPages)
                     {
-                        <a href="/post/@Slug/@(currentPage + 1)" class="pagination-btn pagination-btn--next">
+                        <a href="/post/@Slug/@(currentPage + 1)"
+                           class="inline-flex w-full items-center justify-center gap-1 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground no-underline hover:opacity-90 sm:w-auto"
+                           data-testid="post-paginator-next">
                             Next
-                            <FluentIcon Value="@(new Icons.Regular.Size16.ChevronRight())" />
+                            <LucideIcon Name="chevron-right" Size="16" />
                         </a>
                     }
                     else
                     {
-                        <span class="pagination-btn pagination-btn--next pagination-btn--disabled">
+                        <span class="pointer-events-none inline-flex w-full items-center justify-center gap-1 rounded-md bg-muted px-4 py-2 text-sm font-medium text-muted-foreground sm:w-auto"
+                              data-testid="post-paginator-next-disabled">
                             Next
-                            <FluentIcon Value="@(new Icons.Regular.Size16.ChevronRight())" />
+                            <LucideIcon Name="chevron-right" Size="16" />
                         </span>
                     }
                 </div>
@@ -235,116 +167,130 @@ else if (blogPost != null)
         @* Series Navigation - shown when post is part of a series *@
         @if (seriesNavigation != null)
         {
-            <div class="series-navigation" style="margin: 32px 0; padding: 24px; background: var(--neutral-layer-2); border-radius: 8px; border: 1px solid var(--neutral-stroke-rest);">
-                <div style="margin-bottom: 16px;">
-                    <FluentBadge Appearance="Appearance.Accent">Series</FluentBadge>
-                    <h3 style="margin: 8px 0 4px 0;">
-                        <a href="/series/@seriesNavigation.SeriesSlug" style="color: inherit; text-decoration: none;">
-                            @seriesNavigation.SeriesName
-                        </a>
-                    </h3>
-                    <span style="color: var(--neutral-foreground-hint); font-size: 0.9rem;">
+            <Card Class="my-8" data-testid="series-navigation">
+                <CardHeader>
+                    <div>
+                        <Badge Variant="BadgeVariant.Secondary">Series</Badge>
+                    </div>
+                    <CardTitle>
+                        <a href="/series/@seriesNavigation.SeriesSlug"
+                           class="text-foreground no-underline hover:text-primary hover:underline"
+                           data-testid="series-navigation-name">@seriesNavigation.SeriesName</a>
+                    </CardTitle>
+                    <CardDescription data-testid="series-navigation-part">
                         Part @seriesNavigation.CurrentPart of @seriesNavigation.TotalParts
-                    </span>
-                </div>
-                <div style="display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+                    </CardDescription>
+                </CardHeader>
+                <CardContent Class="flex flex-col gap-4 sm:flex-row">
                     @if (seriesNavigation.PreviousPost != null)
                     {
-                        <a href="/post/@seriesNavigation.PreviousPost.Slug" style="flex: 1; min-width: 200px; padding: 12px; background: var(--neutral-layer-3); border-radius: 4px; text-decoration: none; color: inherit;">
-                            <div style="font-size: 0.8rem; color: var(--neutral-foreground-hint); margin-bottom: 4px;">
-                                <FluentIcon Value="@(new Icons.Regular.Size16.ArrowLeft())" Style="vertical-align: middle;" />
+                        <a href="/post/@seriesNavigation.PreviousPost.Slug"
+                           class="flex-1 rounded-md border border-border bg-muted p-3 text-foreground no-underline hover:bg-accent hover:text-accent-foreground"
+                           data-testid="series-previous-post">
+                            <span class="flex items-center gap-1 text-xs text-muted-foreground">
+                                <LucideIcon Name="arrow-left" Size="14" />
                                 Previous Part
-                            </div>
-                            <div style="font-weight: 500;">@seriesNavigation.PreviousPost.Title</div>
+                            </span>
+                            <span class="mt-1 block font-medium">@seriesNavigation.PreviousPost.Title</span>
                         </a>
                     }
                     else
                     {
-                        <div style="flex: 1; min-width: 200px;"></div>
+                        <div class="flex-1"></div>
                     }
+
                     @if (seriesNavigation.NextPost != null)
                     {
-                        <a href="/post/@seriesNavigation.NextPost.Slug" style="flex: 1; min-width: 200px; padding: 12px; background: var(--neutral-layer-3); border-radius: 4px; text-decoration: none; color: inherit; text-align: right;">
-                            <div style="font-size: 0.8rem; color: var(--neutral-foreground-hint); margin-bottom: 4px;">
+                        <a href="/post/@seriesNavigation.NextPost.Slug"
+                           class="flex-1 rounded-md border border-border bg-muted p-3 text-right text-foreground no-underline hover:bg-accent hover:text-accent-foreground"
+                           data-testid="series-next-post">
+                            <span class="flex items-center justify-end gap-1 text-xs text-muted-foreground">
                                 Next Part
-                                <FluentIcon Value="@(new Icons.Regular.Size16.ArrowRight())" Style="vertical-align: middle;" />
-                            </div>
-                            <div style="font-weight: 500;">@seriesNavigation.NextPost.Title</div>
+                                <LucideIcon Name="arrow-right" Size="14" />
+                            </span>
+                            <span class="mt-1 block font-medium">@seriesNavigation.NextPost.Title</span>
                         </a>
                     }
                     else if (seriesNavigation.TotalParts > seriesNavigation.CurrentPart)
                     {
-                        <div style="flex: 1; min-width: 200px; padding: 12px; background: var(--neutral-layer-3); border-radius: 4px; text-align: right; opacity: 0.7;">
-                            <div style="font-size: 0.8rem; color: var(--neutral-foreground-hint); margin-bottom: 4px;">
+                        <div class="flex-1 rounded-md border border-border bg-muted p-3 text-right opacity-70"
+                             data-testid="series-next-post-pending">
+                            <span class="flex items-center justify-end gap-1 text-xs text-muted-foreground">
                                 Next Part
-                                <FluentIcon Value="@(new Icons.Regular.Size16.ArrowRight())" Style="vertical-align: middle;" />
-                            </div>
-                            <div style="font-weight: 500; font-style: italic;">Coming Soon</div>
+                                <LucideIcon Name="arrow-right" Size="14" />
+                            </span>
+                            <span class="mt-1 block font-medium italic">Coming Soon</span>
                         </div>
                     }
-                </div>
-            </div>
+                </CardContent>
+            </Card>
         }
 
         @* Tags *@
         @if (!string.IsNullOrWhiteSpace(blogPost.Tags))
         {
-            <div class="article__tags">
-                <strong>Tags:</strong>
-                <div class="tags-cloud tags-cloud--inline">
-                    @foreach (var tag in GetTags(blogPost.Tags))
-                    {
-                        <a href="/tag/@GetSlug(tag)" class="tag">@tag</a>
-                    }
-                </div>
+            <div class="my-8 flex flex-wrap items-center gap-2" data-testid="post-tags">
+                <span class="text-sm font-semibold">Tags:</span>
+                @foreach (var tag in GetTags(blogPost.Tags))
+                {
+                    <a href="/tag/@GetSlug(tag)" class="no-underline" data-testid="@($"post-tag-{GetSlug(tag)}")">
+                        <Badge Variant="BadgeVariant.Outline">@tag</Badge>
+                    </a>
+                }
             </div>
         }
 
-        @* Author Card *@
-        <div class="author-card">
-            <div class="author-card__avatar"></div>
-            <div class="author-card__content">
-                <h3 class="author-card__name">@blogPost.BlogWriter</h3>
-                <p class="author-card__bio">
-                    Author of this post.
-                </p>
-            </div>
-        </div>
+        @* Rate this article — anonymous, email-keyed, captcha-gated (REQ-UI-027 / REQ-UI-056) *@
+        <PostRatingPanel PostId="@blogPost.PostID" />
+
+        @* Author byline card — plain text, no profile link (REQ-UI-041/042) *@
+        <Card Class="my-8" data-testid="post-author-card">
+            <CardContent Class="flex items-center gap-4 p-6">
+                <Avatar Size="AvatarSize.Large">
+                    <AvatarFallback>@GetInitials(blogPost.BlogWriter)</AvatarFallback>
+                </Avatar>
+                <div class="flex flex-col">
+                    <span class="font-semibold" data-testid="post-author-name">@blogPost.BlogWriter</span>
+                    <span class="text-sm text-muted-foreground">Author of this post.</span>
+                </div>
+            </CardContent>
+        </Card>
 
         @* Related Posts *@
         @if (relatedPosts != null && relatedPosts.Count > 0)
         {
-            <section class="related-posts">
-                <h2>More Posts</h2>
-                <div class="post-grid post-grid--three">
+            <section class="my-8" data-testid="related-posts">
+                <TypographyH2 Class="mb-4">More Posts</TypographyH2>
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     @foreach (var related in relatedPosts)
                     {
-                        <article class="card card--compact">
-                            <div class="card__image placeholder-image">Image</div>
-                            <div class="card__body">
-                                <span class="card__category">@GetCategory(related.Tags)</span>
-                                <h3 class="card__title">
-                                    <a href="/post/@related.Slug">@related.Title</a>
+                        <Card Class="h-full" data-testid="related-post-card">
+                            <CardContent Class="flex flex-col gap-2 p-4">
+                                <div>
+                                    <Badge Variant="BadgeVariant.Secondary">@GetCategory(related.Tags)</Badge>
+                                </div>
+                                <h3 class="text-base font-semibold leading-snug">
+                                    <a href="/post/@related.Slug"
+                                       class="text-foreground no-underline hover:text-primary hover:underline"
+                                       data-testid="related-post-title">@related.Title</a>
                                 </h3>
-                            </div>
-                        </article>
+                            </CardContent>
+                        </Card>
                     }
                 </div>
             </section>
         }
 
-        @* Comments Section *@
-        <section class="comments-section">
-            <h2>Comments</h2>
-            <div class="comments__form">
-                <p class="comments__login-prompt">
-                    <a href="/admin/login">Login</a> to leave a comment
-                </p>
-                <FluentTextArea Placeholder="Write your comment..." Style="width: 100%;" Disabled="true" />
-                <FluentButton Appearance="Appearance.Accent" Disabled="true" Style="margin-top: var(--spacing-sm);">
-                    Post Comment
-                </FluentButton>
-            </div>
+        @* Comments Section — anonymous name + email, no sign-in prompt (REQ-UI-029) *@
+        <section class="my-8" data-testid="comments-section">
+            <TypographyH2 Class="mb-4">
+                Comments
+                <span class="text-base font-medium text-muted-foreground" data-testid="comments-count">(@GetCommentTotal())</span>
+            </TypographyH2>
+
+            <CommentThread Comments="@comments" />
+
+            <CommentForm PostId="@blogPost.PostID" OnSubmitted="LoadComments" />
         </section>
     </article>
 }
@@ -362,18 +308,13 @@ else if (blogPost != null)
     [Parameter]
     public int PageNumber { get; set; } = 1;
 
-    private List<Breadcrumb.BreadcrumbItem> breadcrumbItems = new();
+    private List<BlogBreadcrumbItem> breadcrumbItems = new();
     private BlogModels.BlogPost blogPost;
     private List<BlogModels.BlogPost> relatedPosts = new();
     private BlogModels.SeriesNavigation seriesNavigation;
+    private List<BlogModels.BlogComment> comments = new();
     private bool isLoading = true;
     private bool notFound = false;
-
-    // Favorite state (FIX-014)
-    private bool isAuthenticated = false;
-    private long currentUserId = 0;
-    private bool isFavorited = false;
-    private int favoriteCount = 0;
 
     // Pagination state
     private int paginationWordCount = 500;
@@ -416,11 +357,11 @@ else if (blogPost != null)
                 }
 
                 // Setup breadcrumb
-                breadcrumbItems = new List<Breadcrumb.BreadcrumbItem>
+                breadcrumbItems = new List<BlogBreadcrumbItem>
                 {
-                    new Breadcrumb.BreadcrumbItem { Label = "Home", Url = "/" },
-                    new Breadcrumb.BreadcrumbItem { Label = GetCategory(blogPost.Tags), Url = $"/category/{GetSlug(GetCategory(blogPost.Tags))}" },
-                    new Breadcrumb.BreadcrumbItem { Label = blogPost.Title, Url = "" }
+                    new BlogBreadcrumbItem { Label = "Home", Url = "/" },
+                    new BlogBreadcrumbItem { Label = GetCategory(blogPost.Tags), Url = $"/category/{GetSlug(GetCategory(blogPost.Tags))}" },
+                    new BlogBreadcrumbItem { Label = blogPost.Title, Url = "" }
                 };
 
                 // Load related posts (other recent posts)
@@ -440,8 +381,7 @@ else if (blogPost != null)
                     seriesNavigation = null;
                 }
 
-                // Load favorite state (FIX-014)
-                await LoadFavoriteState();
+                LoadComments();
             }
         }
         catch
@@ -451,6 +391,48 @@ else if (blogPost != null)
 
         isLoading = false;
         StateHasChanged();
+    }
+
+    /// <summary>
+    /// Loads the publicly visible comment thread for the current post.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> <c>CommentSvc.GetCommentsByPostId</c> reads through a
+    /// repository query that filters on the Approved moderation status, so a comment that has
+    /// not been email-confirmed AND approved can never reach this page. This is also the
+    /// callback the comment form fires after a successful submission — the newly written
+    /// comment deliberately does NOT appear.</para>
+    /// <para><b>Flow:</b> read the approved thread, re-render.</para>
+    /// <para><b>Side Effects:</b> Replaces <c>comments</c>.</para>
+    /// </remarks>
+    private void LoadComments()
+    {
+        if (blogPost == null)
+        {
+            comments = new List<BlogModels.BlogComment>();
+            return;
+        }
+
+        comments = CommentService.GetCommentsByPostId(blogPost.PostID)?.ToList()
+            ?? new List<BlogModels.BlogComment>();
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Counts every visible comment, replies included, for the section heading.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The heading counts what a reader can actually see, so
+    /// replies count towards the total.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <returns>The number of approved comments and replies.</returns>
+    private int GetCommentTotal()
+    {
+        if (comments == null)
+            return 0;
+
+        return comments.Count + comments.Sum(c => c.Replies?.Count ?? 0);
     }
 
     /// <summary>
@@ -552,52 +534,6 @@ else if (blogPost != null)
     }
 
     /// <summary>
-    /// Loads the current user's favorite state for this post.
-    /// </summary>
-    private async Task LoadFavoriteState()
-    {
-        try
-        {
-            // Get authentication state
-            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var user = authState.User;
-            
-            if (user.Identity?.IsAuthenticated == true)
-            {
-                isAuthenticated = true;
-                var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.PrimarySid)?.Value;
-                if (long.TryParse(userIdClaim, out var userId))
-                {
-                    currentUserId = userId;
-                    isFavorited = FavoriteService.IsFavorited(blogPost.PostID, userId);
-                }
-            }
-            else
-            {
-                isAuthenticated = false;
-            }
-
-            // Get favorite count for the post
-            favoriteCount = FavoriteService.GetFavoriteCount(blogPost.PostID);
-        }
-        catch
-        {
-            isAuthenticated = false;
-            isFavorited = false;
-            favoriteCount = 0;
-        }
-    }
-
-    /// <summary>
-    /// Handles favorite toggle from the FavoriteToggle component.
-    /// </summary>
-    private void HandleFavoriteToggle(bool newState)
-    {
-        isFavorited = newState;
-        // Count is updated by the component
-    }
-
-    /// <summary>
     /// Gets the first tag as category, or "General".
     /// </summary>
     private string GetCategory(string tags)
@@ -634,6 +570,21 @@ else if (blogPost != null)
         return text.ToLowerInvariant()
             .Replace(" ", "-")
             .Replace("#", "sharp");
+    }
+
+    /// <summary>
+    /// Builds up to two uppercase initials for the author avatar fallback.
+    /// </summary>
+    /// <param name="name">Author display name.</param>
+    /// <returns>Initials, or a question mark when the name is empty.</returns>
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "?";
+
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var initials = parts.Take(2).Select(p => char.ToUpperInvariant(p[0]));
+        return string.Concat(initials);
     }
 
     /// <summary>

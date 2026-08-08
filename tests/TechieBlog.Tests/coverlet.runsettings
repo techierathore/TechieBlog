@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Coverage settings for TechieBlog.Tests — REQ-NFR-016 (BRD-76).
+
+  BlogEngine is the coverage target: 80% line coverage. Everything else in the
+  solution is excluded so the number reported is the number the requirement asks
+  about.
+
+  Run with dotnet test, passing the "XPlat Code Coverage" collector and pointing
+  the settings switch at this file (see .github/workflows/ci.yml for the exact
+  command line; MSBuild switches cannot be quoted inside an XML comment).
+-->
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <Format>cobertura,opencover</Format>
+          <Include>[BlogEngine]*</Include>
+          <Exclude>[BlogModels]*,[BlogUI]*,[TechieBlog]*,[TechieBlog.Tests]*,[BlogDb]*</Exclude>
+          <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute</ExcludeByAttribute>
+          <SingleHit>false</SingleHit>
+          <UseSourceLink>true</UseSourceLink>
+          <IncludeTestAssembly>false</IncludeTestAssembly>
+          <SkipAutoProps>true</SkipAutoProps>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

@@ -1,22 +1,24 @@
 @*
     404Page.razor
-    Purpose: Error page displayed when a route is not found.
-    Provides user-friendly error message and navigation back to main site.
+    Purpose: Explicit /404 route for "page not found".
 
-    Usage: Displayed automatically for unknown routes
-    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+    REQ-UI-048 — rebuilt on TrBlazeUI.
+    Also fixes a dead link: the action pointed at "dashboard-default", which is
+    not a route in this application.
 *@
+
 @page "/404"
 @layout BlogUI.Layouts.AuthLayout
 
-<FluentStack Orientation="Orientation.Vertical"
-             HorizontalAlignment="HorizontalAlignment.Center"
-             VerticalAlignment="VerticalAlignment.Center"
-             Style="min-height: 50vh; text-align: center;">
-    <h1 style="font-size: 6rem; font-weight: bold; margin: 0;">404</h1>
-    <h2>Page not found.</h2>
-    <p style="margin: 24px 0;">The page you are looking for might have been removed.</p>
-    <FluentAnchor Href="dashboard-default" Appearance="Appearance.Accent">
+<PageTitle>Page not found - TechieBlog</PageTitle>
+
+<div class="flex flex-col items-center gap-4 text-center" data-testid="not-found-page">
+    <p class="m-0 text-6xl font-bold tracking-tight text-muted-foreground">404</p>
+    <h1 class="m-0 text-2xl font-semibold">Page not found</h1>
+    <p class="m-0 text-sm text-muted-foreground">
+        The page you are looking for might have been removed or renamed.
+    </p>
+    <Button Href="/" Class="mt-2" data-testid="not-found-home">
         Return to website
-    </FluentAnchor>
-</FluentStack>
+    </Button>
+</div>

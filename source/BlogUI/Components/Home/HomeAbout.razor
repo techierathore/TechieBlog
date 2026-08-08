@@ -1,0 +1,43 @@
+@*
+    HomeAbout.razor
+    Purpose: Short "About" summary on the portfolio home page, taken from the
+    site owner's ProfileDescription (REQ-UI-049, BRD-30 revised). The full
+    professional story stays on /resume.
+
+    Hidden entirely when the owner has written no profile description, matching
+    the mockup's "empty -> hide section" state.
+
+    NOTE: the anchor is #about-summary, not #about — the reused <ResumeHero>
+    already owns id="about" on this page.
+
+    REQ-UI-048 — TrBlazeUI (Card).
+
+    Dependencies: TrBlazeUI Card
+    Usage: <HomeAbout Summary="@siteOwner?.ProfileDescription" />
+*@
+
+@if (!string.IsNullOrWhiteSpace(Summary))
+{
+    <section id="about-summary" class="py-10" data-testid="home-about">
+        <h2 class="text-3xl font-bold tracking-tight" data-testid="home-about-heading">About</h2>
+        <p class="mb-6 text-sm text-muted-foreground">
+            A short introduction — the full story lives on the
+            @* REQ-NFR-007 / WCAG 1.4.1: a link inside a text block must not be identified by
+               colour alone, so it stays underlined rather than underlining only on hover. *@
+            <a href="/resume" class="text-primary underline" data-testid="home-about-resume-link">resume page</a>.
+        </p>
+        <Card data-testid="home-about-card">
+            <CardContent Class="p-6 leading-relaxed text-foreground">
+                <span data-testid="home-about-summary">@Summary</span>
+            </CardContent>
+        </Card>
+    </section>
+}
+
+@code {
+    /// <summary>
+    /// The site owner's profile description, rendered verbatim as the summary body.
+    /// </summary>
+    [Parameter]
+    public string? Summary { get; set; }
+}

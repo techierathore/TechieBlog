@@ -1,45 +1,83 @@
+@*
+    App.razor
+    Purpose: HTML document shell for the TechieBlog Blazor Server application.
+
+    REQ-UI-048 — migrated from Microsoft Fluent UI Blazor to TrBlazeUI.
+    REQ-UI-033 / BRD-66 — dark mode is the `dark` CLASS on <html> (was data-theme).
+    BRD-67 (rev)        — the site theme is the `data-site-theme` ATTRIBUTE on <html>.
+    REQ-UI-032 / REQ-FN-039 / BRD-68 — the ADMIN-selected site theme is rendered
+                          server-side into <html> so an anonymous first-time visitor
+                          receives it on the very first paint. The inline script below
+                          then lets a returning visitor's OWN LocalStorage preference
+                          override it — site default underneath, visitor choice on top.
+
+    CSS load order is significant and must not be reordered:
+        1. theme.css    — TechieBlog OKLCH token sets for the three site themes
+        2. trblazeui.css — the component library (declares its own defaults via
+                           zero-specificity :where() selectors, so theme.css wins)
+        3. base.css     — app-level element defaults layered on top
+*@
+@using BlogModels.Interfaces
+@inject ISiteSettingsService SiteSettingsService
+
 <!DOCTYPE html>
-<html lang="en" data-site-theme="fluent-modern" data-theme="light">
+<html lang="en" data-site-theme="@siteTheme" class="@(isDarkModeDefault ? "dark" : null)">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Techie Blog</title>
+    <title>@siteTitle</title>
+    <meta name="description" content="@metaDescription" />
     <base href="/" />
     <ResourcePreloader />
     <ImportMap />
 
-    <!-- Microsoft Fluent UI Blazor Components CSS -->
-    <link href="_content/Microsoft.FluentUI.AspNetCore.Components/css/reboot.css" rel="stylesheet" />
+    @* 1. Design tokens — three site themes x light/dark *@
+    <link href="_content/BlogUI/css/theme.css" rel="stylesheet" />
 
-    <!-- TechieBlog Theme CSS Files -->
-    <link href="_content/BlogUI/Themes/_variables.css" rel="stylesheet" />
-    <link href="_content/BlogUI/Themes/fluent-modern.css" rel="stylesheet" />
-    <link href="_content/BlogUI/Themes/developer-dark.css" rel="stylesheet" />
-    <link href="_content/BlogUI/Themes/minimal-clean.css" rel="stylesheet" />
+    @* 2. TrBlazeUI component library *@
+    <link href="_content/TrBlazeUI.Components/trblazeui.css" rel="stylesheet" />
 
-    <!-- Layout-specific CSS -->
+    @* 2b. Utilities the library's tree-shaken Tailwind bundle omits (gap TR-019) *@
+    <link href="_content/BlogUI/css/utilities.css" rel="stylesheet" />
+
+    @* 3. App-level element defaults and long-form article styling *@
+    <link href="_content/BlogUI/css/base.css" rel="stylesheet" />
+
+    @* Legacy page-level stylesheets (token-driven via the bridge in theme.css) *@
     <link href="_content/BlogUI/css/layout.css" rel="stylesheet" />
-    
-    <!-- FluentUI Dark Mode Overrides -->
-    <link href="_content/BlogUI/css/fluent-dark-mode.css" rel="stylesheet" />
+    <link href="_content/BlogUI/css/resume.css" rel="stylesheet" />
 
     <HeadOutlet @rendermode="InteractiveServer" />
 
-    <!-- Flash of Unstyled Content (FOUC) Prevention -->
+    @*
+        Flash-of-unstyled-content prevention.
+
+        The <html> element above already carries the ADMIN-selected site defaults, rendered
+        server-side, so an anonymous visitor is correct before this script runs. All this script
+        does is let a returning visitor's OWN stored preference override those defaults before
+        paint (BRD-66). Absent a stored preference it deliberately changes nothing, which is what
+        makes the admin's choice the real site default.
+
+        Note: the previous build fell back to the operating system's prefers-color-scheme when no
+        preference was stored. That is now the ADMIN's "Default to dark mode" switch instead —
+        otherwise the switch would have no observable effect for anyone on a dark-themed OS.
+    *@
     <script>
-        (function() {
+        (function () {
             try {
+                var root = document.documentElement;
+
                 var theme = localStorage.getItem('techieblog-theme');
-                var darkMode = localStorage.getItem('techieblog-dark-mode');
                 if (theme) {
-                    document.documentElement.setAttribute('data-site-theme', theme);
+                    theme = theme.replace(/^"|"$/g, '');
+                    // Legacy alias retained so existing visitors keep their default.
+                    if (theme === 'fluent-modern') { theme = 'trblaze-modern'; }
+                    root.setAttribute('data-site-theme', theme);
                 }
-                if (darkMode === 'true' || darkMode === true) {
-                    document.documentElement.setAttribute('data-theme', 'dark');
-                } else if (darkMode === 'false' || darkMode === false) {
-                    document.documentElement.setAttribute('data-theme', 'light');
-                } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                    document.documentElement.setAttribute('data-theme', 'dark');
+
+                var darkMode = localStorage.getItem('techieblog-dark-mode');
+                if (darkMode !== null) {
+                    root.classList.toggle('dark', darkMode === 'true' || darkMode === true);
                 }
             } catch (e) { }
         })();
@@ -48,32 +86,145 @@
 <body>
     <BlogUI.Routes @rendermode="InteractiveServer" />
 
-    <script src="@Assets["_framework/blazor.web.js"]"></script>
-    <script src="_content/Microsoft.FluentUI.AspNetCore.Components/Microsoft.FluentUI.AspNetCore.Components.lib.module.js" type="module" async></script>
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="" class="reload">Reload</a>
+        <span class="dismiss">&times;</span>
+    </div>
 
-    <!-- Theme Management JavaScript -->
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+
+    @* Theme management + small app-level JS helpers. *@
     <script>
-        function setThemeAttributes(siteTheme, darkMode) {
-            document.documentElement.setAttribute('data-site-theme', siteTheme);
-            document.documentElement.setAttribute('data-theme', darkMode);
+        // Applies the site theme attribute and the dark-mode class to <html>.
+        // Called by BlogUI's ThemeProvider whenever ThemeService raises a change.
+        function setThemeAttributes(siteTheme, isDarkMode) {
+            var root = document.documentElement;
+            if (siteTheme) {
+                root.setAttribute('data-site-theme', siteTheme);
+            }
+            root.classList.toggle('dark', isDarkMode === true || isDarkMode === 'dark' || isDarkMode === 'true');
         }
-        
-        // CSV Download function for admin exports
+
+        // CSV download used by the admin export actions.
         function downloadCsv(fileName, csvContent) {
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
-            if (navigator.msSaveBlob) {
-                // IE 10+
-                navigator.msSaveBlob(blob, fileName);
-            } else {
-                link.href = URL.createObjectURL(blob);
-                link.download = fileName;
-                link.style.display = 'none';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            }
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
+
+        // ---------------------------------------------------------------------------------
+        // [REQ-NFR-007] WCAG 4.1.2 / 2.1.1 — decorative subtrees must not be tabbable.
+        //
+        // A library widget presented as decoration (aria-hidden="true", with the real
+        // semantics carried by a sibling control) must not ALSO sit in the tab order: a
+        // keyboard user lands on something the accessibility tree says is not there, so the
+        // stop is silent and unnamed. TrBlazeUI's Rating emits role="radiogroup" tabindex="0"
+        // and exposes no parameter that turns it off (gap TR-031 / TR-052), so the tab stop
+        // has to be removed from outside the component.
+        //
+        // Wrappers opt IN with data-a11y-decorative — nothing else on the page is touched.
+        // Mouse operability is unaffected: click does not require a tab stop. The observer
+        // re-applies after every Blazor re-render, which is why an attribute set at first
+        // render would not have been enough.
+        // ---------------------------------------------------------------------------------
+        (function () {
+            var focusableSelector =
+                'a[href],area[href],button,input,select,textarea,iframe,[tabindex],[contenteditable="true"]';
+            var scheduled = false;
+
+            function neutralise(root) {
+                if (root.matches(focusableSelector) && root.getAttribute('tabindex') !== '-1') {
+                    root.setAttribute('tabindex', '-1');
+                }
+                root.querySelectorAll(focusableSelector).forEach(function (el) {
+                    if (el.getAttribute('tabindex') !== '-1') {
+                        el.setAttribute('tabindex', '-1');
+                    }
+                });
+            }
+
+            function sweep() {
+                scheduled = false;
+                document.querySelectorAll('[data-a11y-decorative]').forEach(neutralise);
+            }
+
+            function schedule() {
+                if (scheduled) return;
+                scheduled = true;
+                requestAnimationFrame(sweep);
+            }
+
+            schedule();
+            new MutationObserver(schedule).observe(document.documentElement, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['tabindex', 'data-a11y-decorative']
+            });
+        })();
     </script>
 </body>
 </html>
+
+@code {
+    private const string FallbackTheme = "trblaze-modern";
+    private const string LegacyTheme = "fluent-modern";
+
+    private static readonly string[] ShippedThemes = { "trblaze-modern", "developer", "minimal" };
+
+    private string siteTheme = FallbackTheme;
+    private string siteTitle = "Techie Blog";
+    private string metaDescription = string.Empty;
+    private bool isDarkModeDefault;
+
+    /// <summary>
+    /// Loads the administrator-selected site defaults before the document shell is rendered.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Rendering the site theme, title and meta description into the
+    /// server response is what makes them site-wide rather than per-browser (REQ-UI-032,
+    /// REQ-FN-039, BRD-68) — an anonymous visitor with an empty LocalStorage sees the admin's
+    /// choice on the first paint, with no flash and no interop round trip.</para>
+    /// <para><b>Flow:</b> Read the cached settings aggregate, normalise the theme identifier, keep
+    /// the shipped fallbacks if anything goes wrong.</para>
+    /// <para><b>Side Effects:</b> None. The settings service caches, so this is a database read
+    /// only on the first request after a save.</para>
+    /// </remarks>
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var settings = await SiteSettingsService.GetSettingsAsync();
+            siteTheme = NormaliseTheme(settings.SiteTheme);
+            isDarkModeDefault = settings.IsDarkModeDefault;
+            siteTitle = string.IsNullOrWhiteSpace(settings.SiteTitle) ? siteTitle : settings.SiteTitle;
+            metaDescription = settings.MetaDescription ?? string.Empty;
+        }
+        catch (Exception)
+        {
+            // A settings read must never stop the document shell from rendering; the shipped
+            // defaults above already describe a working site.
+        }
+    }
+
+    /// <summary>
+    /// Maps a stored theme identifier onto one this build ships a stylesheet for.
+    /// </summary>
+    /// <param name="themeId">Identifier read from the settings store.</param>
+    /// <returns>A shipped theme identifier, never null or empty.</returns>
+    private static string NormaliseTheme(string themeId)
+    {
+        if (string.IsNullOrWhiteSpace(themeId) || themeId == LegacyTheme)
+        {
+            return FallbackTheme;
+        }
+
+        return ShippedThemes.Contains(themeId) ? themeId : FallbackTheme;
+    }
+}

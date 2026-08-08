@@ -6,6 +6,7 @@ using System.Security.Claims;
 using BlogModels;
 using BlogModels.Interfaces;
 using BlogModels.Models;
+using TrBlazeUI.Components.FileUpload;
 
 namespace BlogUI.Pages.AdminPages;
 
@@ -100,6 +101,11 @@ public partial class ManageImages : ComponentBase
     public bool IsUploading { get; set; }
     public string? UploadError { get; set; }
 
+    /// <summary>
+    /// Files currently staged in the upload dropzone.
+    /// </summary>
+    public IReadOnlyList<FileUploadItem>? PendingFiles { get; set; }
+
     // Delete dialog state
     public bool ShowDeleteDialog { get; set; }
     public BlogImage? ImageToDelete { get; set; }
@@ -169,6 +175,30 @@ public partial class ManageImages : ComponentBase
         await LoadImages();
     }
 
+    /// <summary>
+    /// Handles the category tab strip switching to a different category.
+    /// </summary>
+    /// <param name="category">The newly selected category key.</param>
+    public async Task OnCategoryChanged(string category)
+    {
+        if (string.IsNullOrEmpty(category) || category == SelectedCategory)
+        {
+            return;
+        }
+
+        await SelectCategory(category);
+    }
+
+    /// <summary>
+    /// Handles the owner filter selecting a different user.
+    /// </summary>
+    /// <param name="value">The selected user id as text; "0" means all users.</param>
+    public async Task OnUserFilterChanged(string value)
+    {
+        SelectedUserId = long.TryParse(value, out var userId) ? userId : 0;
+        await LoadImages();
+    }
+
     public string GetCategoryDisplayName(string category)
     {
         return Categories.TryGetValue(category, out var name) ? name : category;
@@ -209,6 +239,7 @@ public partial class ManageImages : ComponentBase
         ShowUploadDialog = true;
         UploadCategory = SelectedCategory;
         SelectedFile = null;
+        PendingFiles = null;
         UploadError = null;
         IsUploading = false;
     }
@@ -217,16 +248,38 @@ public partial class ManageImages : ComponentBase
     {
         ShowUploadDialog = false;
         SelectedFile = null;
+        PendingFiles = null;
         UploadError = null;
         IsUploading = false;
     }
 
-    public async Task OnFileSelected(InputFileChangeEventArgs e)
+    /// <summary>
+    /// Keeps the upload dialog state in sync when it is dismissed by Escape or an outside click.
+    /// </summary>
+    /// <param name="isOpen">The dialog's requested open state.</param>
+    public void OnUploadDialogOpenChanged(bool isOpen)
     {
-        UploadError = null;
-        SelectedFile = e.File;
+        if (!isOpen)
+        {
+            CloseUploadDialog();
+        }
+    }
 
-        // Validate immediately
+    /// <summary>
+    /// Handles files staged in the upload dropzone and validates the chosen file.
+    /// </summary>
+    /// <param name="files">Files staged by the dropzone.</param>
+    public async Task OnFilesChanged(IReadOnlyList<FileUploadItem> files)
+    {
+        PendingFiles = files;
+        UploadError = null;
+        SelectedFile = files.FirstOrDefault()?.File;
+
+        if (SelectedFile is null)
+        {
+            return;
+        }
+
         var validation = await ImageService.ValidateImageAsync(SelectedFile, UploadCategory);
         if (!validation.IsValid)
         {
@@ -311,6 +364,18 @@ public partial class ManageImages : ComponentBase
         ImageToDelete = null;
         ShowDeleteDialog = false;
         IsDeleting = false;
+    }
+
+    /// <summary>
+    /// Keeps the delete confirmation state in sync when it is dismissed by Escape or an outside click.
+    /// </summary>
+    /// <param name="isOpen">The dialog's requested open state.</param>
+    public void OnDeleteOpenChanged(bool isOpen)
+    {
+        if (!isOpen)
+        {
+            CancelDelete();
+        }
     }
 
     public async Task ConfirmDelete()

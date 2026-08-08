@@ -1,0 +1,107 @@
+@*
+    CommentThread.razor
+    Purpose: Renders the APPROVED comment thread for a post — top-level comments with their
+    replies — as avatar + name + date + body.
+
+    REQ-UI-029 / BRD-36 — comments are anonymous (name + email). The email address is used for
+    double opt-in and moderation only and is NEVER rendered here.
+
+    Visibility is enforced server-side: BlogCommentRepo.GetPostParentComments filters on the
+    Approved moderation status, so a comment that has not been email-confirmed AND approved
+    cannot reach this component at all.
+
+    Dependencies: TrBlazeUI Avatar/Empty, Lucide icons.
+    Usage: <CommentThread Comments="@comments" />
+*@
+
+@if (Comments == null || Comments.Count == 0)
+{
+    <Empty Title="No comments yet"
+           Description="Be the first to share your thoughts on this post."
+           Size="EmptySize.Small"
+           Class="mb-6"
+           data-testid="comments-empty">
+        <Icon><LucideIcon Name="message-square" Size="40" /></Icon>
+    </Empty>
+}
+else
+{
+    <div class="mb-6 flex flex-col gap-6" data-testid="comments-list">
+        @foreach (var entry in Flatten(Comments))
+        {
+            <div class="@(entry.IsReply ? "flex gap-3 border-l border-border pl-4" : "flex gap-3")"
+                 data-testid="@(entry.IsReply ? "comment-reply" : "comment-item")">
+                <Avatar Size="AvatarSize.Default" Class="shrink-0">
+                    <AvatarFallback>@GetInitials(entry.Comment.GivenBy)</AvatarFallback>
+                </Avatar>
+                <div class="min-w-0">
+                    <div class="text-sm">
+                        <span class="font-semibold text-foreground" data-testid="comment-author">@entry.Comment.GivenBy</span>
+                        <span class="text-muted-foreground" data-testid="comment-date"> · @entry.Comment.GivenOn.ToString("MMM d, yyyy")</span>
+                    </div>
+                    <p class="mt-1 break-words text-sm leading-relaxed text-foreground" data-testid="comment-body">@entry.Comment.Comment</p>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    /// <summary>
+    /// The approved top-level comments, each carrying its approved replies.
+    /// </summary>
+    [Parameter]
+    public List<BlogModels.BlogComment> Comments { get; set; }
+
+    /// <summary>
+    /// One row of the rendered thread: a comment plus whether it is a reply.
+    /// </summary>
+    private sealed class ThreadEntry
+    {
+        /// <summary>The comment to render.</summary>
+        public BlogModels.BlogComment Comment { get; set; }
+
+        /// <summary>True when the comment is a reply and should be indented.</summary>
+        public bool IsReply { get; set; }
+    }
+
+    /// <summary>
+    /// Flattens the parent/reply tree into the order the thread is read in.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Each parent is immediately followed by its replies, so the
+    /// markup stays a single flat loop; the data model supports one level of nesting only.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <param name="comments">The approved top-level comments.</param>
+    /// <returns>Parents and replies in reading order.</returns>
+    private static IEnumerable<ThreadEntry> Flatten(List<BlogModels.BlogComment> comments)
+    {
+        foreach (var parent in comments)
+        {
+            yield return new ThreadEntry { Comment = parent, IsReply = false };
+
+            if (parent.Replies == null)
+                continue;
+
+            foreach (var reply in parent.Replies)
+            {
+                yield return new ThreadEntry { Comment = reply, IsReply = true };
+            }
+        }
+    }
+
+    /// <summary>
+    /// Builds up to two uppercase initials for a commenter's avatar fallback.
+    /// </summary>
+    /// <param name="name">The commenter's display name.</param>
+    /// <returns>Initials, or a question mark when the name is empty.</returns>
+    private static string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "?";
+
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return string.Concat(parts.Take(2).Select(p => char.ToUpperInvariant(p[0])));
+    }
+}

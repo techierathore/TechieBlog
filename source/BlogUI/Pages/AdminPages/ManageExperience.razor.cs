@@ -49,7 +49,7 @@ public partial class ManageExperience : ComponentBase
     private bool IsSaving { get; set; }
     private bool ShowForm { get; set; }
     private bool ShowDeleteDialog { get; set; }
-    private string StatusMessage { get; set; } = string.Empty;
+    private string? StatusMessage { get; set; }
     private bool IsError { get; set; }
 
     // Edit mode
@@ -67,7 +67,7 @@ public partial class ManageExperience : ComponentBase
     private UserEvent? EventToDelete { get; set; }
     private List<AppUser>? AllUsers { get; set; }
 
-    // Date handling (FluentDatePicker uses DateTime?)
+    // Date handling (DatePicker binds DateTime?)
     private DateTime? StartDateValue
     {
         get => CurrentEvent.StartDate;
@@ -78,6 +78,16 @@ public partial class ManageExperience : ComponentBase
     {
         get => CurrentEvent.EventDate == default ? null : CurrentEvent.EventDate;
         set => CurrentEvent.EventDate = value ?? DateTime.Today;
+    }
+
+    /// <summary>
+    /// String projection of <see cref="UserEvent.DisplayOrder"/> for the numeric Input,
+    /// whose Value parameter is a string.
+    /// </summary>
+    private string DisplayOrderText
+    {
+        get => CurrentEvent.DisplayOrder.ToString();
+        set => CurrentEvent.DisplayOrder = int.TryParse(value, out var order) && order >= 0 ? order : 0;
     }
 
     /// <summary>
@@ -207,6 +217,16 @@ public partial class ManageExperience : ComponentBase
         await LoadData();
     }
 
+    /// <summary>
+    /// Handles the admin user picker selecting a different author.
+    /// </summary>
+    /// <param name="value">The selected user id, or an empty string for "my experience".</param>
+    private async Task OnSelectedUserChanged(string value)
+    {
+        SelectedUserId = string.IsNullOrEmpty(value) ? null : long.Parse(value);
+        await OnUserChanged();
+    }
+
     #endregion
 
     #region Form Actions
@@ -227,6 +247,18 @@ public partial class ManageExperience : ComponentBase
     private void EditExperience(long eventId)
     {
         NavManager.NavigateTo($"/admin/experience/{eventId}");
+    }
+
+    /// <summary>
+    /// Keeps the add/edit dialog state in sync when it is dismissed by Escape or an outside click.
+    /// </summary>
+    /// <param name="isOpen">The dialog's requested open state.</param>
+    private void OnFormOpenChanged(bool isOpen)
+    {
+        if (!isOpen)
+        {
+            CancelEdit();
+        }
     }
 
     private void CancelEdit()
@@ -334,6 +366,18 @@ public partial class ManageExperience : ComponentBase
     {
         EventToDelete = null;
         ShowDeleteDialog = false;
+    }
+
+    /// <summary>
+    /// Keeps the delete confirmation state in sync when it is dismissed by Escape or an outside click.
+    /// </summary>
+    /// <param name="isOpen">The dialog's requested open state.</param>
+    private void OnDeleteOpenChanged(bool isOpen)
+    {
+        if (!isOpen)
+        {
+            CancelDelete();
+        }
     }
 
     private async Task DeleteExperience()

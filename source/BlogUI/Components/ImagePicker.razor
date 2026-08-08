@@ -1,367 +1,174 @@
 @*
     ImagePicker.razor
-    Purpose: Reusable image picker component with gallery modal and upload functionality.
-    Displays current selected image, allows choosing from library or uploading new images.
+    Purpose: Reusable image picker component with gallery dialog and upload functionality.
+    Displays the current selection, allows choosing from the media library or uploading a new file.
 
     Usage: <ImagePicker Category="profiles" @bind-SelectedImagePath="user.ProfileImagePath" UserId="@currentUserId" />
-    Dependencies: BlogEngine.Services.BlogImageService, Fluent UI
+    Dependencies: BlogEngine.Services.BlogImageService, TrBlazeUI (REQ-UI-048)
 *@
 @namespace BlogUI.Components
 
-<div class="image-picker">
-    @* Current Image Preview *@
-    <div class="image-picker__preview">
+<div class="flex flex-col gap-3" data-testid="image-picker">
+
+    @* Current selection preview *@
+    <div class="flex h-36 w-36 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-border bg-muted">
         @if (!string.IsNullOrEmpty(SelectedImagePath))
         {
-            <div class="image-picker__thumbnail">
-                <img src="@SelectedImagePath" alt="Selected image" />
-                <FluentButton Appearance="Appearance.Stealth"
-                              Class="image-picker__clear"
-                              OnClick="@ClearSelection"
-                              Title="Clear selection">
-                    <FluentIcon Value="@(new Icons.Regular.Size16.Dismiss())" />
-                </FluentButton>
+            <div class="relative h-full w-full">
+                <img src="@SelectedImagePath"
+                     alt="Selected image"
+                     class="h-full w-full object-cover"
+                     data-testid="selected-image" />
+                <Button Variant="ButtonVariant.Ghost"
+                        Size="ButtonSize.IconSmall"
+                        Class="absolute right-1 top-1 rounded-full bg-background/80"
+                        AriaLabel="Clear selection"
+                        OnClick="@ClearSelection"
+                        data-testid="clear-image">
+                    <LucideIcon Name="x" Size="16" />
+                </Button>
             </div>
         }
         else
         {
-            <div class="image-picker__placeholder">
-                <FluentIcon Value="@(new Icons.Regular.Size24.Image())" Color="Color.Neutral" />
-                <span>No image selected</span>
+            <div class="flex flex-col items-center gap-2 p-4 text-center text-muted-foreground"
+                 data-testid="image-placeholder">
+                <LucideIcon Name="image" Size="24" />
+                <span class="text-sm">No image selected</span>
             </div>
         }
     </div>
 
-    @* Action Buttons *@
-    <div class="image-picker__actions">
-        <FluentButton Appearance="Appearance.Outline"
-                      OnClick="@OpenGallery"
-                      Size="ButtonSize.Small">
-            <FluentIcon Value="@(new Icons.Regular.Size16.ImageMultiple())" />
+    @* Actions *@
+    <div class="flex flex-wrap gap-2">
+        <Button Variant="ButtonVariant.Outline"
+                Size="ButtonSize.Small"
+                OnClick="@OpenGallery"
+                data-testid="choose-from-library">
+            <LucideIcon Name="image" Size="16" />
             Choose from Library
-        </FluentButton>
-        <FluentButton Appearance="Appearance.Outline"
-                      OnClick="@OpenUpload"
-                      Size="ButtonSize.Small">
-            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowUpload())" />
+        </Button>
+        <Button Variant="ButtonVariant.Outline"
+                Size="ButtonSize.Small"
+                OnClick="@OpenUpload"
+                data-testid="upload-new-image">
+            <LucideIcon Name="upload" Size="16" />
             Upload New
-        </FluentButton>
+        </Button>
     </div>
 
-    @* Category Constraints Info *@
-    <div class="image-picker__info">
-        <small>@GetCategoryConstraintsText()</small>
-    </div>
-
-    @* Gallery Modal *@
-    @if (ShowGalleryModal)
-    {
-        <FluentDialog Hidden="false" Modal="true" TrapFocus="true" Style="--dialog-width: 800px; --dialog-height: 600px;">
-            <FluentDialogHeader>
-                <div style="padding: 16px 24px;">
-                    <FluentLabel Typo="Typography.PaneHeader">Choose Image from Library</FluentLabel>
-                </div>
-            </FluentDialogHeader>
-            <FluentDialogBody>
-                <div style="padding: 0 24px 16px 24px;">
-                @if (IsLoadingGallery)
-                {
-                    <div style="display: flex; justify-content: center; align-items: center; padding: 48px;">
-                        <FluentProgressRing />
-                        <span style="margin-left: 12px;">Loading images...</span>
-                    </div>
-                }
-                else if (GalleryImages == null || !GalleryImages.Any())
-                {
-                    <div style="text-align: center; padding: 48px; color: var(--neutral-foreground-hint);">
-                        <FluentIcon Value="@(new Icons.Regular.Size48.ImageOff())" Color="Color.Neutral" />
-                        <p>No images found in the @Category category.</p>
-                        <p>Upload a new image to get started.</p>
-                    </div>
-                }
-                else
-                {
-                    <div class="image-picker__gallery">
-                        @foreach (var image in GalleryImages)
-                        {
-                            <div class="image-picker__gallery-item @(image.ImagePath == SelectedImagePath ? "selected" : "")"
-                                 @onclick="@(() => SelectImage(image.ImagePath))">
-                                <img src="@image.ImagePath" alt="@(image.AltText ?? image.ImageName)" />
-                                <div class="image-picker__gallery-item-overlay">
-                                    <span>@image.ImageName</span>
-                                </div>
-                            </div>
-                        }
-                    </div>
-                }
-                </div>
-            </FluentDialogBody>
-            <FluentDialogFooter>
-                <div style="padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px;">
-                    <FluentButton Appearance="Appearance.Neutral" OnClick="@CloseGallery">
-                        Cancel
-                    </FluentButton>
-                </div>
-            </FluentDialogFooter>
-        </FluentDialog>
-    }
-
-    @* Upload Modal *@
-    @if (ShowUploadModal)
-    {
-        <FluentDialog Hidden="false" Modal="true" TrapFocus="true" Style="--dialog-width: 500px;">
-            <FluentDialogHeader>
-                <div style="padding: 16px 24px;">
-                    <FluentLabel Typo="Typography.PaneHeader">Upload New Image</FluentLabel>
-                </div>
-            </FluentDialogHeader>
-            <FluentDialogBody>
-                <div style="padding: 0 24px 16px 24px;">
-                <div class="image-picker__upload">
-                    <div class="image-picker__upload-zone">
-                        <InputFile OnChange="@OnFileSelected" accept="@GetAcceptedFileTypes()" />
-                        <div class="image-picker__upload-info">
-                            <FluentIcon Value="@(new Icons.Regular.Size24.ArrowUpload())" Color="Color.Accent" />
-                            <p>Click to select a file or drag and drop</p>
-                            <small>@GetCategoryConstraintsText()</small>
-                        </div>
-                    </div>
-
-                    @if (SelectedFile != null)
-                    {
-                        <div class="image-picker__upload-preview">
-                            <p><strong>Selected:</strong> @SelectedFile.Name (@FormatFileSize(SelectedFile.Size))</p>
-                        </div>
-                    }
-
-                    @if (!string.IsNullOrEmpty(UploadError))
-                    {
-                        <FluentMessageBar Intent="MessageIntent.Error" Style="margin-top: 16px;">
-                            @UploadError
-                        </FluentMessageBar>
-                    }
-
-                    @if (IsUploading)
-                    {
-                        <div style="margin-top: 16px;">
-                            <FluentProgressRing />
-                            <span>Uploading...</span>
-                        </div>
-                    }
-                </div>
-                </div>
-            </FluentDialogBody>
-            <FluentDialogFooter>
-                <div style="padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px;">
-                    <FluentButton Appearance="Appearance.Neutral" OnClick="@CloseUpload" Disabled="@IsUploading">
-                        Cancel
-                    </FluentButton>
-                    <FluentButton Appearance="Appearance.Accent"
-                                  OnClick="@UploadFile"
-                                  Disabled="@(SelectedFile == null || IsUploading)">
-                        @if (IsUploading)
-                        {
-                            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowSync())" />
-                            <span>Uploading...</span>
-                        }
-                        else
-                        {
-                            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowUpload())" />
-                            <span>Upload</span>
-                        }
-                    </FluentButton>
-                </div>
-            </FluentDialogFooter>
-        </FluentDialog>
-    }
+    @* Category constraints *@
+    <span class="text-xs text-muted-foreground" data-testid="image-constraints">
+        @GetCategoryConstraintsText()
+    </span>
 </div>
 
-<style>
-    .image-picker {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
+@* Gallery dialog - closed on load, opened by "Choose from Library". *@
+<Dialog Open="@ShowGalleryModal" OpenChanged="@OnGalleryOpenChanged">
+    <DialogContent Class="max-w-3xl" data-testid="image-gallery-dialog">
+        <DialogHeader>
+            <DialogTitle>Choose Image from Library</DialogTitle>
+            <DialogDescription>Pick an existing file from the @Category library.</DialogDescription>
+        </DialogHeader>
 
-    .image-picker__preview {
-        width: 150px;
-        height: 150px;
-        border: 2px dashed var(--neutral-stroke-rest);
-        border-radius: 8px;
-        overflow: hidden;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--neutral-layer-2);
-    }
+        @if (IsLoadingGallery)
+        {
+            <div class="flex items-center justify-center gap-3 py-12" data-testid="gallery-loading">
+                <Spinner />
+                <span class="text-muted-foreground">Loading images...</span>
+            </div>
+        }
+        else if (GalleryImages is null || !GalleryImages.Any())
+        {
+            <Empty Title="No images yet"
+                   Description="@($"Nothing has been uploaded to the {Category} category. Upload a new image to get started.")"
+                   data-testid="gallery-empty">
+                <Icon><LucideIcon Name="image" Size="48" /></Icon>
+            </Empty>
+        }
+        else
+        {
+            <div class="grid max-h-96 grid-cols-2 gap-3 overflow-y-auto p-1 sm:grid-cols-3 md:grid-cols-4"
+                 data-testid="gallery-grid">
+                @foreach (var image in GalleryImages)
+                {
+                    var path = image.ImagePath;
+                    <Button Variant="ButtonVariant.Ghost"
+                            Class="@GetGalleryTileClass(path)"
+                            AriaLabel="@(image.AltText ?? image.ImageName)"
+                            OnClick="@(() => SelectImage(path))"
+                            data-testid="gallery-image">
+                        <img src="@path"
+                             alt="@(image.AltText ?? image.ImageName)"
+                             class="h-full w-full object-cover" />
+                    </Button>
+                }
+            </div>
+        }
 
-    .image-picker__thumbnail {
-        position: relative;
-        width: 100%;
-        height: 100%;
-    }
+        <DialogFooter>
+            <Button Variant="ButtonVariant.Outline" OnClick="@CloseGallery" data-testid="gallery-cancel">
+                Cancel
+            </Button>
+        </DialogFooter>
+    </DialogContent>
+</Dialog>
 
-    .image-picker__thumbnail img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
+@* Upload dialog - closed on load, opened by "Upload New". *@
+<Dialog Open="@ShowUploadModal" OpenChanged="@OnUploadOpenChanged">
+    <DialogContent Class="max-w-lg" data-testid="image-upload-dialog">
+        <DialogHeader>
+            <DialogTitle>Upload New Image</DialogTitle>
+            <DialogDescription>@GetCategoryConstraintsText()</DialogDescription>
+        </DialogHeader>
 
-    .image-picker__clear {
-        position: absolute;
-        top: 4px;
-        right: 4px;
-        background: rgba(0, 0, 0, 0.6) !important;
-        border-radius: 50%;
-        min-width: 24px !important;
-        width: 24px !important;
-        height: 24px !important;
-        padding: 0 !important;
-    }
+        <div class="flex flex-col gap-4">
+            <div data-testid="upload-image">
+                <FileUpload Files="@PendingFiles"
+                            FilesChanged="@OnFilesChanged"
+                            Accept="@GetAcceptedFileTypes()"
+                            Multiple="false"
+                            Disabled="@IsUploading" />
+            </div>
 
-    .image-picker__clear:hover {
-        background: rgba(0, 0, 0, 0.8) !important;
-    }
+            @if (SelectedFile is not null)
+            {
+                <p class="rounded-md bg-muted p-3 text-sm" data-testid="upload-selected-file">
+                    <strong>Selected:</strong> @SelectedFile.Name (@FormatFileSize(SelectedFile.Size))
+                </p>
+            }
 
-    .image-picker__placeholder {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        color: var(--neutral-foreground-hint);
-        text-align: center;
-        padding: 16px;
-    }
+            @if (!string.IsNullOrEmpty(UploadError))
+            {
+                <Alert Variant="AlertVariant.Danger" data-testid="upload-error">
+                    <LucideIcon Name="circle-alert" Size="16" />
+                    <AlertTitle>Upload failed</AlertTitle>
+                    <AlertDescription>@UploadError</AlertDescription>
+                </Alert>
+            }
 
-    .image-picker__placeholder span {
-        font-size: 0.85rem;
-    }
+            @if (IsUploading)
+            {
+                <div class="flex items-center gap-3" data-testid="upload-progress">
+                    <Spinner Size="SpinnerSize.Small" />
+                    <span class="text-sm text-muted-foreground">Uploading...</span>
+                </div>
+            }
+        </div>
 
-    .image-picker__actions {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-    }
-
-    .image-picker__info {
-        color: var(--neutral-foreground-hint);
-    }
-
-    .image-picker__info small {
-        font-size: 0.8rem;
-    }
-
-    /* Gallery Modal Styles */
-    .image-picker__gallery {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-        gap: 12px;
-        max-height: 400px;
-        overflow-y: auto;
-        padding: 4px;
-    }
-
-    .image-picker__gallery-item {
-        position: relative;
-        aspect-ratio: 1;
-        border: 2px solid transparent;
-        border-radius: 8px;
-        overflow: hidden;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-
-    .image-picker__gallery-item:hover {
-        border-color: var(--accent-fill-rest);
-        transform: scale(1.02);
-    }
-
-    .image-picker__gallery-item.selected {
-        border-color: var(--accent-fill-rest);
-        box-shadow: 0 0 0 2px var(--accent-fill-rest);
-    }
-
-    .image-picker__gallery-item img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    .image-picker__gallery-item-overlay {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
-        padding: 8px;
-        opacity: 0;
-        transition: opacity 0.2s ease;
-    }
-
-    .image-picker__gallery-item:hover .image-picker__gallery-item-overlay {
-        opacity: 1;
-    }
-
-    .image-picker__gallery-item-overlay span {
-        color: white;
-        font-size: 0.75rem;
-        display: block;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    /* Upload Modal Styles */
-    .image-picker__upload {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-    }
-
-    .image-picker__upload-zone {
-        position: relative;
-        border: 2px dashed var(--neutral-stroke-rest);
-        border-radius: 8px;
-        padding: 32px;
-        text-align: center;
-        transition: border-color 0.2s ease;
-    }
-
-    .image-picker__upload-zone:hover {
-        border-color: var(--accent-fill-rest);
-    }
-
-    .image-picker__upload-zone input[type="file"] {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        opacity: 0;
-        cursor: pointer;
-    }
-
-    .image-picker__upload-info {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-        color: var(--neutral-foreground-hint);
-        pointer-events: none;
-    }
-
-    .image-picker__upload-info p {
-        margin: 0;
-    }
-
-    .image-picker__upload-preview {
-        padding: 12px;
-        background: var(--neutral-layer-2);
-        border-radius: 4px;
-    }
-
-    .image-picker__upload-preview p {
-        margin: 0;
-    }
-</style>
+        <DialogFooter>
+            <Button Variant="ButtonVariant.Outline"
+                    OnClick="@CloseUpload"
+                    Disabled="@IsUploading"
+                    data-testid="upload-cancel">
+                Cancel
+            </Button>
+            <Button OnClick="@UploadFile"
+                    Disabled="@(SelectedFile is null || IsUploading)"
+                    data-testid="upload-confirm">
+                <LucideIcon Name="upload" Size="16" />
+                @(IsUploading ? "Uploading..." : "Upload")
+            </Button>
+        </DialogFooter>
+    </DialogContent>
+</Dialog>

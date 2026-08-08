@@ -1,0 +1,32 @@
+@*
+    ReadingTimeProbe — a self-contained probe component for the bUnit harness.
+
+    It exists so that the bUnit wiring (REQ-NFR-016) has a real Blazor component
+    to render, assert against and interact with WITHOUT depending on BlogUI,
+    which is transiently RED while the Fluent UI -> TrBlazeUI rewrite is in
+    flight. It renders through the same BlogEngine helper the production post
+    card uses, so the probe is not a hollow fixture.
+*@
+@using BlogEngine.Common
+
+<div class="reading-time-probe">
+    <span data-testid="probe-reading-time">@ReadingTimeCalculator.Calculate(Content)</span>
+    <span data-testid="probe-word-count">@ReadingTimeCalculator.GetWordCount(Content)</span>
+    <button data-testid="probe-clear" @onclick="ClearContent">Clear</button>
+</div>
+
+@code {
+    /// <summary>
+    /// The post body whose reading time and word count are displayed.
+    /// </summary>
+    [Parameter]
+    public string Content { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Clears the content, driving the display back to its empty-content values.
+    /// </summary>
+    private void ClearContent()
+    {
+        Content = string.Empty;
+    }
+}

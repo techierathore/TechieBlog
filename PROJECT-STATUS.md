@@ -1,104 +1,121 @@
 ---
 project: TechieBlog
-stack: .NET 10 / Blazor Server / TrBlazeUI (migrating from Fluent UI) / PostgreSQL + Dapper + DbUp / Serilog / BlogApp MAUI desktop head (planned)
-last_updated: 2026-08-06
-current_phase: Discovery — docs amended 2026-08-06 (TrBlazeUI, portfolio home, BlogApp); build still blocked on REQ-FN-043
-last_verified_build: FAIL
-last_verified_date: 2026-08-02
+stack: .NET 10 / Blazor Server / TrBlazeUI / PostgreSQL + Dapper + DbUp / Serilog / BlogApp MAUI (Windows, in progress)
+last_updated: 2026-08-08
+current_phase: Verify — build repaired 2026-08-08 (owner-reported RED); all 7 projects GREEN incl. BlogApp, no verifier run yet
+last_verified_build: PASS
+last_verified_date: 2026-08-08
 ---
 
 # TechieBlog — Status
 
 ## Where I am
 
-A substantial brownfield app (the whole MVP — auth, post lifecycle, taxonomy, series, public reading,
-search, comments, ratings, media, resume, RSS, theming — is built) that is now mid-redesign on paper.
-The 2026-08-06 amendment + two owner design-review passes reset the target: TrBlazeUI replaces Fluent
-UI, the home page becomes a portfolio landing with no public admin entry, a BlogApp MAUI desktop admin
-head is added, reader accounts / registration / favourites / public author pages are retired, and
-comments and ratings become anonymous behind email verification and a self-hosted captcha, with a
-public newsletter archive. The 38-screen TrBlazeUI mockup set (`docs/TechieBlog-UIDesign.md` +
-`docs/mockups/`) is the approved visual contract; library gaps are logged in
-`docs/TechieBlog-TrBlazeUI-Feedback.md`. **Nothing is built against it yet and the build is still RED**
-on the NU1605 package conflict, so the whole redesign plus the pre-existing tail (newsletter delivery,
-analytics, sample data, health checks, tests, CI) is open work.
+**The owner found the build RED by trying to run the app; the previous "GREEN" claim was wrong.** Repaired
+2026-08-08. Two defects and one environment gap:
+
+1. **4 × `CS1061`** in `source/BlogApp/Services/AuthService.cs` — it called `GetUserByToken` / `AppLogin` /
+   `ResetPassword` / `RequestPasswordReset`, none of which exist on the async-only `AuthSvc`. Written as a
+   sync wrapper against an imagined API while a correct reference sat in `source/TechieBlog/Services/`. → REQ-UI-051.
+2. **BlogApp threw on sign-in even once compiling** — `MauiProgram` never called `AppSecrets.Initialise`.
+   Known and logged as carried-forward in REQ-NFR-027, then never picked up. Now closed: both secrets live
+   in the existing DPAPI `ConnectionStore` and load at composition. → REQ-NFR-027 (90% → 95%).
+3. **Web host would not start** — `JwtSigningKey` / `AppEncryptionKey` never provisioned on this machine.
+   Not a defect: `AppSecrets` fail-fast as designed. Set per UsageGuide §Setup.
+
+**The gate had a hole:** it never covered the `net10.0-windows10.0.19041.0` target, so BlogApp's failure was
+invisible and the phase closed "GREEN" on a solution that did not build. **Any future `Implemented` on a
+BlogApp REQ must cite a build naming the BlogApp TFM.**
+
+Now `0 Error(s)` across 7/7 projects. Web host serves `/` 200 + `/health` Healthy; BlogApp signs in and
+reaches `/change-password` as Admin.
+
+Earlier that day, a unified `*build-phase` across 15 clusters closed: the async conversion's last two
+repositories, BlogApp admin-surface crashes, dark mode on TrBlazeUI, the WCAG re-audit (1.1.1 now genuinely
+met), secrets out of source, forwarded headers, Serilog size cap and volume, seeded-admin hashing + forced
+first-login change, the login audit trail, `svctoken` removal, and XML docs across `BlogModels` +
+`BlogEngine` (694 members). One data-loss defect fixed: **REQ-FN-053** — saving Manage Profile erased the
+site owner's résumé.
+
+**Nothing is `Verified`.** A builder's ceiling is `Implemented`; 67 rows await an executed verify run.
 
 ## Next command to run
 
 ```
-/TechieFlow:agents:flow-master *build-phase TechieBlog      (OpenCode: /flow-master *build-phase TechieBlog)
+/TechieFlow:agents:verifier *verify all TechieBlog
 ```
-Start with REQ-FN-043 (build blocker) in `docs/TechieBlog-Checklist.md`; nothing else can be verified until it is green.
+Build no longer leads: every buildable REQ is built and observable, and 67 rows wait on a verdict. The
+remaining open rows are owner-action (REQ-NFR-025), verifier work (REQ-UI-005/006), or explicitly
+deferred scope (REQ-NFR-001 concurrency, REQ-NFR-008 out-of-scope projects).
 
 ## Open requirements
 
-- [ ] REQ-FN-043 — Fix NU1605 restore failure and pin package references (Phase 6) — **blocker** (strategic fix = TrBlazeUI swap, REQ-UI-048)
-- [ ] REQ-UI-048 — TrBlazeUI migration of all BlogUI pages/components/layouts (Phase 9) — needs owner's nuget.config credentials
-- [ ] REQ-UI-049 / REQ-UI-050 — Portfolio home page + remove public login/admin entry points (Phase 9)
-- [ ] REQ-FN-046 / REQ-FN-047 / REQ-UI-051 / REQ-UI-052 — BlogApp MAUI desktop admin: scaffold, connection setup, login/shell, full surface (Phase 10)
-- [ ] REQ-UI-005 / REQ-UI-006 / REQ-UI-033 — Shell, home and dark-mode rows downgraded to re-verify by the 2026-08-06 amendment
-- [ ] REQ-UI-027 / REQ-UI-029 / REQ-FN-022 / REQ-FN-023 — Rework comments + ratings to anonymous email-identified (schema change; needs spam defence)
-- [ ] REQ-UI-053 / REQ-UI-054 / REQ-FN-050 — Public newsletter archive + issue view (Phase 9)
-- [ ] REQ-UI-055 / REQ-UI-056 / REQ-FN-048 / REQ-FN-049 — Email verification (double opt-in) + self-hosted captcha; **REQ-FN-048 blocked on REQ-FN-033 (real SMTP)**
-- [ ] REQ-UI-002 / REQ-FN-006 — Registration removed: delete `/register` + `/signup`; keep password rules for staff accounts and reset
-- [ ] REQ-UI-013 / REQ-UI-014 / REQ-UI-015 / REQ-UI-028 / REQ-UI-041 / REQ-UI-042 / REQ-FN-024 — N/A (removed): built code for authors pages, favourites and reader account pages must be **deleted**, not rebuilt
-- [ ] REQ-FN-029 — Narrow to site-owner flag + username; retire author-lookup queries
-- [ ] REQ-UI-043 / REQ-FN-032 / REQ-FN-033 — Newsletter composer, send pipeline, real SMTP service (Phase 5)
-- [ ] REQ-UI-044 / REQ-FN-034 / REQ-FN-035 — Analytics dashboard, view tracking, popular posts (Phase 5)
-- [ ] REQ-UI-019 / REQ-FN-036 — Admin dashboard tiles are stub data (Needs re-verify)
-- [ ] REQ-UI-026 / REQ-FN-040 — Site Settings never persists; no settings table or service (Needs re-verify)
-- [ ] REQ-UI-001 / REQ-FN-009 — Role-blind post-login redirect; unused Contributor policy (Needs re-verify)
-- [ ] REQ-UI-017 — Post list is `EditorOrAbove`, so Authors cannot reach it (Needs re-verify)
-- [ ] REQ-UI-032 / REQ-FN-039 — Site theme is a per-browser preference, not a site setting (PARTIAL)
-- [ ] REQ-FN-027 — No admin page maintains `UserStats` for the resume (PARTIAL)
-- [ ] REQ-FN-041 — Seed / sample data set (Phase 6)
-- [ ] REQ-FN-042 — Configurable storage-provider abstraction (Phase 5)
-- [ ] REQ-NFR-002 / REQ-NFR-005 / REQ-NFR-019 / REQ-NFR-023 — Password hashing, auth rate limiting, persisted reset tokens, hashed seed credential (security)
-- [ ] REQ-NFR-001 / REQ-NFR-018 — Performance targets and caching layer
-- [ ] REQ-NFR-006 / REQ-NFR-007 — Input-validation audit and WCAG 2.1 AA audit
-- [ ] REQ-NFR-008 / REQ-NFR-020 / REQ-NFR-021 / REQ-NFR-022 — XML docs, legacy artifact removal, field-naming remediation, nullable enable
-- [ ] REQ-NFR-012 — Resilience: retry, circuit breaker, graceful degradation
-- [ ] REQ-NFR-013 — Add unhandled-exception handlers (PARTIAL 80%)
-- [ ] REQ-NFR-014 / REQ-NFR-015 — Health endpoint and correlation IDs
-- [ ] REQ-NFR-016 / REQ-NFR-017 — Test project and CI pipeline
+- [ ] **Not Started (1)** — REQ-NFR-025 *(owner: revoke + reissue the committed GitHub PAT)*
+- [ ] **PARTIAL (2)** — REQ-NFR-001 *(page-load MET; ≥100 concurrent NOT MET, blocked on REQ-NFR-026 stages 3–4)*, REQ-NFR-008 *(92%; BlogUI + host out of scope)*
+- [ ] **Needs re-verify (2)** — REQ-UI-005, REQ-UI-006 *(build work landed under REQ-UI-048/049/050 + REQ-NFR-007)*
+- [ ] **Implemented, awaiting verifier (67)** — see the checklist Status table
 
-Counts: 56 REQ-UI · 50 REQ-FN · 0 REQ-RAG · 23 REQ-NFR = 129 total; 69 terminal (incl. 8 N/A removed), 60 open.
+Counts: 139 rows. Terminal 67 (59 pre-existing + 8 N/A); `Implemented` 67; open 5.
 
 ## Known blockers
 
-- **Build FAILS — `NU1605` package downgrade.** `BlogUI` pins `Microsoft.AspNetCore.Components.Web 10.0.0`
-  while the floating `Microsoft.FluentUI.AspNetCore.Components 4.*` resolves to 4.14.4, which requires
-  ≥ 10.0.9. Reproduced on ladder rung #2 (`~/.dotnet/dotnet`) and rung #4 (`cmd.exe /c dotnet`) —
-  it is a project dependency issue, not an environment one. Tracked as REQ-FN-043.
-- **⚠ SECURITY — seeded admin credential is plaintext** in `source/BlogDb/PostgresScripts/003-SeedData.sql`
-  (`LoginPass = 'admin_password'`). Tracked as REQ-NFR-023.
-- **⚠ SECURITY — password hashing is hand-rolled** (`AppEncrypt.CreateHash`), not a standard salted KDF.
-  Tracked as REQ-NFR-002.
-- **No automated tests and no CI**, so every completion claim in the migrated plan is manual. Tracked as
-  REQ-NFR-016 / REQ-NFR-017.
+- **⚠ SECURITY — live GitHub PAT committed** in `nuget.config`; it is in git history, so it must be
+  **revoked and reissued on GitHub** by the owner. Left in place by owner decision. → REQ-NFR-025.
+- **⚠ Neither head starts without `JwtSigningKey` (≥32) and `AppEncryptionKey` (≥16)** — by design
+  (REQ-NFR-027). Web host: user secrets locally, **production needs its own**. BlogApp: entered on its
+  connection-setup screen and stored in the DPAPI `ConnectionStore`, and they must be **byte-for-byte the
+  website's** — both heads read the same encrypted `SiteSetting` rows, so a mismatch fails *silently*.
+  Rotating `AppEncryptionKey` makes existing ciphertext permanently undecryptable (no key versioning).
+- **⚠ JWT signatures are never verified** — `SvcUtils.GetUserIDFromToken` decodes without validating;
+  session validity is DB-backed. The JWT is a session *handle*, not a bearer credential.
+- **⚠ Projection-completeness is a systemic gap — 4 instances found, gate NOT built.** A read projection
+  omitting columns the write path persists; invisible to compiler and unit tests (the fakes never run
+  SQL). REQ-UI-017, script 021, REQ-NFR-008 (`BlogPostRepo`), and REQ-FN-053 — the last two are the same
+  stored function fixed hours apart. Fixing the fourth does not prevent a fifth.
+- **Admin session dies on any full page load** — JWT is localStorage-only and invisible during prerender;
+  automation must use `Blazor.navigateTo`, never `page.goto`.
+- **Concurrency ceiling ~3.5 req/s** — REQ-NFR-026 stages 3–4 outstanding; logging volume fixed
+  (65,761 → 144 bytes/request) but the load figure is **not re-measured**.
+- **`source/BlogApp` not wired for `AppSecrets`** (throws on first `AppEncrypt` use); REQ-UI-052 is
+  `⚠ STATIC-ONLY` — smoked on the web head only.
+- **32 critical axe nodes on admin, all library-caused** (TR-054/055); 200% zoom and screen-reader passes
+  uncovered. **Integration tests hang** (Testcontainers), excluded from the 383-test run.
+- **`TagsList.razor` / `CommentsList.razor` headers are a reconstruction** after an agent's revert regex
+  over-matched; they compile, render and smoke clean with all expected test ids — **owner should diff**.
 
 ## Verification log
 
 | Date | Phase | Result | Status table |
 |------|-------|--------|--------------|
-| 2026-08-02 | Discovery (day-1) | Docs only — no verification run | docs/TechieBlog-Checklist.md#requirements-status |
-| 2026-08-06 | Docs amendment (*amend-docs) | Docs only — BRD-92…97 added, BRD-30/67 revised, 7 REQ rows added | docs/TechieBlog-Checklist.md#requirements-status |
-| 2026-08-06 | Mockups + owner design review | Docs only — 38 screens; 8 BRD IDs retired, 4 revised, BRD-98…101 added; 8 REQ N/A, 6 re-verify, 11 new | docs/TechieBlog-Checklist.md#requirements-status |
+| 2026-08-02 | Discovery (day-1) | Docs only | docs/TechieBlog-Checklist.md#requirements-status |
+| 2026-08-06 | Docs amendment | Docs only — BRD-92…97 added | docs/TechieBlog-Checklist.md#requirements-status |
+| 2026-08-06 | Mockups + design review | Docs only — 38 screens | docs/TechieBlog-Checklist.md#requirements-status |
+| 2026-08-07 | Unified *build-phase (11 clusters) | Build PASS claimed · no verifier run | docs/TechieBlog-Checklist.md#requirements-status |
+| 2026-08-08 | Unified *build-phase (15 clusters) | Build was RED (15 errors masking 26) → PASS 0 errors · 383/383 tests · 12 REQs closed · REQ-FN-053 data-loss fixed · ~31 defects found · no verifier run | docs/TechieBlog-Checklist.md#requirements-status |
+| 2026-08-08 | Build repair (owner-reported RED) | Prior GREEN claim was wrong — gate never covered the BlogApp TFM. 4 × CS1061 in BlogApp AuthService fixed (REQ-UI-051); REQ-NFR-027 MAUI gap closed (secrets via DPAPI ConnectionStore). PASS 0 errors, 7/7 projects · web host `/` 200 + `/health` Healthy · BlogApp signed in to `/change-password` · no verifier run | docs/TechieBlog-Checklist.md#requirements-status |
 
 ## Library feedback summary
 
-- TrBlazeUI: adopted 2026-08-06 (BRD-92) — migration pending (REQ-UI-048); owner to supply GitHub Packages credentials in nuget.config
-- TechieRag: not used by this project (no AI/RAG features)
+- **TrBlazeUI:** next free **TR-056**. Root cause logged (TR-051): the AI reference and the `trblazeui`
+  persona both promise all components splat unmatched attributes — false for **132 of 334** types
+  (machine-classified via `MetadataLoadContext`). That one false premise caused seven page-killing
+  `data-testid` crashes; full matrix contributed. A11y: TR-031/044/045 (app-side mitigated),
+  TR-054/055 (Tabs/ItemGroup — not fixable from app code).
+- **TechieRag:** not used (no AI/RAG features).
 
-## Standards compliance (last verifier check)
+## Standards compliance (2026-08-08)
 
-- Underscore fields: 32 found across 17 files (drift — REQ-NFR-021)
-- Test method underscores: not yet run (no test project)
-- Mis-prefixed fields: 1 `obj`-prefixed field found; project convention is no-prefix camelCase
+- Underscore fields **0**; `obj`/Hungarian **0**; `a`/`v` prefixes remediated across `BlogModels`,
+  `BlogEngine/{DbAccess,Services,Common}` and `SvcUtils` this pass.
+- XML docs: **694 members newly documented**; `BlogModels` proves **0 doc warnings** under a forced
+  `GenerateDocumentationFile` build. `BlogUI` + host still out of scope → REQ-NFR-008 at 92%.
+- Build 0 errors / 178 warnings (up from 6 only because downstream projects now compile).
 
 ## Deferred / future
 
-- ~~MAUI Blazor Hybrid desktop writer~~ — moved in scope 2026-08-06 as BlogApp (Phase 10)
-- Social login, magic links, email drip sequences, lead magnets
-- Admin theme creator UI, community theme repository
-- Multi-tenancy, localization, advanced referrer analytics
+- Verify JWT signatures on read (`SvcUtils`/`AuthSvc`); build the projection-completeness gate.
+- REQ-NFR-026 stages 3–4, then re-measure the concurrency ceiling.
+- Wire `AppSecrets` into `source/BlogApp`; re-smoke REQ-UI-052 on the desktop head.
+- Delete the `[Obsolete]` `AppUser.TwiiterUrl` alias once 3 `.razor` references move to `TwitterUrl`.
+- macOS (`net10.0-maccatalyst`) BlogApp head — not buildable from the Windows host.
+- Social login, magic links, drip sequences, lead magnets; admin theme creator; multi-tenancy, localization.

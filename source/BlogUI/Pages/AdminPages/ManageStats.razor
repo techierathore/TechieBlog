@@ -1,0 +1,234 @@
+@*
+    ManageStats.razor
+    Purpose: Maintain the resume's headline statistics (UserStats) — the About and
+    Community figures on /resume — so they are editable content rather than a
+    direct-SQL chore (REQ-FN-027, BRD-51).
+
+    Usage: Navigate to /admin/stats
+    Dependencies: TrBlazeUI (Card / Dialog / AlertDialog / Select / Input / Empty),
+                  BlogEngine.Services.UserStatsSvc
+    Authorization: AuthorOrAbove — same policy as the sibling resume editors
+                   (/admin/experience, /admin/skills, /admin/awards).
+*@
+@page "/admin/stats"
+@attribute [Authorize(Policy = "AuthorOrAbove")]
+@layout BlogUI.Layouts.AdminLayout
+
+<PageTitle>Manage Statistics - TechieBlog Admin</PageTitle>
+
+<div class="mx-auto flex max-w-4xl flex-col gap-6" data-testid="manage-stats-page">
+
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <h1 class="text-2xl font-semibold tracking-tight">Manage Statistics</h1>
+        <Button OnClick="@ShowAddStatDialog" data-testid="add-stat">
+            <LucideIcon Name="plus" Size="16" />
+            Add Statistic
+        </Button>
+    </div>
+
+    <p class="text-sm text-muted-foreground">
+        Headline figures shown in the About and Community blocks of the public resume.
+        Each statistic is a short value (&quot;20+&quot;) with a label (&quot;Years in software&quot;)
+        and an optional category that decides which resume block it appears in.
+    </p>
+
+    @if (!string.IsNullOrEmpty(StatusMessage))
+    {
+        <Alert Variant="@(IsError ? AlertVariant.Danger : AlertVariant.Success)" data-testid="stats-status">
+            <LucideIcon Name="@(IsError ? "circle-alert" : "circle-check")" Size="16" />
+            <AlertTitle>@(IsError ? "Something went wrong" : "Done")</AlertTitle>
+            <AlertDescription>@StatusMessage</AlertDescription>
+        </Alert>
+    }
+
+    @* Admin-only: pick whose statistics to maintain. *@
+    @if (IsAdmin && AllUsers is not null && AllUsers.Count > 0)
+    {
+        <div class="flex flex-wrap items-center gap-3 rounded-lg bg-muted p-4">
+            <span class="text-sm font-medium">View statistics for:</span>
+            <Select TValue="string"
+                    Value="@SelectedUserId.ToString()"
+                    ValueChanged="@OnSelectedUserChanged"
+                    Class="w-72">
+                <SelectTrigger data-testid="stats-user-select">
+                    <SelectValue Placeholder="Select a user" />
+                </SelectTrigger>
+                <SelectContent>
+                    @foreach (var user in AllUsers)
+                    {
+                        var label = $"{user.FirstName} {user.LastName} ({user.EmailId})";
+                        <SelectItem TValue="string" Value="@user.UserId.ToString()" Text="@label">@label</SelectItem>
+                    }
+                </SelectContent>
+            </Select>
+            @* TrBlazeUI's SelectValue echoes the raw bound value (the user id), so the resolved
+               name is shown alongside it — see libraryIssues note for /admin/stats. *@
+            <Badge Variant="BadgeVariant.Secondary" data-testid="stats-selected-user">@SelectedUserName</Badge>
+        </div>
+    }
+
+    @if (IsLoading)
+    {
+        <div class="flex items-center justify-center gap-3 py-12" data-testid="stats-loading">
+            <Spinner />
+            <span class="text-muted-foreground">Loading statistics...</span>
+        </div>
+    }
+    else if (AllStats.Count == 0)
+    {
+        <Empty Title="No statistics yet"
+               Description="Add your first statistic to show it on the public resume."
+               data-testid="stats-empty">
+            <Icon><LucideIcon Name="trending-up" Size="48" /></Icon>
+            <ChildContent>
+                <Button OnClick="@ShowAddStatDialog" data-testid="add-first-stat">
+                    <LucideIcon Name="plus" Size="16" />
+                    Add Statistic
+                </Button>
+            </ChildContent>
+        </Empty>
+    }
+    else
+    {
+        <div class="flex flex-col gap-3" data-testid="stats-list">
+            @foreach (var stat in OrderedStats)
+            {
+                var current = stat;
+                @* .stat-row (layout.css) keeps one line from tablet up and stacks on a phone,
+                   where a long label would otherwise collide with the action cluster. *@
+                <Card data-testid="stat-card">
+                    <CardContent Class="stat-row pt-6">
+
+                        <div class="flex h-12 w-16 shrink-0 items-center justify-center rounded bg-muted px-2 text-lg font-bold text-primary"
+                             data-testid="stat-value">
+                            @current.StatValue
+                        </div>
+
+                        <div class="stat-row__body">
+                            <div class="font-semibold" data-testid="stat-label">@current.StatLabel</div>
+                            <div class="mt-1 text-sm text-muted-foreground" data-testid="stat-category">
+                                @(string.IsNullOrWhiteSpace(current.StatCategory) ? "Uncategorised" : current.StatCategory)
+                            </div>
+                        </div>
+
+                        <div class="stat-row__actions gap-1">
+                            <Button Variant="ButtonVariant.Ghost"
+                                    Size="ButtonSize.IconSmall"
+                                    AriaLabel="Edit statistic"
+                                    OnClick="@(() => StartEditStat(current))"
+                                    data-testid="edit-stat">
+                                <LucideIcon Name="pencil" Size="16" />
+                            </Button>
+                            <Button Variant="ButtonVariant.Ghost"
+                                    Size="ButtonSize.IconSmall"
+                                    Class="text-destructive"
+                                    AriaLabel="Delete statistic"
+                                    OnClick="@(() => ConfirmDeleteStat(current))"
+                                    data-testid="delete-stat">
+                                <LucideIcon Name="trash-2" Size="16" />
+                            </Button>
+                            <Button Variant="ButtonVariant.Ghost"
+                                    Size="ButtonSize.IconSmall"
+                                    AriaLabel="Move statistic up"
+                                    Disabled="@IsFirstStat(current)"
+                                    OnClick="@(() => MoveStatUp(current))"
+                                    data-testid="move-stat-up">
+                                <LucideIcon Name="chevron-up" Size="16" />
+                            </Button>
+                            <Button Variant="ButtonVariant.Ghost"
+                                    Size="ButtonSize.IconSmall"
+                                    AriaLabel="Move statistic down"
+                                    Disabled="@IsLastStat(current)"
+                                    OnClick="@(() => MoveStatDown(current))"
+                                    data-testid="move-stat-down">
+                                <LucideIcon Name="chevron-down" Size="16" />
+                            </Button>
+                        </div>
+
+                    </CardContent>
+                </Card>
+            }
+        </div>
+    }
+</div>
+
+@* Add/Edit dialog — closed on load, opened by "Add Statistic" or a row's Edit action. *@
+<Dialog Open="@ShowStatDialog" OpenChanged="@OnStatDialogOpenChanged">
+    <DialogContent Class="max-w-lg" data-testid="stat-dialog">
+        <DialogHeader>
+            <DialogTitle>@(IsEditMode ? "Edit Statistic" : "Add New Statistic")</DialogTitle>
+            <DialogDescription>Statistics appear on the public resume ordered by display order.</DialogDescription>
+        </DialogHeader>
+
+        <div class="flex max-h-[65vh] flex-col gap-5 overflow-y-auto p-1">
+
+            <Field>
+                <FieldLabel For="stat-value">Value</FieldLabel>
+                <FieldContent>
+                    <Input Id="stat-value"
+                           @bind-Value="FormStatValue"
+                           Placeholder="e.g., 20+"
+                           Required="true"
+                           data-testid="stat-value-input" />
+                    <FieldDescription>The large figure — keep it short (50 characters or fewer).</FieldDescription>
+                </FieldContent>
+            </Field>
+
+            <Field>
+                <FieldLabel For="stat-label">Label</FieldLabel>
+                <FieldContent>
+                    <Input Id="stat-label"
+                           @bind-Value="FormStatLabel"
+                           Placeholder="e.g., Years in software"
+                           Required="true"
+                           data-testid="stat-label-input" />
+                </FieldContent>
+            </Field>
+
+            <Field>
+                <FieldLabel For="stat-category">Category (optional)</FieldLabel>
+                <FieldContent>
+                    <Input Id="stat-category"
+                           @bind-Value="FormStatCategory"
+                           Placeholder="e.g., Career, Community, Writing"
+                           data-testid="stat-category-input" />
+                    <FieldDescription>
+                        Statistics in the <b>Community</b> category render in the resume's community
+                        block; every other category renders in the About block.
+                    </FieldDescription>
+                </FieldContent>
+            </Field>
+
+        </div>
+
+        <DialogFooter>
+            <Button Variant="ButtonVariant.Outline" OnClick="@CancelStatDialog" data-testid="cancel-stat">
+                Cancel
+            </Button>
+            <Button OnClick="@SaveStat" data-testid="save-stat">
+                @(IsEditMode ? "Save Changes" : "Add Statistic")
+            </Button>
+        </DialogFooter>
+    </DialogContent>
+</Dialog>
+
+@* Delete confirmation — closed on load, opened by a row's Delete action. *@
+<AlertDialog Open="@ShowDeleteDialog" OpenChanged="@OnDeleteOpenChanged">
+    <AlertDialogContent data-testid="stat-delete-dialog">
+        <AlertDialogHeader>
+            <AlertDialogTitle>Confirm delete</AlertDialogTitle>
+            <AlertDialogDescription>
+                Are you sure you want to delete the statistic <strong>@StatToDelete?.StatLabel</strong>?
+                This action cannot be undone.
+            </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+            <Button Variant="ButtonVariant.Outline" OnClick="@CancelDelete" data-testid="stat-delete-cancel">
+                Cancel
+            </Button>
+            <Button Variant="ButtonVariant.Destructive" OnClick="@DeleteStat" data-testid="stat-delete-confirm">
+                Delete
+            </Button>
+        </AlertDialogFooter>
+    </AlertDialogContent>
+</AlertDialog>

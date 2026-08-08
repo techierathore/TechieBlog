@@ -1,199 +1,68 @@
 @*
     Home.razor
-    Purpose: Main home page for TechieBlog public site.
-    Displays featured post section and recent posts grid with pagination.
+    Purpose: Public landing page for TechieBlog — a portfolio-style home built
+    entirely from the site owner's resume data (BRD-30 revised, REQ-UI-049).
 
-    Dependencies: PostCard, StarRating, Pagination components, BlogSvc
-    Layout: Uses MainLayout (provides Header, Sidebar, Footer)
+    Section order follows docs/mockups/01-home.html:
+        hero -> headline stats -> about summary -> latest articles -> contact
+
+    The hero and contact blocks REUSE the resume components (<ResumeHero>,
+    <ResumeContact>) rather than duplicating their markup; the three home-only
+    sections live in Components/Home. Supersedes the featured-post + recent-grid
+    home (REQ-UI-006).
+
+    BRD-93 / REQ-UI-050 — this page exposes no login link and no user menu.
+    REQ-UI-048 — TrBlazeUI throughout.
+
+    Dependencies: ResumeHero, ResumeContact, HomeStats, HomeAbout,
+                  HomeLatestArticles, IBlogUserRepo, IUserStatsRepo, BlogSvc
+    Layout: FullWidthLayout (portfolio landing — no blog sidebar)
+    Route: /
 *@
 
 @page "/"
-@layout MainLayout
-@inject BlogEngine.Services.BlogSvc BlogService
+@layout FullWidthLayout
+@using BlogModels.Models
+@using BlogUI.Components.Home
+@using BlogUI.Components.Resume
+
+<PageTitle>TechieBlog — notes on .NET, Blazor and shipping software</PageTitle>
 
 @if (isLoading)
 {
-    <div class="loading-container" style="display: flex; justify-content: center; padding: 48px;">
-        <FluentProgressRing />
-        <span style="margin-left: 12px;">Loading posts...</span>
+    <div class="flex items-center justify-center gap-3 py-16" data-testid="home-loading">
+        <Spinner Size="SpinnerSize.Large" />
+        <span class="text-muted-foreground">Loading...</span>
     </div>
 }
-else if (featuredPost == null && (recentPosts == null || recentPosts.Count == 0))
+else if (siteOwner is null)
 {
-    <div class="empty-state" style="text-align: center; padding: 48px;">
-        <FluentIcon Value="@(new Icons.Regular.Size48.Document())" />
-        <h2>No Posts Yet</h2>
-        <p>Check back soon for new content!</p>
-    </div>
+    <Empty Title="Site not configured yet"
+           Description="No site owner has been set up, so the landing page has nothing to show."
+           data-testid="home-unconfigured">
+        <Icon><LucideIcon Name="user-x" Size="48" /></Icon>
+        <ChildContent>
+            <Button Href="/search" Variant="ButtonVariant.Outline" data-testid="home-unconfigured-search">Browse articles</Button>
+        </ChildContent>
+    </Empty>
 }
 else
 {
-    @* Featured Post Section *@
-    @if (featuredPost != null)
-    {
-        <article class="featured-post">
-            <div class="featured-post__image @(string.IsNullOrEmpty(featuredPost.FeaturedImage) ? "placeholder-image" : "")">
-                @if (!string.IsNullOrEmpty(featuredPost.FeaturedImage))
-                {
-                    <img src="@featuredPost.FeaturedImage"
-                         alt="@featuredPost.Title"
-                         style="width: 100%; height: 100%; object-fit: cover;"
-                         onerror="this.onerror=null; this.style.display='none'; this.parentElement.classList.add('placeholder-image'); this.parentElement.innerHTML='<span>Featured</span>';" />
-                }
-                else
-                {
-                    <span>Featured</span>
-                }
-            </div>
-            <div class="featured-post__content">
-                <span class="card__category">Featured</span>
-                <h1 class="featured-post__title">
-                    <a href="/post/@featuredPost.Slug">@featuredPost.Title</a>
-                </h1>
-                <p class="featured-post__excerpt">
-                    @(string.IsNullOrEmpty(featuredPost.Abstract) ? GetExcerpt(featuredPost.PostContent) : featuredPost.Abstract)
-                </p>
-                <div class="card__meta">
-                    <div class="card__author">
-                        <div class="card__avatar"></div>
-                        <span>@(string.IsNullOrEmpty(featuredPost.BlogWriter) ? "Unknown Author" : featuredPost.BlogWriter)</span>
-                    </div>
-                    <span>@featuredPost.CreatedOn.ToString("MMM dd, yyyy")</span>
-                    <span>@GetReadingTime(featuredPost.PostContent)</span>
-                </div>
-            </div>
-        </article>
-    }
+    <div class="flex flex-col gap-8" data-testid="home-page">
 
-    @* Recent Posts Section *@
-    <section class="recent-posts">
-        <h2 class="section-title">Recent Posts</h2>
-        @if (recentPosts != null && recentPosts.Count > 0)
-        {
-            <div class="post-grid">
-                @foreach (var post in recentPosts)
-                {
-                    <PostCard Category="@GetCategory(post.Tags)"
-                              Title="@post.Title"
-                              Excerpt="@(string.IsNullOrEmpty(post.Abstract) ? GetExcerpt(post.PostContent) : post.Abstract)"
-                              PostUrl="@($"/post/{post.Slug}")"
-                              AuthorName="@(string.IsNullOrEmpty(post.BlogWriter) ? "Unknown" : post.BlogWriter)"
-                              Date="@post.CreatedOn.ToString("MMM dd")"
-                              ReadTime="@GetReadingTime(post.PostContent)"
-                              ImageUrl="@post.FeaturedImage" />
-                }
-            </div>
+        @* Hero — photo, "Hi, I'm {name}", title, tagline, CTAs and social links. *@
+        <ResumeHero User="@siteOwner" />
 
-            @* Pagination *@
-            @if (totalPages > 1)
-            {
-                <Pagination CurrentPage="@currentPage" TotalPages="@totalPages" OnPageChanged="HandlePageChanged" />
-            }
-        }
-        else
-        {
-            <p style="text-align: center; color: var(--neutral-foreground-hint);">No more posts to display.</p>
-        }
-    </section>
-}
+        @* Headline statistics from the owner's UserStats rows. *@
+        <HomeStats Stats="@ownerStats" />
 
-@code {
-    private List<BlogModels.BlogPost> recentPosts = new();
-    private BlogModels.BlogPost featuredPost;
-    private int currentPage = 1;
-    private int totalPages = 1;
-    private const int PageSize = 6;
-    private bool isLoading = true;
+        @* Short about summary; the full story stays on /resume. *@
+        <HomeAbout Summary="@siteOwner.ProfileDescription" />
 
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadPosts();
-    }
+        @* Most recent published posts, linking to the real articles. *@
+        <HomeLatestArticles Posts="@latestPosts" IsLoading="false" />
 
-    private async Task LoadPosts()
-    {
-        isLoading = true;
-
-        try
-        {
-            // Get featured (first post)
-            featuredPost = BlogService.GetFeaturedPost();
-
-            // Calculate pagination
-            var totalPosts = BlogService.GetPublishedPostCount();
-            // Subtract 1 for featured post if we have one
-            var postsForPagination = featuredPost != null ? totalPosts - 1 : totalPosts;
-            totalPages = Math.Max(1, (int)Math.Ceiling(postsForPagination / (double)PageSize));
-
-            // Get recent posts (exclude featured)
-            var offset = (currentPage - 1) * PageSize;
-            // If we have a featured post, we need to skip it
-            if (featuredPost != null)
-            {
-                offset++; // Skip the first post (featured)
-            }
-
-            var allPosts = BlogService.GetPublishedPosts(PageSize + 1, offset);
-            recentPosts = allPosts
-                .Where(p => featuredPost == null || p.PostID != featuredPost.PostID)
-                .Take(PageSize)
-                .ToList();
-        }
-        catch
-        {
-            recentPosts = new List<BlogModels.BlogPost>();
-            featuredPost = null;
-        }
-
-        isLoading = false;
-        StateHasChanged();
-    }
-
-    private async Task HandlePageChanged(int page)
-    {
-        currentPage = page;
-        await LoadPosts();
-    }
-
-    /// <summary>
-    /// Gets the first tag as category, or "Uncategorized".
-    /// </summary>
-    private string GetCategory(string tags)
-    {
-        if (string.IsNullOrWhiteSpace(tags))
-            return "General";
-
-        var firstTag = tags.Split(',').FirstOrDefault()?.Trim();
-        return string.IsNullOrEmpty(firstTag) ? "General" : firstTag;
-    }
-
-    /// <summary>
-    /// Gets a short excerpt from content.
-    /// </summary>
-    private string GetExcerpt(string content, int maxLength = 150)
-    {
-        if (string.IsNullOrWhiteSpace(content))
-            return string.Empty;
-
-        // Strip markdown/HTML basic
-        var text = content
-            .Replace("#", "")
-            .Replace("*", "")
-            .Replace("_", "")
-            .Replace("`", "")
-            .Trim();
-
-        if (text.Length <= maxLength)
-            return text;
-
-        return text.Substring(0, maxLength).TrimEnd() + "...";
-    }
-
-    /// <summary>
-    /// Gets reading time from content.
-    /// </summary>
-    private string GetReadingTime(string content)
-    {
-        return BlogEngine.Common.ReadingTimeCalculator.Calculate(content);
-    }
+        @* Contact block — email, phone, location, LinkedIn. *@
+        <ResumeContact User="@siteOwner" />
+    </div>
 }

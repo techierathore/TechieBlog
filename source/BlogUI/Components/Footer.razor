@@ -1,73 +1,26 @@
 @*
     Footer.razor
-    Purpose: Site-wide footer component for TechieBlog.
-    Displays copyright text with dynamic year, navigation links,
-    and current theme mode indicator.
+    Purpose: Site-wide footer for the public TechieBlog pages.
 
-    Dependencies: ThemeService for theme state display
-    Usage: Placed at bottom of MainLayout.razor
+    REQ-UI-048 — rebuilt on TrBlazeUI utility classes.
+    REQ-UI-041/042 — the "Authors" link is gone with the author-browsing screens.
+    BRD-93 — no sign-in affordance here either.
 *@
 
-@using BlogUI
-@implements IDisposable
-@inject ThemeService ThemeService
+<footer class="mt-16 border-t border-border bg-background" data-testid="public-footer">
+    <div class="mx-auto flex w-full max-w-7xl flex-col items-center gap-4 px-4 py-8 text-sm text-muted-foreground sm:flex-row sm:justify-between sm:px-6">
 
-<footer class="footer">
-    <div class="footer__content">
-        @* Copyright Notice with Dynamic Year *@
-        <p>&copy; @DateTime.Now.Year TechieBlog. All rights reserved.</p>
+        <p class="m-0">&copy; @DateTime.Now.Year TechieBlog. All rights reserved.</p>
 
-        @* Footer Navigation Links *@
-        <div class="footer__links">
-            <a href="/about" class="footer__link">About</a>
-            <a href="/resume" class="footer__link">Resume</a>
-            <a href="/authors" class="footer__link">Authors</a>
-            <a href="/rss" class="footer__link">RSS Feed</a>
-        </div>
-
-        @* Theme Mode Indicator *@
-        <div class="footer__theme-indicator">
-            @if (isDarkMode)
-            {
-                <FluentIcon Value="@(new Icons.Regular.Size16.WeatherMoon())" />
-                <span>Dark Mode</span>
-            }
-            else
-            {
-                <FluentIcon Value="@(new Icons.Regular.Size16.WeatherSunny())" />
-                <span>Light Mode</span>
-            }
-        </div>
+        <nav class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+            <a href="/about" class="text-muted-foreground no-underline hover:text-foreground" data-testid="footer-about">About</a>
+            <a href="/resume" class="text-muted-foreground no-underline hover:text-foreground" data-testid="footer-resume">Resume</a>
+            <a href="/categories" class="text-muted-foreground no-underline hover:text-foreground" data-testid="footer-categories">Categories</a>
+            <a href="/series" class="text-muted-foreground no-underline hover:text-foreground" data-testid="footer-series">Series</a>
+            <a href="/rss" class="inline-flex items-center gap-1.5 text-muted-foreground no-underline hover:text-foreground" data-testid="footer-rss">
+                <LucideIcon Name="rss" Size="14" />
+                <span>RSS</span>
+            </a>
+        </nav>
     </div>
 </footer>
-
-@code {
-    private bool isDarkMode = false;
-
-    /// <summary>
-    /// Initializes the component by loading the current dark mode state
-    /// and subscribing to theme change events.
-    /// </summary>
-    protected override async Task OnInitializedAsync()
-    {
-        isDarkMode = await ThemeService.GetDarkModeAsync();
-        ThemeService.OnThemeChanged += HandleThemeChanged;
-    }
-
-    /// <summary>
-    /// Handles theme change events from ThemeService to update the indicator.
-    /// </summary>
-    private void HandleThemeChanged(string theme, bool darkMode)
-    {
-        isDarkMode = darkMode;
-        InvokeAsync(StateHasChanged);
-    }
-
-    /// <summary>
-    /// Unsubscribes from theme change events when component is disposed.
-    /// </summary>
-    public void Dispose()
-    {
-        ThemeService.OnThemeChanged -= HandleThemeChanged;
-    }
-}

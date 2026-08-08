@@ -3,22 +3,35 @@ using BlogModels;
 
 namespace BlogUI.Pages.AdminPages;
 
+/// <summary>
+/// Code-behind for the category editor page.
+/// </summary>
 partial class ManageCategory : ComponentBase
 {
+    /// <summary>Identifier of the category being edited. Zero creates a new category.</summary>
     [Parameter]
     public long PageId { get; set; }
 
     [Inject]
-    NavigationManager AppNavManager { get; set; }
+    NavigationManager AppNavManager { get; set; } = default!;
 
+    /// <summary>Category service used to load and persist categories.</summary>
     [Inject]
-    public BlogEngine.Services.CategorySvc CategoryService { get; set; }
+    public BlogEngine.Services.CategorySvc CategoryService { get; set; } = default!;
 
-    public string PageHeader { get; set; }
-    public Category PageObj { get; set; }
-    public string StatusMessage { get; set; }
+    /// <summary>Panel heading shown above the form.</summary>
+    public string PageHeader { get; set; } = string.Empty;
+
+    /// <summary>The category being edited.</summary>
+    public Category? PageObj { get; set; }
+
+    /// <summary>Status text shown in the page-level alert.</summary>
+    public string? StatusMessage { get; set; }
+
+    /// <summary>True when <see cref="StatusMessage"/> reports a failure.</summary>
     public bool IsError { get; set; }
 
+    /// <inheritdoc />
     protected override async Task OnParametersSetAsync()
     {
         if (PageId > 0)
@@ -38,6 +51,7 @@ partial class ManageCategory : ComponentBase
         }
     }
 
+    /// <summary>Prepares the form for creating a new category.</summary>
     private Task ResetPage()
     {
         PageHeader = "Add New Category";
@@ -47,8 +61,11 @@ partial class ManageCategory : ComponentBase
         return Task.CompletedTask;
     }
 
+    /// <summary>Validates and persists the category, then returns to the category list.</summary>
     public void SaveData()
     {
+        if (PageObj == null) return;
+
         if (string.IsNullOrWhiteSpace(PageObj.CategoryName))
         {
             StatusMessage = "Category name is required.";

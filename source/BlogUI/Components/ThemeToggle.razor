@@ -1,0 +1,71 @@
+@*
+    ThemeToggle.razor
+    Purpose: Ghost icon button that flips the site between light and dark mode.
+
+    REQ-UI-033 / REQ-FN-039 / BRD-66. Dark mode is the `dark` class on <html>;
+    ThemeService owns the Blazored.LocalStorage persistence and raises
+    OnThemeChanged, which ThemeProvider translates into the DOM class.
+
+    Usage: <ThemeToggle /> in every shell header (public, auth, admin topbar).
+*@
+
+@implements IDisposable
+@inject ThemeService ThemeService
+
+<Button Variant="ButtonVariant.Ghost"
+        Size="ButtonSize.Icon"
+        OnClick="ToggleThemeAsync"
+        AriaLabel="@ToggleLabel"
+        title="@ToggleLabel"
+        data-testid="theme-toggle">
+    @if (isDarkMode)
+    {
+        <LucideIcon Name="sun" Size="18" />
+    }
+    else
+    {
+        <LucideIcon Name="moon" Size="18" />
+    }
+</Button>
+
+@code {
+    private bool isDarkMode;
+
+    /// <summary>
+    /// Accessible label and tooltip describing what the next activation will do.
+    /// </summary>
+    private string ToggleLabel => isDarkMode ? "Switch to light mode" : "Switch to dark mode";
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        isDarkMode = await ThemeService.GetDarkModeAsync();
+        ThemeService.OnThemeChanged += HandleThemeChanged;
+    }
+
+    /// <summary>
+    /// Flips dark mode and persists the new value through ThemeService.
+    /// </summary>
+    private async Task ToggleThemeAsync()
+    {
+        await ThemeService.ToggleDarkModeAsync();
+        isDarkMode = ThemeService.IsDarkMode;
+    }
+
+    /// <summary>
+    /// Keeps the icon in sync when another component changes the theme.
+    /// </summary>
+    /// <param name="theme">Active site theme identifier.</param>
+    /// <param name="darkMode">True when dark mode is active.</param>
+    private void HandleThemeChanged(string theme, bool darkMode)
+    {
+        isDarkMode = darkMode;
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        ThemeService.OnThemeChanged -= HandleThemeChanged;
+    }
+}

@@ -1,0 +1,50 @@
+namespace BlogModels.Interfaces;
+
+/// <summary>
+/// Records post views for analytics, de-duplicated per visit and free of raw IP storage.
+/// </summary>
+/// <remarks>
+/// <para><b>Purpose:</b> The published contract a post page calls once per render to satisfy
+/// BRD-60. Tracking must never break page rendering, so every failure is logged and folded into a
+/// failed <c>Result</c> rather than thrown at the caller.</para>
+///
+/// <para><b>Definition of a view and a unique view:</b></para>
+/// <list type="bullet">
+///   <item>A <b>view</b> is one row in <c>PostViews</c>. The tracker writes at most one row per
+///         visitor per post per de-duplication window (24 hours by default), so refreshing or
+///         re-opening a post inside one reading session is counted once.</item>
+///   <item>A <b>unique view</b> is one distinct visitor hash for the post over all time.</item>
+///   <item>A <b>visitor</b> is identified by <c>SHA-256(siteSalt + "|" + ipAddress + "|" +
+///         userAgent)</c>. Only that hash is persisted — the raw IP is never written — and the salt
+///         makes the hash non-reversible by dictionary attack over the IPv4 space.</item>
+/// </list>
+///
+/// <para><b>Code Flow:</b> caller supplies the raw IP and user-agent → the tracker salts and hashes
+/// them into a visitor identity → <c>IPostViewRepo.RecordViewAsync</c> performs a conditional insert
+/// that writes a row only if this visitor has not viewed this post inside the window → the outcome
+/// comes back as a <c>Result&lt;bool&gt;</c>.</para>
+///
+/// <para><b>Dependencies:</b> <c>IPostViewRepo</c> for the conditional insert.</para>
+///
+/// <para><b>Usage:</b> Call from the post page's first render only; ignore the returned flag unless
+/// the caller wants to know whether the view was new.</para>
+/// </remarks>
+public interface IPostViewTracker
+{
+    /// <summary>
+    /// Records a view of a post for the calling visitor.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Derives the visitor hash, then asks the repository for a
+    /// conditional insert; a repeat view inside the de-duplication window is not counted again.</para>
+    /// <para><b>Flow:</b> validate post id → hash visitor → conditional insert → return whether a
+    /// row was written.</para>
+    /// <para><b>Side Effects:</b> May write one row to <c>PostViews</c>. Never throws.</para>
+    /// </remarks>
+    /// <param name="postId">The post being viewed; must be greater than zero.</param>
+    /// <param name="ipAddress">Caller IP address, used only as hash input.</param>
+    /// <param name="userAgent">Caller user-agent string, used only as hash input.</param>
+    /// <returns>Success carrying true when a new view row was written, false when de-duplicated;
+    /// failure when the write could not be attempted.</returns>
+    Task<Result<bool>> TrackViewAsync(long postId, string ipAddress, string userAgent);
+}

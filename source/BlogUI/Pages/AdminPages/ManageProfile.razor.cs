@@ -44,7 +44,7 @@ public partial class ManageProfile : ComponentBase
     /// <summary>
     /// Status message to display.
     /// </summary>
-    protected string StatusMessage { get; set; } = string.Empty;
+    protected string? StatusMessage { get; set; }
 
     /// <summary>
     /// Whether the status message is an error.
@@ -74,7 +74,7 @@ public partial class ManageProfile : ComponentBase
     /// <summary>
     /// The original username for comparison.
     /// </summary>
-    private string _originalUsername = string.Empty;
+    private string originalUsername = string.Empty;
 
     /// <summary>
     /// Regex pattern for valid usernames (alphanumeric + hyphens only).
@@ -105,7 +105,7 @@ public partial class ManageProfile : ComponentBase
 
                 if (CurrentUser != null)
                 {
-                    _originalUsername = CurrentUser.Username ?? string.Empty;
+                    originalUsername = CurrentUser.Username ?? string.Empty;
                     ProfileModel = new ProfileFormModel
                     {
                         FirstName = CurrentUser.FirstName ?? string.Empty,
@@ -117,7 +117,7 @@ public partial class ManageProfile : ComponentBase
                         ProfileImagePath = CurrentUser.ProfileImagePath,
                         LinkedInUrl = CurrentUser.LinkedInUrl ?? string.Empty,
                         GitHubUrl = CurrentUser.GitHubUrl ?? string.Empty,
-                        TwitterUrl = CurrentUser.TwiiterUrl ?? string.Empty,
+                        TwitterUrl = CurrentUser.TwitterUrl ?? string.Empty,
                         InstagramUrl = CurrentUser.InstagramUrl ?? string.Empty,
                         ResumeEnabled = CurrentUser.ResumeEnabled,
                         CVFilePath = CurrentUser.CVFilePath,
@@ -138,9 +138,10 @@ public partial class ManageProfile : ComponentBase
     /// <summary>
     /// Handles username input changes for validation.
     /// </summary>
-    protected void OnUsernameChanged(Microsoft.AspNetCore.Components.ChangeEventArgs e)
+    /// <param name="value">The username typed by the user.</param>
+    protected void OnUsernameChanged(string? value)
     {
-        var username = e.Value?.ToString() ?? string.Empty;
+        var username = value ?? string.Empty;
         ProfileModel.Username = username;
         ValidateUsername(username);
     }
@@ -182,7 +183,7 @@ public partial class ManageProfile : ComponentBase
         }
 
         // Check availability only if changed from original
-        if (!string.Equals(username, _originalUsername, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(username, originalUsername, StringComparison.OrdinalIgnoreCase))
         {
             var isAvailable = UserRepo.IsUsernameAvailable(username);
             if (!isAvailable)
@@ -228,7 +229,7 @@ public partial class ManageProfile : ComponentBase
             CurrentUser.LastName = ProfileModel.LastName?.Trim() ?? string.Empty;
             CurrentUser.ProfileImagePath = ProfileModel.ProfileImagePath ?? string.Empty;
             CurrentUser.ProfileDescription = ProfileModel.ProfileDescription?.Trim() ?? string.Empty;
-            CurrentUser.TwiiterUrl = ProfileModel.TwitterUrl?.Trim() ?? string.Empty;
+            CurrentUser.TwitterUrl = ProfileModel.TwitterUrl?.Trim() ?? string.Empty;
             CurrentUser.LinkedInUrl = ProfileModel.LinkedInUrl?.Trim() ?? string.Empty;
             CurrentUser.GitHubUrl = ProfileModel.GitHubUrl?.Trim() ?? string.Empty;
 
@@ -237,10 +238,10 @@ public partial class ManageProfile : ComponentBase
 
             // Update username if changed
             if (!string.IsNullOrWhiteSpace(ProfileModel.Username) &&
-                !string.Equals(ProfileModel.Username, _originalUsername, StringComparison.OrdinalIgnoreCase))
+                !string.Equals(ProfileModel.Username, originalUsername, StringComparison.OrdinalIgnoreCase))
             {
                 UserRepo.UpdateUsername(CurrentUserId, ProfileModel.Username.Trim());
-                _originalUsername = ProfileModel.Username.Trim();
+                originalUsername = ProfileModel.Username.Trim();
             }
 
             // Update resume fields separately

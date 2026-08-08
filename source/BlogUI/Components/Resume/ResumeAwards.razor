@@ -1,60 +1,75 @@
 @*
     ResumeAwards.razor
-    Purpose: Displays user awards and recognition in a resume section.
-    Shows badge images, award titles, years, and descriptions.
+    Purpose: Awards and recognition section of the public Resume page —
+    badge image, award title (optionally an external link), year and description.
 
-    Dependencies: BlogEngine.DbAccess.IUserAwardsRepo
-    Usage: Used in Resume page to display user's certifications, awards, and achievements
+    REQ-UI-036 / REQ-UI-048 — TrBlazeUI (Card / Badge / LucideIcon).
+    List primitive (.resume-stack) lives in wwwroot/css/resume.css.
+
+    Dependencies: BlogModels.Interfaces.IUserAwardsRepo
 *@
 
 @inject BlogModels.Interfaces.IUserAwardsRepo AwardsRepo
 
-<section class="resume-section resume-section--alt">
-    <h2>Awards & Recognition</h2>
-
-    @if (awards != null && awards.Any())
-    {
-        <div class="awards-list">
-            @foreach (var award in awards)
-            {
-                <div class="award-item">
-                    @if (!string.IsNullOrEmpty(award.BadgeImagePath))
-                    {
-                        <img src="@award.BadgeImagePath"
-                             alt="@award.AwardTitle"
-                             class="badge-image" />
-                    }
-                    <div class="award-content">
-                        @if (!string.IsNullOrEmpty(award.AwardUrl))
+@if (awards is not null && awards.Any())
+{
+    <Card id="awards" Class="resume-section" data-testid="awards-section">
+        <CardHeader>
+            <CardTitle Class="text-2xl">Awards &amp; Recognition</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <div class="resume-stack" data-testid="awards-list">
+                @foreach (var award in awards)
+                {
+                    <div class="resume-award flex items-start gap-4 rounded-lg border border-border bg-card p-4" data-testid="award-item">
+                        @if (!string.IsNullOrWhiteSpace(award.BadgeImagePath))
                         {
-                            <a href="@award.AwardUrl" target="_blank" rel="noopener noreferrer" class="award-title">
-                                @award.AwardTitle
-                            </a>
+                            <img src="@award.BadgeImagePath"
+                                 alt="@award.AwardTitle"
+                                 class="resume-badge-image" />
                         }
                         else
                         {
-                            <div class="award-title">@award.AwardTitle</div>
+                            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted text-primary">
+                                <LucideIcon Name="award" Size="20" />
+                            </span>
                         }
 
-                        @if (!string.IsNullOrEmpty(award.AwardYear))
-                        {
-                            <div class="award-year">@award.AwardYear</div>
-                        }
+                        <div class="min-w-0 flex-1">
+                            @if (!string.IsNullOrWhiteSpace(award.AwardUrl))
+                            {
+                                <a href="@award.AwardUrl"
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   class="flex items-center gap-1 font-semibold text-primary hover:underline"
+                                   data-testid="award-title">
+                                    @award.AwardTitle
+                                    <LucideIcon Name="external-link" Size="14" />
+                                </a>
+                            }
+                            else
+                            {
+                                <div class="font-semibold text-foreground" data-testid="award-title">@award.AwardTitle</div>
+                            }
 
-                        @if (!string.IsNullOrEmpty(award.AwardDescription))
-                        {
-                            <div class="award-description">@award.AwardDescription</div>
-                        }
+                            @if (!string.IsNullOrWhiteSpace(award.AwardYear))
+                            {
+                                <div class="mt-1" data-testid="award-year">
+                                    <Badge Variant="BadgeVariant.Outline">@award.AwardYear</Badge>
+                                </div>
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(award.AwardDescription))
+                            {
+                                <p class="mt-2 text-sm text-muted-foreground" data-testid="award-description">@award.AwardDescription</p>
+                            }
+                        </div>
                     </div>
-                </div>
-            }
-        </div>
-    }
-    else
-    {
-        <p>No awards to display.</p>
-    }
-</section>
+                }
+            </div>
+        </CardContent>
+    </Card>
+}
 
 @code {
     /// <summary>
@@ -65,6 +80,9 @@
 
     private IEnumerable<BlogModels.Models.UserAward>? awards;
 
+    /// <summary>
+    /// Loads the awards for the current user whenever the UserId parameter changes.
+    /// </summary>
     protected override void OnParametersSet()
     {
         if (UserId > 0)

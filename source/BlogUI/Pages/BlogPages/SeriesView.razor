@@ -1,9 +1,11 @@
 @*
     SeriesView.razor
-    Purpose: Series detail page showing all posts in a blog series.
-    Displays series header, numbered post list with status indicators, and related series.
+    Purpose: Series listing and series detail pages.
+    Displays series header, numbered post list with status badges, and other series.
 
-    Dependencies: Breadcrumb, PostCard components, SeriesSvc
+    REQ-UI-048 — migrated from Microsoft Fluent UI to TrBlazeUI.
+
+    Dependencies: BlogBreadcrumb component, SeriesSvc
     Layout: Uses FullWidthLayout (no sidebar - content focused)
 *@
 
@@ -13,171 +15,213 @@
 
 @inject BlogEngine.Services.SeriesSvc SeriesService
 
-@* Breadcrumb Navigation *@
-<Breadcrumb Items="@breadcrumbItems" />
+@* REQ-NFR-007 / WCAG 2.4.2 Page Titled. *@
+<PageTitle>@(series == null ? "Series · TechieBlog" : $"{series.Name} · TechieBlog")</PageTitle>
 
-@if (string.IsNullOrEmpty(Slug))
-{
-    @* All Series Listing *@
-    <div class="series-header">
-        <h1>All Series</h1>
-        <p class="series-header__description">Browse all multi-part blog series.</p>
-    </div>
+<div class="mx-auto w-full max-w-[860px]">
 
-    @if (allSeries == null)
+    @* Breadcrumb Navigation *@
+    <BlogBreadcrumb Items="@breadcrumbItems" />
+
+    @if (string.IsNullOrEmpty(Slug))
     {
-        <FluentProgressRing />
-        <span>Loading series...</span>
-    }
-    else if (!allSeries.Any())
-    {
-        <p>No series available yet. Check back soon!</p>
-    }
-    else
-    {
-        <div class="post-grid post-grid--three">
-            @foreach (var s in allSeries)
-            {
-                <article class="card">
-                    <div class="card__body">
-                        <FluentBadge Appearance="Appearance.Accent">@s.PostCount Parts</FluentBadge>
-                        <h3 class="card__title">
-                            <a href="/series/@s.Slug">@s.Name</a>
-                        </h3>
-                        <p class="card__excerpt">@s.Description</p>
-                        <div class="card__meta">
-                            <span>@s.Status</span>
-                        </div>
-                    </div>
-                </article>
-            }
-        </div>
-    }
-}
-else if (series == null)
-{
-    <FluentProgressRing />
-    <span>Loading series...</span>
-}
-else if (series.SeriesId == 0)
-{
-    <div class="series-header">
-        <h1>Series Not Found</h1>
-        <p class="series-header__description">The series you're looking for doesn't exist or has been removed.</p>
-        <a href="/series" class="btn">Browse All Series</a>
-    </div>
-}
-else
-{
-    @* Series Header *@
-    <div class="series-header">
-        <FluentBadge Appearance="Appearance.Accent">Series</FluentBadge>
-        <h1 class="series-header__title">@series.Name</h1>
-        <p class="series-header__description">@series.Description</p>
-        <div class="series-header__meta">
-            <span><strong>@series.PostCount</strong> Parts</span>
-            <span>By @series.AuthorName</span>
-            <span>Started @series.CreatedOn.ToString("MMM yyyy")</span>
-            <span><strong>@series.Status</strong></span>
-        </div>
-    </div>
+        @* All Series Listing *@
+        <header class="my-6 flex flex-col gap-2">
+            <TypographyH1>All Series</TypographyH1>
+            <p class="text-muted-foreground">Browse all multi-part blog series.</p>
+        </header>
 
-    @* Series Posts List *@
-    <section class="series-posts">
-        <h2 class="section-title">Posts in this Series</h2>
-
-        @if (series.Posts != null && series.Posts.Any())
+        @if (allSeries == null)
         {
-            @foreach (var post in series.Posts.OrderBy(p => p.SeriesPartNumber))
-            {
-                var isLatest = post == series.Posts.Where(p => p.Published).OrderByDescending(p => p.PublishedOn).FirstOrDefault();
-
-                <article class="series-post @(isLatest ? "series-post--current" : "")">
-                    <div class="series-post__number">
-                        @post.SeriesPartNumber
-                    </div>
-                    <div class="series-post__content">
-                        <h3 class="series-post__title">
-                            @if (post.Published)
-                            {
-                                <a href="/post/@post.Slug">@post.Title</a>
-                            }
-                            else
-                            {
-                                @post.Title
-                            }
-                        </h3>
-                        <p class="series-post__excerpt">@post.Abstract</p>
-                        <div class="series-post__meta">
-                            @if (post.Published)
-                            {
-                                <span>@post.PublishedOn?.ToString("MMM dd, yyyy")</span>
-                                <span>@BlogEngine.Common.ReadingTimeCalculator.Calculate(post.PostContent ?? "")</span>
-                                @if (isLatest)
-                                {
-                                    <FluentBadge Appearance="Appearance.Accent">Latest</FluentBadge>
-                                }
-                                else
-                                {
-                                    <span class="badge badge--success">Published</span>
-                                }
-                            }
-                            else
-                            {
-                                <FluentBadge Appearance="Appearance.Neutral">Coming Soon</FluentBadge>
-                            }
-                        </div>
-                    </div>
-                    @if (!string.IsNullOrEmpty(post.FeaturedImage))
-                    {
-                        <div class="series-post__image">
-                            <img src="@post.FeaturedImage" alt="@post.Title" />
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="series-post__image placeholder-image">Image</div>
-                    }
-                </article>
-            }
+            <div class="flex items-center justify-center gap-3 py-12" data-testid="series-loading">
+                <Spinner />
+                <span class="text-muted-foreground">Loading series...</span>
+            </div>
+        }
+        else if (!allSeries.Any())
+        {
+            <Empty Title="No series published yet"
+                   Description="Multi-part series will show up here once published."
+                   Class="py-12"
+                   data-testid="series-empty">
+                <Icon><LucideIcon Name="layers" Size="48" /></Icon>
+            </Empty>
         }
         else
         {
-            <p>No posts in this series yet. Check back soon!</p>
-        }
-    </section>
-
-    @* Other Series *@
-    @if (otherSeries != null && otherSeries.Any())
-    {
-        <section class="other-series">
-            <h2 class="section-title">Other Series</h2>
-            <div class="post-grid post-grid--three">
-                @foreach (var other in otherSeries)
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="series-grid">
+                @foreach (var item in allSeries)
                 {
-                    <article class="card">
-                        <div class="card__body">
-                            <FluentBadge Appearance="Appearance.Accent">@other.PostCount Parts</FluentBadge>
-                            <h3 class="card__title">
-                                <a href="/series/@other.Slug">@other.Name</a>
-                            </h3>
-                            <p class="card__excerpt">@other.Description</p>
-                            <div class="card__meta">
-                                <span>@other.Status</span>
+                    <Card Class="h-full" data-testid="series-card">
+                        <CardContent Class="flex flex-col gap-2 p-4">
+                            <div>
+                                <Badge Variant="BadgeVariant.Secondary" data-testid="series-card-parts">@item.PostCount Parts</Badge>
                             </div>
-                        </div>
-                    </article>
+                            <h3 class="text-lg font-semibold leading-snug">
+                                <a href="/series/@item.Slug"
+                                   class="text-foreground no-underline hover:text-primary hover:underline"
+                                   data-testid="series-card-title">@item.Name</a>
+                            </h3>
+                            <p class="text-sm text-muted-foreground">@item.Description</p>
+                            <span class="text-xs text-muted-foreground" data-testid="series-card-status">@item.Status</span>
+                        </CardContent>
+                    </Card>
                 }
             </div>
-        </section>
+        }
     }
-}
+    else if (series == null)
+    {
+        <div class="flex items-center justify-center gap-3 py-12" data-testid="series-loading">
+            <Spinner />
+            <span class="text-muted-foreground">Loading series...</span>
+        </div>
+    }
+    else if (series.SeriesId == 0)
+    {
+        <Empty Title="Series not found"
+               Description="The series you're looking for doesn't exist or has been removed."
+               Class="py-12"
+               data-testid="series-not-found">
+            <Icon><LucideIcon Name="layers" Size="48" /></Icon>
+            <ChildContent>
+                <Button Href="/series" data-testid="series-not-found-all">Browse all series</Button>
+            </ChildContent>
+        </Empty>
+    }
+    else
+    {
+        @* Series Header *@
+        <header class="my-6 flex flex-col gap-3" data-testid="series-header">
+            <div>
+                <Badge>Series</Badge>
+            </div>
+            <TypographyH1>@series.Name</TypographyH1>
+            <p class="text-muted-foreground" data-testid="series-description">@series.Description</p>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                <span data-testid="series-part-count"><strong class="text-foreground">@series.PostCount</strong> Parts</span>
+                <span class="text-muted-foreground" data-testid="series-author">By @series.AuthorName</span>
+                <span data-testid="series-started">Started @series.CreatedOn.ToString("MMM yyyy")</span>
+                <span data-testid="series-status"><strong class="text-foreground">@series.Status</strong></span>
+            </div>
+        </header>
+
+        @* Series Posts List *@
+        <section class="my-8">
+            <TypographyH2 Class="mb-4">Posts in this Series</TypographyH2>
+
+            @if (series.Posts != null && series.Posts.Any())
+            {
+                <div class="flex flex-col gap-4" data-testid="series-posts">
+                    @foreach (var post in series.Posts.OrderBy(p => p.SeriesPartNumber))
+                    {
+                        var isLatest = post == series.Posts.Where(p => p.Published).OrderByDescending(p => p.PublishedOn).FirstOrDefault();
+
+                        <Card Class="@(isLatest ? "ring-2 ring-primary" : string.Empty)" data-testid="series-post">
+                            <CardContent Class="flex items-start gap-4 p-4">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
+                                     data-testid="series-post-number">
+                                    @post.SeriesPartNumber
+                                </div>
+
+                                <div class="flex flex-1 flex-col gap-1">
+                                    <h3 class="text-lg font-semibold leading-snug">
+                                        @if (post.Published)
+                                        {
+                                            <a href="/post/@post.Slug"
+                                               class="text-foreground no-underline hover:text-primary hover:underline"
+                                               data-testid="series-post-title">@post.Title</a>
+                                        }
+                                        else
+                                        {
+                                            <span data-testid="series-post-title">@post.Title</span>
+                                        }
+                                    </h3>
+                                    <p class="text-sm text-muted-foreground">@post.Abstract</p>
+                                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                                        @if (post.Published)
+                                        {
+                                            <span data-testid="series-post-date">@post.PublishedOn?.ToString("MMM dd, yyyy")</span>
+                                            <span data-testid="series-post-readtime">@BlogEngine.Common.ReadingTimeCalculator.Calculate(post.PostContent ?? "")</span>
+                                            @if (isLatest)
+                                            {
+                                                <Badge data-testid="series-post-status">Latest</Badge>
+                                            }
+                                            else
+                                            {
+                                                <Badge Variant="BadgeVariant.Outline" data-testid="series-post-status">Published</Badge>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <Badge Variant="BadgeVariant.Secondary" data-testid="series-post-status">Coming Soon</Badge>
+                                        }
+                                    </div>
+                                </div>
+
+                                <div class="hidden h-20 w-32 shrink-0 overflow-hidden rounded-md bg-muted sm:block">
+                                    @if (!string.IsNullOrEmpty(post.FeaturedImage))
+                                    {
+                                        <img src="@post.FeaturedImage" alt="@post.Title" class="h-full w-full object-cover" />
+                                    }
+                                    else
+                                    {
+                                        <div class="flex h-full w-full items-center justify-center text-xs text-muted-foreground">Image</div>
+                                    }
+                                </div>
+                            </CardContent>
+                        </Card>
+                    }
+                </div>
+            }
+            else
+            {
+                <Empty Title="Parts coming soon"
+                       Description="No posts in this series yet. Check back soon."
+                       Size="EmptySize.Small"
+                       data-testid="series-posts-empty">
+                    <Icon><LucideIcon Name="inbox" Size="40" /></Icon>
+                </Empty>
+            }
+        </section>
+
+        @* Other Series *@
+        @if (otherSeries != null && otherSeries.Any())
+        {
+            <section class="my-8" data-testid="other-series">
+                <TypographyH2 Class="mb-4">Other Series</TypographyH2>
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    @foreach (var other in otherSeries)
+                    {
+                        <Card Class="h-full" data-testid="other-series-card">
+                            <CardContent Class="flex flex-col gap-2 p-4">
+                                <div>
+                                    <Badge Variant="BadgeVariant.Secondary">@other.PostCount Parts</Badge>
+                                </div>
+                                <h3 class="text-lg font-semibold leading-snug">
+                                    <a href="/series/@other.Slug"
+                                       class="text-foreground no-underline hover:text-primary hover:underline"
+                                       data-testid="other-series-title">@other.Name</a>
+                                </h3>
+                                <p class="text-sm text-muted-foreground">@other.Description</p>
+                                <span class="text-xs text-muted-foreground">@other.Status</span>
+                            </CardContent>
+                        </Card>
+                    }
+                </div>
+            </section>
+        }
+    }
+</div>
 
 @code {
+    /// <summary>
+    /// Series slug from URL route parameter. Empty renders the series listing.
+    /// </summary>
     [Parameter]
     public string Slug { get; set; } = string.Empty;
 
-    private List<Breadcrumb.BreadcrumbItem> breadcrumbItems = new();
+    private List<BlogBreadcrumbItem> breadcrumbItems = new();
     private BlogModels.BlogSeries series;
     private List<BlogModels.BlogSeries> otherSeries = new();
     private List<BlogModels.BlogSeries> allSeries = new();
@@ -190,10 +234,10 @@ else
     private void LoadData()
     {
         // Setup breadcrumb
-        breadcrumbItems = new List<Breadcrumb.BreadcrumbItem>
+        breadcrumbItems = new List<BlogBreadcrumbItem>
         {
-            new Breadcrumb.BreadcrumbItem { Label = "Home", Url = "/" },
-            new Breadcrumb.BreadcrumbItem { Label = "Series", Url = "/series" },
+            new BlogBreadcrumbItem { Label = "Home", Url = "/" },
+            new BlogBreadcrumbItem { Label = "Series", Url = "/series" },
         };
 
         // Load all series
@@ -206,7 +250,7 @@ else
 
             if (series != null && series.SeriesId > 0)
             {
-                breadcrumbItems.Add(new Breadcrumb.BreadcrumbItem { Label = series.Name, Url = "" });
+                breadcrumbItems.Add(new BlogBreadcrumbItem { Label = series.Name, Url = "" });
 
                 // Get other series (excluding current)
                 otherSeries = allSeries.Where(s => s.Slug != Slug).Take(3).ToList();

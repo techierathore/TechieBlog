@@ -1,43 +1,66 @@
 using BlogModels;
 using BlogModels.Interfaces;
+using BlogModels.Models;
 using Microsoft.AspNetCore.Components.Forms;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace BlogEngine.Services;
 
 /// <summary>
-/// Service for comprehensive image upload and management operations.
+/// Uploads, validates and manages blog media across seven upload categories.
 /// </summary>
 /// <remarks>
-/// <para><b>Purpose:</b> Provides business logic for uploading, validating, and managing blog images.</para>
-/// <para><b>Dependencies:</b> IBlogImageRepo for data access, IWebHostEnvironment for file paths.</para>
-/// <para><b>Story:</b> Stream F - BlogImageService Implementation</para>
+/// <para><b>Purpose:</b> Owns the rules that make an upload acceptable — per-category size limits
+/// and allowed formats — and records the resulting metadata. Since REQ-FN-042 it no longer knows
+/// where bytes physically land: every write, delete and read goes through
+/// <see cref="IFileStorage"/>, so the same code serves local disk, a network share or an object
+/// store depending on site settings.</para>
+///
+/// <para><b>Code Flow:</b></para>
+/// <list type="number">
+///   <item>Validate the file against the category's size and format constraints.</item>
+///   <item>Generate a collision-proof name and resolve the configured storage provider.</item>
+///   <item>Write the bytes through the provider and persist a <c>BlogImage</c> row holding the
+///     provider's public URL.</item>
+/// </list>
+///
+/// <para><b>Dependencies:</b> <see cref="IBlogImageRepo"/> for metadata,
+/// <see cref="IFileStorageFactory"/> for the configured backend.</para>
+///
+/// <para><b>Usage:</b> Registered scoped. Callers should surface the validation message from
+/// <see cref="ValidateImageAsync"/> before attempting an upload rather than catching the
+/// exception thrown by <see cref="UploadImageAsync"/>.</para>
 /// </remarks>
 public class BlogImageService : IBlogImageService
 {
-    private readonly IBlogImageRepo _imageRepo;
-    private readonly IWebHostEnvironment _environment;
-    private readonly ILogger<BlogImageService> _logger;
+    private readonly IBlogImageRepo imageRepo;
+    private readonly IFileStorageFactory fileStorageFactory;
+    private readonly ILogger<BlogImageService> logger;
+
+    /// <summary>
+    /// Root folder, relative to the storage backend, that all uploads live under.
+    /// </summary>
+    private const string UploadRootFolder = "uploads";
 
     /// <summary>
     /// Category constraints defining max size and allowed formats per category.
     /// </summary>
-    private static readonly Dictionary<string, CategoryConstraints> _categoryConstraints = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["profiles"] = new CategoryConstraints(2 * 1024 * 1024, new[] { "jpg", "jpeg", "png", "webp" }),
-        ["logos"] = new CategoryConstraints(500 * 1024, new[] { "jpg", "jpeg", "png", "svg", "webp" }),
-        ["awards"] = new CategoryConstraints(500 * 1024, new[] { "jpg", "jpeg", "png", "svg", "webp" }),
-        ["icons"] = new CategoryConstraints(200 * 1024, new[] { "png", "svg", "webp" }),
-        ["blog"] = new CategoryConstraints(5 * 1024 * 1024, new[] { "jpg", "jpeg", "png", "gif", "webp" }),
-        ["cv"] = new CategoryConstraints(10 * 1024 * 1024, new[] { "pdf" }),
-        ["general"] = new CategoryConstraints(5 * 1024 * 1024, new[] { "jpg", "jpeg", "png", "gif", "webp" })
-    };
+    private static readonly Dictionary<string, CategoryConstraints> CategoryConstraintMap =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["profiles"] = new CategoryConstraints(2 * 1024 * 1024, new[] { "jpg", "jpeg", "png", "webp" }),
+            ["logos"] = new CategoryConstraints(500 * 1024, new[] { "jpg", "jpeg", "png", "svg", "webp" }),
+            ["awards"] = new CategoryConstraints(500 * 1024, new[] { "jpg", "jpeg", "png", "svg", "webp" }),
+            ["icons"] = new CategoryConstraints(200 * 1024, new[] { "png", "svg", "webp" }),
+            ["blog"] = new CategoryConstraints(5 * 1024 * 1024, new[] { "jpg", "jpeg", "png", "gif", "webp" }),
+            ["cv"] = new CategoryConstraints(10 * 1024 * 1024, new[] { "pdf" }),
+            ["general"] = new CategoryConstraints(5 * 1024 * 1024, new[] { "jpg", "jpeg", "png", "gif", "webp" })
+        };
 
     /// <summary>
     /// MIME type mappings for common file extensions.
     /// </summary>
-    private static readonly Dictionary<string, string> _mimeTypes = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> MimeTypeMap = new(StringComparer.OrdinalIgnoreCase)
     {
         ["jpg"] = "image/jpeg",
         ["jpeg"] = "image/jpeg",
@@ -48,56 +71,39 @@ public class BlogImageService : IBlogImageService
         ["pdf"] = "application/pdf"
     };
 
+    /// <summary>
+    /// Creates the image service over its repository and storage factory.
+    /// </summary>
+    /// <param name="imageRepo">Persistence for image metadata.</param>
+    /// <param name="fileStorageFactory">Resolves the storage backend selected in site settings.</param>
+    /// <param name="logger">Structured logger for upload and delete failures.</param>
     public BlogImageService(
         IBlogImageRepo imageRepo,
-        IWebHostEnvironment environment,
+        IFileStorageFactory fileStorageFactory,
         ILogger<BlogImageService> logger)
     {
-        _imageRepo = imageRepo ?? throw new ArgumentNullException(nameof(imageRepo));
-        _environment = environment ?? throw new ArgumentNullException(nameof(environment));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        this.imageRepo = imageRepo ?? throw new ArgumentNullException(nameof(imageRepo));
+        this.fileStorageFactory = fileStorageFactory ?? throw new ArgumentNullException(nameof(fileStorageFactory));
+        this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <inheritdoc />
-    public async Task<(bool IsValid, string? Error)> ValidateImageAsync(IBrowserFile file, string category)
+    public Task<(bool IsValid, string? Error)> ValidateImageAsync(IBrowserFile file, string category)
     {
         if (file == null)
-            return (false, "No file provided.");
+            return Task.FromResult<(bool IsValid, string? Error)>((false, "No file provided."));
 
         if (string.IsNullOrWhiteSpace(category))
-            return (false, "Category is required.");
+            return Task.FromResult<(bool IsValid, string? Error)>((false, "Category is required."));
 
-        // Normalize category
         var normalizedCategory = category.ToLowerInvariant().Trim();
-
-        // Check if category exists
-        if (!_categoryConstraints.TryGetValue(normalizedCategory, out var constraints))
+        if (!CategoryConstraintMap.TryGetValue(normalizedCategory, out var constraints))
         {
-            return (false, $"Invalid category '{category}'. Valid categories: {string.Join(", ", _categoryConstraints.Keys)}.");
+            return Task.FromResult<(bool IsValid, string? Error)>((false,
+                $"Invalid category '{category}'. Valid categories: {string.Join(", ", CategoryConstraintMap.Keys)}."));
         }
 
-        // Get file extension
-        var extension = GetFileExtension(file.Name);
-        if (string.IsNullOrEmpty(extension))
-        {
-            return (false, "File must have a valid extension.");
-        }
-
-        // Check allowed formats
-        if (!constraints.AllowedFormats.Contains(extension, StringComparer.OrdinalIgnoreCase))
-        {
-            return (false, $"File format '{extension}' is not allowed for category '{normalizedCategory}'. Allowed formats: {string.Join(", ", constraints.AllowedFormats)}.");
-        }
-
-        // Check file size
-        if (file.Size > constraints.MaxSize)
-        {
-            var maxSizeFormatted = FormatFileSize(constraints.MaxSize);
-            var fileSizeFormatted = FormatFileSize(file.Size);
-            return (false, $"File size ({fileSizeFormatted}) exceeds maximum allowed size ({maxSizeFormatted}) for category '{normalizedCategory}'.");
-        }
-
-        return (true, null);
+        return Task.FromResult<(bool IsValid, string? Error)>(ValidateAgainstConstraints(file, normalizedCategory, constraints));
     }
 
     /// <inheritdoc />
@@ -106,8 +112,7 @@ public class BlogImageService : IBlogImageService
         if (userId <= 0)
             throw new ArgumentException("Invalid user ID.", nameof(userId));
 
-        // Validate the file
-        var validation = await ValidateImageAsync(file, category);
+        var validation = await ValidateImageAsync(file, category).ConfigureAwait(false);
         if (!validation.IsValid)
         {
             throw new InvalidOperationException(validation.Error);
@@ -115,140 +120,37 @@ public class BlogImageService : IBlogImageService
 
         var normalizedCategory = category.ToLowerInvariant().Trim();
         var extension = GetFileExtension(file.Name);
-        var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
-        var guid = Guid.NewGuid().ToString("N")[..8]; // First 8 chars of GUID
+        var relativePath =
+            $"{UploadRootFolder}/{normalizedCategory}/{BuildFileName(normalizedCategory, userId, extension)}";
 
-        // Generate filename: {category}_{userId}_{timestamp}_{guid}.{ext}
-        var fileName = $"{normalizedCategory}_{userId}_{timestamp}_{guid}.{extension}";
-
-        // Build paths
-        var uploadFolder = Path.Combine(_environment.WebRootPath, "uploads", normalizedCategory);
-        var filePath = Path.Combine(uploadFolder, fileName);
-        var relativePath = $"/uploads/{normalizedCategory}/{fileName}";
-
-        try
-        {
-            // Ensure directory exists
-            if (!Directory.Exists(uploadFolder))
-            {
-                Directory.CreateDirectory(uploadFolder);
-                _logger.LogInformation("Created upload directory: {Directory}", uploadFolder);
-            }
-
-            // Read and save file
-            await using var inputStream = file.OpenReadStream(maxAllowedSize: GetMaxSizeForCategory(normalizedCategory));
-            await using var outputStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: true);
-            await inputStream.CopyToAsync(outputStream);
-
-            _logger.LogInformation("File saved to disk: {FilePath}", filePath);
-
-            // Create database record
-            var blogImage = new BlogImage
-            {
-                ImageName = file.Name,
-                ImagePath = relativePath,
-                Size = (int)file.Size,
-                CreatedTime = DateTime.UtcNow,
-                UserID = userId,
-                Category = normalizedCategory,
-                MimeType = GetMimeType(extension)
-            };
-
-            var imageId = _imageRepo.InsertToGetId(blogImage);
-            blogImage.BlogImageID = imageId;
-
-            _logger.LogInformation("Image record created with ID {ImageId} for user {UserId}", imageId, userId);
-
-            return blogImage;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to upload image for user {UserId}, category {Category}", userId, normalizedCategory);
-
-            // Clean up file if it was created
-            if (File.Exists(filePath))
-            {
-                try
-                {
-                    File.Delete(filePath);
-                    _logger.LogInformation("Cleaned up file after failed upload: {FilePath}", filePath);
-                }
-                catch (Exception cleanupEx)
-                {
-                    _logger.LogWarning(cleanupEx, "Failed to clean up file: {FilePath}", filePath);
-                }
-            }
-
-            throw;
-        }
+        return await StoreAsync(file, normalizedCategory, userId, extension, relativePath).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task<bool> DeleteImageAsync(long imageId, long userId)
     {
-        if (imageId <= 0)
+        if (imageId <= 0 || userId <= 0)
         {
-            _logger.LogWarning("Invalid image ID: {ImageId}", imageId);
-            return false;
-        }
-
-        if (userId <= 0)
-        {
-            _logger.LogWarning("Invalid user ID: {UserId}", userId);
+            logger.LogWarning("Delete rejected for image {ImageId} and user {UserId}", imageId, userId);
             return false;
         }
 
         try
         {
-            // Get the image record
-            var image = _imageRepo.GetSingle(imageId);
-            if (image == null)
+            var image = imageRepo.GetSingle(imageId);
+            if (image == null || image.UserID != userId)
             {
-                _logger.LogWarning("Image not found: {ImageId}", imageId);
+                logger.LogWarning("User {UserId} may not delete image {ImageId}", userId, imageId);
                 return false;
             }
 
-            // Check ownership (only owner can delete their images)
-            // Note: Admin check should be done at controller/page level if needed
-            if (image.UserID != userId)
-            {
-                _logger.LogWarning("User {UserId} attempted to delete image {ImageId} owned by user {OwnerId}",
-                    userId, imageId, image.UserID);
-                return false;
-            }
-
-            // Build physical file path
-            var filePath = Path.Combine(_environment.WebRootPath, image.ImagePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-
-            // Delete physical file
-            if (File.Exists(filePath))
-            {
-                File.Delete(filePath);
-                _logger.LogInformation("Deleted file: {FilePath}", filePath);
-            }
-            else
-            {
-                _logger.LogWarning("File not found on disk: {FilePath}", filePath);
-            }
-
-            // Delete database record using the existing generic repository pattern
-            // Since IBlogImageRepo doesn't have a Delete method, we need to use raw SQL
-            using var conn = _imageRepo.GetOpenConnection();
-            var cmd = conn.CreateCommand();
-            cmd.CommandText = "DELETE FROM blogimage WHERE blogimageid = @ImageId";
-            var param = cmd.CreateParameter();
-            param.ParameterName = "@ImageId";
-            param.Value = imageId;
-            cmd.Parameters.Add(param);
-            await Task.Run(() => cmd.ExecuteNonQuery());
-
-            _logger.LogInformation("Deleted image record: {ImageId}", imageId);
-
+            await RemoveStoredFileAsync(image.ImagePath).ConfigureAwait(false);
+            await DeleteMetadataAsync(imageId).ConfigureAwait(false);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to delete image {ImageId} for user {UserId}", imageId, userId);
+            logger.LogError(ex, "Failed to delete image {ImageId} for user {UserId}", imageId, userId);
             return false;
         }
     }
@@ -259,23 +161,19 @@ public class BlogImageService : IBlogImageService
         try
         {
             var normalizedCategory = category?.ToLowerInvariant().Trim() ?? "general";
-
-            // Get all images and filter by category
-            var allImages = _imageRepo.GetAll();
-
-            var filtered = allImages
-                .Where(img => string.Equals(img.Category, normalizedCategory, StringComparison.OrdinalIgnoreCase));
+            var filtered = imageRepo.GetAll()
+                .Where(image => string.Equals(image.Category, normalizedCategory, StringComparison.OrdinalIgnoreCase));
 
             if (userId.HasValue && userId.Value > 0)
             {
-                filtered = filtered.Where(img => img.UserID == userId.Value);
+                filtered = filtered.Where(image => image.UserID == userId.Value);
             }
 
-            return Task.FromResult(filtered.OrderByDescending(img => img.CreatedTime).AsEnumerable());
+            return Task.FromResult(filtered.OrderByDescending(image => image.CreatedTime).AsEnumerable());
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get images by category {Category}", category);
+            logger.LogError(ex, "Failed to get images by category {Category}", category);
             return Task.FromResult(Enumerable.Empty<BlogImage>());
         }
     }
@@ -290,13 +188,11 @@ public class BlogImageService : IBlogImageService
 
         try
         {
-            // GetAllById returns images by user ID
-            var images = _imageRepo.GetAllById(userId);
-            return Task.FromResult(images);
+            return Task.FromResult(imageRepo.GetAllById(userId));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get images for user {UserId}", userId);
+            logger.LogError(ex, "Failed to get images for user {UserId}", userId);
             return Task.FromResult(Enumerable.Empty<BlogImage>());
         }
     }
@@ -311,12 +207,11 @@ public class BlogImageService : IBlogImageService
 
         try
         {
-            var image = _imageRepo.GetSingle(imageId);
-            return Task.FromResult<BlogImage?>(image);
+            return Task.FromResult<BlogImage?>(imageRepo.GetSingle(imageId));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get image {ImageId}", imageId);
+            logger.LogError(ex, "Failed to get image {ImageId}", imageId);
             return Task.FromResult<BlogImage?>(null);
         }
     }
@@ -327,19 +222,187 @@ public class BlogImageService : IBlogImageService
         if (string.IsNullOrWhiteSpace(imagePath))
             return string.Empty;
 
-        // If already starts with /, return as-is (it's already a URL path)
-        if (imagePath.StartsWith('/'))
-            return imagePath;
-
-        // Otherwise, prepend /
-        return $"/{imagePath}";
+        return imagePath.StartsWith('/') || imagePath.Contains("://") ? imagePath : $"/{imagePath}";
     }
 
-    #region Private Helper Methods
+    /// <summary>
+    /// Writes the upload through the configured storage backend and records its metadata.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Storage and metadata must not drift apart, so a failure after
+    /// the bytes land removes the stored file before the exception propagates.</para>
+    /// <para><b>Flow:</b> Resolve the backend, copy the browser stream, insert the row, roll the
+    /// file back on failure.</para>
+    /// <para><b>Side Effects:</b> Writes one file and one database row.</para>
+    /// </remarks>
+    /// <param name="file">The browser file being uploaded.</param>
+    /// <param name="category">The normalised upload category.</param>
+    /// <param name="userId">Owner of the upload.</param>
+    /// <param name="extension">Lower-case file extension without the dot.</param>
+    /// <param name="relativePath">Storage-relative destination path.</param>
+    /// <returns>The persisted image record including its generated identifier.</returns>
+    private async Task<BlogImage> StoreAsync(
+        IBrowserFile file, string category, long userId, string extension, string relativePath)
+    {
+        var storage = await fileStorageFactory.GetStorageAsync().ConfigureAwait(false);
+        var mimeType = GetMimeType(extension);
+
+        await using var source = file.OpenReadStream(maxAllowedSize: GetMaxSizeForCategory(category));
+        var stored = await storage
+            .SaveAsync(source, relativePath, mimeType, CancellationToken.None)
+            .ConfigureAwait(false);
+
+        try
+        {
+            return PersistMetadata(file, category, userId, mimeType, stored);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Metadata insert failed for {RelativePath}; removing stored file", relativePath);
+            await storage.DeleteAsync(relativePath, CancellationToken.None).ConfigureAwait(false);
+            throw;
+        }
+    }
 
     /// <summary>
-    /// Extracts the file extension from a filename.
+    /// Inserts the metadata row describing a stored file.
     /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> <c>ImagePath</c> holds the provider's public URL so existing
+    /// rendering code needs no change when the backend changes.</para>
+    /// <para><b>Side Effects:</b> Inserts one <c>BlogImage</c> row.</para>
+    /// </remarks>
+    /// <param name="file">The uploaded file, used for its original name.</param>
+    /// <param name="category">The normalised upload category.</param>
+    /// <param name="userId">Owner of the upload.</param>
+    /// <param name="mimeType">Resolved MIME type.</param>
+    /// <param name="stored">The storage backend's description of the written file.</param>
+    /// <returns>The image record with its generated identifier populated.</returns>
+    private BlogImage PersistMetadata(
+        IBrowserFile file, string category, long userId, string mimeType, FileStorageResult stored)
+    {
+        var blogImage = new BlogImage
+        {
+            ImageName = file.Name,
+            ImagePath = stored.PublicUrl,
+            Size = (int)file.Size,
+            CreatedTime = DateTime.UtcNow,
+            UserID = userId,
+            Category = category,
+            MimeType = mimeType
+        };
+
+        blogImage.BlogImageID = imageRepo.InsertToGetId(blogImage);
+        logger.LogInformation(
+            "Image {ImageId} stored at {PublicUrl} via {Provider}",
+            blogImage.BlogImageID, stored.PublicUrl, stored.ProviderName);
+        return blogImage;
+    }
+
+    /// <summary>
+    /// Removes a stored file, tolerating one that has already gone.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> A missing file must not block removal of its orphaned metadata
+    /// row — media lost to a redeploy without a mounted volume is a known failure mode.</para>
+    /// <para><b>Side Effects:</b> Removes the file from the configured backend.</para>
+    /// </remarks>
+    /// <param name="imagePath">The stored public URL or relative path.</param>
+    private async Task RemoveStoredFileAsync(string imagePath)
+    {
+        if (string.IsNullOrWhiteSpace(imagePath))
+        {
+            return;
+        }
+
+        var storage = await fileStorageFactory.GetStorageAsync().ConfigureAwait(false);
+        var removed = await storage.DeleteAsync(imagePath, CancellationToken.None).ConfigureAwait(false);
+        if (!removed)
+        {
+            logger.LogWarning("Stored file {ImagePath} was already absent", imagePath);
+        }
+    }
+
+    /// <summary>
+    /// Deletes an image's metadata row.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> <c>IBlogImageRepo</c> carries no delete member, so the removal
+    /// is issued as a parameterised statement over the repository's connection.</para>
+    /// <para><b>Side Effects:</b> Removes one <c>BlogImage</c> row.</para>
+    /// </remarks>
+    /// <param name="imageId">Identifier of the row to remove.</param>
+    private async Task DeleteMetadataAsync(long imageId)
+    {
+        using var connection = imageRepo.GetOpenConnection();
+        var parameters = new DynamicParameters();
+        parameters.Add("ImageId", imageId);
+        await connection
+            .ExecuteAsync("DELETE FROM BlogImage WHERE BlogImageId = @ImageId", parameters)
+            .ConfigureAwait(false);
+        logger.LogInformation("Deleted image record {ImageId}", imageId);
+    }
+
+    /// <summary>
+    /// Applies a category's size and format constraints to a candidate file.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Format is checked before size so the user sees the more
+    /// actionable message first.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <param name="file">The candidate file.</param>
+    /// <param name="category">The normalised upload category.</param>
+    /// <param name="constraints">The category's limits.</param>
+    /// <returns>Validity and, when invalid, the message to show the user.</returns>
+    private static (bool IsValid, string? Error) ValidateAgainstConstraints(
+        IBrowserFile file, string category, CategoryConstraints constraints)
+    {
+        var extension = GetFileExtension(file.Name);
+        if (string.IsNullOrEmpty(extension))
+        {
+            return (false, "File must have a valid extension.");
+        }
+
+        if (!constraints.AllowedFormats.Contains(extension, StringComparer.OrdinalIgnoreCase))
+        {
+            return (false, $"File format '{extension}' is not allowed for category '{category}'. " +
+                           $"Allowed formats: {string.Join(", ", constraints.AllowedFormats)}.");
+        }
+
+        if (file.Size > constraints.MaxSize)
+        {
+            return (false, $"File size ({FormatFileSize(file.Size)}) exceeds maximum allowed size " +
+                           $"({FormatFileSize(constraints.MaxSize)}) for category '{category}'.");
+        }
+
+        return (true, null);
+    }
+
+    /// <summary>
+    /// Builds a collision-proof file name for an upload.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Category, owner, timestamp and a GUID fragment together make
+    /// two concurrent uploads of the same original name impossible to collide.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <param name="category">The normalised upload category.</param>
+    /// <param name="userId">Owner of the upload.</param>
+    /// <param name="extension">Lower-case extension without the dot.</param>
+    /// <returns>The generated file name.</returns>
+    private static string BuildFileName(string category, long userId, string extension)
+    {
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+        var unique = Guid.NewGuid().ToString("N")[..8];
+        return $"{category}-{userId}-{timestamp}-{unique}.{extension}";
+    }
+
+    /// <summary>
+    /// Extracts the lower-case extension from a file name.
+    /// </summary>
+    /// <param name="fileName">The original file name.</param>
+    /// <returns>The extension without its dot, or an empty string.</returns>
     private static string GetFileExtension(string fileName)
     {
         if (string.IsNullOrWhiteSpace(fileName))
@@ -353,52 +416,52 @@ public class BlogImageService : IBlogImageService
     }
 
     /// <summary>
-    /// Gets the MIME type for a file extension.
+    /// Maps a file extension to its MIME type.
     /// </summary>
+    /// <param name="extension">Lower-case extension without the dot.</param>
+    /// <returns>The MIME type, or the generic binary type.</returns>
     private static string GetMimeType(string extension)
     {
         if (string.IsNullOrWhiteSpace(extension))
             return "application/octet-stream";
 
-        return _mimeTypes.TryGetValue(extension, out var mimeType)
-            ? mimeType
-            : "application/octet-stream";
+        return MimeTypeMap.TryGetValue(extension, out var mimeType) ? mimeType : "application/octet-stream";
     }
 
     /// <summary>
-    /// Gets the maximum allowed file size for a category.
+    /// Returns the maximum allowed upload size for a category.
     /// </summary>
+    /// <param name="category">The normalised upload category.</param>
+    /// <returns>The limit in bytes, falling back to the general category's limit.</returns>
     private static long GetMaxSizeForCategory(string category)
     {
-        return _categoryConstraints.TryGetValue(category, out var constraints)
+        return CategoryConstraintMap.TryGetValue(category, out var constraints)
             ? constraints.MaxSize
-            : _categoryConstraints["general"].MaxSize;
+            : CategoryConstraintMap["general"].MaxSize;
     }
 
     /// <summary>
-    /// Formats a file size in bytes to a human-readable string.
+    /// Renders a byte count as a human-readable size.
     /// </summary>
+    /// <param name="bytes">The size in bytes.</param>
+    /// <returns>A short, user-facing size string.</returns>
     private static string FormatFileSize(long bytes)
     {
-        const long KB = 1024;
-        const long MB = KB * 1024;
+        const long OneKilobyte = 1024;
+        const long OneMegabyte = OneKilobyte * 1024;
 
         return bytes switch
         {
-            >= MB => $"{bytes / (double)MB:F1} MB",
-            >= KB => $"{bytes / (double)KB:F1} KB",
+            >= OneMegabyte => $"{bytes / (double)OneMegabyte:F1} MB",
+            >= OneKilobyte => $"{bytes / (double)OneKilobyte:F1} KB",
             _ => $"{bytes} bytes"
         };
     }
 
-    #endregion
-
-    #region Private Types
-
     /// <summary>
-    /// Represents constraints for an image category.
+    /// Size and format limits for one upload category.
     /// </summary>
+    /// <param name="MaxSize">Maximum accepted size in bytes.</param>
+    /// <param name="AllowedFormats">Extensions accepted for this category.</param>
     private record CategoryConstraints(long MaxSize, string[] AllowedFormats);
-
-    #endregion
 }

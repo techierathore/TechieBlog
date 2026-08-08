@@ -1,58 +1,24 @@
 @*
     FullWidthLayout.razor
-    Purpose: Full-width layout variant without sidebar for TechieBlog pages.
-    Provides layout structure with Header and Footer but no Sidebar.
-    Used for blog post detail pages, series views, and other content-focused pages.
+    Purpose: Public layout without the blog sidebar, for content-focused pages
+    (post view, series view, resume).
 
-    Layout Structure:
-    .layout > Header + .main-wrapper (.main-content.main-content--full) + Footer + MobileNav
-
-    Usage: Applied to PostView, SeriesView pages
-    Dependencies: Microsoft.FluentUI.AspNetCore.Components, ThemeService,
-                  Header, Footer, MobileNav components
+    REQ-UI-048 — rebuilt on TrBlazeUI, including the mandatory
+    <ToastProvider /> and <PortalHost /> root-layout hosts.
 *@
 
-@using BlogModels.Models
-@using BlogUI
 @inherits LayoutComponentBase
 
-<div class="layout">
-    @* Header Component - Sticky top navigation *@
-    <Header OnMenuClick="OpenMobileNav" />
+<div class="flex min-h-screen flex-col bg-background text-foreground">
 
-    @* Main Content Area - Full Width (no sidebar) *@
-    <div class="main-wrapper">
-        @* Primary Content Column - Full Width *@
-        <main class="main-content main-content--full">
-            @Body
-        </main>
-    </div>
+    <Header />
 
-    @* Footer Component - Copyright, Links, Theme Indicator *@
+    <main class="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6" data-testid="main-content">
+        @Body
+    </main>
+
     <Footer />
-
-    @* Mobile Navigation Drawer - Slide-out menu for mobile *@
-    <MobileNav IsOpen="@isMobileNavOpen" OnClose="CloseMobileNav" />
 </div>
 
-@code {
-    private bool isMobileNavOpen = false;
-
-    /// <summary>
-    /// Opens the mobile navigation drawer.
-    /// Called when hamburger menu button in Header is clicked.
-    /// </summary>
-    private void OpenMobileNav()
-    {
-        isMobileNavOpen = true;
-    }
-
-    /// <summary>
-    /// Closes the mobile navigation drawer.
-    /// Called when backdrop or close button in MobileNav is clicked.
-    /// </summary>
-    private void CloseMobileNav()
-    {
-        isMobileNavOpen = false;
-    }
-}
+<ToastProvider Position="ToastPosition.BottomRight" />
+<PortalHost />

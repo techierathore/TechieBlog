@@ -4,7 +4,7 @@
     Provides editing and delete capabilities for tag management.
 
     Usage: Navigate to /TagsList or /admin/tags
-    Dependencies: Microsoft.FluentUI.AspNetCore.Components, TagSvc
+    Dependencies: TrBlazeUI.Components (REQ-UI-048)
     Authorization: AdminOnly policy required
 *@
 @page "/TagsList"
@@ -14,211 +14,150 @@
 @inject BlogEngine.Services.TagSvc TagService
 @inject NavigationManager Navigation
 
-<div class="tags-list-page">
-    @* Page Header *@
-    <div class="page-header">
-        <h1>Tags Management</h1>
-        <FluentAnchor Href="/ManageTag" Appearance="Appearance.Accent">+ Add New Tag</FluentAnchor>
+<div class="mx-auto max-w-[1200px] space-y-6">
+
+    @* ---- Page header --------------------------------------------------- *@
+    <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-semibold tracking-tight text-foreground">Tags Management</h1>
+            <p class="text-sm text-muted-foreground">Label your posts so readers can find related writing.</p>
+        </div>
+        <Button Href="/ManageTag" data-testid="new-tag">
+            <LucideIcon Name="plus" Size="16" />
+            Add New Tag
+        </Button>
     </div>
 
-    @* Status Messages *@
+    @* ---- Status message ------------------------------------------------ *@
     @if (!string.IsNullOrEmpty(StatusMessage))
     {
-        <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
-                          Style="margin-bottom: 16px;">
-            @StatusMessage
-        </FluentMessageBar>
+        <Alert Variant="@(IsError ? AlertVariant.Danger : AlertVariant.Success)"
+               data-testid="tags-status-message">
+            <LucideIcon Name="@(IsError ? "circle-alert" : "circle-check")" Size="16" />
+            <AlertDescription>@StatusMessage</AlertDescription>
+        </Alert>
     }
 
-    @* Search Box *@
-    <div class="filters-row">
-        <div class="search-box">
-            <FluentIcon Value="@(new Icons.Regular.Size16.Search())" Color="Color.Neutral" />
-            <FluentTextField @bind-Value="SearchTerm"
-                             @bind-Value:after="ApplyFilter"
-                             Placeholder="Search tags..."
-                             Style="min-width: 200px;" />
+    @* ---- Filter row ---------------------------------------------------- *@
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-2">
+            <LucideIcon Name="search" Size="16" Class="text-muted-foreground" />
+            <Input Type="InputType.Search"
+                   @bind-Value="SearchTerm"
+                   @bind-Value:after="ApplyFilter"
+                   Placeholder="Search tags..."
+                   Class="min-w-[200px]"
+                   AriaLabel="Search tags"
+                   data-testid="tags-search" />
         </div>
-        <span style="flex: 1;"></span>
-        <span class="result-count">@(FilteredList?.Count ?? 0) tags</span>
+        <span class="text-sm text-muted-foreground" data-testid="tags-count">
+            @(FilteredList?.Count ?? 0) tags
+        </span>
     </div>
 
-    @* Tags Table *@
-    <div class="table-container">
-        @if (TagList == null)
-        {
-            <div style="padding: 32px; text-align: center;">
-                <FluentProgressRing />
-                <span style="display: block; margin-top: 8px;">Loading...</span>
-            </div>
-        }
-        else if (FilteredList == null || !FilteredList.Any())
-        {
-            <div style="padding: 32px; text-align: center; color: var(--color-neutral-light);">
-                @if (string.IsNullOrEmpty(SearchTerm))
+    @* ---- Tags table ------------------------------------------------------ *@
+    @if (TagList == null)
+    {
+        <div class="flex flex-col items-center gap-2 py-8" data-testid="tags-loading">
+            <Spinner />
+            <span class="text-sm text-muted-foreground">Loading...</span>
+        </div>
+    }
+    else if (FilteredList == null || !FilteredList.Any())
+    {
+        <Empty Title="@EmptyTitle" Description="@EmptyDescription" data-testid="tags-empty">
+            <Icon><LucideIcon Name="tag" Size="48" /></Icon>
+            <ChildContent>
+                @if (!string.IsNullOrEmpty(SearchTerm))
                 {
-                    <p>No tags found. Click "+ Add New Tag" to create your first tag.</p>
+                    <Button Variant="ButtonVariant.Outline" OnClick="ClearSearch" data-testid="tags-clear-search">
+                        Clear Search
+                    </Button>
                 }
                 else
                 {
-                    <p>No tags match your search.</p>
-                    <FluentButton Appearance="Appearance.Outline" OnClick="ClearSearch">Clear Search</FluentButton>
+                    <Button Href="/ManageTag" data-testid="tags-empty-new">Add New Tag</Button>
                 }
-            </div>
-        }
-        else
-        {
-            <table class="data-grid">
-                <thead>
-                    <tr>
-                        <th>Tag Name</th>
-                        <th style="width: 200px;">Slug</th>
-                        <th style="width: 100px;">Posts</th>
-                        <th style="width: 120px;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var tag in FilteredList)
-                    {
-                        <tr>
-                            <td class="tag-name">@tag.TagName</td>
-                            <td class="tag-slug">/@tag.Slug</td>
-                            <td>
-                                <span class="badge">@tag.PostCount</span>
-                            </td>
-                            <td>
-                                <div class="action-buttons">
-                                    <FluentAnchor Href="@($"/ManageTag/{tag.TagId}")"
-                                                  Appearance="Appearance.Stealth"
-                                                  Title="Edit">
-                                        <FluentIcon Value="@(new Icons.Regular.Size16.Edit())" />
-                                    </FluentAnchor>
-                                    <FluentButton Appearance="Appearance.Stealth"
-                                                  OnClick="@(() => ConfirmDelete(tag))"
-                                                  Title="Delete">
-                                        <FluentIcon Value="@(new Icons.Regular.Size16.Delete())" Color="Color.Error" />
-                                    </FluentButton>
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        }
-    </div>
-
-    @* Delete Confirmation Dialog *@
-    @if (!HideDeleteDialog)
+            </ChildContent>
+        </Empty>
+    }
+    else
     {
-        <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
-            <FluentDialogHeader>
-                <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
-            </FluentDialogHeader>
-            <FluentDialogBody>
-                <p>Are you sure you want to delete the tag "<strong>@TagToDelete?.TagName</strong>"?</p>
-                <p style="color: var(--color-warning, #FFB900);">This will remove the tag from all associated posts.</p>
-            </FluentDialogBody>
-            <FluentDialogFooter>
-                <FluentButton Appearance="Appearance.Neutral" OnClick="CancelDelete">Cancel</FluentButton>
-                <FluentButton Appearance="Appearance.Accent"
-                              OnClick="DeleteTag"
-                              Style="background-color: var(--color-error, #D13438);">
-                    Delete
-                </FluentButton>
-            </FluentDialogFooter>
-        </FluentDialog>
+        <DataTable TData="BlogTag"
+                   Data="@FilteredList"
+                   InitialPageSize="20"
+                   AriaLabel="Tags"
+                   data-testid="tags-grid">
+            <Columns>
+                <DataTableColumn TData="BlogTag" TValue="string" Property="@(t => t.TagName)" Header="Tag Name" Sortable Filterable>
+                    <CellTemplate Context="row">
+                        <span class="font-semibold text-foreground" data-testid="tag-row-name">@row.TagName</span>
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="BlogTag" TValue="string" Property="@(t => t.Slug)" Header="Slug" Sortable>
+                    <CellTemplate Context="row">
+                        <span class="text-xs text-muted-foreground" data-testid="tag-row-slug">/@row.Slug</span>
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="BlogTag" TValue="int" Property="@(t => t.PostCount)" Header="Posts" Sortable Width="100px">
+                    <CellTemplate Context="row">
+                        <Badge Variant="BadgeVariant.Secondary" data-testid="tag-row-postcount">@row.PostCount</Badge>
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="BlogTag" TValue="long" Property="@(t => t.TagId)" Header="Actions" Width="120px">
+                    <CellTemplate Context="row">
+                        <div class="flex flex-nowrap items-center gap-1">
+                            <Button Size="ButtonSize.IconSmall"
+                                    Variant="ButtonVariant.Ghost"
+                                    Href="@($"/ManageTag/{row.TagId}")"
+                                    AriaLabel="Edit tag"
+                                    data-testid="tag-edit">
+                                <LucideIcon Name="pencil" Size="16" />
+                            </Button>
+                            <Button Size="ButtonSize.IconSmall"
+                                    Variant="ButtonVariant.Ghost"
+                                    Class="text-destructive"
+                                    OnClick="@(() => ConfirmDelete(row))"
+                                    AriaLabel="Delete tag"
+                                    data-testid="tag-delete">
+                                <LucideIcon Name="trash-2" Size="16" />
+                            </Button>
+                        </div>
+                    </CellTemplate>
+                </DataTableColumn>
+            </Columns>
+        </DataTable>
     }
 </div>
 
-<style>
-    .tags-list-page {
-        max-width: 1200px;
-    }
-
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: var(--spacing-lg, 24px);
-    }
-
-    .page-header h1 {
-        margin: 0;
-    }
-
-    .filters-row {
-        display: flex;
-        gap: var(--spacing-md, 16px);
-        margin-bottom: var(--spacing-lg, 24px);
-        align-items: center;
-    }
-
-    .search-box {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-sm, 8px);
-    }
-
-    .result-count {
-        font-size: var(--font-size-small, 0.875rem);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .table-container {
-        border: 1px solid var(--color-border, #E1E1E1);
-        border-radius: var(--border-radius-lg, 8px);
-        overflow: hidden;
-        background-color: var(--color-background, #fff);
-    }
-
-    .data-grid {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: var(--font-size-small, 0.875rem);
-    }
-
-    .data-grid th,
-    .data-grid td {
-        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
-        text-align: left;
-        border-bottom: 1px solid var(--color-border, #E1E1E1);
-    }
-
-    .data-grid th {
-        font-weight: var(--font-weight-semibold, 600);
-        background-color: var(--color-surface, #F5F5F5);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .data-grid tr:hover td {
-        background-color: var(--color-surface, #F5F5F5);
-    }
-
-    .tag-name {
-        font-weight: var(--font-weight-semibold, 600);
-    }
-
-    .tag-slug {
-        font-size: var(--font-size-xs, 0.75rem);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 2px var(--spacing-sm, 8px);
-        font-size: var(--font-size-xs, 0.75rem);
-        font-weight: var(--font-weight-semibold, 600);
-        border-radius: var(--border-radius, 4px);
-        background-color: var(--color-surface, #F5F5F5);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .action-buttons {
-        display: flex;
-        gap: 4px;
-    }
-</style>
+@* ---- Delete confirmation ------------------------------------------------ *@
+<Dialog Open="@(!HideDeleteDialog)" OpenChanged="@OnDeleteDialogOpenChanged">
+    <DialogContent data-testid="tag-delete-dialog">
+        <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+            <DialogDescription>This action cannot be undone.</DialogDescription>
+        </DialogHeader>
+        <p class="text-sm text-foreground">
+            Are you sure you want to delete the tag
+            "<strong data-testid="tag-delete-name">@TagToDelete?.TagName</strong>"?
+        </p>
+        <Alert Variant="AlertVariant.Warning" data-testid="tag-delete-warning">
+            <LucideIcon Name="triangle-alert" Size="16" />
+            <AlertDescription>This will remove the tag from all associated posts.</AlertDescription>
+        </Alert>
+        <DialogFooter>
+            <Button Variant="ButtonVariant.Outline" OnClick="CancelDelete" data-testid="tag-delete-cancel">
+                Cancel
+            </Button>
+            <Button Variant="ButtonVariant.Destructive" OnClick="DeleteTag" data-testid="tag-delete-confirm">
+                Delete
+            </Button>
+        </DialogFooter>
+    </DialogContent>
+</Dialog>
 
 @code {
     private List<BlogTag> TagList;
@@ -229,9 +168,29 @@
     private bool IsError = false;
     private string SearchTerm = string.Empty;
 
+    private string EmptyTitle => string.IsNullOrEmpty(SearchTerm)
+        ? "No tags yet"
+        : "No tags match your search";
+
+    private string EmptyDescription => string.IsNullOrEmpty(SearchTerm)
+        ? "Create your first tag to start labelling posts."
+        : "Try a different search term.";
+
+    /// <inheritdoc />
     protected override void OnInitialized()
     {
         LoadTags();
+    }
+
+    /// <summary>Keeps the legacy hide-flag in sync with the dialog open state.</summary>
+    /// <param name="isOpen">True when the dialog is open.</param>
+    private void OnDeleteDialogOpenChanged(bool isOpen)
+    {
+        HideDeleteDialog = !isOpen;
+        if (!isOpen)
+        {
+            TagToDelete = null;
+        }
     }
 
     private void LoadTags()

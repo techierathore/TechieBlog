@@ -1,0 +1,39 @@
+@*
+    DesktopSetupLayout.razor
+    Purpose: Bare centred layout for BlogApp's pre-authentication desktop screens.
+
+    Mockup: docs/mockups/39-blogapp-connection-setup.html — a centred brand mark above a
+    single card, a theme toggle in the corner, and no navigation of any kind. It matches
+    BlogUI's AuthLayout so the setup screen and the sign-in screen read as one flow, but it
+    deliberately drops AuthLayout's brand link to "/": before a connection exists there is
+    no public site to navigate to inside the desktop head.
+
+    Carries the mandatory <ToastProvider /> and <PortalHost /> (REQ-UI-048).
+*@
+
+@inherits LayoutComponentBase
+
+<div class="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10 text-foreground">
+
+    @* Fixed theme toggle, top-right — same affordance as the web auth screens. *@
+    <div class="fixed right-4 top-4 z-50">
+        <ThemeToggle />
+    </div>
+
+    @* Brand mark. Not a link: there is nowhere to go until a connection is configured. *@
+    <div class="mb-6 flex items-center gap-2 text-lg font-semibold text-foreground" data-testid="blogapp-brand">
+        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <LucideIcon Name="code" Size="18" />
+        </span>
+        <span>TechieBlog <span class="text-muted-foreground">- BlogApp</span></span>
+    </div>
+
+    @* max-w-lg (512px), not an arbitrary max-w-[…] value: the TrBlazeUI stylesheet is
+       tree-shaken and only resolves the utilities the library itself ships. *@
+    <main class="w-full max-w-lg" data-testid="desktop-setup-content">
+        @Body
+    </main>
+</div>
+
+<ToastProvider Position="ToastPosition.BottomRight" />
+<PortalHost />

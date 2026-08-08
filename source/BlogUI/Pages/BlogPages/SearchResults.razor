@@ -2,9 +2,11 @@
     SearchResults.razor
     Purpose: Search results page with search box, filters, and result cards.
     Displays search input, category/date/sort filters, and matching posts.
-    Converted from mockups/06-search-results.html.
 
-    Dependencies: PostCard, Pagination components
+    REQ-UI-048 — migrated from Microsoft Fluent UI to TrBlazeUI.
+    REQ-UI-041/042 — author names render as plain text.
+
+    Dependencies: StarRating, BlogPagination components
     Layout: Uses MainLayout (with sidebar for popular searches)
 *@
 
@@ -14,87 +16,138 @@
 @inject BlogEngine.Services.BlogSvc BlogSvc
 @inject BlogEngine.Services.CategorySvc CategorySvc
 
-@* Search Header *@
-<div class="search-header">
-    <h1>Search</h1>
-    <div class="search-header__form">
-        <FluentTextField Placeholder="Search posts..."
-                         Style="flex: 1;"
-                         @bind-Value="searchQuery"
-                         @onkeydown="HandleSearchKeyDown" />
-        <FluentButton Appearance="Appearance.Accent" OnClick="DoSearch">
-            Search
-        </FluentButton>
-    </div>
-</div>
+<PageTitle>@(string.IsNullOrWhiteSpace(searchQuery) ? "Search · TechieBlog" : $"Search: {searchQuery} · TechieBlog")</PageTitle>
 
-@* Search Filters *@
-<div class="search-filters">
-    <FluentSelect TOption="string" @bind-Value="categoryFilter" Style="width: auto;">
-        <FluentOption TOption="string" Value="">All Categories</FluentOption>
-        @foreach (var category in categories)
-        {
-            <FluentOption TOption="string" Value="@category.Slug">@category.CategoryName</FluentOption>
-        }
-    </FluentSelect>
-    <FluentSelect TOption="string" @bind-Value="dateFilter" Style="width: auto;">
-        <FluentOption TOption="string" Value="">Any Date</FluentOption>
-        <FluentOption TOption="string" Value="week">Past Week</FluentOption>
-        <FluentOption TOption="string" Value="month">Past Month</FluentOption>
-        <FluentOption TOption="string" Value="year">Past Year</FluentOption>
-    </FluentSelect>
-    <FluentSelect TOption="string" @bind-Value="sortBy" Style="width: auto;">
-        <FluentOption TOption="string" Value="relevance">Sort by Relevance</FluentOption>
-        <FluentOption TOption="string" Value="date">Sort by Date</FluentOption>
-        <FluentOption TOption="string" Value="views">Sort by Views</FluentOption>
-    </FluentSelect>
-</div>
+@* Search Header *@
+<header class="my-6 flex flex-col gap-4">
+    <TypographyH1>Search</TypographyH1>
+
+    <Card>
+        <CardContent Class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+            <Input Type="InputType.Search"
+                   Placeholder="Search posts..."
+                   Class="flex-1"
+                   @bind-Value="searchQuery"
+                   @onkeydown="HandleSearchKeyDown"
+                   data-testid="search-input" />
+            <Button OnClick="DoSearch" data-testid="search-submit">
+                <LucideIcon Name="search" Size="16" />
+                Search
+            </Button>
+        </CardContent>
+    </Card>
+
+    @* Search Filters *@
+    <div class="flex flex-wrap items-center gap-3" data-testid="search-filters">
+        <Select TValue="string" @bind-Value="categoryFilter" Class="w-52">
+            <SelectTrigger data-testid="category-filter">
+                <SelectValue Placeholder="All Categories" />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem TValue="string" Value="@("")" Text="All Categories">All Categories</SelectItem>
+                @foreach (var category in categories)
+                {
+                    <SelectItem TValue="string" Value="@category.Slug" Text="@category.CategoryName">@category.CategoryName</SelectItem>
+                }
+            </SelectContent>
+        </Select>
+
+        <Select TValue="string" @bind-Value="dateFilter" Class="w-44">
+            <SelectTrigger data-testid="date-filter">
+                <SelectValue Placeholder="Any Date" />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem TValue="string" Value="@("")" Text="Any Date">Any Date</SelectItem>
+                <SelectItem TValue="string" Value="@("week")" Text="Past Week">Past Week</SelectItem>
+                <SelectItem TValue="string" Value="@("month")" Text="Past Month">Past Month</SelectItem>
+                <SelectItem TValue="string" Value="@("year")" Text="Past Year">Past Year</SelectItem>
+            </SelectContent>
+        </Select>
+
+        <Select TValue="string" @bind-Value="sortBy" Class="w-52">
+            <SelectTrigger data-testid="sort-filter">
+                <SelectValue Placeholder="Sort by Relevance" />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem TValue="string" Value="@("relevance")" Text="Sort by Relevance">Sort by Relevance</SelectItem>
+                <SelectItem TValue="string" Value="@("date")" Text="Sort by Date">Sort by Date</SelectItem>
+                <SelectItem TValue="string" Value="@("views")" Text="Sort by Views">Sort by Views</SelectItem>
+            </SelectContent>
+        </Select>
+    </div>
+</header>
 
 @if (hasSearched)
 {
-    @* Results Count *@
-    <div class="search-results__count">
-        Showing <strong>@searchResults.Count results</strong> for "<strong>@displayQuery</strong>"
-    </div>
-
-    @* Search Results *@
-    <div class="search-results__list">
-        @foreach (var result in searchResults)
-        {
-            <article class="search-result">
-                <div class="search-result__image placeholder-image">Image</div>
-                <div class="search-result__content">
-                    <span class="card__category">@result.Category</span>
-                    <h3 class="card__title">
-                        <a href="/post/@result.Slug">@result.Title</a>
-                    </h3>
-                    <p class="card__excerpt">@((MarkupString)result.ExcerptWithHighlights)</p>
-                    <div class="card__meta">
-                        <div class="card__author">
-                            <div class="card__avatar"></div>
-                            <span>@result.Author</span>
-                        </div>
-                        <span>@result.Date</span>
-                        <span>@result.ReadTime</span>
-                        @if (result.Rating > 0)
-                        {
-                            <StarRating Value="@result.Rating" />
-                        }
-                    </div>
-                </div>
-            </article>
-        }
-    </div>
-
-    @* Pagination *@
-    @if (TotalPages > 1)
+    @if (searchResults.Count == 0)
     {
-        <Pagination CurrentPage="@currentPage" TotalPages="@TotalPages" OnPageChanged="HandlePageChanged" />
+        <Empty Title="@($"No results for \"{displayQuery}\"")"
+               Description="Try a different term or clear the filters."
+               Class="py-12"
+               data-testid="search-empty">
+            <Icon><LucideIcon Name="search" Size="48" /></Icon>
+            <ChildContent>
+                <Button Variant="ButtonVariant.Outline" OnClick="ClearFilters" data-testid="search-clear-filters">Clear filters</Button>
+            </ChildContent>
+        </Empty>
+    }
+    else
+    {
+        @* Results Count *@
+        <p class="mb-4 text-sm text-muted-foreground" data-testid="search-results-count">
+            Showing <strong class="text-foreground">@searchResults.Count results</strong> for "<strong class="text-foreground">@displayQuery</strong>"
+        </p>
+
+        @* Search Results *@
+        <div class="flex flex-col gap-4" data-testid="search-results">
+            @foreach (var result in searchResults)
+            {
+                <Card data-testid="search-result">
+                    <CardContent Class="flex flex-col gap-4 p-4 sm:flex-row">
+                        <div class="h-28 w-full shrink-0 overflow-hidden rounded-md bg-muted sm:w-40">
+                            <div class="flex h-full w-full items-center justify-center text-xs text-muted-foreground">Image</div>
+                        </div>
+                        <div class="flex flex-1 flex-col gap-2">
+                            <div>
+                                <Badge Variant="BadgeVariant.Secondary" data-testid="search-result-category">@result.Category</Badge>
+                            </div>
+                            <h3 class="text-lg font-semibold leading-snug">
+                                <a href="/post/@result.Slug"
+                                   class="text-foreground no-underline hover:text-primary hover:underline"
+                                   data-testid="search-result-title">@result.Title</a>
+                            </h3>
+                            <p class="text-sm text-muted-foreground" data-testid="search-result-excerpt">
+                                @((MarkupString)result.ExcerptWithHighlights)
+                            </p>
+                            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                                <span class="text-muted-foreground" data-testid="search-result-author">@result.Author</span>
+                                <span data-testid="search-result-date">@result.Date</span>
+                                <span data-testid="search-result-readtime">@result.ReadTime</span>
+                                @if (result.Rating > 0)
+                                {
+                                    <StarRating Value="@result.Rating" />
+                                }
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            }
+        </div>
+
+        @* Pagination *@
+        @if (TotalPages > 1)
+        {
+            <div class="mt-8">
+                <BlogPagination CurrentPage="@currentPage" TotalPages="@TotalPages" OnPageChanged="HandlePageChanged" />
+            </div>
+        }
     }
 }
 else
 {
-    <p class="search-hint">Enter a search term to find blog posts.</p>
+    <p class="py-8 text-center text-muted-foreground" data-testid="search-hint">
+        Enter a search term to find blog posts.
+    </p>
 }
 
 @code {
@@ -123,7 +176,7 @@ else
     {
         // Load categories for the filter dropdown
         categories = CategorySvc.GetAllCategories().ToList();
-        
+
         if (!string.IsNullOrEmpty(Query))
         {
             searchQuery = Query;
@@ -151,6 +204,21 @@ else
         {
             currentPage = 1;
             Navigation.NavigateTo($"/search?q={Uri.EscapeDataString(searchQuery)}");
+            PerformSearch();
+        }
+    }
+
+    /// <summary>
+    /// Resets the category, date and sort filters and re-runs the current query.
+    /// </summary>
+    private void ClearFilters()
+    {
+        categoryFilter = string.Empty;
+        dateFilter = string.Empty;
+        sortBy = "relevance";
+
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+        {
             PerformSearch();
         }
     }
@@ -185,28 +253,60 @@ else
     }
 
     /// <summary>
-    /// Highlights search terms in the excerpt with mark tags.
+    /// Highlights search terms in the excerpt with mark tags, HTML-encoding everything else.
     /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The result is rendered through a <c>MarkupString</c>, so the
+    /// post abstract — which is author-supplied and may contain raw HTML — must be HTML-encoded
+    /// before the <c>&lt;mark&gt;</c> tags are woven in. Matches are located against the raw
+    /// excerpt and each segment is encoded on its way into the output, so the only live markup
+    /// that can appear is the <c>&lt;mark&gt;</c> pair this method emits itself
+    /// (REQ-NFR-006 / BRD-83).</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <param name="text">The raw post abstract.</param>
+    /// <param name="query">The visitor's search query.</param>
+    /// <returns>Encoded HTML safe to render as a <c>MarkupString</c>.</returns>
     private string HighlightSearchTerms(string text, string query)
     {
-        if (string.IsNullOrWhiteSpace(text) || string.IsNullOrWhiteSpace(query))
-            return text;
+        if (string.IsNullOrWhiteSpace(text))
+            return string.Empty;
 
         // Truncate text to reasonable excerpt length
         var excerpt = text.Length > 200 ? text.Substring(0, 200) + "..." : text;
 
-        // Split query into words and highlight each
-        var words = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var word in words)
+        var words = (query ?? string.Empty)
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(word => word.Length >= 2)
+            .Select(System.Text.RegularExpressions.Regex.Escape)
+            .ToArray();
+
+        if (words.Length == 0)
+            return System.Net.WebUtility.HtmlEncode(excerpt);
+
+        var matches = System.Text.RegularExpressions.Regex.Matches(
+            excerpt,
+            string.Join("|", words),
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        var builder = new System.Text.StringBuilder();
+        var cursor = 0;
+
+        foreach (System.Text.RegularExpressions.Match match in matches)
         {
-            if (word.Length < 2) continue;
-            // Case-insensitive replacement with mark tags
-            var regex = new System.Text.RegularExpressions.Regex(
-                System.Text.RegularExpressions.Regex.Escape(word),
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            excerpt = regex.Replace(excerpt, match => $"<mark>{match.Value}</mark>");
+            if (match.Index < cursor)
+                continue;
+
+            builder.Append(System.Net.WebUtility.HtmlEncode(excerpt.Substring(cursor, match.Index - cursor)));
+            builder.Append("<mark>");
+            builder.Append(System.Net.WebUtility.HtmlEncode(match.Value));
+            builder.Append("</mark>");
+            cursor = match.Index + match.Length;
         }
-        return excerpt;
+
+        builder.Append(System.Net.WebUtility.HtmlEncode(excerpt.Substring(cursor)));
+
+        return builder.ToString();
     }
 
     /// <summary>

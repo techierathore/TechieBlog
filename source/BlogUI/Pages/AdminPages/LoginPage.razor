@@ -1,11 +1,12 @@
 @*
     LoginPage.razor
-    Purpose: Login page for user authentication.
-    Displays email/password form with remember me and forgot password link.
-    Converted from mockups/08-login.html.
+    Purpose: Credential sign-in for staff accounts.
 
-    Dependencies: AuthLayout, Fluent UI form components
-    Layout: Uses AuthLayout (centered card)
+    REQ-UI-001 / BRD-2 / BRD-93 — reached by direct URL only; no public page links
+    here. Public self-service registration is retired (BRD-1), so there is no
+    "Sign up" footer link any more.
+
+    Layout: AuthLayout (centered card, fixed theme toggle, no site nav).
 *@
 
 @layout BlogUI.Layouts.AuthLayout
@@ -13,52 +14,83 @@
 @page "/LoginPage"
 @page "/LoginPage/{PageCode}"
 
-<div class="auth-card__header">
-    <h1 class="auth-card__title">Welcome Back</h1>
-</div>
+<PageTitle>Sign in - TechieBlog</PageTitle>
 
-<EditForm Model="@LoginDetails" OnValidSubmit="@ValidateUser">
-    <div class="form-group">
-        <label class="form-label" for="email">Email</label>
-        <FluentTextField Id="email"
-                         TextFieldType="TextFieldType.Email"
-                         Placeholder="your@email.com"
-                         Required="true"
-                         Style="width: 100%;"
-                         @bind-Value="LoginDetails.LoginEmail" />
-    </div>
+<Card data-testid="login-card">
+    <CardHeader>
+        <CardTitle>Welcome back</CardTitle>
+        <CardDescription>Sign in to continue to your dashboard.</CardDescription>
+    </CardHeader>
 
-    <div class="form-group">
-        <label class="form-label" for="password">Password</label>
-        <FluentTextField Id="password"
-                         TextFieldType="TextFieldType.Password"
-                         Placeholder="Enter your password"
-                         Required="true"
-                         Style="width: 100%;"
-                         @bind-Value="LoginDetails.LoginPass" />
-    </div>
+    <EditForm Model="@LoginDetails" OnValidSubmit="@ValidateUser">
+        <CardContent Class="flex flex-col gap-4">
 
-    <div class="form-group form-group--inline">
-        <FluentCheckbox @bind-Value="rememberMe">Remember me</FluentCheckbox>
-        <a href="/forgot-password" class="auth-link auth-link--small">Forgot password?</a>
-    </div>
+            @if (!string.IsNullOrEmpty(LoginMesssage))
+            {
+                <Alert Variant="AlertVariant.Danger" AccentBorder="true" data-testid="login-error">
+                    <LucideIcon Name="circle-alert" Size="16" />
+                    <AlertTitle>Sign-in failed</AlertTitle>
+                    <AlertDescription>@LoginMesssage</AlertDescription>
+                </Alert>
+            }
 
-    @if (!string.IsNullOrEmpty(LoginMesssage))
-    {
-        <div class="form-error">@LoginMesssage</div>
-    }
+            <Field>
+                <FieldLabel For="login-email">Email</FieldLabel>
+                <FieldContent>
+                    <Input Id="login-email"
+                           Type="InputType.Email"
+                           Placeholder="your@email.com"
+                           Required="true"
+                           autofocus
+                           @bind-Value="LoginDetails.LoginEmail"
+                           data-testid="login-email" />
+                </FieldContent>
+            </Field>
 
-    <FluentButton Type="ButtonType.Submit"
-                  Appearance="Appearance.Accent"
-                  Style="width: 100%; margin-top: var(--spacing-md, 16px);">
-        Sign In
-    </FluentButton>
-</EditForm>
+            <Field>
+                <FieldLabel For="login-password">Password</FieldLabel>
+                <FieldContent>
+                    <Input Id="login-password"
+                           Type="InputType.Password"
+                           Placeholder="Enter your password"
+                           Required="true"
+                           @bind-Value="LoginDetails.LoginPass"
+                           data-testid="login-password" />
+                </FieldContent>
+            </Field>
 
-<div class="auth-card__footer">
-    Don't have an account? <a href="/register" class="auth-link">Sign up</a>
-</div>
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <Checkbox Id="remember-me" @bind-Checked="rememberMe" data-testid="login-remember" />
+                    <Label For="remember-me" Class="text-sm font-normal">Remember me</Label>
+                </div>
+                <a href="/forgot-password"
+                   class="text-sm text-primary no-underline hover:underline"
+                   data-testid="login-forgot">
+                    Forgot password?
+                </a>
+            </div>
+        </CardContent>
+
+        <CardFooter>
+            <Button Type="ButtonType.Submit"
+                    Class="w-full"
+                    Disabled="@isSubmitting"
+                    data-testid="login-submit">
+                @if (isSubmitting)
+                {
+                    <Spinner Size="SpinnerSize.Small" Class="mr-2" />
+                    <span>Signing in...</span>
+                }
+                else
+                {
+                    <span>Sign In</span>
+                }
+            </Button>
+        </CardFooter>
+    </EditForm>
+</Card>
 
 @code {
-    private bool rememberMe = false;
+    private bool rememberMe;
 }

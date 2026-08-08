@@ -1,0 +1,140 @@
+# TechieBlog CI — REQ-NFR-017 (BRD-77)
+#
+# Builds the solution, runs TechieBlog.Tests with coverage, and publishes the
+# web host as a downloadable artifact, on every push to main/dev and every PR.
+#
+# ---------------------------------------------------------------------------
+# NuGet authentication
+# ---------------------------------------------------------------------------
+# The build needs the private GitHub Packages feed that hosts TrBlazeUI. The
+# nuget.config committed at the repo root carries a hard-coded username and
+# personal access token; CI must NOT use those. Instead this workflow writes a
+# throwaway nuget.ci.config at runtime and passes it with --configfile, so the
+# committed credentials are never read.
+#
+# Token precedence:
+#   1. secrets.TrBlazeUiPackagesToken — a PAT with read:packages, required when
+#      the TrBlazeUI package lives outside this repository's package scope.
+#   2. secrets.GITHUB_TOKEN — works only when the package is published from, or
+#      explicitly grants access to, this repository.
+#
+# Add the PAT under Settings -> Secrets and variables -> Actions ->
+# New repository secret, named exactly TrBlazeUiPackagesToken.
+# ---------------------------------------------------------------------------
+
+name: CI
+
+on:
+  push:
+    branches: [main, master, dev]
+  pull_request:
+    branches: [main, master, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+  Configuration: Release
+
+jobs:
+  build-test-artifacts:
+    name: Build, test and package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/*.slnx') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Write CI NuGet config
+        env:
+          PackagesToken: ${{ secrets.TrBlazeUiPackagesToken || secrets.GITHUB_TOKEN }}
+        run: |
+          cat > nuget.ci.config <<'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+              <add key="TrBlazeUI" value="https://nuget.pkg.github.com/techierathore/index.json" />
+            </packageSources>
+          </configuration>
+          XML
+          dotnet nuget update source TrBlazeUI \
+            --configfile nuget.ci.config \
+            --username techierathore \
+            --password "$PackagesToken" \
+            --store-password-in-clear-text
+
+      - name: Restore
+        run: dotnet restore TechieBlog.slnx --configfile nuget.ci.config
+
+      - name: Build
+        run: dotnet build TechieBlog.slnx --configuration Release --no-restore
+
+      - name: Test with coverage
+        run: |
+          dotnet test tests/TechieBlog.Tests/TechieBlog.Tests.csproj \
+            --configuration Release \
+            --no-build \
+            --logger "trx;LogFileName=TechieBlog.Tests.trx" \
+            --results-directory artifacts/test-results \
+            --collect:"XPlat Code Coverage" \
+            --settings tests/TechieBlog.Tests/coverlet.runsettings
+
+      # BlogEngine line-coverage target is 80% (BRD-76). The gate is reported,
+      # not enforced, until the sibling suites land; flip `exit 1` on to enforce.
+      - name: Report BlogEngine coverage
+        if: always()
+        run: |
+          report=$(find artifacts/test-results -name 'coverage.cobertura.xml' | head -n 1)
+          if [ -z "$report" ]; then
+            echo "No coverage report produced."
+            exit 0
+          fi
+          rate=$(sed -n 's/.*line-rate="\([0-9.]*\)".*/\1/p' "$report" | head -n 1)
+          pct=$(awk -v r="$rate" 'BEGIN { printf "%.1f", r * 100 }')
+          echo "BlogEngine line coverage: ${pct}% (target 80%)" >> "$GITHUB_STEP_SUMMARY"
+          awk -v r="$rate" 'BEGIN { if (r < 0.80) print "::warning::BlogEngine coverage below the 80% REQ-NFR-016 target" }'
+
+      - name: Publish web host
+        run: |
+          dotnet publish source/TechieBlog/TechieBlog.csproj \
+            --configuration Release \
+            --no-build \
+            --output artifacts/site
+
+      - name: Upload web host artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: techieblog-site-${{ github.sha }}
+          path: artifacts/site
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: techieblog-test-results-${{ github.sha }}
+          path: artifacts/test-results
+          if-no-files-found: warn
+          retention-days: 14

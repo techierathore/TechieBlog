@@ -405,6 +405,7 @@ secrets.json
 /package.json
 /package-lock.json
 test-results/
+test-results-blogapp/
 playwright-report/
 .verify/
 logs/

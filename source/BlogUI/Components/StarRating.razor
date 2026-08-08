@@ -1,33 +1,50 @@
 @*
     StarRating.razor
-    Purpose: Displays a 5-star rating with filled/empty stars.
-    Optionally shows rating count in parentheses.
+    Purpose: Read-only star rating display with an optional rating count.
 
-    Dependencies: None
+    REQ-UI-048 — rebuilt over TrBlazeUI's <Rating> component. The public parameter
+    API (Value, RatingCount) is unchanged because PostCard and SearchResults bind to it.
+
+    Dependencies: TrBlazeUI Rating
     Usage: Used in PostCard, PostView, SearchResults for displaying post ratings
 *@
 
-<div class="star-rating">
-    @for (int i = 1; i <= 5; i++)
-    {
-        var starIndex = i;
-        <span class="star-rating__star @(starIndex <= Value ? "star-rating__star--filled" : "")">&#9733;</span>
-    }
+@*
+    REQ-NFR-007 / WCAG 4.1.2 — TR-031: even with ReadOnly="true", TrBlazeUI's Rating emits
+    non-focusable <span role="radio"> stars carrying an EMPTY aria-checked, which axe reports as
+    a critical `aria-required-attr` failure and which screen readers announce as a broken radio
+    group. Nothing in the library's public API changes that, so the stars are presented as the
+    decoration they actually are (aria-hidden) and the value is exposed as real text instead.
+*@
+<div class="inline-flex items-center gap-1.5" data-testid="star-rating">
+    @* data-a11y-decorative — see App.razor. Read-only stars carry no tab stop today, but the
+       marker means a library change cannot quietly put one inside an aria-hidden subtree.
+       [REQ-NFR-007] *@
+    <span aria-hidden="true" class="inline-flex" data-a11y-decorative>
+        <Rating Value="@Value"
+                Max="5"
+                ReadOnly="true"
+                AllowHalf="false"
+                Size="RatingSize.Small" />
+    </span>
+    <span class="sr-only" data-testid="star-rating-text">
+        Rated @Value out of 5@(RatingCount > 0 ? $" from {RatingCount} ratings" : string.Empty)
+    </span>
     @if (RatingCount > 0)
     {
-        <span class="star-rating__count">(@RatingCount)</span>
+        <span aria-hidden="true" class="text-xs text-muted-foreground" data-testid="total-rating-value">(@RatingCount)</span>
     }
 </div>
 
 @code {
     /// <summary>
-    /// The rating value (1-5 stars filled).
+    /// The rating value, 0-5 stars filled.
     /// </summary>
     [Parameter]
     public int Value { get; set; } = 0;
 
     /// <summary>
-    /// Optional count of ratings to display in parentheses.
+    /// Optional count of ratings to display in parentheses. Hidden when zero.
     /// </summary>
     [Parameter]
     public int RatingCount { get; set; } = 0;

@@ -1,340 +1,430 @@
 @*
     ManagePost.razor
     Purpose: Create and edit blog posts.
-    Provides form for post management with title, abstract, content, slug, and publish fields.
+    Two-column post editor per docs/TechieBlog-UIDesign.md "Screen: Post editor" — a main
+    column (title, slug, excerpt, markdown body) beside a rail of Publish / Organise /
+    Featured image cards, with a sticky action bar.
 
     Usage: Navigate to /ManagePost or /ManagePost/{PageId}
-    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+    Dependencies: TrBlazeUI (REQ-UI-048)
     Authorization: AuthorOrAbove policy required
 *@
 @page "/ManagePost"
 @page "/ManagePost/{PageId:long}"
 @attribute [Authorize(Policy = "AuthorOrAbove")]
 @layout BlogUI.Layouts.AdminLayout
+@* TrBlazeUI.Components.TimePicker is not in the shared _Imports.razor. *@
+@using TrBlazeUI.Components.TimePicker
 
 <ContentPanel PanelTitle="@PageHeader">
     <RightSection></RightSection>
     <PanelContent>
         @if (!string.IsNullOrEmpty(StatusMessage))
         {
-            <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
-                              Style="margin-bottom: 16px;">
-                @StatusMessage
-            </FluentMessageBar>
+            <Alert Variant="@(IsError ? AlertVariant.Danger : AlertVariant.Success)"
+                   Class="mb-4"
+                   data-testid="post-status-message">
+                <LucideIcon Name="@(IsError ? "circle-alert" : "circle-check")" Size="16" />
+                <AlertDescription>@StatusMessage</AlertDescription>
+            </Alert>
         }
 
         @if (PageObj != null)
         {
             <EditForm Model="@PageObj" OnValidSubmit="@SaveData">
                 <DataAnnotationsValidator />
-                <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px; max-width: 800px;">
-                    <FluentTextField Label="Blog Title"
-                                     Value="@PageObj.Title"
-                                     ValueChanged="@OnTitleChanged"
-                                     Placeholder="Enter your blog title"
-                                     Required="true"
-                                     Style="width: 100%;" />
 
-                    <FluentTextField Label="URL Slug"
-                                     @bind-Value="PageObj.Slug"
-                                     Placeholder="auto-generated-from-title"
-                                     Style="width: 100%;">
-                        <FluentLabel Slot="end" Style="color: var(--neutral-foreground-hint);">
-                            @if (!string.IsNullOrEmpty(SlugPreview))
-                            {
-                                <span>/blog/@SlugPreview</span>
-                            }
-                        </FluentLabel>
-                    </FluentTextField>
+                <div class="flex flex-col gap-4 sm:flex-row">
 
-                    <FluentTextField Label="Blog Abstract"
-                                     @bind-Value="PageObj.Abstract"
-                                     Placeholder="Brief summary shown in post listings"
-                                     Style="width: 100%;" />
+                    @* ------------------------------------------------ main column *@
+                    <div class="flex min-w-0 flex-1 flex-col gap-4">
 
-                    <div>
-                        <label style="display: block; margin-bottom: 4px;">Post Content (Markdown)</label>
-                        <MarkdownEditor @bind-Value="AnswerDetail" />
+                        <Field>
+                            <FieldLabel For="post-title">Blog Title</FieldLabel>
+                            <FieldContent>
+                                <Input Id="post-title"
+                                       Value="@PageObj.Title"
+                                       ValueChanged="@OnTitleChanged"
+                                       Placeholder="Enter your blog title"
+                                       Required="true"
+                                       data-testid="post-title-input" />
+                            </FieldContent>
+                        </Field>
+
+                        <Field>
+                            <FieldLabel For="post-slug">URL Slug</FieldLabel>
+                            <FieldContent>
+                                <Input Id="post-slug"
+                                       @bind-Value="PageObj.Slug"
+                                       Class="font-mono"
+                                       Placeholder="auto-generated-from-title"
+                                       data-testid="post-slug-input" />
+                                @if (!string.IsNullOrEmpty(SlugPreview))
+                                {
+                                    <FieldDescription data-testid="post-slug-preview">/blog/@SlugPreview</FieldDescription>
+                                }
+                            </FieldContent>
+                        </Field>
+
+                        <Field>
+                            <FieldLabel For="post-excerpt">Blog Abstract</FieldLabel>
+                            <FieldContent>
+                                <Textarea Id="post-excerpt"
+                                          @bind-Value="PageObj.Abstract"
+                                          Placeholder="Brief summary shown in post listings"
+                                          data-testid="post-excerpt-input" />
+                            </FieldContent>
+                        </Field>
+
+                        <Field>
+                            <FieldLabel>Post Content (Markdown)</FieldLabel>
+                            <FieldContent>
+                                <PostMarkdownEditor @bind-Value="AnswerDetail" />
+                            </FieldContent>
+                        </Field>
                     </div>
 
-                    <FluentTextField Label="Featured Image URL"
-                                     @bind-Value="PageObj.FeaturedImage"
-                                     Placeholder="https://example.com/image.jpg"
-                                     Style="width: 100%;" />
+                    @* -------------------------------------------------- right rail *@
+                    <div class="flex w-full flex-col gap-4 sm:w-72">
 
-                    <div>
-                        <label style="display: block; margin-bottom: 4px;">Tags</label>
-                        @* Display selected tags as chips *@
-                        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; min-height: 32px;">
-                            @foreach (var tag in SelectedTags)
-                            {
-                                <FluentBadge Appearance="Appearance.Accent" Style="padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px;">
-                                    @tag.TagName
-                                    <FluentButton Appearance="Appearance.Stealth"
-                                                  Style="padding: 0; min-width: 16px; height: 16px;"
-                                                  OnClick="@(() => RemoveTag(tag))">
-                                        <FluentIcon Value="@(new Icons.Regular.Size12.Dismiss())" />
-                                    </FluentButton>
-                                </FluentBadge>
-                            }
-                        </div>
-                        @* Add new tag input *@
-                        <FluentStack Orientation="Orientation.Horizontal" Style="gap: 8px;">
-                            <FluentTextField @bind-Value="NewTagInput"
-                                             Placeholder="Add a tag..."
-                                             Style="flex: 1;"
-                                             @onkeydown="@(e => { if (e.Key == "Enter") { AddNewTag(); } })" />
-                            <FluentButton Appearance="Appearance.Outline"
-                                          OnClick="AddNewTag"
-                                          Disabled="@string.IsNullOrWhiteSpace(NewTagInput)">
-                                + Add
-                            </FluentButton>
-                        </FluentStack>
-                        @* Quick select from existing tags *@
-                        @if (GetUnselectedTags().Any())
-                        {
-                            <div style="margin-top: 8px;">
-                                <span style="font-size: 0.85rem; color: var(--neutral-foreground-hint);">Quick add:</span>
-                                <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;">
-                                    @foreach (var tag in GetUnselectedTags().Take(8))
+                        @* --- Publish --- *@
+                        <Card data-testid="publish-card">
+                            <CardHeader>
+                                <CardTitle Class="text-base">Publish</CardTitle>
+                            </CardHeader>
+                            <CardContent Class="flex flex-col gap-3">
+
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="font-medium">Status:</span>
+                                    @if (PageObj.Published)
                                     {
-                                        <FluentButton Appearance="Appearance.Lightweight"
-                                                      Style="font-size: 0.85rem; padding: 2px 8px;"
-                                                      OnClick="@(() => AddExistingTag(tag))">
-                                            +@tag.TagName
-                                        </FluentButton>
+                                        <Badge data-testid="post-status-badge">Published</Badge>
+                                        @if (PageObj.PublishedOn.HasValue)
+                                        {
+                                            <span class="text-xs text-muted-foreground" data-testid="post-published-on">
+                                                on @PageObj.PublishedOn.Value.ToString("MMM dd, yyyy")
+                                            </span>
+                                        }
+                                    }
+                                    else if (PageObj.IsScheduled)
+                                    {
+                                        <Badge Variant="BadgeVariant.Outline" data-testid="post-status-badge">Scheduled</Badge>
+                                        <span class="text-xs text-muted-foreground" data-testid="post-scheduled-for">
+                                            for @PageObj.ScheduledPublishOn?.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <Badge Variant="BadgeVariant.Secondary" data-testid="post-status-badge">Draft</Badge>
                                     }
                                 </div>
-                            </div>
-                        }
-                    </div>
 
-                    <div>
-                        <label style="display: block; margin-bottom: 4px;">Category</label>
-                        <FluentSelect TOption="string"
-                                      @bind-Value="SelectedCategoryId"
-                                      Style="width: 100%;">
-                            <FluentOption TOption="string" Value="@("0")">-- Select Category --</FluentOption>
-                            @foreach (var category in Categories)
-                            {
-                                <FluentOption TOption="string" Value="@category.CategoryId.ToString()">@category.CategoryName</FluentOption>
-                            }
-                        </FluentSelect>
-                    </div>
-
-                    <div>
-                        <label style="display: block; margin-bottom: 4px;">Series (optional)</label>
-                        <FluentSelect TOption="string"
-                                      @bind-Value="SelectedSeriesId"
-                                      Style="width: 100%;">
-                            <FluentOption TOption="string" Value="@("0")">-- Not part of a series --</FluentOption>
-                            @foreach (var series in AvailableSeries)
-                            {
-                                <FluentOption TOption="string" Value="@series.SeriesId.ToString()">
-                                    @series.Name (@series.PostCount parts)
-                                </FluentOption>
-                            }
-                        </FluentSelect>
-                        <small style="color: var(--neutral-foreground-hint);">
-                            Add this post to a multi-part series for sequential reading.
-                            @if (long.TryParse(SelectedSeriesId, out long sid) && sid > 0)
-                            {
-                                <span>Part number will be auto-assigned.</span>
-                            }
-                        </small>
-                        @if (PageObj.SeriesPartNumber.HasValue && PageObj.SeriesPartNumber > 0)
-                        {
-                            <div style="margin-top: 4px;">
-                                <FluentBadge Appearance="Appearance.Accent" Style="font-size: 0.85rem;">
-                                    Part @PageObj.SeriesPartNumber
-                                </FluentBadge>
-                            </div>
-                        }
-                    </div>
-
-                    @* Status indicator *@
-                    <div style="padding: 12px; background: var(--neutral-layer-2); border-radius: 4px;">
-                        <FluentStack Orientation="Orientation.Horizontal" Style="gap: 8px; align-items: center;">
-                            <span style="font-weight: 500;">Status:</span>
-                            @if (PageObj.Published)
-                            {
-                                <FluentBadge Appearance="Appearance.Accent" Style="background-color: #107c10;">
-                                    Published
-                                </FluentBadge>
-                                @if (PageObj.PublishedOn.HasValue)
+                                @* Scheduling - only for unpublished posts *@
+                                @if (!PageObj.Published)
                                 {
-                                    <span style="color: var(--neutral-foreground-hint); font-size: 0.85rem;">
-                                        on @PageObj.PublishedOn.Value.ToString("MMM dd, yyyy")
-                                    </span>
+                                    <Separator />
+
+                                    <div class="flex flex-col gap-2" data-testid="schedule-section">
+                                        <span class="text-sm text-muted-foreground">
+                                            Set a date and time to automatically publish this post.
+                                        </span>
+
+                                        <Field>
+                                            <FieldLabel>Publish Date</FieldLabel>
+                                            <FieldContent>
+                                                <DatePicker @bind-Value="ScheduledDate"
+                                                            Placeholder="Pick a date"
+                                                            Class="w-full"
+                                                            data-testid="publish-date-picker" />
+                                            </FieldContent>
+                                        </Field>
+
+                                        <Field>
+                                            <FieldLabel>Publish Time</FieldLabel>
+                                            <FieldContent>
+                                                @*
+                                                    TimePicker declares no CaptureUnmatchedValues, so a data-testid
+                                                    on it throws at render and the ErrorBoundary swallowed this page
+                                                    behind an HTTP 200. The hook lives on a wrapper this page owns.
+                                                    Library gap TR-030/TR-046. (DatePicker above DOES splat.)
+                                                *@
+                                                <span data-testid="publish-time-picker">
+                                                    <TimePicker @bind-Value="ScheduledTime"
+                                                                Placeholder="Pick a time"
+                                                                Class="w-full" />
+                                                </span>
+                                            </FieldContent>
+                                        </Field>
+
+                                        @if (ScheduledDate.HasValue)
+                                        {
+                                            <span class="text-sm" data-testid="scheduled-summary">
+                                                Post will be published on
+                                                <strong>@GetScheduledDateTime()?.ToString("dddd, MMMM dd, yyyy 'at' h:mm tt")</strong>
+                                            </span>
+                                        }
+                                    </div>
                                 }
-                            }
-                            else if (PageObj.IsScheduled)
+                            </CardContent>
+                        </Card>
+
+                        @* --- Organise --- *@
+                        <Card data-testid="organise-card">
+                            <CardHeader>
+                                <CardTitle Class="text-base">Organise</CardTitle>
+                            </CardHeader>
+                            <CardContent Class="flex flex-col gap-4">
+
+                                <Field>
+                                    <FieldLabel>Category</FieldLabel>
+                                    <FieldContent>
+                                        <Select TValue="string" @bind-Value="SelectedCategoryId" Class="w-full">
+                                            <SelectTrigger data-testid="category-select">
+                                                <SelectValue Placeholder="-- Select Category --" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem TValue="string" Value="@("0")" Text="-- Select Category --">-- Select Category --</SelectItem>
+                                                @foreach (var category in Categories)
+                                                {
+                                                    <SelectItem TValue="string"
+                                                                Value="@category.CategoryId.ToString()"
+                                                                Text="@category.CategoryName">
+                                                        @category.CategoryName
+                                                    </SelectItem>
+                                                }
+                                            </SelectContent>
+                                        </Select>
+                                    </FieldContent>
+                                </Field>
+
+                                <Field>
+                                    <FieldLabel For="post-tag-input">Tags</FieldLabel>
+                                    <FieldContent>
+                                        @* Selected tags as chips *@
+                                        <div class="flex flex-wrap gap-2" data-testid="selected-tags">
+                                            @foreach (var tag in SelectedTags)
+                                            {
+                                                <Badge Class="gap-1" data-testid="selected-tag">
+                                                    @tag.TagName
+                                                    <Button Variant="ButtonVariant.Ghost"
+                                                            Size="ButtonSize.IconSmall"
+                                                            Class="h-4 w-4 p-0"
+                                                            AriaLabel="@($"Remove tag {tag.TagName}")"
+                                                            OnClick="@(() => RemoveTag(tag))"
+                                                            data-testid="remove-tag">
+                                                        <LucideIcon Name="x" Size="12" />
+                                                    </Button>
+                                                </Badge>
+                                            }
+                                        </div>
+
+                                        @* Add new tag *@
+                                        <div class="flex items-center gap-2">
+                                            <Input Id="post-tag-input"
+                                                   @bind-Value="NewTagInput"
+                                                   Placeholder="Add a tag..."
+                                                   Class="flex-1"
+                                                   @onkeydown="@(e => { if (e.Key == "Enter") { AddNewTag(); } })"
+                                                   data-testid="tag-input" />
+                                            <Button Variant="ButtonVariant.Outline"
+                                                    Size="ButtonSize.Small"
+                                                    OnClick="AddNewTag"
+                                                    Disabled="@string.IsNullOrWhiteSpace(NewTagInput)"
+                                                    data-testid="add-tag">
+                                                <LucideIcon Name="plus" Size="16" />
+                                                Add
+                                            </Button>
+                                        </div>
+
+                                        @* Quick select from existing tags *@
+                                        @if (GetUnselectedTags().Any())
+                                        {
+                                            <FieldDescription>Quick add:</FieldDescription>
+                                            <div class="flex flex-wrap gap-1" data-testid="quick-add-tags">
+                                                @foreach (var tag in GetUnselectedTags().Take(8))
+                                                {
+                                                    <Button Variant="ButtonVariant.Ghost"
+                                                            Size="ButtonSize.Small"
+                                                            OnClick="@(() => AddExistingTag(tag))"
+                                                            data-testid="quick-add-tag">
+                                                        +@tag.TagName
+                                                    </Button>
+                                                }
+                                            </div>
+                                        }
+                                    </FieldContent>
+                                </Field>
+
+                                <Field>
+                                    <FieldLabel>Series (optional)</FieldLabel>
+                                    <FieldContent>
+                                        <Select TValue="string" @bind-Value="SelectedSeriesId" Class="w-full">
+                                            <SelectTrigger data-testid="series-select">
+                                                <SelectValue Placeholder="-- Not part of a series --" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem TValue="string" Value="@("0")" Text="-- Not part of a series --">-- Not part of a series --</SelectItem>
+                                                @foreach (var series in AvailableSeries)
+                                                {
+                                                    <SelectItem TValue="string"
+                                                                Value="@series.SeriesId.ToString()"
+                                                                Text="@($"{series.Name} ({series.PostCount} parts)")">
+                                                        @series.Name (@series.PostCount parts)
+                                                    </SelectItem>
+                                                }
+                                            </SelectContent>
+                                        </Select>
+                                        <FieldDescription>
+                                            Add this post to a multi-part series for sequential reading.
+                                            @if (long.TryParse(SelectedSeriesId, out long seriesId) && seriesId > 0)
+                                            {
+                                                <span>Part number will be auto-assigned.</span>
+                                            }
+                                        </FieldDescription>
+                                        @if (PageObj.SeriesPartNumber.HasValue && PageObj.SeriesPartNumber > 0)
+                                        {
+                                            <div class="mt-1">
+                                                <Badge Variant="BadgeVariant.Outline" data-testid="series-part-badge">
+                                                    Part @PageObj.SeriesPartNumber
+                                                </Badge>
+                                            </div>
+                                        }
+                                    </FieldContent>
+                                </Field>
+                            </CardContent>
+                        </Card>
+
+                        @* --- Featured image --- *@
+                        <Card data-testid="featured-image-card">
+                            <CardHeader>
+                                <CardTitle Class="text-base">Featured image</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <ImagePicker Category="blog"
+                                             UserId="@CurrentUserId"
+                                             @bind-SelectedImagePath="PageObj.FeaturedImage" />
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                @* ----------------------------------------------- sticky action bar *@
+                <div class="sticky bottom-0 z-10 mt-4 flex flex-wrap items-center gap-2 border-t border-border bg-background py-3"
+                     data-testid="post-action-bar">
+                    @if (PageId == 0 || !PageObj.Published)
+                    {
+                        @* Draft mode: Save Draft + Schedule/Publish *@
+                        <Button Variant="ButtonVariant.Secondary"
+                                OnClick="@HandleSaveDraft"
+                                Disabled="@IsSaving"
+                                data-testid="save-draft">
+                            @if (IsSaving && SaveAction == "draft")
                             {
-                                <FluentBadge Appearance="Appearance.Accent" Style="background-color: #005a9e;">
-                                    Scheduled
-                                </FluentBadge>
-                                <span style="color: var(--neutral-foreground-hint); font-size: 0.85rem;">
-                                    for @PageObj.ScheduledPublishOn?.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")
-                                </span>
+                                <Spinner Size="SpinnerSize.Small" />
+                                <span>Saving...</span>
                             }
                             else
                             {
-                                <FluentBadge Appearance="Appearance.Neutral">
-                                    Draft
-                                </FluentBadge>
+                                <LucideIcon Name="save" Size="16" />
+                                <span>Save Draft</span>
                             }
-                        </FluentStack>
-                    </div>
+                        </Button>
 
-                    @* Scheduling section - only for unpublished posts *@
-                    @if (!PageObj.Published)
-                    {
-                        <FluentCard Style="padding: 16px;">
-                            <h4 style="margin-top: 0; margin-bottom: 8px;">Schedule Publication</h4>
-                            <p style="font-size: 0.85rem; color: var(--neutral-foreground-hint); margin-bottom: 12px;">
-                                Set a date and time to automatically publish this post.
-                            </p>
-                            <FluentStack Orientation="Orientation.Horizontal" Style="gap: 12px; flex-wrap: wrap;">
-                                <div style="flex: 1; min-width: 150px;">
-                                    <FluentDatePicker Label="Publish Date"
-                                                      @bind-Value="ScheduledDate"
-                                                      Style="width: 100%;" />
-                                </div>
-                                <div style="flex: 1; min-width: 150px;">
-                                    <FluentTimePicker Label="Publish Time"
-                                                      @bind-Value="ScheduledTime"
-                                                      Style="width: 100%;" />
-                                </div>
-                            </FluentStack>
-                            @if (ScheduledDate.HasValue)
-                            {
-                                <p style="margin-top: 8px; font-size: 0.9rem;">
-                                    Post will be published on <strong>@GetScheduledDateTime()?.ToString("dddd, MMMM dd, yyyy 'at' h:mm tt")</strong>
-                                </p>
-                            }
-                        </FluentCard>
-                    }
-
-                    @* Action buttons - differ based on published state *@
-                    <FluentStack Orientation="Orientation.Horizontal" Style="gap: 8px; margin-top: 16px; flex-wrap: wrap;">
-                        @if (PageId == 0 || !PageObj.Published)
+                        @if (ScheduledDate.HasValue)
                         {
-                            @* Draft mode: Save Draft + Schedule/Publish *@
-                            <FluentButton Appearance="Appearance.Neutral"
-                                          OnClick="@HandleSaveDraft"
-                                          Disabled="@IsSaving">
-                                @if (IsSaving && SaveAction == "draft")
+                            <Button OnClick="@HandleSchedule" Disabled="@IsSaving" data-testid="schedule-post">
+                                @if (IsSaving && SaveAction == "schedule")
                                 {
-                                    <FluentIcon Value="@(new Icons.Regular.Size16.ArrowSync())" />
-                                    <span>Saving...</span>
+                                    <Spinner Size="SpinnerSize.Small" />
+                                    <span>Scheduling...</span>
                                 }
                                 else
                                 {
-                                    <FluentIcon Value="@(new Icons.Regular.Size16.Save())" />
-                                    <span>Save Draft</span>
+                                    <LucideIcon Name="calendar-clock" Size="16" />
+                                    <span>Schedule</span>
                                 }
-                            </FluentButton>
-
-                            @if (ScheduledDate.HasValue)
-                            {
-                                @* Schedule button when date is set *@
-                                <FluentButton Appearance="Appearance.Accent"
-                                              OnClick="@HandleSchedule"
-                                              Disabled="@IsSaving">
-                                    @if (IsSaving && SaveAction == "schedule")
-                                    {
-                                        <FluentIcon Value="@(new Icons.Regular.Size16.ArrowSync())" />
-                                        <span>Scheduling...</span>
-                                    }
-                                    else
-                                    {
-                                        <FluentIcon Value="@(new Icons.Regular.Size16.CalendarClock())" />
-                                        <span>Schedule</span>
-                                    }
-                                </FluentButton>
-                            }
-                            else
-                            {
-                                @* Publish Now when no schedule date *@
-                                <FluentButton Appearance="Appearance.Accent"
-                                              OnClick="@HandlePublish"
-                                              Disabled="@IsSaving">
-                                    @if (IsSaving && SaveAction == "publish")
-                                    {
-                                        <FluentIcon Value="@(new Icons.Regular.Size16.ArrowSync())" />
-                                        <span>Publishing...</span>
-                                    }
-                                    else
-                                    {
-                                        <FluentIcon Value="@(new Icons.Regular.Size16.Send())" />
-                                        <span>Publish Now</span>
-                                    }
-                                </FluentButton>
-                            }
-
-                            @* Cancel Schedule button for scheduled posts *@
-                            @if (PageObj.IsScheduled)
-                            {
-                                <FluentButton Appearance="Appearance.Outline"
-                                              OnClick="@HandleCancelSchedule"
-                                              Disabled="@IsSaving">
-                                    @if (IsSaving && SaveAction == "cancelschedule")
-                                    {
-                                        <FluentIcon Value="@(new Icons.Regular.Size16.ArrowSync())" />
-                                        <span>Canceling...</span>
-                                    }
-                                    else
-                                    {
-                                        <FluentIcon Value="@(new Icons.Regular.Size16.CalendarCancel())" />
-                                        <span>Cancel Schedule</span>
-                                    }
-                                </FluentButton>
-                            }
+                            </Button>
                         }
                         else
                         {
-                            @* Published mode: Save Changes + Unpublish *@
-                            <FluentButton Appearance="Appearance.Accent"
-                                          OnClick="@HandleSaveChanges"
-                                          Disabled="@IsSaving">
-                                @if (IsSaving && SaveAction == "save")
+                            <Button OnClick="@HandlePublish" Disabled="@IsSaving" data-testid="publish-post">
+                                @if (IsSaving && SaveAction == "publish")
                                 {
-                                    <FluentIcon Value="@(new Icons.Regular.Size16.ArrowSync())" />
-                                    <span>Saving...</span>
+                                    <Spinner Size="SpinnerSize.Small" />
+                                    <span>Publishing...</span>
                                 }
                                 else
                                 {
-                                    <FluentIcon Value="@(new Icons.Regular.Size16.Save())" />
-                                    <span>Save Changes</span>
+                                    <LucideIcon Name="send" Size="16" />
+                                    <span>Publish Now</span>
                                 }
-                            </FluentButton>
-                            <FluentButton Appearance="Appearance.Neutral"
-                                          OnClick="@HandleUnpublish"
-                                          Disabled="@IsSaving">
-                                @if (IsSaving && SaveAction == "unpublish")
-                                {
-                                    <FluentIcon Value="@(new Icons.Regular.Size16.ArrowSync())" />
-                                    <span>Unpublishing...</span>
-                                }
-                                else
-                                {
-                                    <FluentIcon Value="@(new Icons.Regular.Size16.ArrowUndo())" />
-                                    <span>Unpublish</span>
-                                }
-                            </FluentButton>
+                            </Button>
                         }
-                        @if (PageId > 0)
+
+                        @if (PageObj.IsScheduled)
                         {
-                            <FluentAnchor Href="@($"/admin/preview/{PageId}")" Appearance="Appearance.Outline">
-                                <FluentIcon Value="@(new Icons.Regular.Size16.Eye())" />
-                                <span>Preview</span>
-                            </FluentAnchor>
+                            <Button Variant="ButtonVariant.Outline"
+                                    OnClick="@HandleCancelSchedule"
+                                    Disabled="@IsSaving"
+                                    data-testid="cancel-schedule">
+                                @if (IsSaving && SaveAction == "cancelschedule")
+                                {
+                                    <Spinner Size="SpinnerSize.Small" />
+                                    <span>Canceling...</span>
+                                }
+                                else
+                                {
+                                    <LucideIcon Name="calendar-x" Size="16" />
+                                    <span>Cancel Schedule</span>
+                                }
+                            </Button>
                         }
-                        <FluentAnchor Href="/BlogsList" Appearance="Appearance.Outline">
-                            Cancel
-                        </FluentAnchor>
-                    </FluentStack>
-                </FluentStack>
+                    }
+                    else
+                    {
+                        @* Published mode: Save Changes + Unpublish *@
+                        <Button OnClick="@HandleSaveChanges" Disabled="@IsSaving" data-testid="save-post">
+                            @if (IsSaving && SaveAction == "save")
+                            {
+                                <Spinner Size="SpinnerSize.Small" />
+                                <span>Saving...</span>
+                            }
+                            else
+                            {
+                                <LucideIcon Name="save" Size="16" />
+                                <span>Save Changes</span>
+                            }
+                        </Button>
+                        <Button Variant="ButtonVariant.Secondary"
+                                OnClick="@HandleUnpublish"
+                                Disabled="@IsSaving"
+                                data-testid="unpublish-post">
+                            @if (IsSaving && SaveAction == "unpublish")
+                            {
+                                <Spinner Size="SpinnerSize.Small" />
+                                <span>Unpublishing...</span>
+                            }
+                            else
+                            {
+                                <LucideIcon Name="undo-2" Size="16" />
+                                <span>Unpublish</span>
+                            }
+                        </Button>
+                    }
+
+                    @if (PageId > 0)
+                    {
+                        <Button Href="@($"/admin/preview/{PageId}")"
+                                Variant="ButtonVariant.Outline"
+                                data-testid="preview-post">
+                            <LucideIcon Name="eye" Size="16" />
+                            <span>Preview</span>
+                        </Button>
+                    }
+                    <Button Href="/BlogsList" Variant="ButtonVariant.Outline" data-testid="cancel-post">
+                        Cancel
+                    </Button>
+                </div>
             </EditForm>
         }
     </PanelContent>

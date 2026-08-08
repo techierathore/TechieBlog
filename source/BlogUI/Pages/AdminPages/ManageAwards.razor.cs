@@ -34,7 +34,7 @@ public partial class ManageAwards
     private List<UserAward> AllAwards = new();
 
     // Status messages
-    private string StatusMessage = string.Empty;
+    private string? StatusMessage;
     private bool IsError = false;
 
     // Add/Edit Award Dialog
@@ -127,6 +127,18 @@ public partial class ManageAwards
     }
 
     /// <summary>
+    /// Handles the admin user picker selecting a different author.
+    /// </summary>
+    /// <param name="value">The selected user id as text.</param>
+    private async Task OnSelectedUserChanged(string value)
+    {
+        if (long.TryParse(value, out var userId))
+        {
+            await OnUserSelectionChanged(userId);
+        }
+    }
+
+    /// <summary>
     /// Formats the year range for display (e.g., "2015-2024" or "2015-Present").
     /// </summary>
     private string FormatYearRange(string? awardYear)
@@ -173,6 +185,18 @@ public partial class ManageAwards
         IsEditMode = false;
         EditingAwardId = 0;
         ClearForm();
+    }
+
+    /// <summary>
+    /// Keeps the add/edit dialog state in sync when it is dismissed by Escape or an outside click.
+    /// </summary>
+    /// <param name="isOpen">The dialog's requested open state.</param>
+    private void OnAwardDialogOpenChanged(bool isOpen)
+    {
+        if (!isOpen)
+        {
+            CancelAwardDialog();
+        }
     }
 
     private void ClearForm()
@@ -281,6 +305,18 @@ public partial class ManageAwards
     {
         AwardToDelete = null;
         ShowDeleteDialog = false;
+    }
+
+    /// <summary>
+    /// Keeps the delete confirmation state in sync when it is dismissed by Escape or an outside click.
+    /// </summary>
+    /// <param name="isOpen">The dialog's requested open state.</param>
+    private void OnDeleteOpenChanged(bool isOpen)
+    {
+        if (!isOpen)
+        {
+            CancelDelete();
+        }
     }
 
     private async Task DeleteAward()

@@ -1,0 +1,262 @@
+@*
+    PostMarkdownEditor.razor
+    Purpose: Markdown editor composite with a formatting toolbar and a live split preview.
+    Provides edit, split and preview view modes.
+
+    Usage: <PostMarkdownEditor @bind-Value="content" />
+    Dependencies: BlogEngine.Common.MarkdownRenderer, TrBlazeUI Toolbar/Tabs/Textarea (REQ-UI-048)
+    Note: preview typography comes from wwwroot/css/base.css `.markdown-content`.
+*@
+@namespace BlogUI.Components
+@inject BlogEngine.Common.MarkdownRenderer Renderer
+
+<div class="overflow-hidden rounded-md border border-border bg-card" data-testid="markdown-editor">
+
+    <Toolbar Variant="ToolbarVariant.Compact"
+             AriaLabel="Markdown formatting"
+             Class="flex-wrap border-b border-border"
+             data-testid="markdown-toolbar">
+
+        <ToolbarGroup AriaLabel="Text style">
+            <ToolbarButton Variant="ToolbarButtonVariant.Ghost"
+                           AriaLabel="Bold"
+                           Title="Bold"
+                           OnClick="@(() => InsertMarkdown("**", "**", "bold text"))"
+                           data-testid="md-bold">
+                <LucideIcon Name="bold" Size="16" />
+            </ToolbarButton>
+            <ToolbarButton Variant="ToolbarButtonVariant.Ghost"
+                           AriaLabel="Italic"
+                           Title="Italic"
+                           OnClick="@(() => InsertMarkdown("*", "*", "italic text"))"
+                           data-testid="md-italic">
+                <LucideIcon Name="italic" Size="16" />
+            </ToolbarButton>
+            <ToolbarButton Variant="ToolbarButtonVariant.Ghost"
+                           AriaLabel="Strikethrough"
+                           Title="Strikethrough"
+                           OnClick="@(() => InsertMarkdown("~~", "~~", "strikethrough"))"
+                           data-testid="md-strikethrough">
+                <LucideIcon Name="strikethrough" Size="16" />
+            </ToolbarButton>
+        </ToolbarGroup>
+
+        <ToolbarSeparator />
+
+        <ToolbarGroup AriaLabel="Headings">
+            <ToolbarButton Variant="ToolbarButtonVariant.Ghost"
+                           AriaLabel="Heading 1"
+                           Title="Heading 1"
+                           OnClick="@(() => InsertMarkdown("# ", "", "Heading 1"))"
+                           data-testid="md-heading-1">
+                <LucideIcon Name="heading-1" Size="16" />
+            </ToolbarButton>
+            <ToolbarButton Variant="ToolbarButtonVariant.Ghost"
+                           AriaLabel="Heading 2"
+                           Title="Heading 2"
+                           OnClick="@(() => InsertMarkdown("## ", "", "Heading 2"))"
+                           data-testid="md-heading-2">
+                <LucideIcon Name="heading-2" Size="16" />
+            </ToolbarButton>
+            <ToolbarButton Variant="ToolbarButtonVariant.Ghost"
+                           AriaLabel="Heading 3"
+                           Title="Heading 3"
+                           OnClick="@(() => InsertMarkdown("### ", "", "Heading 3"))"
+                           data-testid="md-heading-3">
+                <LucideIcon Name="heading-3" Size="16" />
+            </ToolbarButton>
+        </ToolbarGroup>
+
+        <ToolbarSeparator />
+
+        <ToolbarGroup AriaLabel="Insert">
+            <ToolbarButton Variant="ToolbarButtonVariant.Ghost"
+                           AriaLabel="Insert link"
+                           Title="Insert link"
+                           OnClick="@(() => InsertMarkdown("[", "](url)", "link text"))"
+                           data-testid="md-link">
+                <LucideIcon Name="link" Size="16" />
+            </ToolbarButton>
+            <ToolbarButton Variant="ToolbarButtonVariant.Ghost"
+                           AriaLabel="Insert image"
+                           Title="Insert image"
+                           OnClick="@(() => InsertMarkdown("![alt text](", ")", "image-url"))"
+                           data-testid="md-image">
+                <LucideIcon Name="image" Size="16" />
+            </ToolbarButton>
+        </ToolbarGroup>
+
+        <ToolbarSeparator />
+
+        <ToolbarGroup AriaLabel="Code and quotes">
+            <ToolbarButton Variant="ToolbarButtonVariant.Ghost"
+                           AriaLabel="Inline code"
+                           Title="Inline code"
+                           OnClick="@(() => InsertMarkdown("`", "`", "code"))"
+                           data-testid="md-code">
+                <LucideIcon Name="code" Size="16" />
+            </ToolbarButton>
+            <ToolbarButton Variant="ToolbarButtonVariant.Ghost"
+                           AriaLabel="Code block"
+                           Title="Code block"
+                           OnClick="@(() => InsertMarkdown("```\n", "\n```", "code block"))"
+                           data-testid="md-code-block">
+                <LucideIcon Name="square-code" Size="16" />
+            </ToolbarButton>
+            <ToolbarButton Variant="ToolbarButtonVariant.Ghost"
+                           AriaLabel="Blockquote"
+                           Title="Blockquote"
+                           OnClick="@(() => InsertMarkdown("> ", "", "quote"))"
+                           data-testid="md-quote">
+                <LucideIcon Name="quote" Size="16" />
+            </ToolbarButton>
+        </ToolbarGroup>
+
+        <ToolbarSeparator />
+
+        <ToolbarGroup AriaLabel="Lists">
+            <ToolbarButton Variant="ToolbarButtonVariant.Ghost"
+                           AriaLabel="Bullet list"
+                           Title="Bullet list"
+                           OnClick="@(() => InsertMarkdown("- ", "", "list item"))"
+                           data-testid="md-bullet-list">
+                <LucideIcon Name="list" Size="16" />
+            </ToolbarButton>
+            <ToolbarButton Variant="ToolbarButtonVariant.Ghost"
+                           AriaLabel="Numbered list"
+                           Title="Numbered list"
+                           OnClick="@(() => InsertMarkdown("1. ", "", "list item"))"
+                           data-testid="md-numbered-list">
+                <LucideIcon Name="list-ordered" Size="16" />
+            </ToolbarButton>
+            <ToolbarButton Variant="ToolbarButtonVariant.Ghost"
+                           AriaLabel="Horizontal rule"
+                           Title="Horizontal rule"
+                           OnClick="@(() => InsertMarkdown("---\n", "", ""))"
+                           data-testid="md-horizontal-rule">
+                <LucideIcon Name="minus" Size="16" />
+            </ToolbarButton>
+        </ToolbarGroup>
+
+        <div class="flex-1"></div>
+
+        <Tabs Value="@ViewMode" ValueChanged="@SetViewMode" data-testid="markdown-view-mode">
+            <TabsList Class="h-8">
+                <TabsTrigger Value="edit"><span data-testid="markdown-view-edit">Edit</span></TabsTrigger>
+                <TabsTrigger Value="split"><span data-testid="markdown-view-split">Split</span></TabsTrigger>
+                <TabsTrigger Value="preview"><span data-testid="markdown-view-preview">Preview</span></TabsTrigger>
+            </TabsList>
+        </Tabs>
+    </Toolbar>
+
+    <div class="flex min-h-[400px] items-stretch">
+        @if (ViewMode != "preview")
+        {
+            <div class="flex min-w-0 flex-1">
+                <Textarea Value="@Value"
+                          ValueChanged="@OnContentChanged"
+                          Placeholder="@InputPlaceholder"
+                          Class="min-h-[400px] flex-1 resize-none rounded-none border-0 bg-card px-4 py-3 font-mono text-sm"
+                          AriaLabel="Post content in Markdown"
+                          data-testid="markdown-input" />
+            </div>
+        }
+        @if (ViewMode != "edit")
+        {
+            <div class="min-w-0 flex-1 overflow-y-auto bg-card p-4 @(ViewMode == "split" ? "border-l border-border" : string.Empty)"
+                 data-testid="markdown-preview">
+                @if (string.IsNullOrWhiteSpace(Value))
+                {
+                    <div class="flex h-full flex-col items-center justify-center gap-2 text-center text-muted-foreground"
+                         data-testid="markdown-preview-empty">
+                        <LucideIcon Name="file-text" Size="24" />
+                        <p class="text-sm">Preview will appear here as you type...</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="markdown-content" data-testid="markdown-preview-content">
+                        @((MarkupString)renderedHtml)
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// Markdown source text. Two-way bindable via <c>@bind-Value</c>.
+    /// </summary>
+    [Parameter]
+    public string Value { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Raised whenever the markdown source changes.
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    /// <summary>
+    /// Active view mode: "edit", "split" or "preview".
+    /// </summary>
+    [Parameter]
+    public string ViewMode { get; set; } = "split";
+
+    /// <summary>Placeholder shown in the markdown input while it is empty.</summary>
+    private const string InputPlaceholder =
+        "Write your content in Markdown...\n\n**Bold**  *Italic*  `code`\n# Heading 1\n- Bullet list\n[Link text](url)\n> Blockquote";
+
+    /// <summary>Rendered HTML for the current markdown source.</summary>
+    private string renderedHtml = string.Empty;
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        UpdatePreview();
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        UpdatePreview();
+    }
+
+    /// <summary>Re-renders the preview HTML from the current markdown source.</summary>
+    private void UpdatePreview()
+    {
+        renderedHtml = Renderer.ToHtml(Value ?? string.Empty);
+    }
+
+    /// <summary>Handles input from the markdown textarea and notifies the parent.</summary>
+    private async Task OnContentChanged(string value)
+    {
+        Value = value ?? string.Empty;
+        UpdatePreview();
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    /// <summary>Switches the editor between edit, split and preview modes.</summary>
+    private void SetViewMode(string mode)
+    {
+        if (!string.IsNullOrEmpty(mode))
+        {
+            ViewMode = mode;
+        }
+    }
+
+    /// <summary>
+    /// Appends a markdown snippet to the end of the source and notifies the parent.
+    /// </summary>
+    private async Task InsertMarkdown(string before, string after, string placeholder)
+    {
+        // Simple insertion - appends to end.
+        // In a full implementation, would use JS interop to insert at cursor.
+        Value = string.IsNullOrEmpty(Value)
+            ? before + placeholder + after
+            : Value + "\n" + before + placeholder + after;
+
+        UpdatePreview();
+        await ValueChanged.InvokeAsync(Value);
+    }
+}
