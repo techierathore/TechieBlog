@@ -104,98 +104,58 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 @media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{position:static;height:auto}}</style>
 </head>
 <body>
-<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">&#9782; Dark</button>
+<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">☾ Dark</button>
 <div class="layout">
-<nav class="side">
-<h1>TechieBlog — Developer Guide · Admin</h1>
-<div class="sub">Generated 2026-08-02 · code as built · STATIC-ONLY</div>
-<div class="group">Contents</div>
-<ol>
-<li><a href="#admin-users-users">Admin · Users (<code>/users</code>)</a></li>
-<li><a href="#admin-add-user-adduser">Admin · Add user (<code>/AddUser</code>)</a></li>
-<li><a href="#admin-categories-admin-categories-categorieslist-and-category-editor-admin-category-admin-category-pageid-long">Admin · Categories (<code>/admin/categories</code>, <code>/CategoriesList</code>) and category editor (<code>/admin/category</code>, <code>/admin/category/{PageId:long}</code>)</a></li>
-<li><a href="#admin-tags-admin-tags-tagslist-and-tag-editor-managetag-managetag-pageid-long">Admin · Tags (<code>/admin/tags</code>, <code>/TagsList</code>) and tag editor (<code>/ManageTag</code>, <code>/ManageTag/{PageId:long}</code>)</a></li>
-<li><a href="#admin-subscribers-admin-subscribers">Admin · Subscribers (<code>/admin/subscribers</code>)</a></li>
-<li><a href="#admin-media-library-admin-images">Admin · Media library (<code>/admin/images</code>)</a></li>
-<li><a href="#admin-site-settings-settings">Admin · Site settings (<code>/settings</code>)</a></li>
-<li><a href="#admin-resume-data-screens">Admin · Resume data screens</a></li>
-<li><a href="#admin-everything-else">Admin · Everything else</a></li>
-<li><a href="#admin-relevant-cross-cutting-risks">Admin-relevant cross-cutting risks</a></li>
-</ol>
-</nav>
-  <main>
+  <nav class="side">
     <h1>TechieBlog — Developer Guide · Admin</h1>
-    <div class="subtitle">Generated 2026-08-02 · code as built · STATIC-ONLY</div>
+    <div class="sub">Last rendered: 2026-08-09</div>
+    <div class="group">Contents</div>
+    <ol>
+      <li><a href="#runtime-verification-2026-08-09">Runtime verification (2026-08-09)</a></li>
+      <li><a href="#admin-users-users">Admin · Users (`/users`)</a></li>
+      <li><a href="#admin-add-user-adduser">Admin · Add user (`/AddUser`)</a></li>
+      <li><a href="#admin-categories-admin-categories-categorieslist-and-category-editor-admin-category-admin-category-pageid-long">Admin · Categories (`/admin/categories`, `/CategoriesList`) and category editor (`/admin/category`, `/admin/category/{PageId:long}`)</a></li>
+      <li><a href="#admin-tags-admin-tags-tagslist-and-tag-editor-managetag-managetag-pageid-long">Admin · Tags (`/admin/tags`, `/TagsList`) and tag editor (`/ManageTag`, `/ManageTag/{PageId:long}`)</a></li>
+      <li><a href="#admin-subscribers-admin-subscribers">Admin · Subscribers (`/admin/subscribers`)</a></li>
+      <li><a href="#admin-media-library-admin-images">Admin · Media library (`/admin/images`)</a></li>
+      <li><a href="#admin-site-settings-settings">Admin · Site settings (`/settings`)</a></li>
+      <li><a href="#admin-resume-data-screens">Admin · Resume data screens</a></li>
+      <li><a href="#admin-everything-else">Admin · Everything else</a></li>
+      <li><a href="#admin-relevant-cross-cutting-risks">Admin-relevant cross-cutting risks</a></li>
+    </ol>
+  </nav>
+  <main>
+    <div class="subtitle">Runtime-verified 2026-08-09 by <code>*verify all</code></div>
 
-<div class="toc-inline">
-<div>Contents</div>
-<ol>
-<li><a href="#admin-users-users">Admin · Users (<code>/users</code>)</a></li>
-<li><a href="#admin-add-user-adduser">Admin · Add user (<code>/AddUser</code>)</a></li>
-<li><a href="#admin-categories-admin-categories-categorieslist-and-category-editor-admin-category-admin-category-pageid-long">Admin · Categories (<code>/admin/categories</code>, <code>/CategoriesList</code>) and category editor (<code>/admin/category</code>, <code>/admin/category/{PageId:long}</code>)</a></li>
-<li><a href="#admin-tags-admin-tags-tagslist-and-tag-editor-managetag-managetag-pageid-long">Admin · Tags (<code>/admin/tags</code>, <code>/TagsList</code>) and tag editor (<code>/ManageTag</code>, <code>/ManageTag/{PageId:long}</code>)</a></li>
-<li><a href="#admin-subscribers-admin-subscribers">Admin · Subscribers (<code>/admin/subscribers</code>)</a></li>
-<li><a href="#admin-media-library-admin-images">Admin · Media library (<code>/admin/images</code>)</a></li>
-<li><a href="#admin-site-settings-settings">Admin · Site settings (<code>/settings</code>)</a></li>
-<li><a href="#admin-resume-data-screens">Admin · Resume data screens</a></li>
-<li><a href="#admin-everything-else">Admin · Everything else</a></li>
-<li><a href="#admin-relevant-cross-cutting-risks">Admin-relevant cross-cutting risks</a></li>
-</ol>
-</div>
-<blockquote>⚠ <strong>STATIC-ONLY (2026-08-02)</strong> — built from code reading; NOT yet runtime-verified. Render-status is unconfirmed until <code>*verify</code> runs against the running app (the solution currently does not compile — REQ-FN-043).</blockquote>
-<p>Index: <a href="./TechieBlog-DevGuide.html">TechieBlog-DevGuide.md</a></p>
-<p>An Admin sees every screen in the app. The eleven below are guarded by <code>@attribute [Authorize(Policy = &quot;AdminOnly&quot;)]</code> and use <code>AdminLayout</code>.</p>
+<h1>TechieBlog — Developer Guide · Admin</h1>
+<p>&gt; ✅ <strong>Runtime-verified 2026-08-09 as Admin and Editor</strong> — supersedes the 2026-08-02 <code>STATIC-ONLY</code> &gt; banner, whose stated reason (solution does not compile, REQ-FN-043) is stale. Every screen below was &gt; exercised on <strong>both heads</strong>: the web host and the BlogApp desktop head.</p>
+<p>Index: <a href="./TechieBlog-DevGuide.md">TechieBlog-DevGuide.md</a></p>
+<h2 id="runtime-verification-2026-08-09">Runtime verification (2026-08-09)<a class="anchor-link" href="#runtime-verification-2026-08-09">#</a></h2>
+<p>Every count below was cross-checked against PostgreSQL <strong>at the instant of measurement</strong> (a start-of-run snapshot proved unsafe — sibling agents moved the data mid-run).</p>
+<table><thead><tr><th>Screen</th><th>Observed</th><th>Detail</th></tr></thead><tbody><tr><td><code>/admin</code> dashboard</td><td><strong>renders ✓ (runtime-confirmed)</strong></td><td>Posts 10, Users 4, Comments 16, Subscribers 7 — every tile an exact psql match. Needs-Attention 6/1/1 exact. Quick actions genuinely role-gated: an Editor is offered only the 2 non-<code>AdminOnly</code> destinations and both open without an access-denied bounce</td></tr><tr><td><code>/admin</code> popular posts</td><td><strong>renders-empty (NO-DATA, downstream defect)</strong></td><td>shows an explicit empty state rather than a fabricated ranking — correct behaviour, but it can never populate because view tracking is dead code (<code>REQ-FN-034</code>)</td></tr><tr><td><code>/users</code>, <code>/AddUser</code></td><td><strong>renders ✓</strong></td><td>4 rows with email + role badge, search narrows 4→1, all 7 create-form controls present. <strong>Mutation half unproven</strong> — the change-role Select's option list could not be driven, so role persistence is unverified</td></tr><tr><td><code>/CommentsList</code></td><td><strong>renders ✓</strong></td><td>16/16 rows all cells populated, tabs exact vs psql, 26 per-row controls + bulk actions; delete dialog opened and <strong>cancelled</strong></td></tr><tr><td><code>/admin/categories</code>, <code>/admin/tags</code></td><td><strong>renders ✓</strong></td><td>5 and 15 rows; per-row counts sum to the published-only totals exactly (8 and 27); editors load populated; delete dialogs opened and <strong>cancelled</strong></td></tr><tr><td><code>/admin/subscribers</code></td><td><strong>renders ✓</strong></td><td>7 rows = psql, summary "7 total (6 active)" exact, CSV export produced a real download. <strong>Gap:</strong> no delete/remove control exists — <code>Unsubscribe</code> is reachable only from the public token</td></tr><tr><td><code>/settings</code></td><td><strong>renders ✓</strong></td><td>all six tabs render and every value equals its <code>SiteSetting</code> row; 21 controls checked, 0 blank. The TR-032 <code>TabsTrigger</code> crash is <strong>gone</strong>. At 390 the tabs wrap to two rows and Storage is reachable</td></tr><tr><td>theme selector</td><td><strong>renders ✓</strong></td><td>preview does not persist and does not write LocalStorage; after Save a <strong>fresh anonymous context</strong> received the saved site theme. Restored afterwards</td></tr><tr><td><code>/admin/analytics</code></td><td><strong>renders-empty (NO-DATA, downstream defect)</strong></td><td>rating and comment tiles carry real numbers and the date range provably moves them; Views/Unique are 0 and the trend, popular and category panels show empty states — because <code>postviews</code> is never written (<code>REQ-FN-034</code>)</td></tr><tr><td><code>AdminLayout</code></td><td><strong>renders ✓</strong></td><td>6 group headings, 17 entries for Admin vs 10 for Editor — refused groups are <strong>hidden, not rendered empty</strong>; exactly one active highlight; account menu names the identity</td></tr><tr><td><code>/admin/images</code></td><td><strong>render-error (DEFECT)</strong></td><td>gallery and per-category validation work end to end (upload → serve → delete), but the <strong>user-filter Select displays the raw value <code>0</code></strong> instead of its "All Users" label. Reproduced on both heads</td></tr><tr><td><code>/admin/skills</code></td><td><strong>render-error (DEFECT)</strong></td><td>13 skills in 5 categories = psql, but the <strong>admin user selector shows the raw id <code>1</code></strong> instead of a user name — same defect class as above</td></tr><tr><td><code>/admin/experience</code>, <code>/admin/awards</code></td><td><strong>render-error (DEFECT)</strong></td><td>lists, ordering, add/edit/delete and the user selector all render, but the acceptance-named <strong>company-logo picker and badge-image picker do not exist</strong> — both are plain text path inputs with 0 <code>ImagePicker</code> instances</td></tr><tr><td><code>/admin/profile</code></td><td><strong>visual-broken (DEFECT)</strong></td><td>all 10 fields match psql byte-for-byte and the <strong><code>REQ-FN-053</code> data-loss regression holds</strong> (md5 over the nine at-risk columns identical across a no-edit save). At 390 <code>clear-image</code> <strong>overlaps</strong> <code>upload-new-image</code> and is invisible in the render</td></tr><tr><td><code>/admin/newsletter</code></td><td><strong>renders ✓ with a dead link (DEFECT)</strong></td><td>compose, preview, live audience estimate, send and per-recipient delivery log all work — but every message carries an unsubscribe link to <code>/unsubscribe/{token}</code>, which <strong>404s with a zero-byte body</strong>. No page is routed there</td></tr><tr><td><code>/ManagePost</code> (see Author guide)</td><td><strong>render-error (DEFECT)</strong></td><td>the Markdown textarea <strong>loses and reorders keystrokes</strong>; saving with no category selected surfaces a <strong>raw PostgreSQL FK violation</strong> to the user</td></tr></tbody></table>
+<p><strong>Dark mode:</strong> measured, not eyeballed — contrast resolved through a 1-px canvas across 8 admin screens (43–140 text nodes each): <strong>0 nodes below WCAG AA</strong>. <strong>Icons:</strong> 333 rendered <code>&lt;svg&gt;</code> nodes across 13 routes, <strong>0 empty</strong> — no Lucide alias-name misses remain.</p>
+<p>An Admin sees every screen in the app. The eleven below are guarded by <code>@attribute [Authorize(Policy = "AdminOnly")]</code> and use <code>AdminLayout</code>.</p>
 <h2 id="admin-users-users">Admin · Users (<code>/users</code>)<a class="anchor-link" href="#admin-users-users">#</a></h2>
 <p><strong>File:</strong> <code>source/BlogUI/Pages/AdminPages/UsersList.razor</code> + <code>.razor.cs</code> — <strong>injects the repository directly; there is no user service.</strong></p>
-<table>
-<thead><tr><th>Control</th><th>What it does</th><th>Source call</th><th>Render status</th></tr></thead>
-<tbody>
-<tr><td>User table</td><td>Lists all users</td><td><code>BlogUserRepo.GetAll(...)</code></td><td>static-only (unconfirmed)</td></tr>
-<tr><td>Role change / enable-disable</td><td>Persists the edited user</td><td><code>BlogUserRepo.Update(...)</code></td><td>static-only (unconfirmed)</td></tr>
-</tbody></table>
+<table><thead><tr><th>Control</th><th>What it does</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>User table</td><td>Lists all users</td><td><code>BlogUserRepo.GetAll(...)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Role change / enable-disable</td><td>Persists the edited user</td><td><code>BlogUserRepo.Update(...)</code></td><td>static-only (unconfirmed)</td></tr></tbody></table>
 <p><strong>Data lineage:</strong> page → <code>IBlogUserRepo</code> → <code>BlogUserRepo.cs</code> → <code>SELECT * FROM BlogUser</code> (and the stored function <code>SelectBlogUserById</code> for single reads) / inline <code>UPDATE BlogUser</code>.</p>
 <p><strong>Known issues (static):</strong> Story 2.6 specifies search/filter, last-login display, delete with confirmation and an audit-log entry per admin action. Only list + update were found — <code>{unresolved — TODO: confirm whether search/delete exist in the markup}</code>. No audit-log write was located anywhere in the codebase.</p>
 <h2 id="admin-add-user-adduser">Admin · Add user (<code>/AddUser</code>)<a class="anchor-link" href="#admin-add-user-adduser">#</a></h2>
 <p><strong>File:</strong> <code>source/BlogUI/Pages/AdminPages/AddUser.razor</code> — <code>@inject BlogModels.IBlogUserRepo UserRepo</code></p>
-<table>
-<thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead>
-<tbody>
-<tr><td>Create user form</td><td><code>{unresolved — TODO: the insert call was not located in the page; BlogUserRepo exposes Insert / InsertToGetId and the stored function InsertBlogUser}</code></td><td>unresolved</td></tr>
-</tbody></table>
+<table><thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Create user form</td><td><code>{unresolved — TODO: the insert call was not located in the page; BlogUserRepo exposes Insert / InsertToGetId and the stored function InsertBlogUser}</code></td><td>unresolved</td></tr></tbody></table>
 <p><strong>Known issue (static):</strong> if this page writes a password, confirm it hashes through <code>AppEncrypt.CreateHash</code> rather than storing plaintext — the seed script sets a plaintext password (REQ-NFR-023, ⚠ SECURITY), so the pattern is already present in the repo.</p>
 <h2 id="admin-categories-admin-categories-categorieslist-and-category-editor-admin-category-admin-category-pageid-long">Admin · Categories (<code>/admin/categories</code>, <code>/CategoriesList</code>) and category editor (<code>/admin/category</code>, <code>/admin/category/{PageId:long}</code>)<a class="anchor-link" href="#admin-categories-admin-categories-categorieslist-and-category-editor-admin-category-admin-category-pageid-long">#</a></h2>
 <p><strong>Files:</strong> <code>Pages/AdminPages/CategoriesList.razor</code>, <code>Pages/AdminPages/ManageCategory.razor</code> + <code>.razor.cs</code></p>
-<table>
-<thead><tr><th>Screen</th><th>Control</th><th>Source call</th></tr></thead>
-<tbody>
-<tr><td>CategoriesList</td><td>Table with post counts</td><td><code>CategoryService.GetAllWithCounts()</code></td></tr>
-<tr><td>CategoriesList</td><td>Delete</td><td><code>CategoryService.DeleteCategory(...)</code></td></tr>
-<tr><td>ManageCategory</td><td>Load</td><td><code>CategoryService.GetCategory(PageId)</code></td></tr>
-<tr><td>ManageCategory</td><td>Save</td><td><code>CategoryService.SaveCategory(...)</code></td></tr>
-</tbody></table>
+<table><thead><tr><th>Screen</th><th>Control</th><th>Source call</th></tr></thead><tbody><tr><td>CategoriesList</td><td>Table with post counts</td><td><code>CategoryService.GetAllWithCounts()</code></td></tr><tr><td>CategoriesList</td><td>Delete</td><td><code>CategoryService.DeleteCategory(...)</code></td></tr><tr><td>ManageCategory</td><td>Load</td><td><code>CategoryService.GetCategory(PageId)</code></td></tr><tr><td>ManageCategory</td><td>Save</td><td><code>CategoryService.SaveCategory(...)</code></td></tr></tbody></table>
 <p><strong>Lineage:</strong> page → <code>CategorySvc</code> → <code>CategoryRepo</code> → <code>INSERT INTO Category</code>, <code>UPDATE Category</code>, <code>DELETE FROM Category</code>, <code>SELECT c.CategoryId …</code> joined for counts.</p>
 <h2 id="admin-tags-admin-tags-tagslist-and-tag-editor-managetag-managetag-pageid-long">Admin · Tags (<code>/admin/tags</code>, <code>/TagsList</code>) and tag editor (<code>/ManageTag</code>, <code>/ManageTag/{PageId:long}</code>)<a class="anchor-link" href="#admin-tags-admin-tags-tagslist-and-tag-editor-managetag-managetag-pageid-long">#</a></h2>
 <p><strong>Files:</strong> <code>Pages/AdminPages/TagsList.razor</code>, <code>Pages/AdminPages/ManageTag.razor</code></p>
-<table>
-<thead><tr><th>Screen</th><th>Control</th><th>Source call</th></tr></thead>
-<tbody>
-<tr><td>TagsList</td><td>Table with post counts</td><td><code>TagService.GetAllWithCounts()</code></td></tr>
-<tr><td>TagsList</td><td>Delete</td><td><code>TagService.DeleteTag(...)</code></td></tr>
-<tr><td>ManageTag</td><td>Load</td><td><code>TagService.GetSingleTag(PageId)</code></td></tr>
-<tr><td>ManageTag</td><td>Slug</td><td><code>SlugGenerator.GenerateSlug(...)</code> (static helper, called in the page)</td></tr>
-<tr><td>ManageTag</td><td>Save</td><td><code>TagService.SaveTag(...)</code></td></tr>
-</tbody></table>
+<table><thead><tr><th>Screen</th><th>Control</th><th>Source call</th></tr></thead><tbody><tr><td>TagsList</td><td>Table with post counts</td><td><code>TagService.GetAllWithCounts()</code></td></tr><tr><td>TagsList</td><td>Delete</td><td><code>TagService.DeleteTag(...)</code></td></tr><tr><td>ManageTag</td><td>Load</td><td><code>TagService.GetSingleTag(PageId)</code></td></tr><tr><td>ManageTag</td><td>Slug</td><td><code>SlugGenerator.GenerateSlug(...)</code> (static helper, called in the page)</td></tr><tr><td>ManageTag</td><td>Save</td><td><code>TagService.SaveTag(...)</code></td></tr></tbody></table>
 <p><strong>Lineage:</strong> page → <code>TagSvc</code> → <code>BlogTagRepo</code> → <code>INSERT INTO Tag</code>, <code>DELETE FROM Tag</code>, <code>INSERT INTO PostTag</code>, <code>DELETE FROM PostTag</code>, <code>SELECT t.TagId …</code> with the <code>COUNT</code> that Story 7.5 fixed.</p>
 <p><strong>Known issue (static):</strong> the tag-merge capability indicated in mockup <code>26-admin-tags.html</code> was not found. <code>{unresolved — TODO: confirm whether merge exists.}</code></p>
 <h2 id="admin-subscribers-admin-subscribers">Admin · Subscribers (<code>/admin/subscribers</code>)<a class="anchor-link" href="#admin-subscribers-admin-subscribers">#</a></h2>
 <p><strong>File:</strong> <code>source/BlogUI/Pages/AdminPages/SubscribersList.razor</code></p>
-<table>
-<thead><tr><th>Control</th><th>What it does</th><th>Source call</th><th>Render status</th></tr></thead>
-<tbody>
-<tr><td>Subscriber table</td><td>Lists subscribers</td><td><code>SubscriberService.GetAllSubscribers()</code></td><td>static-only</td></tr>
-<tr><td>Status change</td><td>Activate / unsubscribe</td><td><code>SubscriberService.UpdateSubscriberStatus(...)</code></td><td>static-only</td></tr>
-<tr><td>Export</td><td>CSV download via JS interop</td><td><code>SubscriberService.GetSubscribersForExport()</code> + <code>IJSRuntime</code></td><td>static-only</td></tr>
-</tbody></table>
+<table><thead><tr><th>Control</th><th>What it does</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Subscriber table</td><td>Lists subscribers</td><td><code>SubscriberService.GetAllSubscribers()</code></td><td>static-only</td></tr><tr><td>Status change</td><td>Activate / unsubscribe</td><td><code>SubscriberService.UpdateSubscriberStatus(...)</code></td><td>static-only</td></tr><tr><td>Export</td><td>CSV download via JS interop</td><td><code>SubscriberService.GetSubscribersForExport()</code> + <code>IJSRuntime</code></td><td>static-only</td></tr></tbody></table>
 <p><strong>Lineage:</strong> page → <code>SubscriberSvc</code> → <code>SubscriberRepo</code> → <code>INSERT INTO Subscriber</code>, <code>UPDATE Subscriber</code>, <code>SELECT SubscriberId …</code>.</p>
 <p><strong>Known issue (static):</strong> no newsletter composer or send action exists on this page — the "Newsletter management" claim in the migrated plan (Story 7.7) covers the subscriber list only. Newsletter composition and SMTP delivery are REQ-UI-043 / REQ-FN-032 / REQ-FN-033, all Not Started.</p>
 <h2 id="admin-media-library-admin-images">Admin · Media library (<code>/admin/images</code>)<a class="anchor-link" href="#admin-media-library-admin-images">#</a></h2>
@@ -207,40 +167,20 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     <button data-zin title="Zoom in">+</button>
     <button data-fit title="Fit to width">Fit</button>
     <button data-one title="Actual size">1:1</button>
-    <button data-fs title="Fullscreen">⬜</button>
+    <button data-fs title="Fullscreen">⛶</button>
     <button data-pop title="Open in new tab">↗</button>
   </div>
-<pre class="mermaid">flowchart LR
+  <pre class="mermaid">flowchart LR
   MI["ManageImages.razor.cs"] --> IS["IBlogImageService"]
   IS --> Disk[/"wwwroot/uploads/{category}"/]
   IS --> IR["BlogImageRepo"]
   IR --> DB[("blogimage")]
   MI --> UR["IBlogUserRepo.GetAll — user filter"]</pre>
 </div>
-<table>
-<thead><tr><th>Control</th><th>What it does</th><th>Source call</th><th>Render status</th></tr></thead>
-<tbody>
-<tr><td>Gallery by category</td><td>Lists images</td><td><code>ImageService.GetImagesByCategoryAsync(...)</code></td><td>static-only</td></tr>
-<tr><td>Upload</td><td>Validates then stores</td><td><code>ImageService.ValidateImageAsync(...)</code> → <code>UploadImageAsync(...)</code></td><td>static-only</td></tr>
-<tr><td>Delete</td><td>Removes row and file</td><td><code>ImageService.DeleteImageAsync(...)</code></td><td>static-only</td></tr>
-<tr><td>Copy URL</td><td>Public path for an image</td><td><code>ImageService.GetImageUrl(...)</code></td><td>static-only</td></tr>
-<tr><td>User filter</td><td>Owner selection</td><td><code>UserRepo.GetAll(...)</code></td><td>static-only</td></tr>
-</tbody></table>
+<table><thead><tr><th>Control</th><th>What it does</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Gallery by category</td><td>Lists images</td><td><code>ImageService.GetImagesByCategoryAsync(...)</code></td><td>static-only</td></tr><tr><td>Upload</td><td>Validates then stores</td><td><code>ImageService.ValidateImageAsync(...)</code> → <code>UploadImageAsync(...)</code></td><td>static-only</td></tr><tr><td>Delete</td><td>Removes row and file</td><td><code>ImageService.DeleteImageAsync(...)</code></td><td>static-only</td></tr><tr><td>Copy URL</td><td>Public path for an image</td><td><code>ImageService.GetImageUrl(...)</code></td><td>static-only</td></tr><tr><td>User filter</td><td>Owner selection</td><td><code>UserRepo.GetAll(...)</code></td><td>static-only</td></tr></tbody></table>
 <p><strong>Lineage:</strong> page → <code>IBlogImageService</code> (<code>BlogEngine/Services/BlogImageService.cs</code>) → disk write under <code>source/BlogUI/wwwroot/uploads/{category}/</code> <strong>and</strong> <code>BlogImageRepo</code> → <code>INSERT INTO blogimage</code> / <code>UPDATE blogimage</code> / <code>SELECT * FROM blogimage</code>.</p>
 <p><strong>Business rules:</strong> seven categories with per-category size and format limits (profiles 2 MB; logos, awards 500 KB; icons 200 KB; blog, general 5 MB; cv 10 MB / PDF only). Filenames are <code>{category}_{userId}_{timestamp}_{guid}.{ext}</code>.</p>
-<p><strong>Known issues (static):</strong></p>
-<ol>
-<li>The screen is <code>AdminOnly</code> while <code>ImagePicker</code> (which uploads through the same service) is used on</li>
-</ol>
-<p>   <code>AuthorOrAbove</code> pages — Authors can create uploads they can never browse or delete (REQ-UI-034).</p>
-<ol>
-<li>Files live on local disk with no storage abstraction (REQ-FN-042) — a container redeploy without a</li>
-</ol>
-<p>   mounted volume loses every upload.</p>
-<ol>
-<li>Thumbnail generation (feature-ideation §2.3 item 4) was not found.</li>
-</ol>
-<p>   <code>{unresolved — TODO: confirm whether thumbnails are generated.}</code></p>
+<p><strong>Known issues (static):</strong> 1. The screen is <code>AdminOnly</code> while <code>ImagePicker</code> (which uploads through the same service) is used on <code>AuthorOrAbove</code> pages — Authors can create uploads they can never browse or delete (REQ-UI-034). 2. Files live on local disk with no storage abstraction (REQ-FN-042) — a container redeploy without a mounted volume loses every upload. 3. Thumbnail generation (feature-ideation §2.3 item 4) was not found. <code>{unresolved — TODO: confirm whether thumbnails are generated.}</code></p>
 <h2 id="admin-site-settings-settings">Admin · Site settings (<code>/settings</code>)<a class="anchor-link" href="#admin-site-settings-settings">#</a></h2>
 <p><strong>File:</strong> <code>source/BlogUI/Pages/AdminPages/Settings.razor</code></p>
 <div class="diagram">
@@ -250,55 +190,31 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     <button data-zin title="Zoom in">+</button>
     <button data-fit title="Fit to width">Fit</button>
     <button data-one title="Actual size">1:1</button>
-    <button data-fs title="Fullscreen">⬜</button>
+    <button data-fs title="Fullscreen">⛶</button>
     <button data-pop title="Open in new tab">↗</button>
   </div>
-<pre class="mermaid">flowchart LR
+  <pre class="mermaid">flowchart LR
   ST["Settings.razor"] --> TS["ThemeService"]
   ST --> LS[/"browser localStorage"/]
   TS --> LS
   ST -.->|"never reached"| DB[("database")]</pre>
 </div>
-<table>
-<thead><tr><th>Control</th><th>What it claims to do</th><th>What it actually does</th><th>Render status</th></tr></thead>
-<tbody>
-<tr><td>Theme selector</td><td>Set the <strong>site</strong> theme</td><td><code>ThemeService.SetThemeAsync(...)</code> → writes <code>techieblog-theme</code> to <strong>browser local storage</strong> (<code>Common/ThemeService.cs:46</code>)</td><td><strong>DEFECT (static) — per-visitor, not site-wide</strong></td></tr>
-<tr><td>Pagination word count</td><td>Persist a blog setting</td><td><code>LocalStorage.SetItemAsync(PaginationWordCountKey, ...)</code> (<code>Settings.razor:335</code>)</td><td>static-only — browser-scoped</td></tr>
-<tr><td>General settings (site title, tagline)</td><td>Persist</td><td><strong>nothing</strong> — <code>// TODO: Implement actual save to database for other settings when settings service is created</code> (<code>Settings.razor:337</code>)</td><td><strong>DEFECT (static) — silently discarded</strong></td></tr>
-<tr><td>Blog settings (posts per page, comment moderation)</td><td>Persist</td><td><strong>nothing</strong> — same TODO</td><td><strong>DEFECT (static) — silently discarded</strong></td></tr>
-<tr><td>SEO settings</td><td>Persist</td><td><strong>nothing</strong> — same TODO</td><td><strong>DEFECT (static) — silently discarded</strong></td></tr>
-<tr><td>Social media settings</td><td>Persist</td><td><strong>nothing</strong> — same TODO</td><td><strong>DEFECT (static) — silently discarded</strong></td></tr>
-<tr><td>Save button</td><td>Confirms success</td><td>Sets <code>StatusMessage = &quot;Settings saved successfully.&quot;</code> regardless (<code>Settings.razor:338-339</code>)</td><td><strong>DEFECT (static) — false success message</strong></td></tr>
-</tbody></table>
+<table><thead><tr><th>Control</th><th>What it claims to do</th><th>What it actually does</th><th>Render status</th></tr></thead><tbody><tr><td>Theme selector</td><td>Set the <strong>site</strong> theme</td><td><code>ThemeService.SetThemeAsync(...)</code> → writes <code>techieblog-theme</code> to <strong>browser local storage</strong> (<code>Common/ThemeService.cs:46</code>)</td><td><strong>DEFECT (static) — per-visitor, not site-wide</strong></td></tr><tr><td>Pagination word count</td><td>Persist a blog setting</td><td><code>LocalStorage.SetItemAsync(PaginationWordCountKey, ...)</code> (<code>Settings.razor:335</code>)</td><td>static-only — browser-scoped</td></tr><tr><td>General settings (site title, tagline)</td><td>Persist</td><td><strong>nothing</strong> — <code>// TODO: Implement actual save to database for other settings when settings service is created</code> (<code>Settings.razor:337</code>)</td><td><strong>DEFECT (static) — silently discarded</strong></td></tr><tr><td>Blog settings (posts per page, comment moderation)</td><td>Persist</td><td><strong>nothing</strong> — same TODO</td><td><strong>DEFECT (static) — silently discarded</strong></td></tr><tr><td>SEO settings</td><td>Persist</td><td><strong>nothing</strong> — same TODO</td><td><strong>DEFECT (static) — silently discarded</strong></td></tr><tr><td>Social media settings</td><td>Persist</td><td><strong>nothing</strong> — same TODO</td><td><strong>DEFECT (static) — silently discarded</strong></td></tr><tr><td>Save button</td><td>Confirms success</td><td>Sets <code>StatusMessage = "Settings saved successfully."</code> regardless (<code>Settings.razor:338-339</code>)</td><td><strong>DEFECT (static) — false success message</strong></td></tr></tbody></table>
 <p><strong>This is the second-highest-value finding.</strong> The page presents five settings sections and reports success, but only the pagination word count is written — to the current browser's local storage, not the database. <code>LoadDefaultSettings()</code> even carries the comment <em>"In a real implementation, other settings would be loaded from a database"</em> (<code>Settings.razor:325</code>). There is no <code>SiteSettings</code> table in any migration and no settings repository or service in <code>BlogEngine</code>. Logged to REQ-FN-040 (dropped from <code>In Progress 90%</code>) and REQ-UI-026.</p>
 <p><strong>Knock-on effects:</strong></p>
-<ul>
-<li>BRD-68 ("admin selects the site theme") is not met — the selection is per-visitor.</li>
-<li>BRD-69 (site title, tagline, posts-per-page, SMTP, storage settings) is not met.</li>
-<li>The comment-moderation toggle has no persistent home, so whatever gates comment approval at runtime</li>
-</ul>
-<p>  is <code>{unresolved — TODO}</code>.</p>
+<ul><li>BRD-68 ("admin selects the site theme") is not met — the selection is per-visitor.</li><li>BRD-69 (site title, tagline, posts-per-page, SMTP, storage settings) is not met.</li><li>The comment-moderation toggle has no persistent home, so whatever gates comment approval at runtime</li></ul>
+<p>is <code>{unresolved — TODO}</code>.</p>
 <p><strong>Fix sketch:</strong> add a <code>SiteSettings</code> table + migration, a <code>SettingsRepo</code> and <code>SettingsSvc</code> (both are named in the archived architecture doc §5.1/§7.2 but were never built), load through them at startup, and cache per the caching design (REQ-NFR-018).</p>
 <h2 id="admin-resume-data-screens">Admin · Resume data screens<a class="anchor-link" href="#admin-resume-data-screens">#</a></h2>
-<p><code>/admin/profile</code>, <code>/admin/experience</code>, <code>/admin/skills</code>, <code>/admin/awards</code> are <code>AuthorOrAbove</code> and are documented in the <a href="./TechieBlog-DevGuide-Author.html">Author guide</a>. For Admins these pages additionally render a <strong>user selector</strong> fed by <code>UserRepo.GetAll(...)</code>, so an Admin can edit any user's resume data.</p>
+<p><code>/admin/profile</code>, <code>/admin/experience</code>, <code>/admin/skills</code>, <code>/admin/awards</code> are <code>AuthorOrAbove</code> and are documented in the <a href="./TechieBlog-DevGuide-Author.md">Author guide</a>. For Admins these pages additionally render a <strong>user selector</strong> fed by <code>UserRepo.GetAll(...)</code>, so an Admin can edit any user's resume data.</p>
 <p>The missing <code>ManageStats</code> screen (for <code>UserStats</code>, whose repository <em>is</em> registered at <code>BlogSvcInitializer.cs:69</code>) is also covered there.</p>
 <h2 id="admin-everything-else">Admin · Everything else<a class="anchor-link" href="#admin-everything-else">#</a></h2>
-<p>Admins inherit the Editor screens (dashboard, comment moderation, all posts — see the <a href="./TechieBlog-DevGuide-Editor.html">Editor guide</a>), the Author screens, and every public screen.</p>
+<p>Admins inherit the Editor screens (dashboard, comment moderation, all posts — see the <a href="./TechieBlog-DevGuide-Editor.md">Editor guide</a>), the Author screens, and every public screen.</p>
 <h2 id="admin-relevant-cross-cutting-risks">Admin-relevant cross-cutting risks<a class="anchor-link" href="#admin-relevant-cross-cutting-risks">#</a></h2>
-<table>
-<thead><tr><th>Risk</th><th>Where</th><th>REQ</th></tr></thead>
-<tbody>
-<tr><td>Seeded admin password is plaintext</td><td><code>source/BlogDb/PostgresScripts/003-SeedData.sql:59</code></td><td>REQ-NFR-023</td></tr>
-<tr><td>Password hashing is hand-rolled</td><td><code>source/BlogModel/Common/AppEncrypt.cs:93</code></td><td>REQ-NFR-002</td></tr>
-<tr><td>No rate limiting on login</td><td><code>source/TechieBlog/Program.cs</code> (no rate-limit middleware)</td><td>REQ-NFR-005</td></tr>
-<tr><td>No audit log for admin actions</td><td>nowhere</td><td>REQ-FN-010</td></tr>
-<tr><td>DbUp runs with DDL rights at every startup</td><td><code>Program.cs:110-135</code></td><td>operational note</td></tr>
-</tbody></table>
-<hr>
-<p>Generated 2026-08-02 · reflects code as built · ⚠ STATIC-ONLY</p>
+<table><thead><tr><th>Risk</th><th>Where</th><th>REQ</th></tr></thead><tbody><tr><td>Seeded admin password is plaintext</td><td><code>source/BlogDb/PostgresScripts/003-SeedData.sql:59</code></td><td>REQ-NFR-023</td></tr><tr><td>Password hashing is hand-rolled</td><td><code>source/BlogModel/Common/AppEncrypt.cs:93</code></td><td>REQ-NFR-002</td></tr><tr><td>No rate limiting on login</td><td><code>source/TechieBlog/Program.cs</code> (no rate-limit middleware)</td><td>REQ-NFR-005</td></tr><tr><td>No audit log for admin actions</td><td>nowhere</td><td>REQ-FN-010</td></tr><tr><td>DbUp runs with DDL rights at every startup</td><td><code>Program.cs:110-135</code></td><td>operational note</td></tr></tbody></table>
+<p>--- Generated 2026-08-02 · reflects code as built · ⚠ STATIC-ONLY</p>
   </main>
 </div>
-
 <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
 <script>// Light/dark toggle. The initial theme was already applied flash-free by the

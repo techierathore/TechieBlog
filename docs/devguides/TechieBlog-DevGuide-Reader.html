@@ -104,27 +104,32 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 @media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{position:static;height:auto}}</style>
 </head>
 <body>
-<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">&#9782; Dark</button>
-<div class="layout no-toc">
-
-  <main>
+<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">☾ Dark</button>
+<div class="layout">
+  <nav class="side">
     <h1>TechieBlog — Developer Guide · Reader (and Contributor)</h1>
-    <div class="subtitle">Generated 2026-08-02 · code as built · STATIC-ONLY</div>
+    <div class="sub">Last rendered: 2026-08-09</div>
+    <div class="group">Contents</div>
+    <ol>
+      <li><a href="#runtime-verification-2026-08-09-contributor-only">Runtime verification (2026-08-09) — Contributor only</a></li>
+      <li><a href="#reader-profile-profile">Reader · Profile (`/profile`)</a></li>
+      <li><a href="#reader-my-favourites-my-favorites">Reader · My Favourites (`/my-favorites`)</a></li>
+      <li><a href="#reader-engagement-on-a-post-post-slug">Reader · Engagement on a post (`/post/{Slug}`)</a></li>
+      <li><a href="#reader-subscribe-component-public-pages">Reader · Subscribe (component, public pages)</a></li>
+      <li><a href="#missing-screen-my-comments">Missing screen — My Comments</a></li>
+    </ol>
+  </nav>
+  <main>
+    <div class="subtitle">Runtime-verified 2026-08-09 by <code>*verify all</code></div>
 
-<div class="toc-inline">
-<div>Contents</div>
-<ol>
-<li><a href="#reader-profile-profile">Reader · Profile (<code>/profile</code>)</a></li>
-<li><a href="#reader-my-favourites-my-favorites">Reader · My Favourites (<code>/my-favorites</code>)</a></li>
-<li><a href="#reader-engagement-on-a-post-post-slug">Reader · Engagement on a post (<code>/post/{Slug}</code>)</a></li>
-<li><a href="#reader-subscribe-component-public-pages">Reader · Subscribe (component, public pages)</a></li>
-<li><a href="#missing-screen-my-comments">Missing screen — My Comments</a></li>
-</ol>
-</div>
-<blockquote>⚠ <strong>STATIC-ONLY (2026-08-02)</strong> — built from code reading; NOT yet runtime-verified. Render-status is unconfirmed until <code>*verify</code> runs against the running app (the solution currently does not compile — REQ-FN-043).</blockquote>
-<p>Index: <a href="./TechieBlog-DevGuide.html">TechieBlog-DevGuide.md</a></p>
+<h1>TechieBlog — Developer Guide · Reader (and Contributor)</h1>
+<p>&gt; ⚠ <strong>This guide documents a role that no longer exists.</strong> Reader accounts and public registration were &gt; retired on 2026-08-06 (BRD-1/13/43/44), and <code>019-SampleData.sql</code> deliberately seeds <strong>no</strong> Reader &gt; account. The screens described here — <code>/profile</code>, <code>/my-favorites</code>, <code>/my-comments</code> — are <code>N/A (removed)</code> &gt; in the checklist and <code>MyFavorites.razor</code> / <code>FavoriteToggle.razor</code> no longer exist in the tree. &gt; &gt; ✅ <strong>Contributor runtime-verified 2026-08-09</strong> — supersedes the 2026-08-02 <code>STATIC-ONLY</code> banner, whose &gt; stated reason (solution does not compile, REQ-FN-043) is stale.</p>
+<p>Index: <a href="./TechieBlog-DevGuide.md">TechieBlog-DevGuide.md</a></p>
+<h2 id="runtime-verification-2026-08-09-contributor-only">Runtime verification (2026-08-09) — Contributor only<a class="anchor-link" href="#runtime-verification-2026-08-09-contributor-only">#</a></h2>
+<table><thead><tr><th>Observation</th><th>Result</th></tr></thead><tbody><tr><td>Sign-in landing</td><td>Contributor signs in successfully and lands on <code>/</code>, per <code>RoleLandingRoutes</code> — it has no staff surface</td></tr><tr><td>Policy matrix</td><td><strong>denied</strong> <code>/users</code>, <code>/admin</code> and <code>/BlogsList</code>; every denial landed on the access-denied surface, never a raw 403</td></tr><tr><td>Access-denied affordance</td><td>correctly offers <strong>no</strong> "Go to Dashboard" button for this role, because there is no dashboard it may open</td></tr><tr><td>Forced password change</td><td>with <code>MustChangePassword</code> set, the Contributor sign-in was held on <code>/change-password</code> and navigating to <code>/</code> or <code>/BlogsList</code> <strong>bounced straight back</strong> — the flag is genuinely enforced, not merely displayed</td></tr><tr><td><code>ContributorOrAbove</code> policy</td><td>registered but still attached to <strong>no page</strong>, so it grants nothing beyond anonymous access. Unchanged from the static finding, and documented as deliberate</td></tr></tbody></table>
+<p><strong>Engagement is anonymous now.</strong> Commenting and rating no longer require an account at all: they are email-keyed with a captcha and double opt-in, and runtime checks found no sign-in gate and zero <code>/login</code> links in either component. The Favourite toggle this guide describes has been removed outright.</p>
 <p>A Reader sees every Guest screen plus the four below. <strong>Contributor is functionally identical to Reader</strong> — the <code>ContributorOrAbove</code> policy exists (<code>Program.cs:96</code>) but no page requires it, so the role grants nothing extra (index finding #5).</p>
-<blockquote><strong>Login trap:</strong> after a successful login <code>LoginPage.razor.cs:106</code> sends <em>every</em> role to <code>/admin</code>, which requires <code>EditorOrAbove</code>. A Reader therefore lands on <code>/access-denied</code> rather than the site. See index §3.</blockquote>
+<p>&gt; <strong>Login trap:</strong> after a successful login <code>LoginPage.razor.cs:106</code> sends <em>every</em> role to <code>/admin</code>, &gt; which requires <code>EditorOrAbove</code>. A Reader therefore lands on <code>/access-denied</code> rather than the site. &gt; See index §3.</p>
 <h2 id="reader-profile-profile">Reader · Profile (<code>/profile</code>)<a class="anchor-link" href="#reader-profile-profile">#</a></h2>
 <p><strong>File:</strong> <code>source/BlogUI/Pages/AdminPages/ProfilePage.razor</code> (+ <code>.razor.cs</code>) · <strong>Guard:</strong> <code>[Authorize]</code> · <strong>Layout:</strong> <code>AdminLayout</code></p>
 <div class="diagram">
@@ -134,63 +139,37 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     <button data-zin title="Zoom in">+</button>
     <button data-fit title="Fit to width">Fit</button>
     <button data-one title="Actual size">1:1</button>
-    <button data-fs title="Fullscreen">⬜</button>
+    <button data-fs title="Fullscreen">⛶</button>
     <button data-pop title="Open in new tab">↗</button>
   </div>
-<pre class="mermaid">flowchart LR
+  <pre class="mermaid">flowchart LR
   PP["ProfilePage.razor.cs"] --> AS["AuthSvc"]
   AS --> UR["BlogUserRepo"]
   UR --> DB[("BlogUser")]</pre>
 </div>
-<table>
-<thead><tr><th>Control</th><th>What it does</th><th>Source call</th><th>Render status</th></tr></thead>
-<tbody>
-<tr><td>Profile details</td><td>Loads the signed-in user</td><td><code>AuthService.GetUserProfile(...)</code></td><td>static-only (unconfirmed)</td></tr>
-<tr><td>Save profile</td><td>Persists display name, bio, avatar, socials</td><td><code>AuthService.UpdateProfile(...)</code></td><td>static-only (unconfirmed)</td></tr>
-<tr><td>Change password</td><td>Verifies current, sets new</td><td><code>AuthService.ChangePassword(...)</code></td><td>static-only (unconfirmed)</td></tr>
-</tbody></table>
+<table><thead><tr><th>Control</th><th>What it does</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Profile details</td><td>Loads the signed-in user</td><td><code>AuthService.GetUserProfile(...)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Save profile</td><td>Persists display name, bio, avatar, socials</td><td><code>AuthService.UpdateProfile(...)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Change password</td><td>Verifies current, sets new</td><td><code>AuthService.ChangePassword(...)</code></td><td>static-only (unconfirmed)</td></tr></tbody></table>
 <p><strong>Data lineage</strong></p>
-<table>
-<thead><tr><th>Step</th><th>Symbol</th><th>File</th></tr></thead>
-<tbody>
-<tr><td>Page</td><td><code>ProfilePage.razor</code> <code>@inject BlogEngine.Services.AuthSvc AuthService</code>, <code>AuthenticationStateProvider</code></td><td><code>Pages/AdminPages/ProfilePage.razor</code></td></tr>
-<tr><td>Service</td><td><code>AuthSvc.GetUserProfile</code>, <code>UpdateProfile</code>, <code>ChangePassword</code></td><td><code>BlogEngine/Services/AuthSvc.cs</code></td></tr>
-<tr><td>Data access</td><td><code>BlogUserRepo.GetSingle</code>, <code>Update</code></td><td><code>BlogEngine/DbAccess/BlogUserRepo.cs</code></td></tr>
-<tr><td>SQL</td><td>stored function <code>SelectBlogUserById</code> for reads; inline <code>UPDATE BlogUser</code> for writes</td><td><code>BlogUserRepo.cs</code></td></tr>
-</tbody></table>
+<table><thead><tr><th>Step</th><th>Symbol</th><th>File</th></tr></thead><tbody><tr><td>Page</td><td><code>ProfilePage.razor</code> <code>@inject BlogEngine.Services.AuthSvc AuthService</code>, <code>AuthenticationStateProvider</code></td><td><code>Pages/AdminPages/ProfilePage.razor</code></td></tr><tr><td>Service</td><td><code>AuthSvc.GetUserProfile</code>, <code>UpdateProfile</code>, <code>ChangePassword</code></td><td><code>BlogEngine/Services/AuthSvc.cs</code></td></tr><tr><td>Data access</td><td><code>BlogUserRepo.GetSingle</code>, <code>Update</code></td><td><code>BlogEngine/DbAccess/BlogUserRepo.cs</code></td></tr><tr><td>SQL</td><td>stored function <code>SelectBlogUserById</code> for reads; inline <code>UPDATE BlogUser</code> for writes</td><td><code>BlogUserRepo.cs</code></td></tr></tbody></table>
 <p><strong>Business rules:</strong> the user id comes from the <code>ClaimsPrincipal</code> (<code>PrimarySid</code> claim issued by <code>AuthSvc</code>), not from a route parameter — a user cannot open someone else's profile here.</p>
 <p><strong>Known issues:</strong> password change ultimately calls <code>AppEncrypt.CreateHash</code>, a hand-rolled hash rather than a standard salted KDF (REQ-NFR-002, ⚠ SECURITY).</p>
 <h2 id="reader-my-favourites-my-favorites">Reader · My Favourites (<code>/my-favorites</code>)<a class="anchor-link" href="#reader-my-favourites-my-favorites">#</a></h2>
 <p><strong>File:</strong> <code>source/BlogUI/Pages/UserPages/MyFavorites.razor</code> · <strong>Guard:</strong> <code>[Authorize]</code> · <strong>Layout:</strong> <code>MainLayout</code></p>
-<table>
-<thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead>
-<tbody>
-<tr><td>Favourites list</td><td><code>FavoriteService.GetUserFavorites(userId)</code></td><td>static-only (unconfirmed)</td></tr>
-<tr><td>Count</td><td><code>FavoriteService.GetUserFavoriteCount(userId)</code></td><td>static-only (unconfirmed)</td></tr>
-</tbody></table>
+<table><thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Favourites list</td><td><code>FavoriteService.GetUserFavorites(userId)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Count</td><td><code>FavoriteService.GetUserFavoriteCount(userId)</code></td><td>static-only (unconfirmed)</td></tr></tbody></table>
 <p><strong>Data lineage:</strong> page → <code>FavoriteSvc</code> (<code>BlogEngine/Services/FavoriteSvc.cs</code>) → <code>UserFavoriteRepo</code> (<code>BlogEngine/DbAccess/UserFavoriteRepo.cs</code>) → inline SQL <code>SELECT FavoriteId …</code> / <code>INSERT INTO UserFavorite</code> / <code>DELETE FROM UserFavorite</code> against the table created by migration <code>009-CreateUserFavorite.sql</code>.</p>
 <p><strong>Business rules:</strong> the current user id is resolved from <code>AuthenticationStateProvider</code>; the page redirects unauthenticated users via <code>NavigationManager</code>.</p>
 <p><strong>Known issues:</strong> the favourites list returns <code>UserFavorite</code> rows — confirm the post title/slug shown on each card is joined in the repository rather than fetched per row (<code>{unresolved — TODO: check whether GetUserFavorites projects post fields or the page issues N+1 lookups}</code>).</p>
 <h2 id="reader-engagement-on-a-post-post-slug">Reader · Engagement on a post (<code>/post/{Slug}</code>)<a class="anchor-link" href="#reader-engagement-on-a-post-post-slug">#</a></h2>
 <p>The post page itself is documented under Guest. These controls become active only when signed in:</p>
-<table>
-<thead><tr><th>Control</th><th>Component</th><th>Service</th><th>Data access</th></tr></thead>
-<tbody>
-<tr><td>Comment form</td><td><code>Components/…</code> on <code>PostView.razor</code></td><td><code>CommentSvc.AddComment</code></td><td><code>BlogCommentRepo</code> → <code>INSERT INTO blogcomment</code></td></tr>
-<tr><td>Star rating</td><td><code>Components/StarRating.razor</code></td><td><code>RatingSvc.RatePost</code>, <code>GetUserRating</code>, <code>GetPostRatingStats</code></td><td><code>PostRatingRepo</code> → <code>INSERT/UPDATE/DELETE PostRating</code></td></tr>
-<tr><td>Favourite toggle</td><td><code>Components/FavoriteToggle.razor</code></td><td><code>FavoriteSvc.ToggleFavorite</code>, <code>IsFavorited</code></td><td><code>UserFavoriteRepo</code></td></tr>
-</tbody></table>
+<table><thead><tr><th>Control</th><th>Component</th><th>Service</th><th>Data access</th></tr></thead><tbody><tr><td>Comment form</td><td><code>Components/…</code> on <code>PostView.razor</code></td><td><code>CommentSvc.AddComment</code></td><td><code>BlogCommentRepo</code> → <code>INSERT INTO blogcomment</code></td></tr><tr><td>Star rating</td><td><code>Components/StarRating.razor</code></td><td><code>RatingSvc.RatePost</code>, <code>GetUserRating</code>, <code>GetPostRatingStats</code></td><td><code>PostRatingRepo</code> → <code>INSERT/UPDATE/DELETE PostRating</code></td></tr><tr><td>Favourite toggle</td><td><code>Components/FavoriteToggle.razor</code></td><td><code>FavoriteSvc.ToggleFavorite</code>, <code>IsFavorited</code></td><td><code>UserFavoriteRepo</code></td></tr></tbody></table>
 <p><strong>Business rules:</strong> one rating per user per post (enforced by a unique index from migration <code>010</code>); comments may require approval before display, controlled by the moderation setting — but see the Admin guide: that setting is <strong>not persisted</strong>, so its runtime source is <code>{unresolved — TODO: locate where the comment-moderation flag is read at runtime}</code>.</p>
 <h2 id="reader-subscribe-component-public-pages">Reader · Subscribe (component, public pages)<a class="anchor-link" href="#reader-subscribe-component-public-pages">#</a></h2>
 <p><strong>Component:</strong> <code>source/BlogUI/Components/Sidebar.razor</code> (subscribe block) → <code>SubscriberSvc.Subscribe</code> → <code>SubscriberRepo</code> → <code>INSERT INTO Subscriber</code> / duplicate check via <code>SELECT SubscriberId …</code>.</p>
 <p>Available to anonymous visitors too; listed here because it is part of the reader journey.</p>
 <h2 id="missing-screen-my-comments">Missing screen — My Comments<a class="anchor-link" href="#missing-screen-my-comments">#</a></h2>
 <p><code>docs/TechieBlog-BRD.md</code> BRD-13 and mockup <code>mockups/14-my-comments.html</code> specify a comment-history page for readers. <strong>No such page exists</strong> in <code>source/BlogUI/Pages/</code> — tracked as REQ-UI-015 (Not Started). Nothing to map.</p>
-<hr>
-<p>Generated 2026-08-02 · reflects code as built · ⚠ STATIC-ONLY</p>
+<p>--- Generated 2026-08-02 · reflects code as built · ⚠ STATIC-ONLY</p>
   </main>
 </div>
-
 <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
 <script>// Light/dark toggle. The initial theme was already applied flash-free by the

@@ -104,183 +104,74 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 @media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{position:static;height:auto}}</style>
 </head>
 <body>
-<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">&#9782; Dark</button>
+<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">☾ Dark</button>
 <div class="layout">
-<nav class="side">
-<h1>TechieBlog — Business Requirements</h1>
-<div class="sub">Business Requirements · last rendered 2026-08-06</div>
-<div class="group">Contents</div>
-<ol>
-<li><a href="#executive-summary">1. Executive summary</a></li>
-<li><a href="#business-objectives">2. Business objectives</a></li>
-<li><a href="#scope">3. Scope</a></li>
-<li><a href="#development-status">4. Development status</a></li>
-<li><a href="#stakeholders-users">5. Stakeholders / users</a></li>
-<li><a href="#context-diagram">6. Context diagram</a></li>
-<li><a href="#user-journey-primary-use-case">7. User journey — primary use case</a></li>
-<li><a href="#component-sketch">8. Component sketch</a></li>
-<li><a href="#feature-catalog">9. Feature catalog</a></li>
-<li class="h3"><a href="#f-auth-authentication-account-access">F-AUTH: Authentication &amp; account access</a></li>
-<li class="h3"><a href="#f-role-roles-authorization">F-ROLE: Roles &amp; authorization</a></li>
-<li class="h3"><a href="#f-prof-user-profile-account-management">F-PROF: User profile &amp; account management</a></li>
-<li class="h3"><a href="#f-post-post-authoring-crud">F-POST: Post authoring &amp; CRUD</a></li>
-<li class="h3"><a href="#f-draft-draft-preview-scheduling">F-DRAFT: Draft, preview &amp; scheduling</a></li>
-<li class="h3"><a href="#f-tax-categories-tags">F-TAX: Categories &amp; tags</a></li>
-<li class="h3"><a href="#f-ser-series-collections">F-SER: Series &amp; collections</a></li>
-<li class="h3"><a href="#f-pub-public-reading-experience">F-PUB: Public reading experience</a></li>
-<li class="h3"><a href="#f-srch-search">F-SRCH: Search</a></li>
-<li class="h3"><a href="#f-cmt-comments-moderation">F-CMT: Comments &amp; moderation</a></li>
-<li class="h3"><a href="#f-rate-star-ratings">F-RATE: Star ratings</a></li>
-<li class="h3"><a href="#f-fav-favourites-bookmarks-removed-2026-08-06"><del>F-FAV: Favourites &amp; bookmarks</del> — REMOVED 2026-08-06</a></li>
-<li class="h3"><a href="#f-media-image-management-media-library">F-MEDIA: Image management &amp; media library</a></li>
-<li class="h3"><a href="#f-resume-resume-portfolio-page">F-RESUME: Resume / portfolio page</a></li>
-<li class="h3"><a href="#f-author-multi-author-profiles-removed-2026-08-06"><del>F-AUTHOR: Multi-author profiles</del> — REMOVED 2026-08-06</a></li>
-<li class="h3"><a href="#f-sub-subscribers-newsletter">F-SUB: Subscribers &amp; newsletter</a></li>
-<li class="h3"><a href="#f-ana-analytics-admin-dashboard">F-ANA: Analytics &amp; admin dashboard</a></li>
-<li class="h3"><a href="#f-seo-rss-sitemap">F-SEO: RSS &amp; sitemap</a></li>
-<li class="h3"><a href="#f-theme-theming-dark-mode">F-THEME: Theming &amp; dark mode</a></li>
-<li class="h3"><a href="#f-admin-admin-console-site-settings">F-ADMIN: Admin console &amp; site settings</a></li>
-<li class="h3"><a href="#f-tpl-template-distribution-developer-experience">F-TPL: Template distribution &amp; developer experience</a></li>
-<li class="h3"><a href="#f-ops-operations-logging-delivery-pipeline">F-OPS: Operations, logging &amp; delivery pipeline</a></li>
-<li class="h3"><a href="#f-desk-blogapp-desktop-admin-application">F-DESK: BlogApp desktop admin application</a></li>
-<li><a href="#functional-requirements-brd-ledger">10. Functional requirements (BRD ledger)</a></li>
-<li><a href="#non-functional-requirements">11. Non-functional requirements</a></li>
-<li><a href="#constraints-assumptions">12. Constraints &amp; assumptions</a></li>
-<li><a href="#success-metrics">13. Success metrics</a></li>
-<li><a href="#risks">14. Risks</a></li>
-<li><a href="#glossary">15. Glossary</a></li>
-</ol>
-</nav>
-  <main>
+  <nav class="side">
     <h1>TechieBlog — Business Requirements</h1>
-    <div class="subtitle">Business Requirements · last rendered 2026-08-06</div>
-<div class="toc-inline">
-<div>Contents</div>
-<ol>
-<li><a href="#executive-summary">Executive summary</a></li>
-<li><a href="#business-objectives">Business objectives</a></li>
-<li><a href="#scope">Scope</a></li>
-<li><a href="#development-status">Development status</a></li>
-<li><a href="#stakeholders-users">Stakeholders / users</a></li>
-<li><a href="#context-diagram">Context diagram</a></li>
-<li><a href="#user-journey-primary-use-case">User journey — primary use case</a></li>
-<li><a href="#component-sketch">Component sketch</a></li>
-<li><a href="#feature-catalog">Feature catalog</a>
-<ul>
-<li><a href="#f-auth-authentication-account-access">F-AUTH: Authentication &amp; account access</a></li>
-<li><a href="#f-role-roles-authorization">F-ROLE: Roles &amp; authorization</a></li>
-<li><a href="#f-prof-user-profile-account-management">F-PROF: User profile &amp; account management</a></li>
-<li><a href="#f-post-post-authoring-crud">F-POST: Post authoring &amp; CRUD</a></li>
-<li><a href="#f-draft-draft-preview-scheduling">F-DRAFT: Draft, preview &amp; scheduling</a></li>
-<li><a href="#f-tax-categories-tags">F-TAX: Categories &amp; tags</a></li>
-<li><a href="#f-ser-series-collections">F-SER: Series &amp; collections</a></li>
-<li><a href="#f-pub-public-reading-experience">F-PUB: Public reading experience</a></li>
-<li><a href="#f-srch-search">F-SRCH: Search</a></li>
-<li><a href="#f-cmt-comments-moderation">F-CMT: Comments &amp; moderation</a></li>
-<li><a href="#f-rate-star-ratings">F-RATE: Star ratings</a></li>
-<li><del>F-FAV: Favourites &amp; bookmarks</del> <em>(removed 2026-08-06)</em></li>
-<li><a href="#f-media-image-management-media-library">F-MEDIA: Image management &amp; media library</a></li>
-<li><a href="#f-resume-resume-portfolio-page">F-RESUME: Resume / portfolio page</a></li>
-<li><del>F-AUTHOR: Multi-author profiles</del> <em>(removed 2026-08-06)</em></li>
-<li><a href="#f-sub-subscribers-newsletter">F-SUB: Subscribers &amp; newsletter</a></li>
-<li><a href="#f-ana-analytics-admin-dashboard">F-ANA: Analytics &amp; admin dashboard</a></li>
-<li><a href="#f-seo-rss-sitemap">F-SEO: RSS &amp; sitemap</a></li>
-<li><a href="#f-theme-theming-dark-mode">F-THEME: Theming &amp; dark mode</a></li>
-<li><a href="#f-admin-admin-console-site-settings">F-ADMIN: Admin console &amp; site settings</a></li>
-<li><a href="#f-tpl-template-distribution-developer-experience">F-TPL: Template distribution &amp; developer experience</a></li>
-<li><a href="#f-ops-operations-logging-delivery-pipeline">F-OPS: Operations, logging &amp; delivery pipeline</a></li>
-<li><a href="#f-desk-blogapp-desktop-admin-application">F-DESK: BlogApp desktop admin application</a></li>
-</ul>
-</li>
-<li><a href="#functional-requirements-brd-ledger">Functional requirements (BRD ledger)</a></li>
-<li><a href="#non-functional-requirements">Non-functional requirements</a></li>
-<li><a href="#constraints-assumptions">Constraints &amp; assumptions</a></li>
-<li><a href="#success-metrics">Success metrics</a></li>
-<li><a href="#risks">Risks</a></li>
-<li><a href="#glossary">Glossary</a></li>
-</ol>
-</div>
-<!-- AGENT-ONLY AUTHORING NOTES. Instructions to the DRAFTING AGENT, not content for the reader.
-  STABLE IDS: every requirement has a BRD-{N} ID. IDs are append-only across revisions.
-  DEPTH MANDATE: human document, read as rendered HTML. One-line entries belong ONLY in §10.
-  MERMAID MANDATE: follow html-render-shell.md §5.5 — quote every label, never use `end` as a node id.
--->
-<h2 id="executive-summary">1. Executive summary<a class="anchor-link" href="#executive-summary">#</a></h2>
+    <div class="sub">Last rendered: 2026-08-09</div>
+    <div class="group">Contents</div>
+    <ol>
+      <li><a href="#table-of-contents">Table of Contents</a></li>
+      <li><a href="#1-executive-summary">1. Executive summary</a></li>
+      <li><a href="#2-business-objectives">2. Business objectives</a></li>
+      <li><a href="#3-scope">3. Scope</a></li>
+      <li><a href="#4-development-status">4. Development status</a></li>
+      <li><a href="#5-stakeholders-users">5. Stakeholders / users</a></li>
+      <li><a href="#6-context-diagram">6. Context diagram</a></li>
+      <li><a href="#7-user-journey-primary-use-case">7. User journey — primary use case</a></li>
+      <li><a href="#8-component-sketch">8. Component sketch</a></li>
+      <li><a href="#9-feature-catalog">9. Feature catalog</a></li>
+      <li><a href="#10-functional-requirements-brd-ledger">10. Functional requirements (BRD ledger)</a></li>
+      <li><a href="#11-non-functional-requirements">11. Non-functional requirements</a></li>
+      <li><a href="#12-constraints-assumptions">12. Constraints &amp; assumptions</a></li>
+      <li><a href="#13-success-metrics">13. Success metrics</a></li>
+      <li><a href="#14-risks">14. Risks</a></li>
+      <li><a href="#15-glossary">15. Glossary</a></li>
+    </ol>
+  </nav>
+  <main>
+    <div class="subtitle">Runtime-verified 2026-08-09 by <code>*verify all</code></div>
+
+<h1>TechieBlog — Business Requirements</h1>
+<p>&lt;!-- AGENT-ONLY AUTHORING NOTES. Instructions to the DRAFTING AGENT, not content for the reader. STABLE IDS: every requirement has a BRD-{N} ID. IDs are append-only across revisions. DEPTH MANDATE: human document, read as rendered HTML. One-line entries belong ONLY in §10. MERMAID MANDATE: follow html-render-shell.md §5.5 — quote every label, never use <code>end</code> as a node id. --&gt;</p>
+<h2 id="table-of-contents">Table of Contents<a class="anchor-link" href="#table-of-contents">#</a></h2>
+<p>1. <a href="#executive-summary">Executive summary</a> 2. <a href="#business-objectives">Business objectives</a> 3. <a href="#scope">Scope</a> 4. <a href="#development-status">Development status</a> 5. <a href="#stakeholders-users">Stakeholders / users</a> 6. <a href="#context-diagram">Context diagram</a> 7. <a href="#user-journey-primary-use-case">User journey — primary use case</a> 8. <a href="#component-sketch">Component sketch</a> 9. <a href="#feature-catalog">Feature catalog</a></p>
+<ul><li><a href="#f-auth-authentication-account-access">F-AUTH: Authentication &amp; account access</a></li><li><a href="#f-role-roles-authorization">F-ROLE: Roles &amp; authorization</a></li><li><a href="#f-prof-user-profile-account-management">F-PROF: User profile &amp; account management</a></li><li><a href="#f-post-post-authoring-crud">F-POST: Post authoring &amp; CRUD</a></li><li><a href="#f-draft-draft-preview-scheduling">F-DRAFT: Draft, preview &amp; scheduling</a></li><li><a href="#f-tax-categories-tags">F-TAX: Categories &amp; tags</a></li><li><a href="#f-ser-series-collections">F-SER: Series &amp; collections</a></li><li><a href="#f-pub-public-reading-experience">F-PUB: Public reading experience</a></li><li><a href="#f-srch-search">F-SRCH: Search</a></li><li><a href="#f-cmt-comments-moderation">F-CMT: Comments &amp; moderation</a></li><li><a href="#f-rate-star-ratings">F-RATE: Star ratings</a></li><li>~~F-FAV: Favourites &amp; bookmarks~~ <em>(removed 2026-08-06)</em></li><li><a href="#f-media-image-management-media-library">F-MEDIA: Image management &amp; media library</a></li><li><a href="#f-resume-resume-portfolio-page">F-RESUME: Resume / portfolio page</a></li><li>~~F-AUTHOR: Multi-author profiles~~ <em>(removed 2026-08-06)</em></li><li><a href="#f-sub-subscribers-newsletter">F-SUB: Subscribers &amp; newsletter</a></li><li><a href="#f-ana-analytics-admin-dashboard">F-ANA: Analytics &amp; admin dashboard</a></li><li><a href="#f-seo-rss-sitemap">F-SEO: RSS &amp; sitemap</a></li><li><a href="#f-theme-theming-dark-mode">F-THEME: Theming &amp; dark mode</a></li><li><a href="#f-admin-admin-console-site-settings">F-ADMIN: Admin console &amp; site settings</a></li><li><a href="#f-tpl-template-distribution-developer-experience">F-TPL: Template distribution &amp; developer experience</a></li><li><a href="#f-ops-operations-logging-delivery-pipeline">F-OPS: Operations, logging &amp; delivery pipeline</a></li><li><a href="#f-desk-blogapp-desktop-admin-application">F-DESK: BlogApp desktop admin application</a></li></ul>
+<p>10. <a href="#functional-requirements-brd-ledger">Functional requirements (BRD ledger)</a> 11. <a href="#non-functional-requirements">Non-functional requirements</a> 12. <a href="#constraints-assumptions">Constraints &amp; assumptions</a> 13. <a href="#success-metrics">Success metrics</a> 14. <a href="#risks">Risks</a> 15. <a href="#glossary">Glossary</a></p>
+<h2 id="1-executive-summary">1. Executive summary<a class="anchor-link" href="#1-executive-summary">#</a></h2>
 <p><strong>TechieBlog</strong> is a no-fuss, Blazor-native blogging engine distributed as a <strong>template / starter project</strong> for .NET developers — not a NuGet package, not a SaaS product. A developer clones the repository, points it at a PostgreSQL database, re-skins it through CSS variables, and deploys their own instance. It serves two purposes at once: a practical blogging engine for personal or client projects, and an educational reference implementation that demonstrates Blazor and clean-architecture practice in code that is deliberately readable rather than clever.</p>
 <p>The gap it fills is specific. A .NET developer who wants a blog today must either bolt on a heavyweight non-.NET CMS (WordPress, Ghost) with its own hosting and templating stack, adopt a full CMS platform (Orchard Core) whose learning curve dwarfs the requirement, or build from scratch with no reference architecture. TechieBlog is the missing middle: a complete, five-project solution a competent developer can run in under five minutes, understand in under an hour, re-theme in under a day, and put into production inside a week.</p>
 <p>The product has been through a full stack modernization — <strong>.NET 9 → .NET 10 LTS, MySQL → PostgreSQL, Blazorise → Microsoft Fluent UI Blazor</strong>, and removal of the REST API layer in favour of direct in-process service calls. That migration and the MVP feature set are complete and shipped; what remains open is the production-polish tail: newsletter delivery, view analytics, sample data, health monitoring, automated tests and CI/CD — plus one live build blocker introduced by a floating package version (see §4).</p>
 <p><strong>Amended 2026-08-06.</strong> Three directional changes are folded into this revision: (1) the UI component library moves from Microsoft Fluent UI Blazor to <strong>TrBlazeUI</strong> — the owner's shadcn/ui-inspired Blazor component library, consumed from the GitHub Packages NuGet feed (BRD-92); (2) the public home page becomes a <strong>personal-brand landing page</strong> in the style of nitinpandit.com / montemagno.com, driven by the site-owner's existing resume data, and the public site exposes <strong>no login or admin entry points</strong> — admin access is by direct URL, documented in the README (BRD-30 revised, BRD-93); and (3) a new <strong>MAUI Blazor Hybrid desktop application, BlogApp</strong>, delivers the complete admin experience by reusing <code>BlogUI</code>, connecting directly to the site's PostgreSQL database (BRD-94…BRD-97, feature F-DESK).</p>
-<h2 id="business-objectives">2. Business objectives<a class="anchor-link" href="#business-objectives">#</a></h2>
-<ul>
-<li><strong>O1 — Ship a production-ready Blazor blogging engine on .NET 10 LTS</strong> that a developer can deploy as-is, not a demo.</li>
-<li><strong>O2 — Be the definitive Blazor blogging reference.</strong> Codebase structured for readability over cleverness; a 5-project layout understandable in under an hour of review.</li>
-<li><strong>O3 — Make re-skinning a CSS exercise, not a code change.</strong> All colour, font and spacing values in CSS custom properties; three shipped themes prove the range.</li>
-<li><strong>O4 — Support multi-author publishing</strong> with a 5-tier role model (Admin, Editor, Author, Contributor, Reader) so the same engine serves a solo blog and a small editorial team.</li>
-<li><strong>O5 — Achieve a "clone to production" timeline under one week</strong> for a competent .NET developer.</li>
-<li><strong>O6 — Modernize the legacy stack</strong> (MySQL → PostgreSQL, Blazorise → Fluent UI, .NET 9 → .NET 10) for broader hosting compatibility and Microsoft-supported components. <em>(Met.)</em></li>
-</ul>
-<h2 id="scope">3. Scope<a class="anchor-link" href="#scope">#</a></h2>
+<h2 id="2-business-objectives">2. Business objectives<a class="anchor-link" href="#2-business-objectives">#</a></h2>
+<ul><li><strong>O1 — Ship a production-ready Blazor blogging engine on .NET 10 LTS</strong> that a developer can deploy</li></ul>
+<p>as-is, not a demo.</p>
+<ul><li><strong>O2 — Be the definitive Blazor blogging reference.</strong> Codebase structured for readability over</li></ul>
+<p>cleverness; a 5-project layout understandable in under an hour of review.</p>
+<ul><li><strong>O3 — Make re-skinning a CSS exercise, not a code change.</strong> All colour, font and spacing values in</li></ul>
+<p>CSS custom properties; three shipped themes prove the range.</p>
+<ul><li><strong>O4 — Support multi-author publishing</strong> with a 5-tier role model (Admin, Editor, Author,</li></ul>
+<p>Contributor, Reader) so the same engine serves a solo blog and a small editorial team.</p>
+<ul><li><strong>O5 — Achieve a "clone to production" timeline under one week</strong> for a competent .NET developer.</li><li><strong>O6 — Modernize the legacy stack</strong> (MySQL → PostgreSQL, Blazorise → Fluent UI, .NET 9 → .NET 10)</li></ul>
+<p>for broader hosting compatibility and Microsoft-supported components. <em>(Met.)</em></p>
+<h2 id="3-scope">3. Scope<a class="anchor-link" href="#3-scope">#</a></h2>
 <p><strong>In scope:</strong> blog post authoring with Markdown and live preview; drafts, preview, scheduling and series; categories and tags; the public reading experience (home, post, archives, series, search); reader engagement through <strong>anonymous</strong> comments with moderation and 1–5 star ratings; image upload and a media library; a resume/portfolio page for the site owner and per-author profiles; email subscriber capture and list management; an admin console with site settings; RSS and sitemap for syndication and SEO; CSS-variable theming with three site themes and a user light/dark toggle; and the template-distribution experience (README, getting-started, customization, deployment and migration guides). <em>Added 2026-08-06:</em> a portfolio-style public home page driven by the site-owner's resume data (revised BRD-30), removal of all public login/admin entry points (BRD-93), and the <strong>BlogApp</strong> MAUI Blazor Hybrid desktop admin application (BRD-94…BRD-97).</p>
-<p><strong>Removed from scope 2026-08-06 (design-review pass over the mockups):</strong> the public authors index and per-author profile pages (<del>BRD-53</del>…<del>BRD-55</del> — a TechieBlog instance is a personal site); reader accounts and everything that depended on them — favourites (<del>BRD-43</del>, <del>BRD-44</del>), the reader comment-history page (<del>BRD-13</del>) and self-service comment editing (<del>BRD-37</del>); and public self-service registration (<del>BRD-1</del>). Commenting and rating are now <strong>anonymous, email-identified</strong> (BRD-36, BRD-40, BRD-41 revised).</p>
+<p><strong>Removed from scope 2026-08-06 (design-review pass over the mockups):</strong> the public authors index and per-author profile pages (~~BRD-53~~…~~BRD-55~~ — a TechieBlog instance is a personal site); reader accounts and everything that depended on them — favourites (~~BRD-43~~, ~~BRD-44~~), the reader comment-history page (~~BRD-13~~) and self-service comment editing (~~BRD-37~~); and public self-service registration (~~BRD-1~~). Commenting and rating are now <strong>anonymous, email-identified</strong> (BRD-36, BRD-40, BRD-41 revised).</p>
 <p><strong>Added in the same pass:</strong> because public write surfaces are now open to anonymous visitors, the product gains <strong>double opt-in email verification</strong> (BRD-98) and a <strong>self-hosted captcha built on the .NET base class library alone — no third-party library or service</strong> (BRD-99). The site also gains a <strong>public newsletter archive</strong> (BRD-100) and per-issue view (BRD-101), so the admin-side newsletter composer finally has a reader-facing counterpart.</p>
 <p><strong>Out of scope (explicit):</strong> email drip campaigns / sequences; lead magnets; social login (Google, GitHub); magic-link or passwordless authentication; advanced SEO tooling (Open Graph editor, meta-tag UI); an admin UI for <em>creating</em> themes; a <strong>mobile</strong> application wrapper <em>(the desktop admin application moved in scope on 2026-08-06 — see F-DESK)</em>; multi-tenancy; localization / internationalization; and advanced analytics such as referrer tracking. A community theme repository remains a post-MVP aspiration. The MAUI Blazor Hybrid desktop writer — the reason <code>BlogUI</code> is kept as a Razor Class Library — moved <strong>in scope</strong> on 2026-08-06 as <strong>BlogApp</strong> (F-DESK, BRD-94…BRD-97).</p>
-<h2 id="development-status">4. Development status<a class="anchor-link" href="#development-status">#</a></h2>
-<!-- SNAPSHOT (point-in-time), feature level only. Live per-requirement status lives in
-     PROJECT-STATUS.md + the Requirements Status table in docs/TechieBlog-Checklist.md. -->
-<p><strong>Snapshot as of 2026-08-06.</strong> Live, per-requirement status: see <code>PROJECT-STATUS.md</code> and the <strong>Requirements Status</strong> table in <code>docs/TechieBlog-Checklist.md</code>. Statuses below are carried from the migrated MVP execution plan (<code>docs/OldDocs/MVP-EXECUTION-PLAN.md</code>, which declared MVP COMPLETE on 2025-12-31), the <code>EPIC-IRM-001</code> QA gate (PASS), and a code scan of <code>source/</code> on 2026-08-02 — with the corrections the day-1 DevGuide pass forced (see <code>docs/devguides/</code>).</p>
-<blockquote><p><strong>Build is currently RED.</strong> <code>dotnet build TechieBlog.slnx</code> fails with <code>NU1605</code> on both the WSL and Windows SDKs: <code>BlogUI</code> pins <code>Microsoft.AspNetCore.Components.Web 10.0.0</code> while the floating <code>Microsoft.FluentUI.AspNetCore.Components 4.*</code> now resolves to 4.14.4, which requires ≥ 10.0.9. Every "Done" below is <em>as last built</em>, not as verified today — nothing can run until this is fixed.</p></blockquote>
-<table>
-<thead><tr><th>Feature (F-code)</th><th>Phase</th><th>Status</th><th>%</th><th>Notes</th></tr></thead>
-<tbody>
-<tr><td>F-AUTH: Authentication &amp; account access</td><td>2</td><td>Partial</td><td>85</td><td>Login, password reset, token refresh all wired (Epic 2 + FIX-001/002/003). Day-1 DevGuide found the post-login redirect is role-blind. Scope narrowed 2026-08-06: public registration retired (<del>BRD-1</del>) — <code>/register</code> + <code>/signup</code> and the signup service path to be removed (REQ-UI-002, REQ-FN-006).</td></tr>
-<tr><td>F-ROLE: Roles &amp; authorization</td><td>2</td><td>Done</td><td>100</td><td>5 roles, 5 policies in <code>Program.cs</code>, <code>[Authorize]</code> on every protected page.</td></tr>
-<tr><td>F-PROF: User profile &amp; account management</td><td>2</td><td>Done</td><td>100</td><td>Profile view/edit + change password shipped for staff accounts. Scope narrowed 2026-08-06: no reader accounts, so the My-Comments page (BRD-13) and the reader <code>/profile</code> surface are retired; <code>/admin/profile</code> covers Author-and-above.</td></tr>
-<tr><td>F-POST: Post authoring &amp; CRUD</td><td>3</td><td>Done</td><td>100</td><td>Full CRUD, slug generation, Markdig editor with live preview.</td></tr>
-<tr><td>F-DRAFT: Draft, preview &amp; scheduling</td><td>3</td><td>Done</td><td>100</td><td>Draft/Published states, <code>PreviewPost</code>, <code>ScheduledPostPublisher</code> hosted service.</td></tr>
-<tr><td>F-TAX: Categories &amp; tags</td><td>3</td><td>Done</td><td>100</td><td>CRUD both sides, archives, autocomplete, tag-count bug fixed (Story 7.5).</td></tr>
-<tr><td>F-SER: Series &amp; collections</td><td>3</td><td>Done</td><td>100</td><td>Series CRUD, ordering, prev/next navigation, series landing page.</td></tr>
-<tr><td>F-PUB: Public reading experience</td><td>3 / 9</td><td>Partial</td><td>90</td><td>Post view, archives, reading time, related posts all shipped. BRD-30 revised 2026-08-06: home becomes a portfolio-style landing (REQ-UI-049) and public login/admin entry points are removed (BRD-93, REQ-UI-050) — rebuild pending.</td></tr>
-<tr><td>F-SRCH: Search</td><td>3</td><td>Done</td><td>100</td><td>PostgreSQL <code>ILIKE</code> search with paging, highlighting, dynamic category filter (FIX-004/008).</td></tr>
-<tr><td>F-CMT: Comments &amp; moderation</td><td>4 / 9</td><td>Partial</td><td>70</td><td>Comment CRUD, approval queue, admin moderation page (FIX-005) — all built for <em>signed-in</em> commenters. BRD-36 revised 2026-08-06: rework to anonymous name+email commenting (REQ-UI-029, REQ-FN-022); BRD-37 retired.</td></tr>
-<tr><td>F-RATE: Star ratings</td><td>4 / 9</td><td>Partial</td><td>70</td><td>1–5 stars, changeable, aggregate stats (FIX-013) — keyed to user id. BRD-40/41 revised 2026-08-06: re-key to email, no sign-in (REQ-UI-027, REQ-FN-023).</td></tr>
-<tr><td><del>F-FAV: Favourites &amp; bookmarks</del></td><td>4</td><td><strong>Removed</strong></td><td>—</td><td>Retired 2026-08-06 with reader accounts (BRD-43/44). Built code (<code>UserFavorite</code>, <code>FavoriteSvc</code>, MyFavorites page, toggle) to be removed — REQ-UI-014/028, REQ-FN-024.</td></tr>
-<tr><td>F-MEDIA: Image management &amp; media library</td><td>5 / 8</td><td>Done</td><td>100</td><td>7-category upload with validation, <code>ManageImages</code>, reusable <code>ImagePicker</code> (FIX-006 + EPIC-IRM-001).</td></tr>
-<tr><td>F-RESUME: Resume / portfolio page</td><td>8</td><td>Done</td><td>100</td><td><code>/resume</code>, hero + experience + skills + awards + contact, CV download, admin CRUD (EPIC-IRM-001, QA PASS).</td></tr>
-<tr><td><del>F-AUTHOR: Multi-author profiles</del></td><td>8</td><td><strong>Removed</strong></td><td>—</td><td>Retired 2026-08-06 (BRD-53/54/55) — personal site, no public author browsing. <code>/authors</code> + <code>/author/{username}</code> pages to be removed; <code>IsSiteOwner</code> + username stay for F-RESUME. REQ-UI-041/042.</td></tr>
-<tr><td>F-SUB: Subscribers &amp; newsletter</td><td>5 / 9</td><td>Partial</td><td>40</td><td>Subscribe form + subscriber admin + export shipped (7.6, 7.7); <strong>newsletter composition and sending not built</strong> (Story 5.5). Extended 2026-08-06: double opt-in (BRD-98), captcha (BRD-99) and the public newsletter archive + issue pages (BRD-100/101) — all new build (REQ-UI-053/054, REQ-FN-048/050).</td></tr>
-<tr><td>F-ANA: Analytics &amp; admin dashboard</td><td>5</td><td>Partial</td><td>15</td><td>Only the post tiles are real: the day-1 DevGuide found user, subscriber and comment counts <strong>hardcoded</strong> in <code>AdminDashboard.razor.cs:63-68</code>, and "popular posts" is recent posts with <code>Views = 0</code>. Post-view tracking and the analytics dashboard are not built (5.6, 5.7).</td></tr>
-<tr><td>F-SEO: RSS &amp; sitemap</td><td>6</td><td>Done</td><td>100</td><td><code>/rss</code> feed page and <code>/sitemap.xml</code> + <code>/robots.txt</code> endpoints.</td></tr>
-<tr><td>F-THEME: Theming &amp; dark mode</td><td>1 / 6 / 7 / 9</td><td>Partial</td><td>60</td><td>3 site themes × light/dark, header toggle, theme selector (7.8), dark-mode fixes (7.1–7.4). Theme state lives only in browser local storage, so the "admin-selected <strong>site</strong> theme" is really a per-visitor preference. BRD-92 added / BRD-67 revised 2026-08-06: UI library moves to TrBlazeUI and themes are re-expressed as TrBlazeUI/shadcn CSS-variable sets (REQ-UI-048).</td></tr>
-<tr><td>F-ADMIN: Admin console &amp; site settings</td><td>6</td><td>Partial</td><td>55</td><td>Full admin nav and management pages work. <strong>Site Settings does not persist</strong> — the day-1 DevGuide found no settings table, repository or service; the Save button reports success while discarding everything except a locally-stored pagination value.</td></tr>
-<tr><td>F-TPL: Template distribution &amp; developer experience</td><td>6</td><td>Partial</td><td>60</td><td>README, getting-started, customization, deployment and migration guides exist; <strong>sample/seed data set not built</strong> (5.6/6.6) and code-cleanup pass incomplete.</td></tr>
-<tr><td>F-OPS: Operations, logging &amp; delivery pipeline</td><td>1 / 6</td><td>Partial</td><td>25</td><td>Serilog console + rolling file wired at the head; <strong>no health checks, no test project, no CI/CD</strong> (1.13, 1.14, 6.7).</td></tr>
-<tr><td>F-DESK: BlogApp desktop admin application</td><td>10</td><td>Planned</td><td>0</td><td>Added 2026-08-06 (BRD-94…97) — MAUI Blazor Hybrid desktop admin head reusing BlogUI, direct PostgreSQL connection.</td></tr>
-</tbody></table>
+<h2 id="4-development-status">4. Development status<a class="anchor-link" href="#4-development-status">#</a></h2>
+<p>&lt;!-- SNAPSHOT (point-in-time), feature level only. Live per-requirement status lives in PROJECT-STATUS.md + the Requirements Status table in docs/TechieBlog-Checklist.md. --&gt;</p>
+<p><strong>Snapshot as of 2026-08-09.</strong> Live, per-requirement status: see <code>PROJECT-STATUS.md</code> and the <strong>Requirements Status</strong> table in <code>docs/TechieBlog-Checklist.md</code>. Statuses below are now derived from the <strong>first executed <code>*verify all</code> run</strong> (2026-08-09), which graded 131 of 139 REQs against the running app under the acceptance, data-render and visual-truth gates — not from the migrated MVP execution plan.</p>
+<p>&gt; <strong>Build is GREEN</strong> — <code>dotnet build TechieBlog.slnx</code> returns <code>0 Error(s)</code> across 7/7 projects &gt; including the <code>net10.0-windows10.0.19041.0</code> BlogApp head. The earlier <code>NU1605</code> note here was &gt; stale and is retired (REQ-FN-043 closed; both Fluent UI packages were removed by REQ-UI-048). &gt; &gt; <strong>A "Done" below now means runtime-verified, not last-built.</strong> Percentages fell in several &gt; features precisely because verification replaced assumption: view tracking turned out to be dead &gt; code, RSS does not exist, and the series page leaks unpublished drafts.</p>
+<table><thead><tr><th>Feature (F-code)</th><th>Phase</th><th>Status</th><th>%</th><th>Notes</th></tr></thead><tbody><tr><td>F-AUTH: Authentication &amp; account access</td><td>2</td><td>Partial</td><td>95</td><td>Login, reset, policies, hashing, rate limiting and the login audit trail all <strong>runtime-verified</strong> 2026-08-09; the reset link was redeemed end to end for the first time. Public registration retired (~~BRD-1~~). Open: <strong>token refresh is unreachable</strong> — <code>RefreshTokenAsync</code> has no call site and no mapped endpoint (REQ-FN-008).</td></tr><tr><td>F-ROLE: Roles &amp; authorization</td><td>2</td><td>Partial</td><td>90</td><td>5 roles × 5 policies verified by 14 route probes across all four seeded roles; every denial lands on access-denied, never a raw 403. Open: <code>/access-denied</code> renders nested inside the public shell on client-side navigation (REQ-UI-004).</td></tr><tr><td>F-PROF: User profile &amp; account management</td><td>2</td><td>Partial</td><td>90</td><td>Profile read/edit and change-password verified, including current-password enforcement. The <strong>REQ-FN-053 data-loss regression holds</strong>. Open: avatar clear-button overlaps the upload button at 390px (REQ-UI-040); admin user-management <em>mutation</em> remains unproven (REQ-FN-010).</td></tr><tr><td>F-POST: Post authoring &amp; CRUD</td><td>3</td><td>Partial</td><td>80</td><td>Full CRUD, slug generation and uniqueness, Markdig rendering all verified end to end. Open: the Markdown editor <strong>loses and reorders keystrokes</strong> (REQ-UI-016); the Scheduled tab is clipped at 390px (REQ-UI-017).</td></tr><tr><td>F-DRAFT: Draft, preview &amp; scheduling</td><td>3</td><td>Partial</td><td>75</td><td>Draft/Published transitions and the <code>ScheduledPostPublisher</code> proved end to end. Open: <strong><code>/series/{slug}</code> lists unpublished drafts to anonymous visitors</strong> — the parts projection omits <code>Published = TRUE</code> (REQ-FN-015).</td></tr><tr><td>F-TAX: Categories &amp; tags</td><td>3</td><td>Partial</td><td>85</td><td>CRUD both sides, archives and per-row counts all match the published-only totals exactly. Open: saving a post with no category surfaces a <strong>raw PostgreSQL FK violation</strong> to the user (REQ-FN-017).</td></tr><tr><td>F-SER: Series &amp; collections</td><td>3</td><td>Done</td><td>100</td><td>Series CRUD, ordering, prev/next and part counts all verified; the '0 Parts' defect is fixed. (The draft-leak on the public series page is tracked under F-DRAFT / REQ-FN-015.)</td></tr><tr><td>F-PUB: Public reading experience</td><td>3 / 9</td><td>Partial</td><td>65</td><td>Portfolio home, archives, post view, reading time and related posts all render real data; public login/admin entry points are gone. Open: unmatched routes return a <strong>blank zero-byte page</strong> (REQ-UI-012); archive <code>PostCard</code>s never render featured images (REQ-UI-045); featured-post selection was dropped (REQ-FN-020); 46px overflow at 390 and 5px at 320 (REQ-UI-007/005).</td></tr><tr><td>F-SRCH: Search</td><td>3</td><td>Partial</td><td>80</td><td>ILIKE across title/abstract/body/tags proved by three field-isolating probes; drafts never leak; highlighting works on excerpts. Open: every result's category badge is the hardcoded literal <code>"Blog"</code> (REQ-UI-011).</td></tr><tr><td>F-CMT: Comments &amp; moderation</td><td>4 / 9</td><td>Done</td><td>100</td><td><strong>Reworked to anonymous name+email commenting and verified end to end</strong>: captcha, double opt-in, single-use tokens, moderation queue and approval all behave; unapproved comments never appear publicly and no email address is ever rendered.</td></tr><tr><td>F-RATE: Star ratings</td><td>4 / 9</td><td>Done</td><td>100</td><td><strong>Re-keyed to email with no sign-in, verified end to end</strong>: one rating per email per post, changeable in place, and the public average counts <em>verified</em> ratings only.</td></tr><tr><td>~~F-FAV: Favourites &amp; bookmarks~~</td><td>4</td><td><strong>Removed</strong></td><td>—</td><td>Retired 2026-08-06 with reader accounts (BRD-43/44). Built code (<code>UserFavorite</code>, <code>FavoriteSvc</code>, MyFavorites page, toggle) to be removed — REQ-UI-014/028, REQ-FN-024.</td></tr><tr><td>F-MEDIA: Image management &amp; media library</td><td>5 / 8</td><td>Partial</td><td>85</td><td>Per-category upload validation, gallery, serve and delete all verified end to end; <code>ImagePicker</code> reuse confirmed. Open: <code>BlogImage.alttext</code>/<code>width</code>/<code>height</code> are <strong>never populated</strong> by any write path (REQ-FN-026); the user-filter shows a raw id.</td></tr><tr><td>F-RESUME: Resume / portfolio page</td><td>8</td><td>Partial</td><td>75</td><td><code>/resume</code> renders every section with counts matching the database exactly, CV upload/download works, and username + single-site-owner uniqueness were proved by attempted violation. Open: the acceptance-named <strong>company-logo and badge-image pickers do not exist</strong> — both are plain text inputs (REQ-UI-037/039).</td></tr><tr><td>~~F-AUTHOR: Multi-author profiles~~</td><td>8</td><td><strong>Removed</strong></td><td>—</td><td>Retired 2026-08-06 (BRD-53/54/55) — personal site, no public author browsing. <code>/authors</code> + <code>/author/{username}</code> pages to be removed; <code>IsSiteOwner</code> + username stay for F-RESUME. REQ-UI-041/042.</td></tr><tr><td>F-SUB: Subscribers &amp; newsletter</td><td>5 / 9</td><td>Partial</td><td>80</td><td><strong>Newsletter composition, sending, history, delivery log and the public archive are now built and verified</strong>, with double opt-in and captcha. Open: the sidebar subscribe form <strong>bypasses captcha and double opt-in</strong> (REQ-UI-056); <code>/unsubscribe/{token}</code> <strong>404s</strong>, so every mailed unsubscribe link is dead (REQ-FN-032).</td></tr><tr><td>F-ANA: Analytics &amp; admin dashboard</td><td>5</td><td>Partial</td><td>60</td><td>Dashboard tiles are now <strong>real</strong> — every count matched PostgreSQL exactly at measurement time, and the hardcoded constants are gone. The analytics date range provably moves the tiles it can populate. Open: <strong>post-view tracking is dead code</strong> — <code>TrackViewAsync</code> has no caller, so <code>postviews</code> is always 0 and the traffic chart, popular-posts ranking and per-post stats can never populate (REQ-FN-034/035).</td></tr><tr><td>F-SEO: RSS &amp; sitemap</td><td>6</td><td>Partial</td><td>35</td><td><code>/sitemap.xml</code> (29 entries) and <code>/robots.txt</code> verified and output-cached. Open: <strong>there is no RSS feed at all</strong> — <code>/rss</code> is an HTML page advertising <code>/feed.xml</code>, which 404s, and no <code>&lt;link rel="alternate"&gt;</code> exists in <code>&lt;head&gt;</code> (REQ-FN-037, REQ-UI-046). Both emit a <code>BaseUrl</code> pointing at a dead host.</td></tr><tr><td>F-THEME: Theming &amp; dark mode</td><td>1 / 6 / 7 / 9</td><td>Partial</td><td>90</td><td>Now a genuine <strong>site</strong> setting: the theme persists to <code>SiteSetting</code>, preview does not write LocalStorage, and a fresh anonymous context receives the admin's saved theme. Dark mode measured across 16 screens with <strong>0 nodes below WCAG AA</strong>. Open: the header toggle renders <code>role=null</code> where the acceptance requires <code>role="switch"</code> (REQ-UI-031).</td></tr><tr><td>F-ADMIN: Admin console &amp; site settings</td><td>6</td><td>Done</td><td>100</td><td><strong>Site Settings now persists</strong> — all six tabs render their stored values and 27 <code>SiteSetting</code> rows back them; the earlier 'save discards everything' finding is resolved. Grouped admin nav hides refused groups rather than rendering them empty.</td></tr><tr><td>F-TPL: Template distribution &amp; developer experience</td><td>6</td><td>Done</td><td>100</td><td>Seed/sample data set is built and verified (10 posts, 5 categories, 15 tags, 4 roles, 2 series); rename scripts and the full adopter documentation set are present.</td></tr><tr><td>F-OPS: Operations, logging &amp; delivery pipeline</td><td>1 / 6</td><td>Partial</td><td>70</td><td>Health checks, correlation IDs, Serilog rolling files (size cap honoured on disk), resilience pipelines, output caching and CI all verified. Open: <strong>BlogEngine coverage is 24% against an 80% target</strong> with no bUnit test over a real component (REQ-NFR-016); page-load budget breached under concurrency (REQ-NFR-001); 221 sync Dapper sites remain (REQ-NFR-026).</td></tr><tr><td>F-DESK: BlogApp desktop admin application</td><td>10</td><td>Done</td><td>100</td><td><strong>Built and runtime-verified 2026-08-09</strong> — the <code>⚠ STATIC-ONLY</code> stamp is lifted. 19/19 admin routes driven in the desktop head over WebView2 CDP with grid counts matching PostgreSQL exactly, DPAPI connection storage proved non-plaintext at byte level, and a post published in BlogApp appeared immediately on the separate web host.</td></tr></tbody></table>
 <p><strong>Legend:</strong> <strong>Done</strong> = shipped &amp; working · <strong>In progress</strong> = actively being built · <strong>Partial</strong> = some sub-features done, others pending · <strong>Planned</strong> = not started.</p>
-<h2 id="stakeholders-users">5. Stakeholders / users<a class="anchor-link" href="#stakeholders-users">#</a></h2>
+<h2 id="5-stakeholders-users">5. Stakeholders / users<a class="anchor-link" href="#5-stakeholders-users">#</a></h2>
 <p>TechieBlog has two distinct audiences: the <strong>developer who adopts the template</strong> (the customer) and the <strong>people who use a running instance</strong> (readers, authors, admins). The role model below is the in-application one — a single-role-per-user string on <code>BlogUser</code>, mapped to authorization policies in the host.</p>
-<table>
-<thead><tr><th>Role</th><th>Who they are</th><th>Needs</th><th>Key screens</th><th>How they get the role</th></tr></thead>
-<tbody>
-<tr><td><strong>Template adopter</strong> (.NET developer)</td><td>Mid-to-senior .NET developer, comfortable with C# and ASP.NET Core basics, learning or using Blazor</td><td>Clone, understand and re-skin fast; production-quality reference code; full ownership of the source</td><td>(repo + docs, not the app)</td><td>Clones the GitHub template</td></tr>
-<tr><td><strong>Reader</strong> <em>(anonymous only, from 2026-08-06)</em></td><td>End user of a TechieBlog site — <strong>never signs in</strong></td><td>Clean, fast, distraction-free reading; comment and rate with just an email</td><td>Home, Post, Category/Tag archive, Series, Search, Resume</td><td>No account — the Reader <em>role</em> remains in the model but no public flow creates one</td></tr>
-<tr><td><strong>Contributor</strong></td><td>Registered user permitted to submit content for review</td><td>Draft and submit posts without publishing rights</td><td>(policy declared; no dedicated screens yet)</td><td>Assigned by an Admin</td></tr>
-<tr><td><strong>Author</strong></td><td>Content creator</td><td>Efficient Markdown authoring, media, own profile and resume data</td><td>Post editor, My Posts, Media library, Draft preview, Manage Profile/Experience/Skills/Awards</td><td>Assigned by an Admin</td></tr>
-<tr><td><strong>Editor</strong></td><td>Editorial oversight</td><td>Manage all posts, moderate comments</td><td>Admin dashboard, All posts, Comment moderation</td><td>Assigned by an Admin</td></tr>
-<tr><td><strong>Admin</strong></td><td>Site owner / operator</td><td>Full control — users, taxonomy, subscribers, settings, images, theme</td><td>Everything, plus Users, Categories, Tags, Subscribers, Settings, Manage Images</td><td>Seeded on first install; assignable</td></tr>
-</tbody></table>
+<table><thead><tr><th>Role</th><th>Who they are</th><th>Needs</th><th>Key screens</th><th>How they get the role</th></tr></thead><tbody><tr><td><strong>Template adopter</strong> (.NET developer)</td><td>Mid-to-senior .NET developer, comfortable with C# and ASP.NET Core basics, learning or using Blazor</td><td>Clone, understand and re-skin fast; production-quality reference code; full ownership of the source</td><td>(repo + docs, not the app)</td><td>Clones the GitHub template</td></tr><tr><td><strong>Reader</strong> <em>(anonymous only, from 2026-08-06)</em></td><td>End user of a TechieBlog site — <strong>never signs in</strong></td><td>Clean, fast, distraction-free reading; comment and rate with just an email</td><td>Home, Post, Category/Tag archive, Series, Search, Resume</td><td>No account — the Reader <em>role</em> remains in the model but no public flow creates one</td></tr><tr><td><strong>Contributor</strong></td><td>Registered user permitted to submit content for review</td><td>Draft and submit posts without publishing rights</td><td>(policy declared; no dedicated screens yet)</td><td>Assigned by an Admin</td></tr><tr><td><strong>Author</strong></td><td>Content creator</td><td>Efficient Markdown authoring, media, own profile and resume data</td><td>Post editor, My Posts, Media library, Draft preview, Manage Profile/Experience/Skills/Awards</td><td>Assigned by an Admin</td></tr><tr><td><strong>Editor</strong></td><td>Editorial oversight</td><td>Manage all posts, moderate comments</td><td>Admin dashboard, All posts, Comment moderation</td><td>Assigned by an Admin</td></tr><tr><td><strong>Admin</strong></td><td>Site owner / operator</td><td>Full control — users, taxonomy, subscribers, settings, images, theme</td><td>Everything, plus Users, Categories, Tags, Subscribers, Settings, Manage Images</td><td>Seeded on first install; assignable</td></tr></tbody></table>
 <p><strong>Role hierarchy</strong> (Admin ⊃ Editor ⊃ Author ⊃ Contributor ⊃ Reader) is expressed as five authorization policies rather than nested roles:</p>
-<table>
-<thead><tr><th>Policy</th><th>Roles accepted</th><th>Guards</th></tr></thead>
-<tbody>
-<tr><td><code>AdminOnly</code></td><td>Admin</td><td>Users, Categories, Tags, Settings, Subscribers, Manage Images</td></tr>
-<tr><td><code>EditorOrAbove</code></td><td>Admin, Editor</td><td>Admin dashboard, All posts, Comments</td></tr>
-<tr><td><code>AuthorOrAbove</code></td><td>Admin, Editor, Author</td><td>Post editor, Preview, Series, Profile/Experience/Skills/Awards</td></tr>
-<tr><td><code>ContributorOrAbove</code></td><td>Admin, Editor, Author, Contributor</td><td><em>(declared, not yet used by any page)</em></td></tr>
-<tr><td><code>Authenticated</code></td><td>any signed-in user</td><td>Own profile <em>(favourites retired 2026-08-06)</em></td></tr>
-</tbody></table>
+<table><thead><tr><th>Policy</th><th>Roles accepted</th><th>Guards</th></tr></thead><tbody><tr><td><code>AdminOnly</code></td><td>Admin</td><td>Users, Categories, Tags, Settings, Subscribers, Manage Images</td></tr><tr><td><code>EditorOrAbove</code></td><td>Admin, Editor</td><td>Admin dashboard, All posts, Comments</td></tr><tr><td><code>AuthorOrAbove</code></td><td>Admin, Editor, Author</td><td>Post editor, Preview, Series, Profile/Experience/Skills/Awards</td></tr><tr><td><code>ContributorOrAbove</code></td><td>Admin, Editor, Author, Contributor</td><td><em>(declared, not yet used by any page)</em></td></tr><tr><td><code>Authenticated</code></td><td>any signed-in user</td><td>Own profile <em>(favourites retired 2026-08-06)</em></td></tr></tbody></table>
 <p><strong>Site owner</strong> is a separate, orthogonal flag (<code>BlogUser.IsSiteOwner</code>, enforced unique by a partial index): exactly one user's resume is what <code>/resume</code> renders. Every author may additionally opt into showing resume sections on their own <code>/author/{username}</code> page via <code>ResumeEnabled</code>.</p>
-<h2 id="context-diagram">6. Context diagram<a class="anchor-link" href="#context-diagram">#</a></h2>
+<h2 id="6-context-diagram">6. Context diagram<a class="anchor-link" href="#6-context-diagram">#</a></h2>
 <div class="diagram">
   <div class="dt">
     <button data-zout title="Zoom out">−</button>
@@ -288,10 +179,10 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     <button data-zin title="Zoom in">+</button>
     <button data-fit title="Fit to width">Fit</button>
     <button data-one title="Actual size">1:1</button>
-    <button data-fs title="Fullscreen">⬜</button>
+    <button data-fs title="Fullscreen">⛶</button>
     <button data-pop title="Open in new tab">↗</button>
   </div>
-<pre class="mermaid">flowchart LR
+  <pre class="mermaid">flowchart LR
   Reader(["Reader — anonymous or registered"]) --> App["TechieBlog — Blazor Server"]
   Author(["Author / Editor"]) --> App
   Admin(["Admin / Site owner"]) --> App
@@ -303,7 +194,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   App --> Mail[/"Email — SMTP, currently console stub"/]
   App --> Logs[/"logs/techieblog-*.log — Serilog"/]</pre>
 </div>
-<h2 id="user-journey-primary-use-case">7. User journey — primary use case<a class="anchor-link" href="#user-journey-primary-use-case">#</a></h2>
+<h2 id="7-user-journey-primary-use-case">7. User journey — primary use case<a class="anchor-link" href="#7-user-journey-primary-use-case">#</a></h2>
 <p>The core loop the product exists for: an author publishes, a reader discovers and engages.</p>
 <div class="diagram">
   <div class="dt">
@@ -312,10 +203,10 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     <button data-zin title="Zoom in">+</button>
     <button data-fit title="Fit to width">Fit</button>
     <button data-one title="Actual size">1:1</button>
-    <button data-fs title="Fullscreen">⬜</button>
+    <button data-fs title="Fullscreen">⛶</button>
     <button data-pop title="Open in new tab">↗</button>
   </div>
-<pre class="mermaid">sequenceDiagram
+  <pre class="mermaid">sequenceDiagram
   actor A as "Author"
   participant E as "Post editor"
   participant S as "BlogEngine"
@@ -341,7 +232,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   S->>DB: "persist engagement"
   P-->>R: "confirmation, moderation notice if required"</pre>
 </div>
-<h2 id="component-sketch">8. Component sketch<a class="anchor-link" href="#component-sketch">#</a></h2>
+<h2 id="8-component-sketch">8. Component sketch<a class="anchor-link" href="#8-component-sketch">#</a></h2>
 <div class="diagram">
   <div class="dt">
     <button data-zout title="Zoom out">−</button>
@@ -349,10 +240,10 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     <button data-zin title="Zoom in">+</button>
     <button data-fit title="Fit to width">Fit</button>
     <button data-one title="Actual size">1:1</button>
-    <button data-fs title="Fullscreen">⬜</button>
+    <button data-fs title="Fullscreen">⛶</button>
     <button data-pop title="Open in new tab">↗</button>
   </div>
-<pre class="mermaid">flowchart TB
+  <pre class="mermaid">flowchart TB
   UI["BlogUI — Blazor RCL, TrBlazeUI components (migrating from Fluent UI)"] --> Eng["BlogEngine — services and Dapper repositories"]
   Host["TechieBlog host — DI, auth, Serilog, migrations"] --> UI
   Host --> Eng
@@ -365,39 +256,18 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   Db --> SQL
   UI --> Store[/"wwwroot/uploads"/]</pre>
 </div>
-<h2 id="feature-catalog">9. Feature catalog<a class="anchor-link" href="#feature-catalog">#</a></h2>
+<h2 id="9-feature-catalog">9. Feature catalog<a class="anchor-link" href="#9-feature-catalog">#</a></h2>
 <h3 id="f-auth-authentication-account-access">F-AUTH: Authentication &amp; account access<a class="anchor-link" href="#f-auth-authentication-account-access">#</a></h3>
 <p><strong>Personas:</strong> Reader, Contributor, Author, Editor, Admin · <strong>Phase:</strong> 2</p>
 <p>TechieBlog ships its own email/password authentication rather than depending on an external identity provider, so a cloned instance works with nothing but a database. <code>AuthSvc</code> validates credentials, issues a JWT carrying the user's id, name, email and role, and records the login; the Blazor circuit turns that token into an <code>AuthenticationState</code> through <code>CustomAuthStateProvider</code>, and the token is kept in browser local storage so a refresh does not log the user out. Registration is self-service and assigns the Reader role by default. Password reset is token-based with an expiry; the token store is deliberately in-memory for the MVP, and the "email" is currently written to the log by <code>ConsoleEmailService</code> rather than sent over SMTP.</p>
-<p><strong>Revised 2026-08-06:</strong> public self-service <strong>registration is removed</strong> (<del>BRD-1</del>) — there are no reader accounts, so the only accounts are staff ones created by an admin (BRD-10). <code>/register</code> and <code>/signup</code> are retired. Sign-in remains for Author/Editor/Admin via the direct <code>/login</code> URL (BRD-93).</p>
-<table>
-<thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td>Login</td><td><code>/login</code>, <code>/LoginPage</code>, <code>/LoginPage/{PageCode}</code></td><td>Email + password, forgot-password link</td></tr>
-<tr><td><del>Register</del></td><td><del><code>/register</code>, <code>/signup</code></del></td><td><em>Removed 2026-08-06</em></td></tr>
-<tr><td>Forgot password</td><td><code>/forgot-password</code></td><td>Email capture, generates reset token</td></tr>
-<tr><td>Reset password</td><td><code>/reset-password</code>, <code>/reset-password/{Token}</code></td><td>Token validation + new password</td></tr>
-<tr><td>Access denied</td><td><code>/access-denied</code></td><td>Shown when a policy rejects the user</td></tr>
-</tbody></table>
-<p><strong>Workflow:</strong></p>
-<ol>
-<li>Visitor submits credentials; the UI encrypts them into a <code>SvcData</code> envelope.</li>
-<li><code>AuthSvc.AppLogin</code> decrypts, hashes the password via <code>AppEncrypt.CreateHash</code>, and looks the user up.</li>
-<li>On success a JWT is issued with <code>PrimarySid</code>, <code>Name</code>, <code>Email</code>, <code>Role</code> claims and a login row is written.</li>
-<li>The host <code>AuthService</code> stores token + profile in local storage and notifies the auth-state provider.</li>
-<li>Subsequent requests read the claims principal; <code>[Authorize]</code> policies gate each page.</li>
-<li>Forgot-password issues a time-limited token; reset validates it, updates the password, invalidates the token.</li>
-</ol>
-<p><strong>Requirements:</strong> <del>BRD-1</del>, BRD-2, BRD-3 <em>(revised)</em>, BRD-4, BRD-5, BRD-6 (see §10)</p>
+<p><strong>Revised 2026-08-06:</strong> public self-service <strong>registration is removed</strong> (~~BRD-1~~) — there are no reader accounts, so the only accounts are staff ones created by an admin (BRD-10). <code>/register</code> and <code>/signup</code> are retired. Sign-in remains for Author/Editor/Admin via the direct <code>/login</code> URL (BRD-93).</p>
+<table><thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead><tbody><tr><td>Login</td><td><code>/login</code>, <code>/LoginPage</code>, <code>/LoginPage/{PageCode}</code></td><td>Email + password, forgot-password link</td></tr><tr><td>~~Register~~</td><td>~~<code>/register</code>, <code>/signup</code>~~</td><td><em>Removed 2026-08-06</em></td></tr><tr><td>Forgot password</td><td><code>/forgot-password</code></td><td>Email capture, generates reset token</td></tr><tr><td>Reset password</td><td><code>/reset-password</code>, <code>/reset-password/{Token}</code></td><td>Token validation + new password</td></tr><tr><td>Access denied</td><td><code>/access-denied</code></td><td>Shown when a policy rejects the user</td></tr></tbody></table>
+<p><strong>Workflow:</strong> 1. Visitor submits credentials; the UI encrypts them into a <code>SvcData</code> envelope. 2. <code>AuthSvc.AppLogin</code> decrypts, hashes the password via <code>AppEncrypt.CreateHash</code>, and looks the user up. 3. On success a JWT is issued with <code>PrimarySid</code>, <code>Name</code>, <code>Email</code>, <code>Role</code> claims and a login row is written. 4. The host <code>AuthService</code> stores token + profile in local storage and notifies the auth-state provider. 5. Subsequent requests read the claims principal; <code>[Authorize]</code> policies gate each page. 6. Forgot-password issues a time-limited token; reset validates it, updates the password, invalidates the token.</p>
+<p><strong>Requirements:</strong> ~~BRD-1~~, BRD-2, BRD-3 <em>(revised)</em>, BRD-4, BRD-5, BRD-6 (see §10)</p>
 <h3 id="f-role-roles-authorization">F-ROLE: Roles &amp; authorization<a class="anchor-link" href="#f-role-roles-authorization">#</a></h3>
 <p><strong>Personas:</strong> Admin (assigns), everyone (subject to) · <strong>Phase:</strong> 2</p>
 <p>Five roles form a strict capability ladder — Admin &gt; Editor &gt; Author &gt; Contributor &gt; Reader — mapped to five named policies registered in <code>Program.cs</code>. Pages declare their requirement with <code>@attribute [Authorize(Policy = "...")]</code>; UI elements additionally hide themselves based on role so users are not shown actions they cannot perform. Unauthorized navigation lands on <code>/access-denied</code>.</p>
-<table>
-<thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td>User management</td><td><code>/users</code></td><td>List, search, role assignment</td></tr>
-<tr><td>Add user</td><td><code>/AddUser</code></td><td>Admin-created accounts</td></tr>
-</tbody></table>
+<table><thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead><tbody><tr><td>User management</td><td><code>/users</code></td><td>List, search, role assignment</td></tr><tr><td>Add user</td><td><code>/AddUser</code></td><td>Admin-created accounts</td></tr></tbody></table>
 <div class="diagram">
   <div class="dt">
     <button data-zout title="Zoom out">−</button>
@@ -405,10 +275,10 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     <button data-zin title="Zoom in">+</button>
     <button data-fit title="Fit to width">Fit</button>
     <button data-one title="Actual size">1:1</button>
-    <button data-fs title="Fullscreen">⬜</button>
+    <button data-fs title="Fullscreen">⛶</button>
     <button data-pop title="Open in new tab">↗</button>
   </div>
-<pre class="mermaid">flowchart LR
+  <pre class="mermaid">flowchart LR
   Req["page request"] --> Auth{"authenticated?"}
   Auth -->|"no"| Login["redirect to /login"]
   Auth -->|"yes"| Pol{"policy satisfied?"}
@@ -419,32 +289,14 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <h3 id="f-prof-user-profile-account-management">F-PROF: User profile &amp; account management<a class="anchor-link" href="#f-prof-user-profile-account-management">#</a></h3>
 <p><strong>Personas:</strong> every registered user · <strong>Phase:</strong> 2</p>
 <p>Registered users maintain their own display name, bio, avatar and social links, and can change their password with current-password verification. Authors and above get an extended profile surface (<code>/admin/profile</code>) that also carries the resume fields — username, title, tagline, phone, location, CV file and the <code>ResumeEnabled</code> toggle — plus jump-off links to the experience, skills and awards editors.</p>
-<table>
-<thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td>Profile</td><td><code>/profile</code></td><td>Current user's details, <code>[Authorize]</code></td></tr>
-<tr><td>Manage profile</td><td><code>/admin/profile</code></td><td>Full self-service editor incl. resume fields, <code>AuthorOrAbove</code></td></tr>
-</tbody></table>
+<table><thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead><tbody><tr><td>Profile</td><td><code>/profile</code></td><td>Current user's details, <code>[Authorize]</code></td></tr><tr><td>Manage profile</td><td><code>/admin/profile</code></td><td>Full self-service editor incl. resume fields, <code>AuthorOrAbove</code></td></tr></tbody></table>
 <p><strong>Known gap:</strong> the mockups and PRD define separate <em>My Comments</em> (comment history), <em>Edit Profile</em> and <em>Change Password</em> screens (mockups 14–16). Only a consolidated profile surface exists; the comment-history page was never built (Story 1.9 PARTIAL).</p>
 <p><strong>Requirements:</strong> BRD-11, BRD-12, BRD-13</p>
 <h3 id="f-post-post-authoring-crud">F-POST: Post authoring &amp; CRUD<a class="anchor-link" href="#f-post-post-authoring-crud">#</a></h3>
 <p><strong>Personas:</strong> Author, Editor, Admin · <strong>Phase:</strong> 3</p>
 <p>The heart of the product. Authors create posts with a title, Markdown body, excerpt and slug; the slug is generated from the title by <code>SlugGenerator</code> with manual override, and must be unique because public URLs are <code>/post/{slug}</code>. The editor is a custom <code>MarkdownEditor.razor</code> component over Markdig with live preview and a formatting toolbar. Posts carry a featured image, category, tags, optional series membership, and SEO title/description fields. Deletion is available from the post list.</p>
-<table>
-<thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td>Post editor</td><td><code>/ManagePost</code>, <code>/ManagePost/{PageId}</code></td><td>Create/edit: title, Markdown + preview, metadata sidebar</td></tr>
-<tr><td>All posts</td><td><code>/BlogsList</code></td><td>Editorial list with status filters and actions</td></tr>
-<tr><td>Media library</td><td><code>/admin/images</code></td><td>Insert images into a post (see F-MEDIA)</td></tr>
-</tbody></table>
-<p><strong>Workflow:</strong></p>
-<ol>
-<li>Author opens the editor; a new post starts as Draft.</li>
-<li>Title entry auto-generates the slug (editable).</li>
-<li>Markdown is typed; the preview pane renders it through Markdig as the author types.</li>
-<li>Metadata is set: category (one), tags (many, with autocomplete and inline creation), optional series + order, featured image.</li>
-<li>Save persists via <code>BlogSvc.SavePost</code>, returning a <code>Result&lt;BlogPost&gt;</code> the UI surfaces as success or error.</li>
-</ol>
+<table><thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead><tbody><tr><td>Post editor</td><td><code>/ManagePost</code>, <code>/ManagePost/{PageId}</code></td><td>Create/edit: title, Markdown + preview, metadata sidebar</td></tr><tr><td>All posts</td><td><code>/BlogsList</code></td><td>Editorial list with status filters and actions</td></tr><tr><td>Media library</td><td><code>/admin/images</code></td><td>Insert images into a post (see F-MEDIA)</td></tr></tbody></table>
+<p><strong>Workflow:</strong> 1. Author opens the editor; a new post starts as Draft. 2. Title entry auto-generates the slug (editable). 3. Markdown is typed; the preview pane renders it through Markdig as the author types. 4. Metadata is set: category (one), tags (many, with autocomplete and inline creation), optional series + order, featured image. 5. Save persists via <code>BlogSvc.SavePost</code>, returning a <code>Result&lt;BlogPost&gt;</code> the UI surfaces as success or error.</p>
 <div class="diagram">
   <div class="dt">
     <button data-zout title="Zoom out">−</button>
@@ -452,10 +304,10 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     <button data-zin title="Zoom in">+</button>
     <button data-fit title="Fit to width">Fit</button>
     <button data-one title="Actual size">1:1</button>
-    <button data-fs title="Fullscreen">⬜</button>
+    <button data-fs title="Fullscreen">⛶</button>
     <button data-pop title="Open in new tab">↗</button>
   </div>
-<pre class="mermaid">flowchart LR
+  <pre class="mermaid">flowchart LR
   New["new post"] --> Write["title + Markdown body"]
   Write --> Slug["slug generated, editable"]
   Slug --> Meta["category, tags, series, featured image"]
@@ -468,11 +320,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <h3 id="f-draft-draft-preview-scheduling">F-DRAFT: Draft, preview &amp; scheduling<a class="anchor-link" href="#f-draft-draft-preview-scheduling">#</a></h3>
 <p><strong>Personas:</strong> Author, Editor · <strong>Phase:</strong> 3</p>
 <p>Posts move through Draft → Published, with a scheduled variant in between. A draft is invisible to the public; <code>PreviewPost</code> renders it exactly as it will appear, restricted to the author and editors. Scheduling sets <code>ScheduledFor</code>; the <code>ScheduledPostPublisher</code> background service promotes the post at the appointed time without anyone being logged in. Unpublishing returns a post to Draft.</p>
-<table>
-<thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td>Draft preview</td><td><code>/admin/preview/{PostId}</code></td><td>Full rendering of an unpublished post, <code>AuthorOrAbove</code></td></tr>
-</tbody></table>
+<table><thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead><tbody><tr><td>Draft preview</td><td><code>/admin/preview/{PostId}</code></td><td>Full rendering of an unpublished post, <code>AuthorOrAbove</code></td></tr></tbody></table>
 <div class="diagram">
   <div class="dt">
     <button data-zout title="Zoom out">−</button>
@@ -480,10 +328,10 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     <button data-zin title="Zoom in">+</button>
     <button data-fit title="Fit to width">Fit</button>
     <button data-one title="Actual size">1:1</button>
-    <button data-fs title="Fullscreen">⬜</button>
+    <button data-fs title="Fullscreen">⛶</button>
     <button data-pop title="Open in new tab">↗</button>
   </div>
-<pre class="mermaid">stateDiagram-v2
+  <pre class="mermaid">stateDiagram-v2
   [*] --> Draft
   Draft --> Published: "publish now"
   Draft --> Scheduled: "set future date"
@@ -495,61 +343,28 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <h3 id="f-tax-categories-tags">F-TAX: Categories &amp; tags<a class="anchor-link" href="#f-tax-categories-tags">#</a></h3>
 <p><strong>Personas:</strong> Author (applies), Admin (curates), Reader (browses) · <strong>Phase:</strong> 3</p>
 <p>Two taxonomies with different shapes: a post belongs to <strong>one</strong> category (a curated, admin-managed list with name, slug and description) and carries <strong>many</strong> tags (lightweight, author-creatable inline with autocomplete). Each has a public archive page listing its posts, and each is surfaced in the sidebar. Post counts per tag were originally wrong and were fixed in Story 7.5.</p>
-<table>
-<thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td>Category archive</td><td><code>/category/{Slug}</code>, <code>/categories</code>, <code>/categories/{Slug}</code></td><td>Posts in a category</td></tr>
-<tr><td>Tag archive</td><td><code>/tag/{Slug}</code>, <code>/tags</code>, <code>/tags/{Slug}</code></td><td>Posts with a tag</td></tr>
-<tr><td>Categories admin</td><td><code>/admin/categories</code>, <code>/CategoriesList</code></td><td>List + CRUD, <code>AdminOnly</code></td></tr>
-<tr><td>Manage category</td><td><code>/admin/category</code>, <code>/admin/category/{PageId}</code></td><td>Add/edit form</td></tr>
-<tr><td>Tags admin</td><td><code>/admin/tags</code>, <code>/TagsList</code></td><td>List + CRUD, <code>AdminOnly</code></td></tr>
-<tr><td>Manage tag</td><td><code>/ManageTag</code>, <code>/ManageTag/{PageId}</code></td><td>Add/edit form</td></tr>
-</tbody></table>
+<table><thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead><tbody><tr><td>Category archive</td><td><code>/category/{Slug}</code>, <code>/categories</code>, <code>/categories/{Slug}</code></td><td>Posts in a category</td></tr><tr><td>Tag archive</td><td><code>/tag/{Slug}</code>, <code>/tags</code>, <code>/tags/{Slug}</code></td><td>Posts with a tag</td></tr><tr><td>Categories admin</td><td><code>/admin/categories</code>, <code>/CategoriesList</code></td><td>List + CRUD, <code>AdminOnly</code></td></tr><tr><td>Manage category</td><td><code>/admin/category</code>, <code>/admin/category/{PageId}</code></td><td>Add/edit form</td></tr><tr><td>Tags admin</td><td><code>/admin/tags</code>, <code>/TagsList</code></td><td>List + CRUD, <code>AdminOnly</code></td></tr><tr><td>Manage tag</td><td><code>/ManageTag</code>, <code>/ManageTag/{PageId}</code></td><td>Add/edit form</td></tr></tbody></table>
 <p><strong>Requirements:</strong> BRD-22, BRD-23, BRD-24, BRD-25, BRD-26</p>
 <h3 id="f-ser-series-collections">F-SER: Series &amp; collections<a class="anchor-link" href="#f-ser-series-collections">#</a></h3>
 <p><strong>Personas:</strong> Author, Reader · <strong>Phase:</strong> 3</p>
 <p>Multi-part content is grouped into a named series with a slug and description. Each post in a series carries an order number; the post page shows previous/next navigation within the series, and the series landing page lists every part in reading order. Authors can reorder parts.</p>
-<table>
-<thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td>Series list (public)</td><td><code>/series</code></td><td>All available series</td></tr>
-<tr><td>Series view</td><td><code>/series/{Slug}</code></td><td>Ordered post listing, full-width layout</td></tr>
-<tr><td>Series admin</td><td><code>/admin/series</code>, <code>/SeriesList</code></td><td>Author's series, <code>AuthorOrAbove</code></td></tr>
-<tr><td>Manage series</td><td><code>/admin/series/new</code>, <code>/admin/series/{PageId}</code></td><td>Create/edit series</td></tr>
-</tbody></table>
+<table><thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead><tbody><tr><td>Series list (public)</td><td><code>/series</code></td><td>All available series</td></tr><tr><td>Series view</td><td><code>/series/{Slug}</code></td><td>Ordered post listing, full-width layout</td></tr><tr><td>Series admin</td><td><code>/admin/series</code>, <code>/SeriesList</code></td><td>Author's series, <code>AuthorOrAbove</code></td></tr><tr><td>Manage series</td><td><code>/admin/series/new</code>, <code>/admin/series/{PageId}</code></td><td>Create/edit series</td></tr></tbody></table>
 <p><strong>Requirements:</strong> BRD-27, BRD-28, BRD-29</p>
 <h3 id="f-pub-public-reading-experience">F-PUB: Public reading experience<a class="anchor-link" href="#f-pub-public-reading-experience">#</a></h3>
 <p><strong>Personas:</strong> Reader (anonymous or registered) · <strong>Phase:</strong> 3, 9</p>
 <p>The reader-facing surface: a home page with a featured post and a recent-posts grid plus sidebar (recent posts, categories, tag cloud, subscribe form); a post page rendering Markdown to HTML with author info, publish date, category, tags, reading-time estimate, related posts, series navigation and the engagement widgets; and the archive pages. URLs are slug-based for SEO. An About page and a 404 page complete the set.</p>
 <p><strong>Revised 2026-08-06 (BRD-30 modified, BRD-93 added).</strong> The home page becomes a <strong>personal-brand landing page</strong> modeled on nitinpandit.com / montemagno.com: a full-viewport hero (profile photo, "Hi, I'm {FirstName}", title, tagline, Get-In-Touch and Download-CV CTAs, social links), headline statistics, an about summary, a latest-articles section fed by recent published posts, and a contact block — all driven by the site-owner's existing resume data (F-RESUME), so no new data model is needed. The former featured-post + recent-grid home is superseded; <code>/resume</code> remains available and the home page deep-links into its sections. Additionally (<strong>BRD-93</strong>), the public site exposes <strong>no login or admin entry points</strong> — no header login link and no user menu on public pages; admin access is by directly opening <code>/login</code> (documented in the README). Contextual sign-in prompts remain on engagement features (comment, rate, favourite), which link to <code>/login</code> in place.</p>
-<table>
-<thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td>Home</td><td><code>/</code></td><td>Portfolio-style landing: hero, stats, about, latest articles, contact <em>(revised 2026-08-06)</em></td></tr>
-<tr><td>Post view</td><td><code>/post/{Slug}</code>, <code>/post/{Slug}/{PageNumber}</code></td><td>Full article + engagement, full-width layout</td></tr>
-<tr><td>About</td><td><code>/about</code></td><td>Static site information</td></tr>
-<tr><td>Not found</td><td><code>/404</code></td><td>Friendly 404</td></tr>
-</tbody></table>
+<table><thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead><tbody><tr><td>Home</td><td><code>/</code></td><td>Portfolio-style landing: hero, stats, about, latest articles, contact <em>(revised 2026-08-06)</em></td></tr><tr><td>Post view</td><td><code>/post/{Slug}</code>, <code>/post/{Slug}/{PageNumber}</code></td><td>Full article + engagement, full-width layout</td></tr><tr><td>About</td><td><code>/about</code></td><td>Static site information</td></tr><tr><td>Not found</td><td><code>/404</code></td><td>Friendly 404</td></tr></tbody></table>
 <p><strong>Requirements:</strong> BRD-30 <em>(revised)</em>, BRD-31, BRD-32, BRD-33, BRD-93</p>
 <h3 id="f-srch-search">F-SRCH: Search<a class="anchor-link" href="#f-srch-search">#</a></h3>
 <p><strong>Personas:</strong> Reader · <strong>Phase:</strong> 3</p>
 <p>Full-text search over published posts using PostgreSQL <code>ILIKE</code> across title, abstract, body and tags, with paging, term highlighting in results, and a category filter whose options load from the live category list.</p>
-<table>
-<thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td>Search results</td><td><code>/search</code></td><td>Query box, category filter, paged results with highlighting</td></tr>
-</tbody></table>
+<table><thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead><tbody><tr><td>Search results</td><td><code>/search</code></td><td>Query box, category filter, paged results with highlighting</td></tr></tbody></table>
 <p><strong>Requirements:</strong> BRD-34, BRD-35</p>
 <h3 id="f-cmt-comments-moderation">F-CMT: Comments &amp; moderation<a class="anchor-link" href="#f-cmt-comments-moderation">#</a></h3>
 <p><strong>Personas:</strong> Visitor (writes), Editor/Admin (moderates) · <strong>Phase:</strong> 4, 9</p>
 <p><strong>Revised 2026-08-06 (BRD-36 modified, BRD-37 removed).</strong> Commenting is <strong>anonymous — no account and no sign-in</strong>. A visitor supplies a display name, an email address and the comment body; the email is stored for moderation and reply notification but is <strong>never published</strong>. Comments are flat (no threading) and display in chronological order with a count shown on post cards. Approval before display is expected to be the default for anonymous input, and the moderation queue (BRD-38, BRD-39) becomes the only edit/delete path — a visitor cannot edit their own comment because there is no authenticated owner. Spam control is therefore a build concern for this feature (see the open question in the Architecture §9).</p>
-<table>
-<thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td>Comment form + list</td><td>on <code>/post/{Slug}</code></td><td>Inline on the post page</td></tr>
-<tr><td>Moderation queue</td><td><code>/CommentsList</code>, <code>/comments</code></td><td>Pending + all comments, <code>EditorOrAbove</code></td></tr>
-<tr><td>Manage comment</td><td>(admin detail surface)</td><td>Edit/approve/delete a single comment</td></tr>
-</tbody></table>
+<table><thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead><tbody><tr><td>Comment form + list</td><td>on <code>/post/{Slug}</code></td><td>Inline on the post page</td></tr><tr><td>Moderation queue</td><td><code>/CommentsList</code>, <code>/comments</code></td><td>Pending + all comments, <code>EditorOrAbove</code></td></tr><tr><td>Manage comment</td><td>(admin detail surface)</td><td>Edit/approve/delete a single comment</td></tr></tbody></table>
 <div class="diagram">
   <div class="dt">
     <button data-zout title="Zoom out">−</button>
@@ -557,10 +372,10 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     <button data-zin title="Zoom in">+</button>
     <button data-fit title="Fit to width">Fit</button>
     <button data-one title="Actual size">1:1</button>
-    <button data-fs title="Fullscreen">⬜</button>
+    <button data-fs title="Fullscreen">⛶</button>
     <button data-pop title="Open in new tab">↗</button>
   </div>
-<pre class="mermaid">flowchart LR
+  <pre class="mermaid">flowchart LR
   Write["reader submits comment"] --> Mod{"moderation required?"}
   Mod -->|"yes"| Queue["pending queue"]
   Mod -->|"no"| Live["visible on post"]
@@ -570,47 +385,25 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   Dec -->|"edit"| Live</pre>
 </div>
 <p><strong>Anti-abuse (added 2026-08-06).</strong> Because the form is open to the public it is protected by a self-hosted captcha (BRD-99) and double opt-in email verification (BRD-98): a comment is held until the address is confirmed, and only then enters the moderation queue.</p>
-<p><strong>Requirements:</strong> BRD-36 <em>(revised)</em>, <del>BRD-37</del>, BRD-38, BRD-39, BRD-98, BRD-99</p>
+<p><strong>Requirements:</strong> BRD-36 <em>(revised)</em>, ~~BRD-37~~, BRD-38, BRD-39, BRD-98, BRD-99</p>
 <h3 id="f-rate-star-ratings">F-RATE: Star ratings<a class="anchor-link" href="#f-rate-star-ratings">#</a></h3>
 <p><strong>Personas:</strong> Visitor (anonymous) · <strong>Phase:</strong> 4, 9</p>
 <p>A 1–5 star widget on the post page, usable <strong>without signing in</strong> — the visitor is identified by email address (revised 2026-08-06). One rating per email per post, changeable at any time; the post shows the average and the count, and ratings appear on post cards in listings. Ratings are queryable for "top rated" selections.</p>
 <p>Choosing a star reveals the email + captcha step; the rating counts once the address is confirmed (BRD-98, BRD-99). A visitor whose address is already verified rates in one click.</p>
 <p><strong>Requirements:</strong> BRD-40 <em>(revised)</em>, BRD-41 <em>(revised)</em>, BRD-42, BRD-98, BRD-99</p>
-<h3 id="f-fav-favourites-bookmarks-removed-2026-08-06"><del>F-FAV: Favourites &amp; bookmarks</del> — REMOVED 2026-08-06<a class="anchor-link" href="#f-fav-favourites-bookmarks-removed-2026-08-06">#</a></h3>
+<h3 id="f-fav-favourites-bookmarks-removed-2026-08-06">~~F-FAV: Favourites &amp; bookmarks~~ — REMOVED 2026-08-06<a class="anchor-link" href="#f-fav-favourites-bookmarks-removed-2026-08-06">#</a></h3>
 <p>Favourites required a signed-in reader identity. Reader accounts were dropped on 2026-08-06 (this is a personal site; commenting and rating are anonymous), so the favourite toggle, the counts and the <code>/my-favorites</code> page are removed from scope. The <code>UserFavorite</code> table and <code>FavoriteSvc</code> already exist in the codebase — retiring or repurposing them is build work tracked on the checklist.</p>
-<p><strong>Requirements:</strong> <del>BRD-43</del>, <del>BRD-44</del> <em>(both retired)</em></p>
+<p><strong>Requirements:</strong> ~~BRD-43~~, ~~BRD-44~~ <em>(both retired)</em></p>
 <h3 id="f-media-image-management-media-library">F-MEDIA: Image management &amp; media library<a class="anchor-link" href="#f-media-image-management-media-library">#</a></h3>
 <p><strong>Personas:</strong> Author, Admin · <strong>Phase:</strong> 5 and 8</p>
 <p>A single upload pipeline serves every image need in the product, organised into <strong>seven categories</strong> with per-category size and format limits enforced server-side. Files are written to <code>wwwroot/uploads/{category}/</code> under a collision-proof name, and metadata (category, alt text, MIME type, width, height) is recorded against the <code>BlogImage</code> row. A reusable <code>ImagePicker</code> component gives every form the same "choose from library or upload new" experience, filtered to the relevant category.</p>
-<table>
-<thead><tr><th>Category</th><th>Path</th><th>Max size</th><th>Allowed formats</th><th>Used by</th></tr></thead>
-<tbody>
-<tr><td>profiles</td><td><code>/uploads/profiles/</code></td><td>2 MB</td><td>jpg, png, webp</td><td>Resume hero, author avatar</td></tr>
-<tr><td>logos</td><td><code>/uploads/logos/</code></td><td>500 KB</td><td>jpg, png, svg, webp</td><td>Experience timeline</td></tr>
-<tr><td>awards</td><td><code>/uploads/awards/</code></td><td>500 KB</td><td>jpg, png, svg, webp</td><td>Awards section</td></tr>
-<tr><td>icons</td><td><code>/uploads/icons/</code></td><td>200 KB</td><td>png, svg, webp</td><td>Skills grid</td></tr>
-<tr><td>blog</td><td><code>/uploads/blog/</code></td><td>5 MB</td><td>jpg, png, gif, webp</td><td>Post bodies, featured images</td></tr>
-<tr><td>cv</td><td><code>/uploads/cv/</code></td><td>10 MB</td><td>pdf</td><td>Resume CV download</td></tr>
-<tr><td>general</td><td><code>/uploads/general/</code></td><td>5 MB</td><td>jpg, png, gif, webp</td><td>Miscellaneous</td></tr>
-</tbody></table>
-<table>
-<thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td>Manage images</td><td><code>/admin/images</code></td><td>Gallery with category tabs, upload, delete, copy URL, paging, <code>AdminOnly</code></td></tr>
-<tr><td>Image picker</td><td>(component)</td><td>Embedded in every form that binds an image path</td></tr>
-</tbody></table>
+<table><thead><tr><th>Category</th><th>Path</th><th>Max size</th><th>Allowed formats</th><th>Used by</th></tr></thead><tbody><tr><td>profiles</td><td><code>/uploads/profiles/</code></td><td>2 MB</td><td>jpg, png, webp</td><td>Resume hero, author avatar</td></tr><tr><td>logos</td><td><code>/uploads/logos/</code></td><td>500 KB</td><td>jpg, png, svg, webp</td><td>Experience timeline</td></tr><tr><td>awards</td><td><code>/uploads/awards/</code></td><td>500 KB</td><td>jpg, png, svg, webp</td><td>Awards section</td></tr><tr><td>icons</td><td><code>/uploads/icons/</code></td><td>200 KB</td><td>png, svg, webp</td><td>Skills grid</td></tr><tr><td>blog</td><td><code>/uploads/blog/</code></td><td>5 MB</td><td>jpg, png, gif, webp</td><td>Post bodies, featured images</td></tr><tr><td>cv</td><td><code>/uploads/cv/</code></td><td>10 MB</td><td>pdf</td><td>Resume CV download</td></tr><tr><td>general</td><td><code>/uploads/general/</code></td><td>5 MB</td><td>jpg, png, gif, webp</td><td>Miscellaneous</td></tr></tbody></table>
+<table><thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead><tbody><tr><td>Manage images</td><td><code>/admin/images</code></td><td>Gallery with category tabs, upload, delete, copy URL, paging, <code>AdminOnly</code></td></tr><tr><td>Image picker</td><td>(component)</td><td>Embedded in every form that binds an image path</td></tr></tbody></table>
 <p><strong>Requirements:</strong> BRD-45, BRD-46, BRD-47, BRD-48</p>
 <h3 id="f-resume-resume-portfolio-page">F-RESUME: Resume / portfolio page<a class="anchor-link" href="#f-resume-resume-portfolio-page">#</a></h3>
 <p><strong>Personas:</strong> Site owner (authors it), anyone (reads it) · <strong>Phase:</strong> 8</p>
 <p>A full-page, anchor-navigated public resume for the one user flagged <code>IsSiteOwner</code>, modelled on a personal portfolio site. Sections, top to bottom: a full-viewport hero (profile photo, "Hi, I'm {FirstName}", title, tagline, Get-In-Touch and Download-CV buttons, social links, scroll cue); about with headline statistics; a reverse-chronological experience timeline with company logos and Markdown bullet descriptions, showing "Present" for the current role; a skills grid grouped by category with optional icons; awards and recognition with badge images, years and links; community contribution statistics; and a contact block with email, phone, location and social links.</p>
-<table>
-<thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td>Resume</td><td><code>/resume</code></td><td>Public full-page resume, <code>FullWidthLayout</code></td></tr>
-<tr><td>Manage experience</td><td><code>/admin/experience</code>, <code>/admin/experience/{EventId}</code></td><td>Timeline CRUD with logo picker and ordering</td></tr>
-<tr><td>Manage skills</td><td><code>/admin/skills</code></td><td>Skills CRUD grouped by category</td></tr>
-<tr><td>Manage awards</td><td><code>/admin/awards</code></td><td>Awards CRUD with badge picker</td></tr>
-</tbody></table>
+<table><thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead><tbody><tr><td>Resume</td><td><code>/resume</code></td><td>Public full-page resume, <code>FullWidthLayout</code></td></tr><tr><td>Manage experience</td><td><code>/admin/experience</code>, <code>/admin/experience/{EventId}</code></td><td>Timeline CRUD with logo picker and ordering</td></tr><tr><td>Manage skills</td><td><code>/admin/skills</code></td><td>Skills CRUD grouped by category</td></tr><tr><td>Manage awards</td><td><code>/admin/awards</code></td><td>Awards CRUD with badge picker</td></tr></tbody></table>
 <p>Data lives in extended <code>BlogUser</code> columns (title, tagline, phone, location, CV path, Instagram, <code>ResumeEnabled</code>), the repurposed <code>UserEvents</code> table (experience, with <code>StartDate</code>, <code>Description</code>, <code>DisplayOrder</code>, <code>IsCurrent</code>), and three tables added by migration <code>012</code> — <code>UserSkills</code>, <code>UserAwards</code>, <code>UserStats</code>.</p>
 <div class="diagram">
   <div class="dt">
@@ -619,10 +412,10 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     <button data-zin title="Zoom in">+</button>
     <button data-fit title="Fit to width">Fit</button>
     <button data-one title="Actual size">1:1</button>
-    <button data-fs title="Fullscreen">⬜</button>
+    <button data-fs title="Fullscreen">⛶</button>
     <button data-pop title="Open in new tab">↗</button>
   </div>
-<pre class="mermaid">flowchart TB
+  <pre class="mermaid">flowchart TB
   Owner["user where IsSiteOwner = true"] --> Hero["hero — photo, name, title, tagline, CTAs"]
   Owner --> About["about + statistics"]
   Owner --> Exp["experience timeline — UserEvents"]
@@ -632,79 +425,41 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   Owner --> Contact["contact — email, phone, location, socials"]</pre>
 </div>
 <p><strong>Requirements:</strong> BRD-49, BRD-50, BRD-51, BRD-52</p>
-<h3 id="f-author-multi-author-profiles-removed-2026-08-06"><del>F-AUTHOR: Multi-author profiles</del> — REMOVED 2026-08-06<a class="anchor-link" href="#f-author-multi-author-profiles-removed-2026-08-06">#</a></h3>
+<h3 id="f-author-multi-author-profiles-removed-2026-08-06">~~F-AUTHOR: Multi-author profiles~~ — REMOVED 2026-08-06<a class="anchor-link" href="#f-author-multi-author-profiles-removed-2026-08-06">#</a></h3>
 <p>A TechieBlog instance is a <strong>personal site</strong>, so a public authors index and per-author public profiles are not wanted: <code>/authors</code> and <code>/author/{username}</code> are removed, and post bylines render as plain text rather than links. The single public profile is the site owner's resume at <code>/resume</code> (F-RESUME). Multi-author <em>publishing</em> is unaffected — the five-role model, per-author post ownership and the admin-side profile/resume editors all remain; only the public author-browsing surface is dropped. The <code>IsSiteOwner</code> flag and username column stay (used by F-RESUME); the public routes, <code>AuthorsPage.razor</code> and <code>AuthorProfilePage.razor</code> are retired as build work on the checklist.</p>
-<p><strong>Requirements:</strong> <del>BRD-53</del>, <del>BRD-54</del>, <del>BRD-55</del> <em>(all retired)</em></p>
+<p><strong>Requirements:</strong> ~~BRD-53~~, ~~BRD-54~~, ~~BRD-55~~ <em>(all retired)</em></p>
 <h3 id="f-sub-subscribers-newsletter">F-SUB: Subscribers &amp; newsletter<a class="anchor-link" href="#f-sub-subscribers-newsletter">#</a></h3>
 <p><strong>Personas:</strong> Visitor (subscribes), Admin (manages, sends) · <strong>Phase:</strong> 5</p>
 <p>A subscribe form (sidebar, footer or dedicated placement) captures an email address with validation and duplicate handling. Admins see the subscriber list with search and status filtering, can remove subscribers, and can export the list. <strong>Newsletter composition and sending are specified but not built</strong> — there is no SMTP sender, no composer, no send history and no unsubscribe link generation.</p>
 <p><strong>Extended 2026-08-06.</strong> Subscribing is now <strong>double opt-in</strong> (BRD-98) and captcha-protected (BRD-99): the address is stored as <em>pending</em> until the emailed confirmation link is used. The site also gains a <strong>public newsletter archive</strong> — the admin composes issues (BRD-59) and every sent issue is published at <code>/newsletters</code> (BRD-100) and readable individually at <code>/newsletter/{slug}</code> (BRD-101), so the audience can read past issues and judge the newsletter before subscribing. The archive page carries the primary subscribe form.</p>
-<table>
-<thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td>Subscribe form</td><td>(component, on public pages)</td><td>Email capture + captcha + double opt-in confirmation</td></tr>
-<tr><td>Newsletter archive</td><td><code>/newsletters</code></td><td>Public list of past issues, newest first, paged; subscribe form</td></tr>
-<tr><td>Newsletter issue</td><td><code>/newsletter/{Slug}</code></td><td>A single published issue with previous/next navigation</td></tr>
-<tr><td>Email confirmation</td><td><code>/verify/{Token}</code></td><td>Landing page for the double opt-in link (comment, rating or subscription)</td></tr>
-<tr><td>Subscribers admin</td><td><code>/admin/subscribers</code></td><td>List, search, status, remove, export, <code>AdminOnly</code></td></tr>
-</tbody></table>
+<table><thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead><tbody><tr><td>Subscribe form</td><td>(component, on public pages)</td><td>Email capture + captcha + double opt-in confirmation</td></tr><tr><td>Newsletter archive</td><td><code>/newsletters</code></td><td>Public list of past issues, newest first, paged; subscribe form</td></tr><tr><td>Newsletter issue</td><td><code>/newsletter/{Slug}</code></td><td>A single published issue with previous/next navigation</td></tr><tr><td>Email confirmation</td><td><code>/verify/{Token}</code></td><td>Landing page for the double opt-in link (comment, rating or subscription)</td></tr><tr><td>Subscribers admin</td><td><code>/admin/subscribers</code></td><td>List, search, status, remove, export, <code>AdminOnly</code></td></tr></tbody></table>
 <p><strong>Requirements:</strong> BRD-56, BRD-57, BRD-58, BRD-59, BRD-98, BRD-99, BRD-100, BRD-101</p>
 <h3 id="f-ana-analytics-admin-dashboard">F-ANA: Analytics &amp; admin dashboard<a class="anchor-link" href="#f-ana-analytics-admin-dashboard">#</a></h3>
 <p><strong>Personas:</strong> Admin, Editor, Author · <strong>Phase:</strong> 5</p>
 <p>The admin dashboard shows count tiles and quick actions — but only the <strong>post</strong> figures are computed from data. The day-1 DevGuide pass found user, subscriber, comment and pending-comment counts hardcoded in the page (<code>AdminDashboard.razor.cs:63-68</code>) and the "popular posts" panel showing recent posts with a zero view count, even though <code>CommentSvc.GetAdminCounts()</code> exists to supply real numbers. The deeper analytics story — tracking total and unique post views, identifying popular posts, showing engagement statistics per post, and trend charts with a date-range filter — is <strong>specified but not built</strong>; the <code>PostViews</code> table exists in the schema with nothing writing to it.</p>
-<table>
-<thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td>Admin dashboard</td><td><code>/admin</code>, <code>/AdminDashboard</code></td><td>Count tiles + quick actions, <code>EditorOrAbove</code></td></tr>
-</tbody></table>
+<table><thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead><tbody><tr><td>Admin dashboard</td><td><code>/admin</code>, <code>/AdminDashboard</code></td><td>Count tiles + quick actions, <code>EditorOrAbove</code></td></tr></tbody></table>
 <p><strong>Requirements:</strong> BRD-60, BRD-61, BRD-62</p>
 <h3 id="f-seo-rss-sitemap">F-SEO: RSS &amp; sitemap<a class="anchor-link" href="#f-seo-rss-sitemap">#</a></h3>
 <p><strong>Personas:</strong> Reader (feed), search engines · <strong>Phase:</strong> 6</p>
 <p>An RSS feed of recent published posts for syndication to aggregators, and an auto-generated <code>sitemap.xml</code> covering published posts plus category and tag archives, referenced from a generated <code>robots.txt</code>.</p>
-<table>
-<thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td>RSS feed</td><td><code>/rss</code></td><td>Feed page</td></tr>
-<tr><td>Sitemap</td><td><code>/sitemap.xml</code></td><td>Minimal endpoint, XML</td></tr>
-<tr><td>Robots</td><td><code>/robots.txt</code></td><td>Minimal endpoint, points at the sitemap</td></tr>
-</tbody></table>
+<table><thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead><tbody><tr><td>RSS feed</td><td><code>/rss</code></td><td>Feed page</td></tr><tr><td>Sitemap</td><td><code>/sitemap.xml</code></td><td>Minimal endpoint, XML</td></tr><tr><td>Robots</td><td><code>/robots.txt</code></td><td>Minimal endpoint, points at the sitemap</td></tr></tbody></table>
 <p><strong>Requirements:</strong> BRD-63, BRD-64</p>
 <h3 id="f-theme-theming-dark-mode">F-THEME: Theming &amp; dark mode<a class="anchor-link" href="#f-theme-theming-dark-mode">#</a></h3>
 <p><strong>Personas:</strong> Reader (light/dark), Admin (site theme), developer (customization) · <strong>Phase:</strong> 1, 6, 7, 9</p>
 <p>Two independent theming axes. <strong>Light/dark mode</strong> is a per-user preference toggled from the header on every page and stored in local storage. <strong>Site theme</strong> is chosen by the admin in Site Settings and applies to public pages: <em>Fluent Modern</em> (default, clean Microsoft-Fluent-inspired), <em>Developer Dark</em> (code-editor inspired with syntax-highlight colours and monospace accents), and <em>Minimal Clean</em> (typography-first, generous whitespace, serif headings). Each site theme has light and dark variants — six combinations. Every colour, font and spacing value is a CSS custom property; no component hardcodes a value, which is what makes re-skinning a CSS-only exercise.</p>
 <p><strong>Revised 2026-08-06 (BRD-92 added, BRD-67 modified).</strong> The component library moves from Microsoft Fluent UI Blazor to <strong>TrBlazeUI</strong> (<code>TrBlazeUI.Components</code>, consumed from the GitHub Packages NuGet feed at <code>nuget.pkg.github.com/techierathore</code>; the owner supplies the feed credentials in <code>nuget.config</code> before development starts). TrBlazeUI is shadcn/ui-compatible and themes entirely through CSS custom properties with a <code>.dark</code> class for dark mode, so the BRD-65 principle carries over unchanged. The three site themes are re-expressed as TrBlazeUI/shadcn CSS-variable sets (light and dark variants preserved), and the Fluent-specific dark-mode overrides (<code>fluent-dark-mode.css</code>) are retired together with the library. The migration touches every page, component and layout in <code>BlogUI</code> and requires <code>&lt;PortalHost /&gt;</code> in the root layouts for overlay components.</p>
-<table>
-<thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td>Theme toggle</td><td>(header component)</td><td>Light/dark switch, persisted</td></tr>
-<tr><td>Theme selector</td><td><code>/settings</code></td><td>Admin picks the site theme</td></tr>
-</tbody></table>
+<table><thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead><tbody><tr><td>Theme toggle</td><td>(header component)</td><td>Light/dark switch, persisted</td></tr><tr><td>Theme selector</td><td><code>/settings</code></td><td>Admin picks the site theme</td></tr></tbody></table>
 <p><strong>Requirements:</strong> BRD-65, BRD-66, BRD-67 <em>(revised)</em>, BRD-68, BRD-92</p>
 <h3 id="f-admin-admin-console-site-settings">F-ADMIN: Admin console &amp; site settings<a class="anchor-link" href="#f-admin-admin-console-site-settings">#</a></h3>
 <p><strong>Personas:</strong> Admin · <strong>Phase:</strong> 6</p>
 <p>A dedicated admin layout with grouped navigation (dashboard, content, taxonomy, users, resume data, media, subscribers, settings) fronting every management screen. Site Settings is <em>specified</em> to hold the site title and tagline, posts-per-page, comment-moderation toggle, theme selection, SMTP configuration and storage-provider settings.</p>
 <p><strong>As built, Site Settings does not persist.</strong> The day-1 DevGuide pass found no <code>SiteSettings</code> table in any migration and no settings repository or service in <code>BlogEngine</code>; <code>Settings.razor</code> writes only the pagination word count, to the visitor's browser local storage, and reports "Settings saved successfully" for everything else (<code>Settings.razor:337</code> — <code>// TODO: Implement actual save to database</code>). Building that layer is the substance of BRD-69 (REQ-FN-040).</p>
-<table>
-<thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td>Site settings</td><td><code>/settings</code></td><td>All site configuration, <code>AdminOnly</code></td></tr>
-<tr><td>(all admin pages)</td><td>see F-* above</td><td>Reached through <code>AdminLayout</code> navigation</td></tr>
-</tbody></table>
+<table><thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead><tbody><tr><td>Site settings</td><td><code>/settings</code></td><td>All site configuration, <code>AdminOnly</code></td></tr><tr><td>(all admin pages)</td><td>see F-* above</td><td>Reached through <code>AdminLayout</code> navigation</td></tr></tbody></table>
 <p><strong>Requirements:</strong> BRD-69, BRD-70</p>
 <h3 id="f-tpl-template-distribution-developer-experience">F-TPL: Template distribution &amp; developer experience<a class="anchor-link" href="#f-tpl-template-distribution-developer-experience">#</a></h3>
 <p><strong>Personas:</strong> Template adopter (.NET developer) · <strong>Phase:</strong> 6</p>
 <p>The product <em>is</em> the repository, so the adoption experience is a first-class feature: a GitHub template repository the developer clones with one click, a rename script, and a documentation set covering getting started, customization, deployment and the MySQL → PostgreSQL migration path. The target is clone-to-running in under five minutes and clone-to-production in under a week. A seed/sample data set (sample posts demonstrating Markdown, images and series; a user per role; categories, tags, comments and ratings) is specified but <strong>not built</strong>, as is the final code-cleanup and XML-documentation pass.</p>
-<table>
-<thead><tr><th>Artifact</th><th>Location</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td>README</td><td><code>README.md</code></td><td>Product overview, features, quick start</td></tr>
-<tr><td>Getting started</td><td><code>GETTING_STARTED.md</code></td><td>Prerequisites, DB setup, configuration, build and run</td></tr>
-<tr><td>Customization guide</td><td><code>docs/customization.md</code></td><td>CSS variables, theme authoring, dark mode</td></tr>
-<tr><td>Deployment guide</td><td><code>docs/deployment.md</code></td><td>Docker, Azure App Service, Linux/systemd</td></tr>
-<tr><td>Migration guides</td><td><code>docs/database-migration-guide.md</code>, <code>docs/DataMigrationGuide.md</code></td><td>MySQL → PostgreSQL schema and data</td></tr>
-<tr><td>Release checklist</td><td><code>docs/template-release-checklist.md</code></td><td>Pre-publish hygiene for the template repo</td></tr>
-<tr><td>Rename script</td><td><code>scripts/</code></td><td>Re-brands a clone to the adopter's project name</td></tr>
-</tbody></table>
+<table><thead><tr><th>Artifact</th><th>Location</th><th>Description</th></tr></thead><tbody><tr><td>README</td><td><code>README.md</code></td><td>Product overview, features, quick start</td></tr><tr><td>Getting started</td><td><code>GETTING_STARTED.md</code></td><td>Prerequisites, DB setup, configuration, build and run</td></tr><tr><td>Customization guide</td><td><code>docs/customization.md</code></td><td>CSS variables, theme authoring, dark mode</td></tr><tr><td>Deployment guide</td><td><code>docs/deployment.md</code></td><td>Docker, Azure App Service, Linux/systemd</td></tr><tr><td>Migration guides</td><td><code>docs/database-migration-guide.md</code>, <code>docs/DataMigrationGuide.md</code></td><td>MySQL → PostgreSQL schema and data</td></tr><tr><td>Release checklist</td><td><code>docs/template-release-checklist.md</code></td><td>Pre-publish hygiene for the template repo</td></tr><tr><td>Rename script</td><td><code>scripts/</code></td><td>Re-brands a clone to the adopter's project name</td></tr></tbody></table>
 <p><strong>Requirements:</strong> BRD-71, BRD-72, BRD-73</p>
 <h3 id="f-ops-operations-logging-delivery-pipeline">F-OPS: Operations, logging &amp; delivery pipeline<a class="anchor-link" href="#f-ops-operations-logging-delivery-pipeline">#</a></h3>
 <p><strong>Personas:</strong> Developer / operator · <strong>Phase:</strong> 1 and 6</p>
@@ -714,20 +469,8 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <p><strong>Personas:</strong> Admin, Editor, Author (anyone with admin-side rights) · <strong>Phase:</strong> 10 · <em>added 2026-08-06</em></p>
 <p><strong>BlogApp</strong> is a MAUI Blazor Hybrid cross-platform desktop application (Windows and macOS) that delivers the complete admin experience outside the browser. It exists so the site owner can manage the blog — write posts, moderate comments, curate taxonomy, maintain the resume and profile, manage users, subscribers, media, settings and themes — from an installed desktop app instead of the website's admin section. This is the realisation of the long-standing reason <code>BlogUI</code> is a Razor Class Library: BlogApp hosts the <strong>same</strong> admin pages, layouts and components the web admin uses, so the two surfaces cannot drift apart.</p>
 <p>BlogApp keeps the architecture deliberately simple: there is <strong>no local database and no synchronisation</strong>. On first run a connection-setup screen captures the target site's PostgreSQL connection string, which is stored securely on the device (platform secure storage); from then on the app boots straight into the login screen and every operation runs against the live site database through the same <code>BlogEngine</code> services the web host uses. Publishing a post in BlogApp makes it immediately visible on the website. The app therefore requires network reachability to the site's PostgreSQL instance — disconnected editing is out of scope by design.</p>
-<table>
-<thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td>Connection setup</td><td>(first run / settings)</td><td>Capture + test the site's PostgreSQL connection string; store in platform secure storage</td></tr>
-<tr><td>Login</td><td><code>/login</code> (in-app)</td><td>Same credentials and role policies as the web admin</td></tr>
-<tr><td>Admin surface</td><td>(all admin routes)</td><td>The full <code>BlogUI</code> admin page set — dashboard, posts, taxonomy, series, comments, media, resume data, users, subscribers, settings, themes</td></tr>
-</tbody></table>
-<p><strong>Workflow:</strong></p>
-<ol>
-<li>First launch shows the connection-setup screen; the connection string is validated against the database and stored securely.</li>
-<li>Subsequent launches open the login screen; credentials are checked by the same <code>AuthSvc</code> and the five role policies apply unchanged.</li>
-<li>The signed-in user manages the blog through the shared <code>BlogUI</code> admin pages; all reads/writes go directly to the site's PostgreSQL.</li>
-<li>Publishing (immediate or scheduled) behaves exactly as on the web — the post appears on the public site as soon as it is published.</li>
-</ol>
+<table><thead><tr><th>Screen</th><th>Route</th><th>Description</th></tr></thead><tbody><tr><td>Connection setup</td><td>(first run / settings)</td><td>Capture + test the site's PostgreSQL connection string; store in platform secure storage</td></tr><tr><td>Login</td><td><code>/login</code> (in-app)</td><td>Same credentials and role policies as the web admin</td></tr><tr><td>Admin surface</td><td>(all admin routes)</td><td>The full <code>BlogUI</code> admin page set — dashboard, posts, taxonomy, series, comments, media, resume data, users, subscribers, settings, themes</td></tr></tbody></table>
+<p><strong>Workflow:</strong> 1. First launch shows the connection-setup screen; the connection string is validated against the database and stored securely. 2. Subsequent launches open the login screen; credentials are checked by the same <code>AuthSvc</code> and the five role policies apply unchanged. 3. The signed-in user manages the blog through the shared <code>BlogUI</code> admin pages; all reads/writes go directly to the site's PostgreSQL. 4. Publishing (immediate or scheduled) behaves exactly as on the web — the post appears on the public site as soon as it is published.</p>
 <div class="diagram">
   <div class="dt">
     <button data-zout title="Zoom out">−</button>
@@ -735,10 +478,10 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     <button data-zin title="Zoom in">+</button>
     <button data-fit title="Fit to width">Fit</button>
     <button data-one title="Actual size">1:1</button>
-    <button data-fs title="Fullscreen">⬜</button>
+    <button data-fs title="Fullscreen">⛶</button>
     <button data-pop title="Open in new tab">↗</button>
   </div>
-<pre class="mermaid">flowchart LR
+  <pre class="mermaid">flowchart LR
   Launch["launch BlogApp"] --> First{"connection configured?"}
   First -->|"no"| Setup["connection-setup screen — enter + test PostgreSQL connection string"]
   Setup --> Store["store securely on device"]
@@ -751,200 +494,30 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   Direct --> Site["published content immediately live on the website"]</pre>
 </div>
 <p><strong>Requirements:</strong> BRD-94, BRD-95, BRD-96, BRD-97</p>
-<h2 id="functional-requirements-brd-ledger">10. Functional requirements (BRD ledger)<a class="anchor-link" href="#functional-requirements-brd-ledger">#</a></h2>
-<!-- One line per discrete capability. Append-only IDs. Each names its catalog feature. -->
-<ul>
-<li><del><strong>BRD-1</strong></del> — <em>(removed 2026-08-06: no reader accounts exist — commenting, rating and subscribing are anonymous and email-verified, so public self-service registration has no purpose. Staff accounts are created by an admin under BRD-10.)</em> A visitor can register for an account <em>(F-AUTH)</em></li>
-<li><strong>BRD-2</strong> — A user can authenticate with email and password and receive a JWT carrying their id, name, email and role <em>(F-AUTH)</em> <!-- from: docs/OldDocs/prd.md FR1 --></li>
-<li><strong>BRD-3</strong> — The system shall enforce password strength requirements (minimum 8 characters, mixed case, number) wherever a password is set — admin-created staff accounts (BRD-10) and password reset (BRD-5) <em>(F-AUTH)</em> <em>(revised 2026-08-06; was: at registration)</em></li>
-<li><strong>BRD-4</strong> — A user can request a password reset by email and receive a time-limited reset token <em>(F-AUTH)</em> <!-- from: docs/OldDocs/prd.md FR4 --></li>
-<li><strong>BRD-5</strong> — A user can set a new password with a valid reset token, after which the token is invalidated <em>(F-AUTH)</em></li>
-<li><strong>BRD-6</strong> — The system shall refresh an expiring session token without forcing re-login <em>(F-AUTH)</em></li>
-<li><strong>BRD-7</strong> — The system shall support five user roles: Admin, Editor, Author, Contributor, Reader <em>(F-ROLE)</em> <!-- from: docs/OldDocs/prd.md FR2 --></li>
-<li><strong>BRD-8</strong> — The system shall enforce role-based access control on every protected page and action <em>(F-ROLE)</em> <!-- from: docs/OldDocs/prd.md FR5 --></li>
-<li><strong>BRD-9</strong> — The system shall hide UI elements the current user's role cannot use, and return an access-denied page on unauthorized navigation <em>(F-ROLE)</em></li>
-<li><strong>BRD-10</strong> — An admin can list, search, view, role-change, enable/disable and delete users <em>(F-ROLE)</em></li>
-<li><strong>BRD-11</strong> — A registered user can view and edit their own profile (display name, bio, avatar, social links) <em>(F-PROF)</em></li>
-<li><strong>BRD-12</strong> — A registered user can change their password after verifying the current one <em>(F-PROF)</em></li>
-<li><del><strong>BRD-13</strong></del> — <em>(removed 2026-08-06: reader accounts dropped — comments are anonymous, so there is no per-reader comment history)</em> A registered user can view their own comment history <em>(F-PROF)</em></li>
-<li><strong>BRD-14</strong> — An author can create, read, update and delete blog posts <em>(F-POST)</em> <!-- from: docs/OldDocs/prd.md FR6 --></li>
-<li><strong>BRD-15</strong> — The system shall auto-generate a unique URL slug from the post title, with manual override <em>(F-POST)</em></li>
-<li><strong>BRD-16</strong> — An author can write post content in Markdown with live preview and a formatting toolbar <em>(F-POST)</em> <!-- from: docs/OldDocs/prd.md FR7 --></li>
-<li><strong>BRD-17</strong> — An author can set a featured image, excerpt and SEO title/description on a post <em>(F-POST)</em></li>
-<li><strong>BRD-18</strong> — An author can save a post as a draft that is not publicly visible <em>(F-DRAFT)</em> <!-- from: docs/OldDocs/prd.md FR9 --></li>
-<li><strong>BRD-19</strong> — An author or editor can preview an unpublished post exactly as it will render <em>(F-DRAFT)</em> <!-- from: docs/OldDocs/prd.md FR10 --></li>
-<li><strong>BRD-20</strong> — An author can schedule a post for future publication <em>(F-DRAFT)</em> <!-- from: docs/OldDocs/prd.md FR11 --></li>
-<li><strong>BRD-21</strong> — The system shall publish scheduled posts automatically at their scheduled time via a background service <em>(F-DRAFT)</em></li>
-<li><strong>BRD-22</strong> — An admin can create, edit and delete categories with name, slug and description <em>(F-TAX)</em></li>
-<li><strong>BRD-23</strong> — An author can assign exactly one primary category to a post <em>(F-TAX)</em> <!-- from: docs/OldDocs/prd.md FR8 --></li>
-<li><strong>BRD-24</strong> — An author can assign multiple tags to a post, with autocomplete and inline creation of new tags <em>(F-TAX)</em></li>
-<li><strong>BRD-25</strong> — A reader can browse a category archive listing every published post in that category <em>(F-TAX)</em></li>
-<li><strong>BRD-26</strong> — A reader can browse a tag archive listing every published post carrying that tag, with an accurate post count <em>(F-TAX)</em></li>
-<li><strong>BRD-27</strong> — An author can create a series with name, slug and description and add posts to it in a specified order <em>(F-SER)</em> <!-- from: docs/OldDocs/prd.md FR12 --></li>
-<li><strong>BRD-28</strong> — A reader viewing a post in a series can navigate to the previous and next part <em>(F-SER)</em></li>
-<li><strong>BRD-29</strong> — A reader can open a series landing page listing all its posts in reading order <em>(F-SER)</em></li>
-<li><strong>BRD-30</strong> — A reader can view the home page as a personal-brand landing page — hero (photo, name, title, tagline, Get-In-Touch and Download-CV CTAs, social links), headline statistics, about summary, latest articles and contact block — driven by the site-owner's resume data <em>(F-PUB)</em> <em>(revised 2026-08-06; was: featured post + recent-posts grid with sidebar)</em></li>
-<li><strong>BRD-31</strong> — A reader can read a published post rendered from Markdown, with author, publish date, category and tags <em>(F-PUB)</em></li>
-<li><strong>BRD-32</strong> — The system shall display a reading-time estimate and related posts on each post page <em>(F-PUB)</em></li>
-<li><strong>BRD-33</strong> — The system shall use SEO-friendly slug-based URLs for all public content <em>(F-PUB)</em></li>
-<li><strong>BRD-34</strong> — A reader can search published posts by keyword across title, excerpt, body and tags <em>(F-SRCH)</em></li>
-<li><strong>BRD-35</strong> — A reader can filter search results by category and page through them, with matched terms highlighted <em>(F-SRCH)</em></li>
-<li><strong>BRD-36</strong> — A visitor can comment on a post by supplying a name and email address — <strong>no account or sign-in required</strong>; the email is never published and is used only for moderation and reply notification <em>(F-CMT)</em> <em>(revised 2026-08-06; was: a signed-in reader can comment)</em></li>
-<li><del><strong>BRD-37</strong></del> — <em>(removed 2026-08-06: with anonymous commenting there is no authenticated owner of a comment; editing/removal is a moderator action under BRD-39)</em> A user can edit and delete their own comments <em>(F-CMT)</em></li>
-<li><strong>BRD-38</strong> — The system shall optionally require comment approval before display, driven by a site setting <em>(F-CMT)</em></li>
-<li><strong>BRD-39</strong> — An editor or admin can approve, edit, delete and bulk-process comments from a moderation queue <em>(F-CMT)</em> <!-- from: docs/OldDocs/prd.md FR14 --></li>
-<li><strong>BRD-40</strong> — A visitor can rate a post from 1 to 5 stars identified by email address — <strong>no account or sign-in required</strong> <em>(F-RATE)</em> <em>(revised 2026-08-06; was: a signed-in reader can rate)</em></li>
-<li><strong>BRD-41</strong> — A visitor can change their existing rating on a post; only one rating per <strong>email address</strong> per post is stored <em>(F-RATE)</em> <em>(revised 2026-08-06; was: per user)</em></li>
-<li><strong>BRD-42</strong> — The system shall display the average rating and rating count on the post page and in listings <em>(F-RATE)</em></li>
-<li><del><strong>BRD-43</strong></del> — <em>(removed 2026-08-06: favourites require a reader account; reader accounts dropped)</em> A signed-in reader can favourite/unfavourite a post <em>(F-FAV)</em></li>
-<li><del><strong>BRD-44</strong></del> — <em>(removed 2026-08-06: same reason as BRD-43)</em> A reader can view all their favourited posts on a My Favourites page <em>(F-FAV)</em></li>
-<li><strong>BRD-45</strong> — An author can upload images, validated server-side against per-category size and format limits <em>(F-MEDIA)</em> <!-- from: docs/OldDocs/prd.md FR18 --></li>
-<li><strong>BRD-46</strong> — The system shall store uploads under seven fixed categories (profiles, logos, awards, icons, blog, cv, general) with collision-proof filenames <em>(F-MEDIA)</em></li>
-<li><strong>BRD-47</strong> — An admin can browse, filter by category, copy the URL of, and delete uploaded images in a media library <em>(F-MEDIA)</em></li>
-<li><strong>BRD-48</strong> — The system shall provide a reusable image-picker component that any form can bind to an image path <em>(F-MEDIA)</em></li>
-<li><strong>BRD-49</strong> — A visitor can view the site owner's full resume at <code>/resume</code> <em>(F-RESUME)</em></li>
-<li><strong>BRD-50</strong> — The site owner can maintain resume experience entries with company logo, role, dates, current-role flag and Markdown description, in a chosen display order <em>(F-RESUME)</em></li>
-<li><strong>BRD-51</strong> — The site owner can maintain skills grouped by category, awards with badge images and years, and headline statistics <em>(F-RESUME)</em></li>
-<li><strong>BRD-52</strong> — A visitor can download the site owner's CV from the resume page <em>(F-RESUME)</em></li>
-<li><del><strong>BRD-53</strong></del> — <em>(removed 2026-08-06: TechieBlog instances are personal sites — a public authors index is not wanted)</em> A visitor can browse <code>/authors</code> listing every author <em>(F-AUTHOR)</em></li>
-<li><del><strong>BRD-54</strong></del> — <em>(removed 2026-08-06: same reason as BRD-53; the site owner's resume at <code>/resume</code> is the only public profile)</em> A visitor can view an author's profile at <code>/author/{username}</code> <em>(F-AUTHOR)</em></li>
-<li><del><strong>BRD-55</strong></del> — <em>(removed 2026-08-06: no public author routes remain; the single-site-owner flag stays, per F-RESUME)</em> Unique URL-safe usernames with 404 on unknown <em>(F-AUTHOR)</em></li>
-<li><strong>BRD-56</strong> — A visitor can subscribe to the blog with an email address, with validation and duplicate handling <em>(F-SUB)</em> <!-- from: docs/OldDocs/prd.md FR20 --></li>
-<li><strong>BRD-57</strong> — An admin can list, search, filter by status and remove subscribers <em>(F-SUB)</em> <!-- from: docs/OldDocs/prd.md FR21 --></li>
-<li><strong>BRD-58</strong> — An admin can export the subscriber list <em>(F-SUB)</em> <!-- from: docs/OldDocs/prd.md FR23 --></li>
-<li><strong>BRD-59</strong> — An admin can compose and send a newsletter to subscribers over SMTP, with preview, send history and an unsubscribe link <em>(F-SUB)</em> <!-- from: docs/OldDocs/prd.md FR22 --> — <em>not built</em></li>
-<li><strong>BRD-60</strong> — The system shall track total and unique views per post <em>(F-ANA)</em> <!-- from: docs/OldDocs/prd.md FR24 --> — <em>not built</em></li>
-<li><strong>BRD-61</strong> — An admin can see popular posts and per-post engagement statistics <em>(F-ANA)</em> <!-- from: docs/OldDocs/prd.md FR25, FR26 --> — <em>not built</em></li>
-<li><strong>BRD-62</strong> — An admin can view a dashboard of post, user, comment and subscriber counts with quick actions <em>(F-ANA)</em> <!-- from: docs/OldDocs/prd.md FR35 --></li>
-<li><strong>BRD-63</strong> — The system shall publish an RSS feed of recent published posts <em>(F-SEO)</em> <!-- from: docs/OldDocs/prd.md FR27 --></li>
-<li><strong>BRD-64</strong> — The system shall generate <code>sitemap.xml</code> covering published posts, categories and tags, referenced from <code>robots.txt</code> <em>(F-SEO)</em> <!-- from: docs/OldDocs/prd.md FR28 --></li>
-<li><strong>BRD-65</strong> — The system shall express every colour, font and spacing value as a CSS custom property, with no hardcoded values in components <em>(F-THEME)</em> <!-- from: docs/OldDocs/prd.md FR29 --></li>
-<li><strong>BRD-66</strong> — A user can toggle light/dark mode from the header on any page, and the choice persists <em>(F-THEME)</em> <!-- from: docs/OldDocs/prd.md FR30, FR34 --></li>
-<li><strong>BRD-67</strong> — The system shall ship three site themes — Fluent Modern, Developer Dark, Minimal Clean — each with light and dark variants, expressed as TrBlazeUI/shadcn CSS-variable sets <em>(F-THEME)</em> <!-- from: docs/OldDocs/prd.md FR31, FR32 --> <em>(revised 2026-08-06: themes re-expressed for TrBlazeUI)</em></li>
-<li><strong>BRD-68</strong> — An admin can select the active site theme from Site Settings <em>(F-THEME)</em> <!-- from: docs/OldDocs/prd.md FR33 --></li>
-<li><strong>BRD-69</strong> — An admin can configure site title, tagline, posts-per-page, comment moderation, theme, SMTP and storage settings <em>(F-ADMIN)</em> <!-- from: docs/OldDocs/prd.md FR37 --></li>
-<li><strong>BRD-70</strong> — The system shall present all management screens under a consistent admin layout with grouped navigation <em>(F-ADMIN)</em> <!-- from: docs/OldDocs/prd.md FR36 --></li>
-<li><strong>BRD-71</strong> — The repository shall be consumable as a GitHub template, with a rename script that re-brands a clone <em>(F-TPL)</em></li>
-<li><strong>BRD-72</strong> — The system shall ship getting-started, customization, deployment and migration documentation sufficient to reach production without reading the source <em>(F-TPL)</em></li>
-<li><strong>BRD-73</strong> — The system shall provide a seed/sample data set — sample posts, one user per role, categories, tags, comments and ratings — for immediate local evaluation <em>(F-TPL)</em> — <em>not built</em></li>
-<li><strong>BRD-74</strong> — The system shall expose a health endpoint verifying database and critical-service availability <em>(F-OPS)</em> — <em>not built</em></li>
-<li><strong>BRD-75</strong> — The system shall include correlation IDs in logs for request tracing <em>(F-OPS)</em> — <em>not built</em></li>
-<li><strong>BRD-76</strong> — The solution shall include an automated test project covering engine services and key components <em>(F-OPS)</em> — <em>not built</em></li>
-<li><strong>BRD-77</strong> — The repository shall include a CI pipeline that builds, tests and produces deployable artifacts on push and pull request <em>(F-OPS)</em> — <em>not built</em></li>
-<li><strong>BRD-92</strong> — All UI shall be built with TrBlazeUI (<code>TrBlazeUI.Components</code>, consumed from the GitHub Packages NuGet feed with owner-supplied <code>nuget.config</code> credentials); Microsoft Fluent UI Blazor is fully removed <em>(F-THEME)</em> <!-- added 2026-08-06 --></li>
-<li><strong>BRD-93</strong> — The public site shall expose no login or admin entry points; admin access is via the direct <code>/login</code> URL documented in the README, with contextual sign-in prompts retained on engagement features <em>(F-PUB)</em> <!-- added 2026-08-06 --></li>
-<li><strong>BRD-94</strong> — A MAUI Blazor Hybrid cross-platform desktop application, BlogApp (Windows + macOS), shall provide the complete admin experience by reusing the <code>BlogUI</code> RCL <em>(F-DESK)</em> <!-- added 2026-08-06 --></li>
-<li><strong>BRD-95</strong> — BlogApp shall start at a login screen and enforce the same five-role authorization policies as the web admin <em>(F-DESK)</em> <!-- added 2026-08-06 --></li>
-<li><strong>BRD-96</strong> — BlogApp shall connect directly to the site's PostgreSQL database via a first-run connection-setup screen, storing the connection string securely on the device; no local database and no synchronisation <em>(F-DESK)</em> <!-- added 2026-08-06 --></li>
-<li><strong>BRD-97</strong> — Every admin capability — posts, taxonomy, media, resume data, users, subscribers, comments, settings, themes — shall be available in BlogApp <em>(F-DESK)</em> <!-- added 2026-08-06 --></li>
-<li><strong>BRD-98</strong> — The system shall verify every anonymous email address by double opt-in: a one-time, time-limited confirmation link is emailed, and the comment, rating or subscription takes effect only when it is used; an address already verified skips the step on later submissions <em>(F-CMT, F-RATE, F-SUB)</em> <!-- added 2026-08-06 --></li>
-<li><strong>BRD-99</strong> — The system shall protect every public write surface (comment, rating, subscribe) with a <strong>self-hosted</strong> CAPTCHA challenge — generated, rendered and validated in-process using only the .NET base class library, with no third-party library or external service <em>(F-CMT, F-RATE, F-SUB)</em> <!-- added 2026-08-06 --></li>
-<li><strong>BRD-100</strong> — A visitor can browse a public archive of past newsletter issues at <code>/newsletters</code>, newest first, with paging, and subscribe from that page <em>(F-SUB)</em> <!-- added 2026-08-06 --></li>
-<li><strong>BRD-101</strong> — A visitor can read an individual published newsletter issue at <code>/newsletter/{slug}</code>, with navigation to the previous and next issue <em>(F-SUB)</em> <!-- added 2026-08-06 --></li>
-</ul>
-<h2 id="non-functional-requirements">11. Non-functional requirements<a class="anchor-link" href="#non-functional-requirements">#</a></h2>
-<!-- The Observability NFR is a TechieFlow STANDING requirement present in every .NET app's BRD. -->
+<h2 id="10-functional-requirements-brd-ledger">10. Functional requirements (BRD ledger)<a class="anchor-link" href="#10-functional-requirements-brd-ledger">#</a></h2>
+<p>&lt;!-- One line per discrete capability. Append-only IDs. Each names its catalog feature. --&gt;</p>
+<ul><li>~~<strong>BRD-1</strong>~~ — <em>(removed 2026-08-06: no reader accounts exist — commenting, rating and subscribing are anonymous and email-verified, so public self-service registration has no purpose. Staff accounts are created by an admin under BRD-10.)</em> A visitor can register for an account <em>(F-AUTH)</em></li><li><strong>BRD-2</strong> — A user can authenticate with email and password and receive a JWT carrying their id, name, email and role <em>(F-AUTH)</em> &lt;!-- from: docs/OldDocs/prd.md FR1 --&gt;</li><li><strong>BRD-3</strong> — The system shall enforce password strength requirements (minimum 8 characters, mixed case, number) wherever a password is set — admin-created staff accounts (BRD-10) and password reset (BRD-5) <em>(F-AUTH)</em> <em>(revised 2026-08-06; was: at registration)</em></li><li><strong>BRD-4</strong> — A user can request a password reset by email and receive a time-limited reset token <em>(F-AUTH)</em> &lt;!-- from: docs/OldDocs/prd.md FR4 --&gt;</li><li><strong>BRD-5</strong> — A user can set a new password with a valid reset token, after which the token is invalidated <em>(F-AUTH)</em></li><li><strong>BRD-6</strong> — The system shall refresh an expiring session token without forcing re-login <em>(F-AUTH)</em></li><li><strong>BRD-7</strong> — The system shall support five user roles: Admin, Editor, Author, Contributor, Reader <em>(F-ROLE)</em> &lt;!-- from: docs/OldDocs/prd.md FR2 --&gt;</li><li><strong>BRD-8</strong> — The system shall enforce role-based access control on every protected page and action <em>(F-ROLE)</em> &lt;!-- from: docs/OldDocs/prd.md FR5 --&gt;</li><li><strong>BRD-9</strong> — The system shall hide UI elements the current user's role cannot use, and return an access-denied page on unauthorized navigation <em>(F-ROLE)</em></li><li><strong>BRD-10</strong> — An admin can list, search, view, role-change, enable/disable and delete users <em>(F-ROLE)</em></li><li><strong>BRD-11</strong> — A registered user can view and edit their own profile (display name, bio, avatar, social links) <em>(F-PROF)</em></li><li><strong>BRD-12</strong> — A registered user can change their password after verifying the current one <em>(F-PROF)</em></li><li>~~<strong>BRD-13</strong>~~ — <em>(removed 2026-08-06: reader accounts dropped — comments are anonymous, so there is no per-reader comment history)</em> A registered user can view their own comment history <em>(F-PROF)</em></li><li><strong>BRD-14</strong> — An author can create, read, update and delete blog posts <em>(F-POST)</em> &lt;!-- from: docs/OldDocs/prd.md FR6 --&gt;</li><li><strong>BRD-15</strong> — The system shall auto-generate a unique URL slug from the post title, with manual override <em>(F-POST)</em></li><li><strong>BRD-16</strong> — An author can write post content in Markdown with live preview and a formatting toolbar <em>(F-POST)</em> &lt;!-- from: docs/OldDocs/prd.md FR7 --&gt;</li><li><strong>BRD-17</strong> — An author can set a featured image, excerpt and SEO title/description on a post <em>(F-POST)</em></li><li><strong>BRD-18</strong> — An author can save a post as a draft that is not publicly visible <em>(F-DRAFT)</em> &lt;!-- from: docs/OldDocs/prd.md FR9 --&gt;</li><li><strong>BRD-19</strong> — An author or editor can preview an unpublished post exactly as it will render <em>(F-DRAFT)</em> &lt;!-- from: docs/OldDocs/prd.md FR10 --&gt;</li><li><strong>BRD-20</strong> — An author can schedule a post for future publication <em>(F-DRAFT)</em> &lt;!-- from: docs/OldDocs/prd.md FR11 --&gt;</li><li><strong>BRD-21</strong> — The system shall publish scheduled posts automatically at their scheduled time via a background service <em>(F-DRAFT)</em></li><li><strong>BRD-22</strong> — An admin can create, edit and delete categories with name, slug and description <em>(F-TAX)</em></li><li><strong>BRD-23</strong> — An author can assign exactly one primary category to a post <em>(F-TAX)</em> &lt;!-- from: docs/OldDocs/prd.md FR8 --&gt;</li><li><strong>BRD-24</strong> — An author can assign multiple tags to a post, with autocomplete and inline creation of new tags <em>(F-TAX)</em></li><li><strong>BRD-25</strong> — A reader can browse a category archive listing every published post in that category <em>(F-TAX)</em></li><li><strong>BRD-26</strong> — A reader can browse a tag archive listing every published post carrying that tag, with an accurate post count <em>(F-TAX)</em></li><li><strong>BRD-27</strong> — An author can create a series with name, slug and description and add posts to it in a specified order <em>(F-SER)</em> &lt;!-- from: docs/OldDocs/prd.md FR12 --&gt;</li><li><strong>BRD-28</strong> — A reader viewing a post in a series can navigate to the previous and next part <em>(F-SER)</em></li><li><strong>BRD-29</strong> — A reader can open a series landing page listing all its posts in reading order <em>(F-SER)</em></li><li><strong>BRD-30</strong> — A reader can view the home page as a personal-brand landing page — hero (photo, name, title, tagline, Get-In-Touch and Download-CV CTAs, social links), headline statistics, about summary, latest articles and contact block — driven by the site-owner's resume data <em>(F-PUB)</em> <em>(revised 2026-08-06; was: featured post + recent-posts grid with sidebar)</em></li><li><strong>BRD-31</strong> — A reader can read a published post rendered from Markdown, with author, publish date, category and tags <em>(F-PUB)</em></li><li><strong>BRD-32</strong> — The system shall display a reading-time estimate and related posts on each post page <em>(F-PUB)</em></li><li><strong>BRD-33</strong> — The system shall use SEO-friendly slug-based URLs for all public content <em>(F-PUB)</em></li><li><strong>BRD-34</strong> — A reader can search published posts by keyword across title, excerpt, body and tags <em>(F-SRCH)</em></li><li><strong>BRD-35</strong> — A reader can filter search results by category and page through them, with matched terms highlighted <em>(F-SRCH)</em></li><li><strong>BRD-36</strong> — A visitor can comment on a post by supplying a name and email address — <strong>no account or sign-in required</strong>; the email is never published and is used only for moderation and reply notification <em>(F-CMT)</em> <em>(revised 2026-08-06; was: a signed-in reader can comment)</em></li><li>~~<strong>BRD-37</strong>~~ — <em>(removed 2026-08-06: with anonymous commenting there is no authenticated owner of a comment; editing/removal is a moderator action under BRD-39)</em> A user can edit and delete their own comments <em>(F-CMT)</em></li><li><strong>BRD-38</strong> — The system shall optionally require comment approval before display, driven by a site setting <em>(F-CMT)</em></li><li><strong>BRD-39</strong> — An editor or admin can approve, edit, delete and bulk-process comments from a moderation queue <em>(F-CMT)</em> &lt;!-- from: docs/OldDocs/prd.md FR14 --&gt;</li><li><strong>BRD-40</strong> — A visitor can rate a post from 1 to 5 stars identified by email address — <strong>no account or sign-in required</strong> <em>(F-RATE)</em> <em>(revised 2026-08-06; was: a signed-in reader can rate)</em></li><li><strong>BRD-41</strong> — A visitor can change their existing rating on a post; only one rating per <strong>email address</strong> per post is stored <em>(F-RATE)</em> <em>(revised 2026-08-06; was: per user)</em></li><li><strong>BRD-42</strong> — The system shall display the average rating and rating count on the post page and in listings <em>(F-RATE)</em></li><li>~~<strong>BRD-43</strong>~~ — <em>(removed 2026-08-06: favourites require a reader account; reader accounts dropped)</em> A signed-in reader can favourite/unfavourite a post <em>(F-FAV)</em></li><li>~~<strong>BRD-44</strong>~~ — <em>(removed 2026-08-06: same reason as BRD-43)</em> A reader can view all their favourited posts on a My Favourites page <em>(F-FAV)</em></li><li><strong>BRD-45</strong> — An author can upload images, validated server-side against per-category size and format limits <em>(F-MEDIA)</em> &lt;!-- from: docs/OldDocs/prd.md FR18 --&gt;</li><li><strong>BRD-46</strong> — The system shall store uploads under seven fixed categories (profiles, logos, awards, icons, blog, cv, general) with collision-proof filenames <em>(F-MEDIA)</em></li><li><strong>BRD-47</strong> — An admin can browse, filter by category, copy the URL of, and delete uploaded images in a media library <em>(F-MEDIA)</em></li><li><strong>BRD-48</strong> — The system shall provide a reusable image-picker component that any form can bind to an image path <em>(F-MEDIA)</em></li><li><strong>BRD-49</strong> — A visitor can view the site owner's full resume at <code>/resume</code> <em>(F-RESUME)</em></li><li><strong>BRD-50</strong> — The site owner can maintain resume experience entries with company logo, role, dates, current-role flag and Markdown description, in a chosen display order <em>(F-RESUME)</em></li><li><strong>BRD-51</strong> — The site owner can maintain skills grouped by category, awards with badge images and years, and headline statistics <em>(F-RESUME)</em></li><li><strong>BRD-52</strong> — A visitor can download the site owner's CV from the resume page <em>(F-RESUME)</em></li><li>~~<strong>BRD-53</strong>~~ — <em>(removed 2026-08-06: TechieBlog instances are personal sites — a public authors index is not wanted)</em> A visitor can browse <code>/authors</code> listing every author <em>(F-AUTHOR)</em></li><li>~~<strong>BRD-54</strong>~~ — <em>(removed 2026-08-06: same reason as BRD-53; the site owner's resume at <code>/resume</code> is the only public profile)</em> A visitor can view an author's profile at <code>/author/{username}</code> <em>(F-AUTHOR)</em></li><li>~~<strong>BRD-55</strong>~~ — <em>(removed 2026-08-06: no public author routes remain; the single-site-owner flag stays, per F-RESUME)</em> Unique URL-safe usernames with 404 on unknown <em>(F-AUTHOR)</em></li><li><strong>BRD-56</strong> — A visitor can subscribe to the blog with an email address, with validation and duplicate handling <em>(F-SUB)</em> &lt;!-- from: docs/OldDocs/prd.md FR20 --&gt;</li><li><strong>BRD-57</strong> — An admin can list, search, filter by status and remove subscribers <em>(F-SUB)</em> &lt;!-- from: docs/OldDocs/prd.md FR21 --&gt;</li><li><strong>BRD-58</strong> — An admin can export the subscriber list <em>(F-SUB)</em> &lt;!-- from: docs/OldDocs/prd.md FR23 --&gt;</li><li><strong>BRD-59</strong> — An admin can compose and send a newsletter to subscribers over SMTP, with preview, send history and an unsubscribe link <em>(F-SUB)</em> &lt;!-- from: docs/OldDocs/prd.md FR22 --&gt; — <em>not built</em></li><li><strong>BRD-60</strong> — The system shall track total and unique views per post <em>(F-ANA)</em> &lt;!-- from: docs/OldDocs/prd.md FR24 --&gt; — <em>not built</em></li><li><strong>BRD-61</strong> — An admin can see popular posts and per-post engagement statistics <em>(F-ANA)</em> &lt;!-- from: docs/OldDocs/prd.md FR25, FR26 --&gt; — <em>not built</em></li><li><strong>BRD-62</strong> — An admin can view a dashboard of post, user, comment and subscriber counts with quick actions <em>(F-ANA)</em> &lt;!-- from: docs/OldDocs/prd.md FR35 --&gt;</li><li><strong>BRD-63</strong> — The system shall publish an RSS feed of recent published posts <em>(F-SEO)</em> &lt;!-- from: docs/OldDocs/prd.md FR27 --&gt;</li><li><strong>BRD-64</strong> — The system shall generate <code>sitemap.xml</code> covering published posts, categories and tags, referenced from <code>robots.txt</code> <em>(F-SEO)</em> &lt;!-- from: docs/OldDocs/prd.md FR28 --&gt;</li><li><strong>BRD-65</strong> — The system shall express every colour, font and spacing value as a CSS custom property, with no hardcoded values in components <em>(F-THEME)</em> &lt;!-- from: docs/OldDocs/prd.md FR29 --&gt;</li><li><strong>BRD-66</strong> — A user can toggle light/dark mode from the header on any page, and the choice persists <em>(F-THEME)</em> &lt;!-- from: docs/OldDocs/prd.md FR30, FR34 --&gt;</li><li><strong>BRD-67</strong> — The system shall ship three site themes — Fluent Modern, Developer Dark, Minimal Clean — each with light and dark variants, expressed as TrBlazeUI/shadcn CSS-variable sets <em>(F-THEME)</em> &lt;!-- from: docs/OldDocs/prd.md FR31, FR32 --&gt; <em>(revised 2026-08-06: themes re-expressed for TrBlazeUI)</em></li><li><strong>BRD-68</strong> — An admin can select the active site theme from Site Settings <em>(F-THEME)</em> &lt;!-- from: docs/OldDocs/prd.md FR33 --&gt;</li><li><strong>BRD-69</strong> — An admin can configure site title, tagline, posts-per-page, comment moderation, theme, SMTP and storage settings <em>(F-ADMIN)</em> &lt;!-- from: docs/OldDocs/prd.md FR37 --&gt;</li><li><strong>BRD-70</strong> — The system shall present all management screens under a consistent admin layout with grouped navigation <em>(F-ADMIN)</em> &lt;!-- from: docs/OldDocs/prd.md FR36 --&gt;</li><li><strong>BRD-71</strong> — The repository shall be consumable as a GitHub template, with a rename script that re-brands a clone <em>(F-TPL)</em></li><li><strong>BRD-72</strong> — The system shall ship getting-started, customization, deployment and migration documentation sufficient to reach production without reading the source <em>(F-TPL)</em></li><li><strong>BRD-73</strong> — The system shall provide a seed/sample data set — sample posts, one user per role, categories, tags, comments and ratings — for immediate local evaluation <em>(F-TPL)</em> — <em>not built</em></li><li><strong>BRD-74</strong> — The system shall expose a health endpoint verifying database and critical-service availability <em>(F-OPS)</em> — <em>not built</em></li><li><strong>BRD-75</strong> — The system shall include correlation IDs in logs for request tracing <em>(F-OPS)</em> — <em>not built</em></li><li><strong>BRD-76</strong> — The solution shall include an automated test project covering engine services and key components <em>(F-OPS)</em> — <em>not built</em></li><li><strong>BRD-77</strong> — The repository shall include a CI pipeline that builds, tests and produces deployable artifacts on push and pull request <em>(F-OPS)</em> — <em>not built</em></li><li><strong>BRD-92</strong> — All UI shall be built with TrBlazeUI (<code>TrBlazeUI.Components</code>, consumed from the GitHub Packages NuGet feed with owner-supplied <code>nuget.config</code> credentials); Microsoft Fluent UI Blazor is fully removed <em>(F-THEME)</em> &lt;!-- added 2026-08-06 --&gt;</li><li><strong>BRD-93</strong> — The public site shall expose no login or admin entry points; admin access is via the direct <code>/login</code> URL documented in the README, with contextual sign-in prompts retained on engagement features <em>(F-PUB)</em> &lt;!-- added 2026-08-06 --&gt;</li><li><strong>BRD-94</strong> — A MAUI Blazor Hybrid cross-platform desktop application, BlogApp (Windows + macOS), shall provide the complete admin experience by reusing the <code>BlogUI</code> RCL <em>(F-DESK)</em> &lt;!-- added 2026-08-06 --&gt;</li><li><strong>BRD-95</strong> — BlogApp shall start at a login screen and enforce the same five-role authorization policies as the web admin <em>(F-DESK)</em> &lt;!-- added 2026-08-06 --&gt;</li><li><strong>BRD-96</strong> — BlogApp shall connect directly to the site's PostgreSQL database via a first-run connection-setup screen, storing the connection string securely on the device; no local database and no synchronisation <em>(F-DESK)</em> &lt;!-- added 2026-08-06 --&gt;</li><li><strong>BRD-97</strong> — Every admin capability — posts, taxonomy, media, resume data, users, subscribers, comments, settings, themes — shall be available in BlogApp <em>(F-DESK)</em> &lt;!-- added 2026-08-06 --&gt;</li><li><strong>BRD-98</strong> — The system shall verify every anonymous email address by double opt-in: a one-time, time-limited confirmation link is emailed, and the comment, rating or subscription takes effect only when it is used; an address already verified skips the step on later submissions <em>(F-CMT, F-RATE, F-SUB)</em> &lt;!-- added 2026-08-06 --&gt;</li><li><strong>BRD-99</strong> — The system shall protect every public write surface (comment, rating, subscribe) with a <strong>self-hosted</strong> CAPTCHA challenge — generated, rendered and validated in-process using only the .NET base class library, with no third-party library or external service <em>(F-CMT, F-RATE, F-SUB)</em> &lt;!-- added 2026-08-06 --&gt;</li><li><strong>BRD-100</strong> — A visitor can browse a public archive of past newsletter issues at <code>/newsletters</code>, newest first, with paging, and subscribe from that page <em>(F-SUB)</em> &lt;!-- added 2026-08-06 --&gt;</li><li><strong>BRD-101</strong> — A visitor can read an individual published newsletter issue at <code>/newsletter/{slug}</code>, with navigation to the previous and next issue <em>(F-SUB)</em> &lt;!-- added 2026-08-06 --&gt;</li></ul>
+<h2 id="11-non-functional-requirements">11. Non-functional requirements<a class="anchor-link" href="#11-non-functional-requirements">#</a></h2>
+<p>&lt;!-- The Observability NFR is a TechieFlow STANDING requirement present in every .NET app's BRD. --&gt;</p>
 <p><strong>Performance targets</strong></p>
-<table>
-<thead><tr><th>Metric</th><th>Target</th><th>Source</th></tr></thead>
-<tbody>
-<tr><td>Page load, standard broadband</td><td>&lt; 2 s</td><td>NFR1</td></tr>
-<tr><td>Concurrent users supported</td><td>≥ 100</td><td>NFR2</td></tr>
-<tr><td>UI response to user action</td><td>&lt; 100 ms</td><td>front-end spec §10.1</td></tr>
-<tr><td>Animation frame rate</td><td>60 fps</td><td>front-end spec §10.1</td></tr>
-</tbody></table>
+<table><thead><tr><th>Metric</th><th>Target</th><th>Source</th></tr></thead><tbody><tr><td>Page load, standard broadband</td><td>&lt; 2 s</td><td>NFR1</td></tr><tr><td>Concurrent users supported</td><td>≥ 100</td><td>NFR2</td></tr><tr><td>UI response to user action</td><td>&lt; 100 ms</td><td>front-end spec §10.1</td></tr><tr><td>Animation frame rate</td><td>60 fps</td><td>front-end spec §10.1</td></tr></tbody></table>
 <p><strong>Developer-experience targets</strong></p>
-<table>
-<thead><tr><th>Metric</th><th>Target</th><th>Source</th></tr></thead>
-<tbody>
-<tr><td>Clone → build → run locally</td><td>&lt; 5 min</td><td>NFR3</td></tr>
-<tr><td>Understand project structure</td><td>&lt; 1 h of review</td><td>NFR4</td></tr>
-<tr><td>Theme customization (colours, fonts)</td><td>&lt; 4 h, CSS variables only</td><td>NFR5</td></tr>
-<tr><td>Clone → production deployment</td><td>&lt; 1 week</td><td>NFR6</td></tr>
-</tbody></table>
-<ul>
-<li><strong>BRD-78</strong> — Performance: public pages shall load within 2 seconds on standard broadband and the application shall support at least 100 concurrent users.</li>
-<li><strong>BRD-79</strong> — Security: all passwords shall be stored hashed with a salt using an industry-standard algorithm. <em>(Currently a hand-rolled <code>AppEncrypt.CreateHash</code>, not BCrypt/PBKDF2/Argon2 — open risk R-3.)</em></li>
-<li><strong>BRD-80</strong> — Security: all database access shall use parameterised queries; no SQL shall be built by string concatenation.</li>
-<li><strong>BRD-81</strong> — Security: HTTPS shall be enforced in production environments.</li>
-<li><strong>BRD-82</strong> — Security: authentication endpoints shall be rate-limited. — <em>not built</em></li>
-<li><strong>BRD-83</strong> — Security: all user input shall be validated and encoded to prevent XSS and injection.</li>
-<li><strong>BRD-84</strong> — Accessibility: the application shall meet WCAG 2.1 Level AA — proper heading hierarchy, 4.5:1 text contrast (3:1 large), full keyboard operability, visible 2 px focus indicators, screen-reader-compatible ARIA labelling and live regions, 44×44 px touch targets, and 200% zoom without horizontal scroll. — <em>specified, never audited</em></li>
-<li><strong>BRD-85</strong> — Maintainability: the codebase shall follow clean-architecture separation across the five projects, be readable enough to serve as an educational reference, and carry XML documentation on public members.</li>
-<li><strong>BRD-86</strong> — Compatibility: the application shall work on current Chrome, Firefox, Edge and Safari, and be deployable to any .NET-capable host (Azure, AWS, VPS, shared hosting, Docker).</li>
-<li><strong>BRD-87</strong> — Responsiveness: layouts shall adapt across mobile (320–767 px), tablet (768–1199 px), desktop (1200–1599 px) and wide (1600 px+) breakpoints.</li>
-<li><strong>BRD-88</strong> — Data: PostgreSQL shall be the primary database and all schema changes shall be applied through numbered DbUp migration scripts.</li>
-<li><strong>BRD-89</strong> — Reliability: transient database failures shall be retried and a circuit breaker shall prevent cascade failure, with defined graceful-degradation behaviour per subsystem. — <em>not built</em></li>
-<li><strong>BRD-90</strong> — Observability: Serilog file-based logging in every executable head — rolling file sink under <code>logs/</code>, wired at startup before anything else can fail, unhandled exceptions logged, <code>Log.CloseAndFlush()</code> on exit, class libraries logging through <code>ILogger&lt;T&gt;</code> only (see Coding Standards §Logging). <em>Met for the web head; the <code>AppDomain.UnhandledException</code> / <code>TaskScheduler.UnobservedTaskException</code> handlers are still missing.</em></li>
-<li><strong>BRD-91</strong> — Build integrity: the solution shall build with zero errors on a clean clone, and package references shall be pinned rather than floating. — <em>currently failing, see §4</em></li>
-</ul>
-<h2 id="constraints-assumptions">12. Constraints &amp; assumptions<a class="anchor-link" href="#constraints-assumptions">#</a></h2>
+<table><thead><tr><th>Metric</th><th>Target</th><th>Source</th></tr></thead><tbody><tr><td>Clone → build → run locally</td><td>&lt; 5 min</td><td>NFR3</td></tr><tr><td>Understand project structure</td><td>&lt; 1 h of review</td><td>NFR4</td></tr><tr><td>Theme customization (colours, fonts)</td><td>&lt; 4 h, CSS variables only</td><td>NFR5</td></tr><tr><td>Clone → production deployment</td><td>&lt; 1 week</td><td>NFR6</td></tr></tbody></table>
+<ul><li><strong>BRD-78</strong> — Performance: public pages shall load within 2 seconds on standard broadband and the application shall support at least 100 concurrent users.</li><li><strong>BRD-79</strong> — Security: all passwords shall be stored hashed with a salt using an industry-standard algorithm. <em>(Currently a hand-rolled <code>AppEncrypt.CreateHash</code>, not BCrypt/PBKDF2/Argon2 — open risk R-3.)</em></li><li><strong>BRD-80</strong> — Security: all database access shall use parameterised queries; no SQL shall be built by string concatenation.</li><li><strong>BRD-81</strong> — Security: HTTPS shall be enforced in production environments.</li><li><strong>BRD-82</strong> — Security: authentication endpoints shall be rate-limited. — <em>not built</em></li><li><strong>BRD-83</strong> — Security: all user input shall be validated and encoded to prevent XSS and injection.</li><li><strong>BRD-84</strong> — Accessibility: the application shall meet WCAG 2.1 Level AA — proper heading hierarchy, 4.5:1 text contrast (3:1 large), full keyboard operability, visible 2 px focus indicators, screen-reader-compatible ARIA labelling and live regions, 44×44 px touch targets, and 200% zoom without horizontal scroll. — <em>specified, never audited</em></li><li><strong>BRD-85</strong> — Maintainability: the codebase shall follow clean-architecture separation across the five projects, be readable enough to serve as an educational reference, and carry XML documentation on public members.</li><li><strong>BRD-86</strong> — Compatibility: the application shall work on current Chrome, Firefox, Edge and Safari, and be deployable to any .NET-capable host (Azure, AWS, VPS, shared hosting, Docker).</li><li><strong>BRD-87</strong> — Responsiveness: layouts shall adapt across mobile (320–767 px), tablet (768–1199 px), desktop (1200–1599 px) and wide (1600 px+) breakpoints.</li><li><strong>BRD-88</strong> — Data: PostgreSQL shall be the primary database and all schema changes shall be applied through numbered DbUp migration scripts.</li><li><strong>BRD-89</strong> — Reliability: transient database failures shall be retried and a circuit breaker shall prevent cascade failure, with defined graceful-degradation behaviour per subsystem. — <em>not built</em></li><li><strong>BRD-90</strong> — Observability: Serilog file-based logging in every executable head — rolling file sink under <code>logs/</code>, wired at startup before anything else can fail, unhandled exceptions logged, <code>Log.CloseAndFlush()</code> on exit, class libraries logging through <code>ILogger&lt;T&gt;</code> only (see Coding Standards §Logging). <em>Met for the web head; the <code>AppDomain.UnhandledException</code> / <code>TaskScheduler.UnobservedTaskException</code> handlers are still missing.</em></li><li><strong>BRD-91</strong> — Build integrity: the solution shall build with zero errors on a clean clone, and package references shall be pinned rather than floating. — <em>currently failing, see §4</em></li></ul>
+<h2 id="12-constraints-assumptions">12. Constraints &amp; assumptions<a class="anchor-link" href="#12-constraints-assumptions">#</a></h2>
 <p><strong>Constraints</strong></p>
-<table>
-<thead><tr><th>Constraint</th><th>Detail</th></tr></thead>
-<tbody>
-<tr><td>Budget</td><td>None — personal/community project</td></tr>
-<tr><td>Timeline</td><td>No hard deadline; AI-assisted development</td></tr>
-<tr><td>Resources</td><td>Single developer with AI assistance</td></tr>
-<tr><td>Technical</td><td>Must remain .NET 10 / Blazor Server / <strong>TrBlazeUI</strong> / PostgreSQL / Dapper <em>(revised 2026-08-06 — was Fluent UI)</em>; BlogApp adds a MAUI Blazor Hybrid desktop head</td></tr>
-<tr><td>Distribution</td><td>Clone-and-own GitHub template, not a NuGet package or SaaS</td></tr>
-</tbody></table>
+<table><thead><tr><th>Constraint</th><th>Detail</th></tr></thead><tbody><tr><td>Budget</td><td>None — personal/community project</td></tr><tr><td>Timeline</td><td>No hard deadline; AI-assisted development</td></tr><tr><td>Resources</td><td>Single developer with AI assistance</td></tr><tr><td>Technical</td><td>Must remain .NET 10 / Blazor Server / <strong>TrBlazeUI</strong> / PostgreSQL / Dapper <em>(revised 2026-08-06 — was Fluent UI)</em>; BlogApp adds a MAUI Blazor Hybrid desktop head</td></tr><tr><td>Distribution</td><td>Clone-and-own GitHub template, not a NuGet package or SaaS</td></tr></tbody></table>
 <p><strong>Assumptions</strong></p>
-<ul>
-<li>Developers cloning the project have working .NET/C# knowledge and are comfortable on the command line.</li>
-<li>PostgreSQL is available on the adopter's target host.</li>
-<li>SMTP access exists for email features once they are implemented.</li>
-<li>Writable file storage is available for uploaded images and CVs.</li>
-<li>The application account has DDL rights on first run, because DbUp migrations execute at startup.</li>
-<li>The owner supplies GitHub Packages feed credentials in <code>nuget.config</code> before TrBlazeUI development starts (BRD-92). <em>(added 2026-08-06)</em></li>
-<li>BlogApp installations have network reachability to the site's PostgreSQL instance; there is no offline/disconnected editing mode (BRD-96). <em>(added 2026-08-06)</em></li>
-</ul>
-<h2 id="success-metrics">13. Success metrics<a class="anchor-link" href="#success-metrics">#</a></h2>
-<table>
-<thead><tr><th>Metric</th><th>Target</th></tr></thead>
-<tbody>
-<tr><td>Time to first successful local run</td><td>&lt; 5 minutes</td></tr>
-<tr><td>Time to understand the project structure</td><td>&lt; 1 hour</td></tr>
-<tr><td>Theme change effort</td><td>CSS variables only, no Razor edits</td></tr>
-<tr><td>Clone → production</td><td>&lt; 1 week</td></tr>
-<tr><td>Build status on a clean clone</td><td>Zero errors, zero warnings</td></tr>
-<tr><td>MVP feature completeness</td><td>All must-have features functional and manually verified</td></tr>
-<tr><td>Community validation (if open-sourced)</td><td>GitHub stars / forks</td></tr>
-</tbody></table>
-<h2 id="risks">14. Risks<a class="anchor-link" href="#risks">#</a></h2>
-<table>
-<thead><tr><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th></tr></thead>
-<tbody>
-<tr><td><strong>R-1 — Floating package versions break the build without a code change</strong> (realised today: FluentUI <code>4.*</code> → 4.14.4 vs pinned Components.Web 10.0.0)</td><td>High</td><td>High</td><td>Pin every <code>PackageReference</code>; bump Components.Web/Authorization to 10.0.9+ or pin FluentUI to 4.13.x</td></tr>
-<tr><td><strong>R-2 — No automated tests or CI</strong>, so regressions are found by hand or not at all</td><td>High</td><td>High</td><td>Build the specified xUnit + bUnit project and the GitHub Actions workflow (BRD-76, BRD-77)</td></tr>
-<tr><td><strong>R-3 — Hand-rolled password hashing</strong> may not meet the "industry-standard algorithm" bar</td><td>Medium</td><td>High</td><td>Review <code>AppEncrypt.CreateHash</code>; migrate to PBKDF2/BCrypt with a re-hash-on-login path</td></tr>
-<tr><td><strong>R-4 — Seeded admin credential is plaintext</strong> in <code>003-SeedData.sql</code></td><td>High</td><td>High</td><td>Hash the seed password; force a change on first login</td></tr>
-<tr><td><strong>R-5 — In-memory password-reset tokens</strong> vanish on restart and break under scale-out</td><td>Medium</td><td>Medium</td><td>Persist tokens to the database with expiry</td></tr>
-<tr><td><strong>R-6 — Uploaded media has no storage abstraction or backup</strong>; a container redeploy without a volume loses everything</td><td>Medium</td><td>High</td><td>Implement the <code>IFileStorage</code> abstraction behind BRD-45/46 and document volume requirements</td></tr>
-<tr><td><strong>R-7 — No rate limiting on auth endpoints</strong> invites credential stuffing</td><td>Medium</td><td>Medium</td><td>Add ASP.NET rate limiting (BRD-82)</td></tr>
-<tr><td><strong>R-8 — Accessibility conformance is unmeasured</strong> despite an AA commitment</td><td>Medium</td><td>Medium</td><td>Run an axe/keyboard/screen-reader audit against the checklist in the Architecture §8</td></tr>
-<tr><td><strong>R-9 — Standards drift</strong> — 32 underscore-prefixed fields against a no-underscore standard</td><td>Medium</td><td>Low</td><td>Remediate incrementally during implementation, per Coding Standards</td></tr>
-<tr><td><strong>R-10 — Scope creep</strong> past the defined MVP</td><td>Medium</td><td>Medium</td><td>Hold the out-of-scope list in §3</td></tr>
-<tr><td><strong>R-11 — Duplicate documentation</strong> (two MySQL→PostgreSQL guides, legacy demo pages, MySQL scripts and package still present) confuses adopters</td><td>Medium</td><td>Low</td><td>Retire one guide, delete <code>FluentDemo.razor</code> and the duplicate <code>AccessDenied</code> component, drop <code>MySql.Data</code> once migration is retired</td></tr>
-</tbody></table>
-<h2 id="glossary">15. Glossary<a class="anchor-link" href="#glossary">#</a></h2>
-<ul>
-<li><strong>BRD-N</strong> — a numbered business requirement in §10. IDs are append-only; never renumbered.</li>
-<li><strong>REQ-UI-*, REQ-FN-*, REQ-RAG-*, REQ-NFR-*</strong> — implementation requirement IDs derived from the BRD ledger in <code>docs/TechieBlog-Checklist.md</code>. This project has <strong>no</strong> <code>REQ-RAG-*</code> items (no AI/RAG features).</li>
-<li><strong>F-CODE</strong> — a feature-catalog entry in §9; every BRD names its owning feature.</li>
-<li><strong>DbUp</strong> — the migration runner that applies numbered SQL scripts from <code>source/BlogDb/PostgresScripts/</code> at startup.</li>
-<li><strong>Dapper</strong> — the micro-ORM used for all data access, calling PostgreSQL stored functions and parameterised SQL.</li>
-<li><strong>Fluent UI Blazor</strong> — <code>Microsoft.FluentUI.AspNetCore.Components</code>, the component library that replaced Blazorise. <em>Being replaced in turn by TrBlazeUI (BRD-92, 2026-08-06).</em></li>
-<li><strong>BlogApp</strong> — the MAUI Blazor Hybrid desktop admin application added 2026-08-06 (F-DESK, BRD-94…97), reusing <code>BlogUI</code> and connecting directly to the site's PostgreSQL.</li>
-<li><strong>RCL</strong> — Razor Class Library; <code>BlogUI</code> is one, which keeps a future desktop head possible.</li>
-<li><strong>Site owner</strong> — the single user flagged <code>IsSiteOwner</code>, whose resume renders at <code>/resume</code>.</li>
-<li><strong>TrBlazeUI</strong> — the owner's shadcn/ui-inspired Blazor component library (<code>TrBlazeUI.Components</code>, GitHub Packages NuGet feed). <strong>Adopted 2026-08-06 as this project's UI library (BRD-92)</strong>, replacing Microsoft Fluent UI Blazor. <strong>TechieRag</strong> — TechieFlow's RAG library; still not used (this project has no AI/RAG features).</li>
-</ul>
-<hr>
-<p>Last updated: 2026-08-06 Highest BRD ID: BRD-101 Last amended: 2026-08-06 — TrBlazeUI adoption (BRD-92), portfolio home + no public admin entry (BRD-30 revised, BRD-93), BlogApp MAUI desktop admin (BRD-94…97, F-DESK); design-review pass: F-AUTHOR + F-FAV retired (BRD-43/44/53/54/55), reader accounts dropped (BRD-13, BRD-37), anonymous email-identified comments and ratings (BRD-36/40/41 revised) Retired IDs (never reused): BRD-1, BRD-13, BRD-37, BRD-43, BRD-44, BRD-53, BRD-54, BRD-55 Added 2026-08-06 (second design-review pass): BRD-98 email verification · BRD-99 self-hosted captcha · BRD-100 public newsletter archive · BRD-101 public newsletter issue view Sources harvested: docs/OldDocs/prd.md, docs/prd/ (sharded), docs/OldDocs/project-brief.md, docs/architecture.md, docs/architecture/ (sharded), docs/OldDocs/front-end-spec.md, docs/OldDocs/feature-ideation-images-resume.md, docs/OldDocs/MVP-EXECUTION-PLAN.md, docs/OldDocs/FIX-PLAN.md, docs/OldDocs/FAST-TRACK-BACKLOG.md, docs/OldDocs/SM-HANDOFF.md, docs/OldDocs/epic-image-resume-multiauthor.md, docs/stories/*.story.md (44), docs/qa/gates/*.yml (19), docs/deployment.md, docs/customization.md, docs/database-migration-guide.md, docs/DataMigrationGuide.md, docs/packaging-strategy-brainstorm.md, docs/template-release-checklist.md, README.md, GETTING_STARTED.md Custom instructions applied: none — user replied "all" (harvest every detected doc) Drafted from reverse-doc — review and edit. New BRDs may be added (append-only); do not renumber.</p>
+<ul><li>Developers cloning the project have working .NET/C# knowledge and are comfortable on the command line.</li><li>PostgreSQL is available on the adopter's target host.</li><li>SMTP access exists for email features once they are implemented.</li><li>Writable file storage is available for uploaded images and CVs.</li><li>The application account has DDL rights on first run, because DbUp migrations execute at startup.</li><li>The owner supplies GitHub Packages feed credentials in <code>nuget.config</code> before TrBlazeUI development starts (BRD-92). <em>(added 2026-08-06)</em></li><li>BlogApp installations have network reachability to the site's PostgreSQL instance; there is no offline/disconnected editing mode (BRD-96). <em>(added 2026-08-06)</em></li></ul>
+<h2 id="13-success-metrics">13. Success metrics<a class="anchor-link" href="#13-success-metrics">#</a></h2>
+<table><thead><tr><th>Metric</th><th>Target</th></tr></thead><tbody><tr><td>Time to first successful local run</td><td>&lt; 5 minutes</td></tr><tr><td>Time to understand the project structure</td><td>&lt; 1 hour</td></tr><tr><td>Theme change effort</td><td>CSS variables only, no Razor edits</td></tr><tr><td>Clone → production</td><td>&lt; 1 week</td></tr><tr><td>Build status on a clean clone</td><td>Zero errors, zero warnings</td></tr><tr><td>MVP feature completeness</td><td>All must-have features functional and manually verified</td></tr><tr><td>Community validation (if open-sourced)</td><td>GitHub stars / forks</td></tr></tbody></table>
+<h2 id="14-risks">14. Risks<a class="anchor-link" href="#14-risks">#</a></h2>
+<table><thead><tr><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th></tr></thead><tbody><tr><td><strong>R-1 — Floating package versions break the build without a code change</strong> (realised today: FluentUI <code>4.*</code> → 4.14.4 vs pinned Components.Web 10.0.0)</td><td>High</td><td>High</td><td>Pin every <code>PackageReference</code>; bump Components.Web/Authorization to 10.0.9+ or pin FluentUI to 4.13.x</td></tr><tr><td><strong>R-2 — No automated tests or CI</strong>, so regressions are found by hand or not at all</td><td>High</td><td>High</td><td>Build the specified xUnit + bUnit project and the GitHub Actions workflow (BRD-76, BRD-77)</td></tr><tr><td><strong>R-3 — Hand-rolled password hashing</strong> may not meet the "industry-standard algorithm" bar</td><td>Medium</td><td>High</td><td>Review <code>AppEncrypt.CreateHash</code>; migrate to PBKDF2/BCrypt with a re-hash-on-login path</td></tr><tr><td><strong>R-4 — Seeded admin credential is plaintext</strong> in <code>003-SeedData.sql</code></td><td>High</td><td>High</td><td>Hash the seed password; force a change on first login</td></tr><tr><td><strong>R-5 — In-memory password-reset tokens</strong> vanish on restart and break under scale-out</td><td>Medium</td><td>Medium</td><td>Persist tokens to the database with expiry</td></tr><tr><td><strong>R-6 — Uploaded media has no storage abstraction or backup</strong>; a container redeploy without a volume loses everything</td><td>Medium</td><td>High</td><td>Implement the <code>IFileStorage</code> abstraction behind BRD-45/46 and document volume requirements</td></tr><tr><td><strong>R-7 — No rate limiting on auth endpoints</strong> invites credential stuffing</td><td>Medium</td><td>Medium</td><td>Add ASP.NET rate limiting (BRD-82)</td></tr><tr><td><strong>R-8 — Accessibility conformance is unmeasured</strong> despite an AA commitment</td><td>Medium</td><td>Medium</td><td>Run an axe/keyboard/screen-reader audit against the checklist in the Architecture §8</td></tr><tr><td><strong>R-9 — Standards drift</strong> — 32 underscore-prefixed fields against a no-underscore standard</td><td>Medium</td><td>Low</td><td>Remediate incrementally during implementation, per Coding Standards</td></tr><tr><td><strong>R-10 — Scope creep</strong> past the defined MVP</td><td>Medium</td><td>Medium</td><td>Hold the out-of-scope list in §3</td></tr><tr><td><strong>R-11 — Duplicate documentation</strong> (two MySQL→PostgreSQL guides, legacy demo pages, MySQL scripts and package still present) confuses adopters</td><td>Medium</td><td>Low</td><td>Retire one guide, delete <code>FluentDemo.razor</code> and the duplicate <code>AccessDenied</code> component, drop <code>MySql.Data</code> once migration is retired</td></tr></tbody></table>
+<h2 id="15-glossary">15. Glossary<a class="anchor-link" href="#15-glossary">#</a></h2>
+<ul><li><strong>BRD-N</strong> — a numbered business requirement in §10. IDs are append-only; never renumbered.</li><li><strong>REQ-UI-\<em>, REQ-FN-\</em>, REQ-RAG-\<em>, REQ-NFR-\</strong></em> — implementation requirement IDs derived from the BRD ledger in <code>docs/TechieBlog-Checklist.md</code>. This project has <strong>no</strong> <code>REQ-RAG-*</code> items (no AI/RAG features).</li><li><strong>F-CODE</strong> — a feature-catalog entry in §9; every BRD names its owning feature.</li><li><strong>DbUp</strong> — the migration runner that applies numbered SQL scripts from <code>source/BlogDb/PostgresScripts/</code> at startup.</li><li><strong>Dapper</strong> — the micro-ORM used for all data access, calling PostgreSQL stored functions and parameterised SQL.</li><li><strong>Fluent UI Blazor</strong> — <code>Microsoft.FluentUI.AspNetCore.Components</code>, the component library that replaced Blazorise. <em>Being replaced in turn by TrBlazeUI (BRD-92, 2026-08-06).</em></li><li><strong>BlogApp</strong> — the MAUI Blazor Hybrid desktop admin application added 2026-08-06 (F-DESK, BRD-94…97), reusing <code>BlogUI</code> and connecting directly to the site's PostgreSQL.</li><li><strong>RCL</strong> — Razor Class Library; <code>BlogUI</code> is one, which keeps a future desktop head possible.</li><li><strong>Site owner</strong> — the single user flagged <code>IsSiteOwner</code>, whose resume renders at <code>/resume</code>.</li><li><strong>TrBlazeUI</strong> — the owner's shadcn/ui-inspired Blazor component library (<code>TrBlazeUI.Components</code>, GitHub Packages NuGet feed). <strong>Adopted 2026-08-06 as this project's UI library (BRD-92)</strong>, replacing Microsoft Fluent UI Blazor. <strong>TechieRag</strong> — TechieFlow's RAG library; still not used (this project has no AI/RAG features).</li></ul>
+<p>--- Last updated: 2026-08-06 Highest BRD ID: BRD-101 Last amended: 2026-08-06 — TrBlazeUI adoption (BRD-92), portfolio home + no public admin entry (BRD-30 revised, BRD-93), BlogApp MAUI desktop admin (BRD-94…97, F-DESK); design-review pass: F-AUTHOR + F-FAV retired (BRD-43/44/53/54/55), reader accounts dropped (BRD-13, BRD-37), anonymous email-identified comments and ratings (BRD-36/40/41 revised) Retired IDs (never reused): BRD-1, BRD-13, BRD-37, BRD-43, BRD-44, BRD-53, BRD-54, BRD-55 Added 2026-08-06 (second design-review pass): BRD-98 email verification · BRD-99 self-hosted captcha · BRD-100 public newsletter archive · BRD-101 public newsletter issue view Sources harvested: docs/OldDocs/prd.md, docs/prd/ (sharded), docs/OldDocs/project-brief.md, docs/architecture.md, docs/architecture/ (sharded), docs/OldDocs/front-end-spec.md, docs/OldDocs/feature-ideation-images-resume.md, docs/OldDocs/MVP-EXECUTION-PLAN.md, docs/OldDocs/FIX-PLAN.md, docs/OldDocs/FAST-TRACK-BACKLOG.md, docs/OldDocs/SM-HANDOFF.md, docs/OldDocs/epic-image-resume-multiauthor.md, docs/stories/<em>.story.md (44), docs/qa/gates/</em>.yml (19), docs/deployment.md, docs/customization.md, docs/database-migration-guide.md, docs/DataMigrationGuide.md, docs/packaging-strategy-brainstorm.md, docs/template-release-checklist.md, README.md, GETTING_STARTED.md Custom instructions applied: none — user replied "all" (harvest every detected doc) Drafted from reverse-doc — review and edit. New BRDs may be added (append-only); do not renumber.</p>
   </main>
 </div>
-
 <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
 <script>// Light/dark toggle. The initial theme was already applied flash-free by the

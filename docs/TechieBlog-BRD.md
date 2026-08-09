@@ -135,42 +135,45 @@ BRD-94…BRD-97).
 <!-- SNAPSHOT (point-in-time), feature level only. Live per-requirement status lives in
      PROJECT-STATUS.md + the Requirements Status table in docs/TechieBlog-Checklist.md. -->
 
-**Snapshot as of 2026-08-06.** Live, per-requirement status: see `PROJECT-STATUS.md` and the
-**Requirements Status** table in `docs/TechieBlog-Checklist.md`. Statuses below are carried from the
-migrated MVP execution plan (`docs/OldDocs/MVP-EXECUTION-PLAN.md`, which declared MVP COMPLETE on
-2025-12-31), the `EPIC-IRM-001` QA gate (PASS), and a code scan of `source/` on 2026-08-02 —
-with the corrections the day-1 DevGuide pass forced (see `docs/devguides/`).
+**Snapshot as of 2026-08-09.** Live, per-requirement status: see `PROJECT-STATUS.md` and the
+**Requirements Status** table in `docs/TechieBlog-Checklist.md`. Statuses below are now derived from
+the **first executed `*verify all` run** (2026-08-09), which graded 131 of 139 REQs against the
+running app under the acceptance, data-render and visual-truth gates — not from the migrated MVP
+execution plan.
 
-> **Build is currently RED.** `dotnet build TechieBlog.slnx` fails with `NU1605` on both the WSL and
-> Windows SDKs: `BlogUI` pins `Microsoft.AspNetCore.Components.Web 10.0.0` while the floating
-> `Microsoft.FluentUI.AspNetCore.Components 4.*` now resolves to 4.14.4, which requires ≥ 10.0.9.
-> Every "Done" below is *as last built*, not as verified today — nothing can run until this is fixed.
+> **Build is GREEN** — `dotnet build TechieBlog.slnx` returns `0 Error(s)` across 7/7 projects
+> including the `net10.0-windows10.0.19041.0` BlogApp head. The earlier `NU1605` note here was
+> stale and is retired (REQ-FN-043 closed; both Fluent UI packages were removed by REQ-UI-048).
+>
+> **A "Done" below now means runtime-verified, not last-built.** Percentages fell in several
+> features precisely because verification replaced assumption: view tracking turned out to be dead
+> code, RSS does not exist, and the series page leaks unpublished drafts.
 
 | Feature (F-code) | Phase | Status | % | Notes |
 |------------------|-------|--------|---|-------|
-| F-AUTH: Authentication & account access | 2 | Partial | 85 | Login, password reset, token refresh all wired (Epic 2 + FIX-001/002/003). Day-1 DevGuide found the post-login redirect is role-blind. Scope narrowed 2026-08-06: public registration retired (~~BRD-1~~) — `/register` + `/signup` and the signup service path to be removed (REQ-UI-002, REQ-FN-006). |
-| F-ROLE: Roles & authorization | 2 | Done | 100 | 5 roles, 5 policies in `Program.cs`, `[Authorize]` on every protected page. |
-| F-PROF: User profile & account management | 2 | Done | 100 | Profile view/edit + change password shipped for staff accounts. Scope narrowed 2026-08-06: no reader accounts, so the My-Comments page (BRD-13) and the reader `/profile` surface are retired; `/admin/profile` covers Author-and-above. |
-| F-POST: Post authoring & CRUD | 3 | Done | 100 | Full CRUD, slug generation, Markdig editor with live preview. |
-| F-DRAFT: Draft, preview & scheduling | 3 | Done | 100 | Draft/Published states, `PreviewPost`, `ScheduledPostPublisher` hosted service. |
-| F-TAX: Categories & tags | 3 | Done | 100 | CRUD both sides, archives, autocomplete, tag-count bug fixed (Story 7.5). |
-| F-SER: Series & collections | 3 | Done | 100 | Series CRUD, ordering, prev/next navigation, series landing page. |
-| F-PUB: Public reading experience | 3 / 9 | Partial | 90 | Post view, archives, reading time, related posts all shipped. BRD-30 revised 2026-08-06: home becomes a portfolio-style landing (REQ-UI-049) and public login/admin entry points are removed (BRD-93, REQ-UI-050) — rebuild pending. |
-| F-SRCH: Search | 3 | Done | 100 | PostgreSQL `ILIKE` search with paging, highlighting, dynamic category filter (FIX-004/008). |
-| F-CMT: Comments & moderation | 4 / 9 | Partial | 70 | Comment CRUD, approval queue, admin moderation page (FIX-005) — all built for *signed-in* commenters. BRD-36 revised 2026-08-06: rework to anonymous name+email commenting (REQ-UI-029, REQ-FN-022); BRD-37 retired. |
-| F-RATE: Star ratings | 4 / 9 | Partial | 70 | 1–5 stars, changeable, aggregate stats (FIX-013) — keyed to user id. BRD-40/41 revised 2026-08-06: re-key to email, no sign-in (REQ-UI-027, REQ-FN-023). |
+| F-AUTH: Authentication & account access | 2 | Partial | 95 | Login, reset, policies, hashing, rate limiting and the login audit trail all **runtime-verified** 2026-08-09; the reset link was redeemed end to end for the first time. Public registration retired (~~BRD-1~~). Open: **token refresh is unreachable** — `RefreshTokenAsync` has no call site and no mapped endpoint (REQ-FN-008). |
+| F-ROLE: Roles & authorization | 2 | Partial | 90 | 5 roles × 5 policies verified by 14 route probes across all four seeded roles; every denial lands on access-denied, never a raw 403. Open: `/access-denied` renders nested inside the public shell on client-side navigation (REQ-UI-004). |
+| F-PROF: User profile & account management | 2 | Partial | 90 | Profile read/edit and change-password verified, including current-password enforcement. The **REQ-FN-053 data-loss regression holds**. Open: avatar clear-button overlaps the upload button at 390px (REQ-UI-040); admin user-management *mutation* remains unproven (REQ-FN-010). |
+| F-POST: Post authoring & CRUD | 3 | Partial | 80 | Full CRUD, slug generation and uniqueness, Markdig rendering all verified end to end. Open: the Markdown editor **loses and reorders keystrokes** (REQ-UI-016); the Scheduled tab is clipped at 390px (REQ-UI-017). |
+| F-DRAFT: Draft, preview & scheduling | 3 | Partial | 75 | Draft/Published transitions and the `ScheduledPostPublisher` proved end to end. Open: **`/series/{slug}` lists unpublished drafts to anonymous visitors** — the parts projection omits `Published = TRUE` (REQ-FN-015). |
+| F-TAX: Categories & tags | 3 | Partial | 85 | CRUD both sides, archives and per-row counts all match the published-only totals exactly. Open: saving a post with no category surfaces a **raw PostgreSQL FK violation** to the user (REQ-FN-017). |
+| F-SER: Series & collections | 3 | Done | 100 | Series CRUD, ordering, prev/next and part counts all verified; the '0 Parts' defect is fixed. (The draft-leak on the public series page is tracked under F-DRAFT / REQ-FN-015.) |
+| F-PUB: Public reading experience | 3 / 9 | Partial | 65 | Portfolio home, archives, post view, reading time and related posts all render real data; public login/admin entry points are gone. Open: unmatched routes return a **blank zero-byte page** (REQ-UI-012); archive `PostCard`s never render featured images (REQ-UI-045); featured-post selection was dropped (REQ-FN-020); 46px overflow at 390 and 5px at 320 (REQ-UI-007/005). |
+| F-SRCH: Search | 3 | Partial | 80 | ILIKE across title/abstract/body/tags proved by three field-isolating probes; drafts never leak; highlighting works on excerpts. Open: every result's category badge is the hardcoded literal `"Blog"` (REQ-UI-011). |
+| F-CMT: Comments & moderation | 4 / 9 | Done | 100 | **Reworked to anonymous name+email commenting and verified end to end**: captcha, double opt-in, single-use tokens, moderation queue and approval all behave; unapproved comments never appear publicly and no email address is ever rendered. |
+| F-RATE: Star ratings | 4 / 9 | Done | 100 | **Re-keyed to email with no sign-in, verified end to end**: one rating per email per post, changeable in place, and the public average counts *verified* ratings only. |
 | ~~F-FAV: Favourites & bookmarks~~ | 4 | **Removed** | — | Retired 2026-08-06 with reader accounts (BRD-43/44). Built code (`UserFavorite`, `FavoriteSvc`, MyFavorites page, toggle) to be removed — REQ-UI-014/028, REQ-FN-024. |
-| F-MEDIA: Image management & media library | 5 / 8 | Done | 100 | 7-category upload with validation, `ManageImages`, reusable `ImagePicker` (FIX-006 + EPIC-IRM-001). |
-| F-RESUME: Resume / portfolio page | 8 | Done | 100 | `/resume`, hero + experience + skills + awards + contact, CV download, admin CRUD (EPIC-IRM-001, QA PASS). |
+| F-MEDIA: Image management & media library | 5 / 8 | Partial | 85 | Per-category upload validation, gallery, serve and delete all verified end to end; `ImagePicker` reuse confirmed. Open: `BlogImage.alttext`/`width`/`height` are **never populated** by any write path (REQ-FN-026); the user-filter shows a raw id. |
+| F-RESUME: Resume / portfolio page | 8 | Partial | 75 | `/resume` renders every section with counts matching the database exactly, CV upload/download works, and username + single-site-owner uniqueness were proved by attempted violation. Open: the acceptance-named **company-logo and badge-image pickers do not exist** — both are plain text inputs (REQ-UI-037/039). |
 | ~~F-AUTHOR: Multi-author profiles~~ | 8 | **Removed** | — | Retired 2026-08-06 (BRD-53/54/55) — personal site, no public author browsing. `/authors` + `/author/{username}` pages to be removed; `IsSiteOwner` + username stay for F-RESUME. REQ-UI-041/042. |
-| F-SUB: Subscribers & newsletter | 5 / 9 | Partial | 40 | Subscribe form + subscriber admin + export shipped (7.6, 7.7); **newsletter composition and sending not built** (Story 5.5). Extended 2026-08-06: double opt-in (BRD-98), captcha (BRD-99) and the public newsletter archive + issue pages (BRD-100/101) — all new build (REQ-UI-053/054, REQ-FN-048/050). |
-| F-ANA: Analytics & admin dashboard | 5 | Partial | 15 | Only the post tiles are real: the day-1 DevGuide found user, subscriber and comment counts **hardcoded** in `AdminDashboard.razor.cs:63-68`, and "popular posts" is recent posts with `Views = 0`. Post-view tracking and the analytics dashboard are not built (5.6, 5.7). |
-| F-SEO: RSS & sitemap | 6 | Done | 100 | `/rss` feed page and `/sitemap.xml` + `/robots.txt` endpoints. |
-| F-THEME: Theming & dark mode | 1 / 6 / 7 / 9 | Partial | 60 | 3 site themes × light/dark, header toggle, theme selector (7.8), dark-mode fixes (7.1–7.4). Theme state lives only in browser local storage, so the "admin-selected **site** theme" is really a per-visitor preference. BRD-92 added / BRD-67 revised 2026-08-06: UI library moves to TrBlazeUI and themes are re-expressed as TrBlazeUI/shadcn CSS-variable sets (REQ-UI-048). |
-| F-ADMIN: Admin console & site settings | 6 | Partial | 55 | Full admin nav and management pages work. **Site Settings does not persist** — the day-1 DevGuide found no settings table, repository or service; the Save button reports success while discarding everything except a locally-stored pagination value. |
-| F-TPL: Template distribution & developer experience | 6 | Partial | 60 | README, getting-started, customization, deployment and migration guides exist; **sample/seed data set not built** (5.6/6.6) and code-cleanup pass incomplete. |
-| F-OPS: Operations, logging & delivery pipeline | 1 / 6 | Partial | 25 | Serilog console + rolling file wired at the head; **no health checks, no test project, no CI/CD** (1.13, 1.14, 6.7). |
-| F-DESK: BlogApp desktop admin application | 10 | Planned | 0 | Added 2026-08-06 (BRD-94…97) — MAUI Blazor Hybrid desktop admin head reusing BlogUI, direct PostgreSQL connection. |
+| F-SUB: Subscribers & newsletter | 5 / 9 | Partial | 80 | **Newsletter composition, sending, history, delivery log and the public archive are now built and verified**, with double opt-in and captcha. Open: the sidebar subscribe form **bypasses captcha and double opt-in** (REQ-UI-056); `/unsubscribe/{token}` **404s**, so every mailed unsubscribe link is dead (REQ-FN-032). |
+| F-ANA: Analytics & admin dashboard | 5 | Partial | 60 | Dashboard tiles are now **real** — every count matched PostgreSQL exactly at measurement time, and the hardcoded constants are gone. The analytics date range provably moves the tiles it can populate. Open: **post-view tracking is dead code** — `TrackViewAsync` has no caller, so `postviews` is always 0 and the traffic chart, popular-posts ranking and per-post stats can never populate (REQ-FN-034/035). |
+| F-SEO: RSS & sitemap | 6 | Partial | 35 | `/sitemap.xml` (29 entries) and `/robots.txt` verified and output-cached. Open: **there is no RSS feed at all** — `/rss` is an HTML page advertising `/feed.xml`, which 404s, and no `<link rel="alternate">` exists in `<head>` (REQ-FN-037, REQ-UI-046). Both emit a `BaseUrl` pointing at a dead host. |
+| F-THEME: Theming & dark mode | 1 / 6 / 7 / 9 | Partial | 90 | Now a genuine **site** setting: the theme persists to `SiteSetting`, preview does not write LocalStorage, and a fresh anonymous context receives the admin's saved theme. Dark mode measured across 16 screens with **0 nodes below WCAG AA**. Open: the header toggle renders `role=null` where the acceptance requires `role="switch"` (REQ-UI-031). |
+| F-ADMIN: Admin console & site settings | 6 | Done | 100 | **Site Settings now persists** — all six tabs render their stored values and 27 `SiteSetting` rows back them; the earlier 'save discards everything' finding is resolved. Grouped admin nav hides refused groups rather than rendering them empty. |
+| F-TPL: Template distribution & developer experience | 6 | Done | 100 | Seed/sample data set is built and verified (10 posts, 5 categories, 15 tags, 4 roles, 2 series); rename scripts and the full adopter documentation set are present. |
+| F-OPS: Operations, logging & delivery pipeline | 1 / 6 | Partial | 70 | Health checks, correlation IDs, Serilog rolling files (size cap honoured on disk), resilience pipelines, output caching and CI all verified. Open: **BlogEngine coverage is 24% against an 80% target** with no bUnit test over a real component (REQ-NFR-016); page-load budget breached under concurrency (REQ-NFR-001); 221 sync Dapper sites remain (REQ-NFR-026). |
+| F-DESK: BlogApp desktop admin application | 10 | Done | 100 | **Built and runtime-verified 2026-08-09** — the `⚠ STATIC-ONLY` stamp is lifted. 19/19 admin routes driven in the desktop head over WebView2 CDP with grid counts matching PostgreSQL exactly, DPAPI connection storage proved non-plaintext at byte level, and a post published in BlogApp appeared immediately on the separate web host. |
 
 **Legend:** **Done** = shipped & working · **In progress** = actively being built · **Partial** = some
 sub-features done, others pending · **Planned** = not started.

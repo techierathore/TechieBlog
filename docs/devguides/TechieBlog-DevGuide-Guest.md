@@ -1,13 +1,43 @@
 # TechieBlog — Developer Guide · Guest (anonymous)
 
-> ⚠ **STATIC-ONLY (2026-08-02)** — built from code reading; NOT yet runtime-verified. Render-status is
-> unconfirmed until `*verify` runs against the running app (the solution currently does not compile —
-> REQ-FN-043).
+> ✅ **Runtime-verified 2026-08-09 as Guest (anonymous)** — supersedes the 2026-08-02 `STATIC-ONLY`
+> banner, whose stated reason (solution does not compile, REQ-FN-043) is stale. See
+> **Runtime verification (2026-08-09)** below for what was actually observed.
 
 Index: [TechieBlog-DevGuide.md](./TechieBlog-DevGuide.md) · Architecture: `docs/TechieBlog-Architecture.md`
 
 Every screen below is reachable **without signing in**. Signed-in roles see the same pages plus their
-own; engagement controls (comment, rate, favourite) require authentication and are noted per screen.
+own.
+
+> ⚠ **This page's premise is out of date.** It says engagement controls "require authentication".
+> They do not: reader accounts were retired (BRD-1/13/43/44) and commenting and rating are now
+> **anonymous and email-keyed** with a captcha and double opt-in. Runtime check found no sign-in gate
+> and zero `/login` links anywhere in the comment or rating components. The **Favourite toggle** noted
+> per screen no longer exists at all (REQ-UI-028 removed).
+
+## Runtime verification (2026-08-09)
+
+Observed by `*verify all` against the running app. Screens not listed rendered their data and looked
+right at 1280×900 and 390×844.
+
+| Screen | Observed | Detail |
+|--------|----------|--------|
+| `/` (portfolio home) | **renders ✓** | hero, 4 stat tiles, about, 3 latest articles, contact — all from the site-owner row. Visual clean at both widths. `Download CV` correctly hidden (**NO-DATA**: `cvfilepath` empty) |
+| `/post/{slug}` | **visual-broken (DEFECT)** | all 11 controls render real data, but at **390px the page scrolls horizontally 46px** — a Markdown-rendered `<table>` is 420px wide with `overflow-x:visible` and is not wrapped in a scroll container. Isolated by comparing a post with a table (46px) against one without (0px) |
+| `/category/{slug}`, `/tag/{slug}` | **renders-empty (DEFECT)** | counts and cards match the DB exactly, but **featured images never render** — `CategoryArchive.razor:117` and `TagArchive.razor:107` pass no `ImageUrl` to `<PostCard>` although every published post has one |
+| `/series/{slug}` | **renders-empty (DEFECT)** | **leaks unpublished parts to anonymous visitors** with title, abstract and a "Coming Soon" badge. `BlogPostRepo.cs:246-248` filters only on `IsDeleted`; `CountBySeriesSql:250-254` correctly filters `Published = TRUE`, so the list and the badge disagree |
+| `/search` | **renders-empty (DEFECT)** | every result's category badge is the literal `"Blog"` — hardcoded at `SearchResults.razor:244`. Highlighting applies to excerpts only, so a title-only match shows no `<mark>` |
+| `/rss` | **unreachable (DEFECT)** | the page advertises `/feed.xml`, which **404s**; there is no `<link rel="alternate">` in `<head>`. No feed is served anywhere |
+| unmatched route | **render-error (DEFECT)** | returns HTTP 404 with a **zero-byte body** and a blank white page. `/404` renders correctly when requested directly, but nothing routes to it |
+| public shell | **visual-broken (DEFECT)** | 5px horizontal overflow at **320px** from the header actions cluster; `mobile-nav-trigger` clipped past the right edge. Clean at 390 and 1280 |
+| sidebar subscribe | **render-error (DEFECT)** | writes a subscriber with **no captcha and `isconfirmed=t`**, bypassing the double opt-in every other subscribe surface enforces |
+| comments / rating | **renders ✓** | anonymous, email-keyed, captcha + double opt-in all proven end to end; unapproved comments never appear publicly; the public average counts verified ratings only |
+| `/login`, `/forgot-password`, `/reset-password`, `/verify/{token}` | **renders ✓** | all controls render; anti-enumeration message confirmed; open-redirect guard rejects absolute and protocol-relative URLs |
+
+**Cross-cutting artefact (not a screen defect):** the host prerenders and then re-renders interactively,
+and for ~1.5s **both shells are in the DOM** — a visibly duplicated header over a still-loading page. It
+self-resolves, but any measurement inside that window reads a doubled shell or phantom zero rows. This is
+the root cause of the post page's blank flash and its `document-title` accessibility violation.
 
 ## Guest · Home (`/`)
 

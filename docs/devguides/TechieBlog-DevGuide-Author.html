@@ -104,47 +104,37 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 @media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{position:static;height:auto}}</style>
 </head>
 <body>
-<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">&#9782; Dark</button>
+<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">☾ Dark</button>
 <div class="layout">
-<nav class="side">
-<h1>TechieBlog — Developer Guide · Author</h1>
-<div class="sub">Generated 2026-08-02 · code as built · STATIC-ONLY</div>
-<div class="group">Contents</div>
-<ol>
-<li><a href="#author-post-editor-managepost-managepost-pageid-long">Author · Post editor (<code>/ManagePost</code>, <code>/ManagePost/{PageId:long}</code>)</a></li>
-<li><a href="#author-post-list-blogslist">Author · Post list (<code>/BlogsList</code>)</a></li>
-<li><a href="#author-draft-preview-admin-preview-postid-long">Author · Draft preview (<code>/admin/preview/{PostId:long}</code>)</a></li>
-<li><a href="#author-series-list-admin-series-serieslist-and-editor-admin-series-new-admin-series-pageid-long">Author · Series list (<code>/admin/series</code>, <code>/SeriesList</code>) and editor (<code>/admin/series/new</code>, <code>/admin/series/{PageId:long}</code>)</a></li>
-<li><a href="#author-manage-profile-admin-profile">Author · Manage profile (<code>/admin/profile</code>)</a></li>
-<li><a href="#author-manage-experience-admin-experience-admin-experience-eventid-long">Author · Manage experience (<code>/admin/experience</code>, <code>/admin/experience/{EventId:long}</code>)</a></li>
-<li><a href="#author-manage-skills-admin-skills">Author · Manage skills (<code>/admin/skills</code>)</a></li>
-<li><a href="#author-manage-awards-admin-awards">Author · Manage awards (<code>/admin/awards</code>)</a></li>
-<li><a href="#author-manage-stats-missing">Author · Manage stats — MISSING</a></li>
-<li><a href="#author-media-library-admin-images">Author · Media library (<code>/admin/images</code>)</a></li>
-</ol>
-</nav>
-  <main>
+  <nav class="side">
     <h1>TechieBlog — Developer Guide · Author</h1>
-    <div class="subtitle">Generated 2026-08-02 · code as built · STATIC-ONLY</div>
+    <div class="sub">Last rendered: 2026-08-09</div>
+    <div class="group">Contents</div>
+    <ol>
+      <li><a href="#runtime-verification-2026-08-09">Runtime verification (2026-08-09)</a></li>
+      <li><a href="#author-post-editor-managepost-managepost-pageid-long">Author · Post editor (`/ManagePost`, `/ManagePost/{PageId:long}`)</a></li>
+      <li><a href="#author-post-list-blogslist">Author · Post list (`/BlogsList`)</a></li>
+      <li><a href="#author-draft-preview-admin-preview-postid-long">Author · Draft preview (`/admin/preview/{PostId:long}`)</a></li>
+      <li><a href="#author-series-list-admin-series-serieslist-and-editor-admin-series-new-admin-series-pageid-long">Author · Series list (`/admin/series`, `/SeriesList`) and editor (`/admin/series/new`, `/admin/series/{PageId:long}`)</a></li>
+      <li><a href="#author-manage-profile-admin-profile">Author · Manage profile (`/admin/profile`)</a></li>
+      <li><a href="#author-manage-experience-admin-experience-admin-experience-eventid-long">Author · Manage experience (`/admin/experience`, `/admin/experience/{EventId:long}`)</a></li>
+      <li><a href="#author-manage-skills-admin-skills">Author · Manage skills (`/admin/skills`)</a></li>
+      <li><a href="#author-manage-awards-admin-awards">Author · Manage awards (`/admin/awards`)</a></li>
+      <li><a href="#author-manage-stats-missing">Author · Manage stats — MISSING</a></li>
+      <li><a href="#author-media-library-admin-images">Author · Media library (`/admin/images`)</a></li>
+    </ol>
+  </nav>
+  <main>
+    <div class="subtitle">Runtime-verified 2026-08-09 by <code>*verify all</code></div>
 
-<div class="toc-inline">
-<div>Contents</div>
-<ol>
-<li><a href="#author-post-editor-managepost-managepost-pageid-long">Author · Post editor (<code>/ManagePost</code>, <code>/ManagePost/{PageId:long}</code>)</a></li>
-<li><a href="#author-post-list-blogslist">Author · Post list (<code>/BlogsList</code>)</a></li>
-<li><a href="#author-draft-preview-admin-preview-postid-long">Author · Draft preview (<code>/admin/preview/{PostId:long}</code>)</a></li>
-<li><a href="#author-series-list-admin-series-serieslist-and-editor-admin-series-new-admin-series-pageid-long">Author · Series list (<code>/admin/series</code>, <code>/SeriesList</code>) and editor (<code>/admin/series/new</code>, <code>/admin/series/{PageId:long}</code>)</a></li>
-<li><a href="#author-manage-profile-admin-profile">Author · Manage profile (<code>/admin/profile</code>)</a></li>
-<li><a href="#author-manage-experience-admin-experience-admin-experience-eventid-long">Author · Manage experience (<code>/admin/experience</code>, <code>/admin/experience/{EventId:long}</code>)</a></li>
-<li><a href="#author-manage-skills-admin-skills">Author · Manage skills (<code>/admin/skills</code>)</a></li>
-<li><a href="#author-manage-awards-admin-awards">Author · Manage awards (<code>/admin/awards</code>)</a></li>
-<li><a href="#author-manage-stats-missing">Author · Manage stats — MISSING</a></li>
-<li><a href="#author-media-library-admin-images">Author · Media library (<code>/admin/images</code>)</a></li>
-</ol>
-</div>
-<blockquote>⚠ <strong>STATIC-ONLY (2026-08-02)</strong> — built from code reading; NOT yet runtime-verified. Render-status is unconfirmed until <code>*verify</code> runs against the running app (the solution currently does not compile — REQ-FN-043).</blockquote>
-<p>Index: <a href="./TechieBlog-DevGuide.html">TechieBlog-DevGuide.md</a></p>
-<p>An Author sees every Reader screen plus the ten below, all guarded by <code>@attribute [Authorize(Policy = &quot;AuthorOrAbove&quot;)]</code> (Admin, Editor, Author) and rendered in <code>AdminLayout</code>.</p>
+<h1>TechieBlog — Developer Guide · Author</h1>
+<p>&gt; ✅ <strong>Runtime-verified 2026-08-09 as Author (and Admin, for the scoping comparison)</strong> — supersedes the &gt; 2026-08-02 <code>STATIC-ONLY</code> banner, whose stated reason (solution does not compile, REQ-FN-043) is stale.</p>
+<p>Index: <a href="./TechieBlog-DevGuide.md">TechieBlog-DevGuide.md</a></p>
+<h2 id="runtime-verification-2026-08-09">Runtime verification (2026-08-09)<a class="anchor-link" href="#runtime-verification-2026-08-09">#</a></h2>
+<table><thead><tr><th>Screen / control</th><th>Observed</th><th>Detail</th></tr></thead><tbody><tr><td><code>/BlogsList</code></td><td><strong>renders ✓</strong></td><td>the 2026-08-02 note that an Author "cannot reach any post list" is <strong>resolved</strong>: the page is <code>AuthorOrAbove</code> with server-side scoping. Author sees exactly her own 2 rows, all authored "Arun Nair", <strong>0 "Unknown" cells</strong>, published rows showing <code>PublishedOn</code> not <code>CreatedOn</code>. Admin sees 10 with tabs All 10 / Published 8 / Drafts 1 / <strong>Scheduled 1</strong> — the Scheduled tab that could once only show 0 now works</td></tr><tr><td><code>/BlogsList</code> tab strip</td><td><strong>visual-broken (DEFECT)</strong></td><td>at 390 the "Scheduled (1)" tab measures <code>right=411</code> in a 390px viewport with <code>overflow-x:visible</code>, so 21px is <strong>clipped rather than scrollable</strong> and the count digit is cut. Still operable. 1280 clean</td></tr><tr><td><code>/ManagePost</code> Markdown body</td><td><strong>render-error (DEFECT)</strong></td><td><strong>the textarea loses and reorders keystrokes</strong> — typing a 15-character string retained only 3–12 characters in 3 of 4 runs, at both 120ms and 1000ms per key. Every keystroke round-trips to the server and the re-render overwrites the DOM value. The live preview itself is correct and updates without blur or save</td></tr><tr><td><code>/ManagePost</code> category</td><td><strong>render-error (DEFECT)</strong></td><td>saving with the dropdown on its "-- Select Category --" default writes <code>CategoryId=0</code> and surfaces the <strong>raw database error</strong> <code>23503: ... violates foreign key constraint "blogpost_categoryid_fkey"</code> to the user, with no row saved. Reproduced in all 4 runs and independently on the desktop head</td></tr><tr><td><code>/ManagePost</code> schedule</td><td><strong>renders ✓</strong></td><td>scheduling persisted and the <strong>background publisher was proved end to end</strong> — a row set due was picked up by <code>ScheduledPostPublisher</code>'s minute tick, which flipped <code>published=true</code> and cleared <code>scheduledpublishon</code>. Note <code>data-testid="publish-date-picker"</code> never reaches the DOM (TrBlazeUI <code>DatePicker</code> drops unmatched attributes)</td></tr><tr><td><code>/ManagePost</code> tags / series / featured image</td><td><strong>renders ✓</strong></td><td>inline tag creation wrote the tag plus exactly 1 junction row; series selector auto-assigned the next part number; picker present</td></tr><tr><td><code>/admin/preview/{id}</code></td><td><strong>renders ✓</strong></td><td>draft renders in full with the "not published" banner, author, reading time and 655 chars of Markdig HTML</td></tr><tr><td><code>/admin/series</code>, <code>ManageSeries</code></td><td><strong>renders ✓</strong></td><td>both series with real authors and part badges matching the published-only count; full create/update/delete round trip returned the count to 2</td></tr><tr><td>slug generation</td><td><strong>renders ✓</strong></td><td>auto-generated from the title; a second post with an identical title produced a distinct <code>-2</code> slug</td></tr></tbody></table>
+<p><strong>Cross-head note:</strong> a post authored and published in the <strong>BlogApp desktop head</strong> appeared immediately on the <strong>web host</strong> (separate process, same database), proving the shared <code>BlogUI</code>/<code>BlogEngine</code> write path.</p>
+<p><strong>Known harness trap for the next agent:</strong> <code>Blazor.navigateTo('/ManagePost')</code> from <code>/ManagePost</code> is a <strong>no-op</strong>, so the editor keeps the post it just saved and a "new post" silently becomes an update.</p>
+<p>An Author sees every Reader screen plus the ten below, all guarded by <code>@attribute [Authorize(Policy = "AuthorOrAbove")]</code> (Admin, Editor, Author) and rendered in <code>AdminLayout</code>.</p>
 <h2 id="author-post-editor-managepost-managepost-pageid-long">Author · Post editor (<code>/ManagePost</code>, <code>/ManagePost/{PageId:long}</code>)<a class="anchor-link" href="#author-post-editor-managepost-managepost-pageid-long">#</a></h2>
 <p><strong>File:</strong> <code>source/BlogUI/Pages/AdminPages/ManagePost.razor</code> + <code>.razor.cs</code> — the single richest screen in the app, with six injected dependencies.</p>
 <div class="diagram">
@@ -154,10 +144,10 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     <button data-zin title="Zoom in">+</button>
     <button data-fit title="Fit to width">Fit</button>
     <button data-one title="Actual size">1:1</button>
-    <button data-fs title="Fullscreen">⬜</button>
+    <button data-fs title="Fullscreen">⛶</button>
     <button data-pop title="Open in new tab">↗</button>
   </div>
-<pre class="mermaid">flowchart TB
+  <pre class="mermaid">flowchart TB
   MP["ManagePost.razor.cs"] --> B["BlogSvc"]
   MP --> C["CategorySvc"]
   MP --> T["TagSvc"]
@@ -173,127 +163,44 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   CR --> DB
   SR --> DB</pre>
 </div>
-<table>
-<thead><tr><th>Control</th><th>What it does</th><th>Source call</th><th>Render status</th></tr></thead>
-<tbody>
-<tr><td>Load existing post</td><td>Fetch for edit</td><td><code>BlogService.GetSinglePost(PageId)</code></td><td>static-only (unconfirmed)</td></tr>
-<tr><td>Title + Markdown body</td><td>Editing surface with live preview</td><td><code>Components/MarkdownEditor.razor</code> → <code>MarkdownRenderer</code></td><td>static-only (unconfirmed)</td></tr>
-<tr><td>Category dropdown</td><td>Choose one category</td><td><code>CategoryService.GetAllCategories()</code></td><td>static-only (unconfirmed)</td></tr>
-<tr><td>Tag input</td><td>Autocomplete + inline create</td><td><code>TagService.GetAllTags()</code>, <code>GetOrCreateTag(...)</code></td><td>static-only (unconfirmed)</td></tr>
-<tr><td>Tag persistence</td><td>Replace the post's tag set</td><td><code>TagService.GetTagsForPost(...)</code>, <code>SetTagsForPost(...)</code></td><td>static-only (unconfirmed)</td></tr>
-<tr><td>Series selector</td><td>Attach to a series with a part number</td><td><code>SeriesService.GetAllWithCounts()</code>, <code>GetNextPartNumber(...)</code></td><td>static-only (unconfirmed)</td></tr>
-<tr><td>Featured image</td><td>Pick or upload</td><td><code>Components/ImagePicker.razor</code> → <code>IBlogImageService</code></td><td>static-only (unconfirmed)</td></tr>
-<tr><td>Save draft</td><td>Persist without publishing</td><td><code>BlogService.SaveDraft(...)</code></td><td>static-only (unconfirmed)</td></tr>
-<tr><td>Save</td><td>Persist</td><td><code>BlogService.SavePost(...)</code></td><td>static-only (unconfirmed)</td></tr>
-<tr><td>Publish</td><td>Set published state</td><td><code>BlogService.PublishPost(...)</code></td><td>static-only (unconfirmed)</td></tr>
-<tr><td>Unpublish</td><td>Back to draft</td><td><code>BlogService.UnpublishPost(...)</code></td><td>static-only (unconfirmed)</td></tr>
-<tr><td>Schedule</td><td>Set a future publish time</td><td><code>BlogService.SchedulePost(...)</code></td><td>static-only (unconfirmed)</td></tr>
-<tr><td>Cancel schedule</td><td>Revert to draft</td><td><code>BlogService.CancelSchedule(...)</code></td><td>static-only (unconfirmed)</td></tr>
-</tbody></table>
+<table><thead><tr><th>Control</th><th>What it does</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Load existing post</td><td>Fetch for edit</td><td><code>BlogService.GetSinglePost(PageId)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Title + Markdown body</td><td>Editing surface with live preview</td><td><code>Components/MarkdownEditor.razor</code> → <code>MarkdownRenderer</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Category dropdown</td><td>Choose one category</td><td><code>CategoryService.GetAllCategories()</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Tag input</td><td>Autocomplete + inline create</td><td><code>TagService.GetAllTags()</code>, <code>GetOrCreateTag(...)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Tag persistence</td><td>Replace the post's tag set</td><td><code>TagService.GetTagsForPost(...)</code>, <code>SetTagsForPost(...)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Series selector</td><td>Attach to a series with a part number</td><td><code>SeriesService.GetAllWithCounts()</code>, <code>GetNextPartNumber(...)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Featured image</td><td>Pick or upload</td><td><code>Components/ImagePicker.razor</code> → <code>IBlogImageService</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Save draft</td><td>Persist without publishing</td><td><code>BlogService.SaveDraft(...)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Save</td><td>Persist</td><td><code>BlogService.SavePost(...)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Publish</td><td>Set published state</td><td><code>BlogService.PublishPost(...)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Unpublish</td><td>Back to draft</td><td><code>BlogService.UnpublishPost(...)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Schedule</td><td>Set a future publish time</td><td><code>BlogService.SchedulePost(...)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Cancel schedule</td><td>Revert to draft</td><td><code>BlogService.CancelSchedule(...)</code></td><td>static-only (unconfirmed)</td></tr></tbody></table>
 <p><strong>Data lineage</strong></p>
-<table>
-<thead><tr><th>Step</th><th>Symbol</th><th>File</th></tr></thead>
-<tbody>
-<tr><td>Page</td><td><code>ManagePost.razor.cs</code> <code>[Inject] BlogSvc BlogService</code>, <code>CategorySvc</code>, <code>TagSvc</code>, <code>SeriesSvc</code>, …</td><td><code>Pages/AdminPages/ManagePost.razor.cs</code></td></tr>
-<tr><td>Services</td><td><code>BlogSvc.SavePost/SaveDraft/PublishPost/UnpublishPost/SchedulePost/CancelSchedule</code></td><td><code>BlogEngine/Services/BlogSvc.cs</code></td></tr>
-<tr><td></td><td><code>TagSvc.GetOrCreateTag/GetTagsForPost/SetTagsForPost</code></td><td><code>BlogEngine/Services/TagSvc.cs</code></td></tr>
-<tr><td>Data access</td><td><code>BlogPostRepo</code> → <code>INSERT INTO BlogPost</code> / <code>UPDATE BlogPost</code>; <code>BlogTagRepo</code> → <code>INSERT INTO Tag</code>, <code>INSERT INTO PostTag</code>, <code>DELETE FROM PostTag</code></td><td><code>BlogEngine/DbAccess/</code></td></tr>
-</tbody></table>
+<table><thead><tr><th>Step</th><th>Symbol</th><th>File</th></tr></thead><tbody><tr><td>Page</td><td><code>ManagePost.razor.cs</code> <code>[Inject] BlogSvc BlogService</code>, <code>CategorySvc</code>, <code>TagSvc</code>, <code>SeriesSvc</code>, …</td><td><code>Pages/AdminPages/ManagePost.razor.cs</code></td></tr><tr><td>Services</td><td><code>BlogSvc.SavePost/SaveDraft/PublishPost/UnpublishPost/SchedulePost/CancelSchedule</code></td><td><code>BlogEngine/Services/BlogSvc.cs</code></td></tr><tr><td></td><td><code>TagSvc.GetOrCreateTag/GetTagsForPost/SetTagsForPost</code></td><td><code>BlogEngine/Services/TagSvc.cs</code></td></tr><tr><td>Data access</td><td><code>BlogPostRepo</code> → <code>INSERT INTO BlogPost</code> / <code>UPDATE BlogPost</code>; <code>BlogTagRepo</code> → <code>INSERT INTO Tag</code>, <code>INSERT INTO PostTag</code>, <code>DELETE FROM PostTag</code></td><td><code>BlogEngine/DbAccess/</code></td></tr></tbody></table>
 <p><strong>Business rules:</strong> a post starts as Draft; publish sets the published flag and date; scheduling stores <code>ScheduledFor</code> and leaves the post unpublished until <code>ScheduledPostPublisher</code> promotes it.</p>
 <p><strong>Known issues (static):</strong></p>
-<ul>
-<li>Slug generation for <strong>posts</strong> was not located in this page — <code>ManageTag.razor</code> calls</li>
-</ul>
-<p>  <code>SlugGenerator.GenerateSlug</code> explicitly, but <code>ManagePost.razor.cs</code> does not.   <code>{unresolved — TODO: confirm whether BlogSvc.SavePost generates the slug server-side, and what happens on a slug collision (BRD-15 requires uniqueness).}</code></p>
-<ul>
-<li>The editor's auto-save (PRD Story 3.2 AC7, "every 30 seconds") was not found in the page.</li>
-</ul>
-<p>  <code>{unresolved — TODO: confirm whether auto-save exists.}</code></p>
+<ul><li>Slug generation for <strong>posts</strong> was not located in this page — <code>ManageTag.razor</code> calls</li></ul>
+<p><code>SlugGenerator.GenerateSlug</code> explicitly, but <code>ManagePost.razor.cs</code> does not. <code>{unresolved — TODO: confirm whether BlogSvc.SavePost generates the slug server-side, and what happens on a slug collision (BRD-15 requires uniqueness).}</code></p>
+<ul><li>The editor's auto-save (PRD Story 3.2 AC7, "every 30 seconds") was not found in the page.</li></ul>
+<p><code>{unresolved — TODO: confirm whether auto-save exists.}</code></p>
 <h2 id="author-post-list-blogslist">Author · Post list (<code>/BlogsList</code>)<a class="anchor-link" href="#author-post-list-blogslist">#</a></h2>
 <p><strong>File:</strong> <code>source/BlogUI/Pages/AdminPages/BlogsList.razor</code> + <code>.razor.cs</code> · <strong>Guard:</strong> <code>EditorOrAbove</code> (note: <em>not</em> <code>AuthorOrAbove</code> — an Author cannot open their own post list; see Known issues)</p>
-<table>
-<thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead>
-<tbody>
-<tr><td>Post table</td><td><code>BlogService.GetAllPosts(...)</code></td><td>static-only</td></tr>
-<tr><td>Publish action</td><td><code>BlogService.QuickPublish(...)</code></td><td>static-only</td></tr>
-<tr><td>Unpublish action</td><td><code>BlogService.UnpublishPost(...)</code></td><td>static-only</td></tr>
-<tr><td>Cancel schedule</td><td><code>BlogService.CancelSchedule(...)</code></td><td>static-only</td></tr>
-<tr><td>Delete</td><td><code>BlogService.DeletePost(...)</code></td><td>static-only</td></tr>
-</tbody></table>
-<p><strong>Known issue (static):</strong> <code>BlogsList.razor:11</code> declares <code>[Authorize(Policy = &quot;EditorOrAbove&quot;)]</code>, so the <strong>Author role cannot reach the post list at all</strong> even though <code>ManagePost</code> is <code>AuthorOrAbove</code>. Either the list should be <code>AuthorOrAbove</code> with a per-author filter, or the "My Posts" screen from mockup <code>18-my-posts.html</code> is genuinely missing. Logged to REQ-UI-017.</p>
+<table><thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Post table</td><td><code>BlogService.GetAllPosts(...)</code></td><td>static-only</td></tr><tr><td>Publish action</td><td><code>BlogService.QuickPublish(...)</code></td><td>static-only</td></tr><tr><td>Unpublish action</td><td><code>BlogService.UnpublishPost(...)</code></td><td>static-only</td></tr><tr><td>Cancel schedule</td><td><code>BlogService.CancelSchedule(...)</code></td><td>static-only</td></tr><tr><td>Delete</td><td><code>BlogService.DeletePost(...)</code></td><td>static-only</td></tr></tbody></table>
+<p><strong>Known issue (static):</strong> <code>BlogsList.razor:11</code> declares <code>[Authorize(Policy = "EditorOrAbove")]</code>, so the <strong>Author role cannot reach the post list at all</strong> even though <code>ManagePost</code> is <code>AuthorOrAbove</code>. Either the list should be <code>AuthorOrAbove</code> with a per-author filter, or the "My Posts" screen from mockup <code>18-my-posts.html</code> is genuinely missing. Logged to REQ-UI-017.</p>
 <h2 id="author-draft-preview-admin-preview-postid-long">Author · Draft preview (<code>/admin/preview/{PostId:long}</code>)<a class="anchor-link" href="#author-draft-preview-admin-preview-postid-long">#</a></h2>
 <p><strong>File:</strong> <code>source/BlogUI/Pages/AdminPages/PreviewPost.razor</code></p>
-<table>
-<thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead>
-<tbody>
-<tr><td>Rendered post</td><td><code>BlogService.GetSinglePost(PostId)</code> + <code>MarkdownRenderer.ToHtml(...)</code></td><td>static-only</td></tr>
-<tr><td>Reading time</td><td><code>ReadingTimeCalculator.Calculate(...)</code></td><td>static-only</td></tr>
-<tr><td>Publish from preview</td><td><code>BlogService.QuickPublish(...)</code></td><td>static-only</td></tr>
-</tbody></table>
+<table><thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Rendered post</td><td><code>BlogService.GetSinglePost(PostId)</code> + <code>MarkdownRenderer.ToHtml(...)</code></td><td>static-only</td></tr><tr><td>Reading time</td><td><code>ReadingTimeCalculator.Calculate(...)</code></td><td>static-only</td></tr><tr><td>Publish from preview</td><td><code>BlogService.QuickPublish(...)</code></td><td>static-only</td></tr></tbody></table>
 <p><strong>Business rules:</strong> shows unpublished content, so the <code>AuthorOrAbove</code> guard is the only thing keeping a draft private — there is no per-author ownership check visible on this page (<code>{unresolved — TODO: confirm whether GetSinglePost filters by author}</code>).</p>
 <h2 id="author-series-list-admin-series-serieslist-and-editor-admin-series-new-admin-series-pageid-long">Author · Series list (<code>/admin/series</code>, <code>/SeriesList</code>) and editor (<code>/admin/series/new</code>, <code>/admin/series/{PageId:long}</code>)<a class="anchor-link" href="#author-series-list-admin-series-serieslist-and-editor-admin-series-new-admin-series-pageid-long">#</a></h2>
 <p><strong>Files:</strong> <code>Pages/AdminPages/SeriesList.razor</code>, <code>Pages/AdminPages/ManageSeries.razor</code> + <code>.razor.cs</code></p>
-<table>
-<thead><tr><th>Screen</th><th>Control</th><th>Source call</th></tr></thead>
-<tbody>
-<tr><td>SeriesList</td><td>Series table with counts</td><td><code>SeriesService.GetAllWithCounts()</code></td></tr>
-<tr><td>SeriesList</td><td>Delete</td><td><code>SeriesService.DeleteSeries(...)</code></td></tr>
-<tr><td>ManageSeries</td><td>Load series</td><td><code>SeriesService.GetSeries(PageId)</code></td></tr>
-<tr><td>ManageSeries</td><td>Parts list</td><td><code>SeriesService.GetPostsInSeries(...)</code></td></tr>
-<tr><td>ManageSeries</td><td>Save</td><td><code>SeriesService.SaveSeries(...)</code></td></tr>
-</tbody></table>
+<table><thead><tr><th>Screen</th><th>Control</th><th>Source call</th></tr></thead><tbody><tr><td>SeriesList</td><td>Series table with counts</td><td><code>SeriesService.GetAllWithCounts()</code></td></tr><tr><td>SeriesList</td><td>Delete</td><td><code>SeriesService.DeleteSeries(...)</code></td></tr><tr><td>ManageSeries</td><td>Load series</td><td><code>SeriesService.GetSeries(PageId)</code></td></tr><tr><td>ManageSeries</td><td>Parts list</td><td><code>SeriesService.GetPostsInSeries(...)</code></td></tr><tr><td>ManageSeries</td><td>Save</td><td><code>SeriesService.SaveSeries(...)</code></td></tr></tbody></table>
 <p><strong>Lineage:</strong> page → <code>SeriesSvc</code> → <code>BlogSeriesRepo</code> → <code>INSERT/UPDATE/DELETE BlogSeries</code>, <code>SELECT s.SeriesId …</code> joined to <code>BlogPost</code>.</p>
 <h2 id="author-manage-profile-admin-profile">Author · Manage profile (<code>/admin/profile</code>)<a class="anchor-link" href="#author-manage-profile-admin-profile">#</a></h2>
 <p><strong>File:</strong> <code>source/BlogUI/Pages/AdminPages/ManageProfile.razor</code> + <code>.razor.cs</code> — <strong>injects <code>IBlogUserRepo</code> directly; there is no user service.</strong></p>
-<table>
-<thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead>
-<tbody>
-<tr><td>Load profile</td><td><code>UserRepo.GetSingle(userId)</code></td><td>static-only</td></tr>
-<tr><td>Username availability</td><td><code>UserRepo.IsUsernameAvailable(...)</code></td><td>static-only</td></tr>
-<tr><td>Save username</td><td><code>UserRepo.UpdateUsername(...)</code></td><td>static-only</td></tr>
-<tr><td>Save basic info + socials</td><td><code>UserRepo.Update(...)</code></td><td>static-only</td></tr>
-<tr><td>Save resume fields (title, tagline, phone, location, CV, ResumeEnabled)</td><td><code>UserRepo.UpdateResumeFields(...)</code></td><td>static-only</td></tr>
-<tr><td>Avatar / CV pickers</td><td><code>Components/ImagePicker.razor</code> → <code>IBlogImageService</code></td><td>static-only</td></tr>
-</tbody></table>
+<table><thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Load profile</td><td><code>UserRepo.GetSingle(userId)</code></td><td>static-only</td></tr><tr><td>Username availability</td><td><code>UserRepo.IsUsernameAvailable(...)</code></td><td>static-only</td></tr><tr><td>Save username</td><td><code>UserRepo.UpdateUsername(...)</code></td><td>static-only</td></tr><tr><td>Save basic info + socials</td><td><code>UserRepo.Update(...)</code></td><td>static-only</td></tr><tr><td>Save resume fields (title, tagline, phone, location, CV, ResumeEnabled)</td><td><code>UserRepo.UpdateResumeFields(...)</code></td><td>static-only</td></tr><tr><td>Avatar / CV pickers</td><td><code>Components/ImagePicker.razor</code> → <code>IBlogImageService</code></td><td>static-only</td></tr></tbody></table>
 <p><strong>Lineage:</strong> page → <code>BlogUserRepo</code> (<code>BlogEngine/DbAccess/BlogUserRepo.cs</code>) → inline <code>UPDATE BlogUser</code> against the columns added by migration <code>012-ResumeAndImageManagement.sql</code>.</p>
 <p><strong>Note:</strong> <code>ManageProfile.razor.cs</code> is one of the 17 files still carrying <code>_underscore</code>-prefixed fields (REQ-NFR-021).</p>
 <h2 id="author-manage-experience-admin-experience-admin-experience-eventid-long">Author · Manage experience (<code>/admin/experience</code>, <code>/admin/experience/{EventId:long}</code>)<a class="anchor-link" href="#author-manage-experience-admin-experience-admin-experience-eventid-long">#</a></h2>
 <p><strong>File:</strong> <code>Pages/AdminPages/ManageExperience.razor</code> + <code>.razor.cs</code></p>
-<table>
-<thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead>
-<tbody>
-<tr><td>Entry list</td><td><code>EventRepo.GetByUserAndType(userId, &quot;Experience&quot;)</code></td><td>static-only</td></tr>
-<tr><td>Load one</td><td><code>EventRepo.GetSingle(eventId)</code></td><td>static-only</td></tr>
-<tr><td>Create</td><td><code>EventRepo.InsertToGetId(...)</code></td><td>static-only</td></tr>
-<tr><td>Update</td><td><code>EventRepo.Update(...)</code></td><td>static-only</td></tr>
-<tr><td>Delete</td><td><code>EventRepo.Delete(...)</code></td><td>static-only</td></tr>
-<tr><td>User selector (Admin only)</td><td><code>UserRepo.GetAll(...)</code></td><td>static-only</td></tr>
-<tr><td>Company logo</td><td><code>ImagePicker</code> (category <code>logos</code>)</td><td>static-only</td></tr>
-</tbody></table>
+<table><thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Entry list</td><td><code>EventRepo.GetByUserAndType(userId, "Experience")</code></td><td>static-only</td></tr><tr><td>Load one</td><td><code>EventRepo.GetSingle(eventId)</code></td><td>static-only</td></tr><tr><td>Create</td><td><code>EventRepo.InsertToGetId(...)</code></td><td>static-only</td></tr><tr><td>Update</td><td><code>EventRepo.Update(...)</code></td><td>static-only</td></tr><tr><td>Delete</td><td><code>EventRepo.Delete(...)</code></td><td>static-only</td></tr><tr><td>User selector (Admin only)</td><td><code>UserRepo.GetAll(...)</code></td><td>static-only</td></tr><tr><td>Company logo</td><td><code>ImagePicker</code> (category <code>logos</code>)</td><td>static-only</td></tr></tbody></table>
 <p><strong>Lineage:</strong> page → <code>IUserEventRepo</code> → <code>UserEventRepo.cs</code> → inline SQL on <code>userevents</code> (note the lower-case table name in the SQL — PostgreSQL folds unquoted identifiers, so this matches <code>UserEvents</code>).</p>
-<p><strong>Business rules:</strong> experience rows are <code>UserEvents</code> discriminated by <code>Type = &quot;Experience&quot;</code>; <code>IsCurrent</code> renders as "Present"; <code>DisplayOrder</code> drives manual ordering.</p>
+<p><strong>Business rules:</strong> experience rows are <code>UserEvents</code> discriminated by <code>Type = "Experience"</code>; <code>IsCurrent</code> renders as "Present"; <code>DisplayOrder</code> drives manual ordering.</p>
 <h2 id="author-manage-skills-admin-skills">Author · Manage skills (<code>/admin/skills</code>)<a class="anchor-link" href="#author-manage-skills-admin-skills">#</a></h2>
 <p><strong>File:</strong> <code>Pages/AdminPages/ManageSkills.razor</code> + <code>.razor.cs</code></p>
-<table>
-<thead><tr><th>Control</th><th>Source call</th></tr></thead>
-<tbody>
-<tr><td>Skills grouped by category</td><td><code>SkillsRepo.GetByUserId(userId)</code></td></tr>
-<tr><td>Load one</td><td><code>SkillsRepo.GetById(...)</code></td></tr>
-<tr><td>Create / update / delete</td><td><code>SkillsRepo.Create/Update/Delete(...)</code></td></tr>
-<tr><td>User selector (Admin)</td><td><code>UserRepo.GetAll(...)</code></td></tr>
-</tbody></table>
+<table><thead><tr><th>Control</th><th>Source call</th></tr></thead><tbody><tr><td>Skills grouped by category</td><td><code>SkillsRepo.GetByUserId(userId)</code></td></tr><tr><td>Load one</td><td><code>SkillsRepo.GetById(...)</code></td></tr><tr><td>Create / update / delete</td><td><code>SkillsRepo.Create/Update/Delete(...)</code></td></tr><tr><td>User selector (Admin)</td><td><code>UserRepo.GetAll(...)</code></td></tr></tbody></table>
 <p><strong>Lineage:</strong> page → <code>IUserSkillsRepo</code> → <code>UserSkillsRepo.cs</code> → <code>INSERT/UPDATE/DELETE userskills</code>, <code>SELECT DISTINCT</code> for the category list.</p>
 <h2 id="author-manage-awards-admin-awards">Author · Manage awards (<code>/admin/awards</code>)<a class="anchor-link" href="#author-manage-awards-admin-awards">#</a></h2>
 <p><strong>File:</strong> <code>Pages/AdminPages/ManageAwards.razor</code> + <code>.razor.cs</code></p>
-<table>
-<thead><tr><th>Control</th><th>Source call</th></tr></thead>
-<tbody>
-<tr><td>Award list</td><td><code>AwardsRepo.GetByUserId(userId)</code></td></tr>
-<tr><td>Load one</td><td><code>AwardsRepo.GetById(...)</code></td></tr>
-<tr><td>Create / update / delete</td><td><code>AwardsRepo.Create/Update/Delete(...)</code></td></tr>
-<tr><td>Badge image</td><td><code>ImagePicker</code> (category <code>awards</code>)</td></tr>
-<tr><td>User selector (Admin)</td><td><code>UserRepo.GetAll(...)</code></td></tr>
-</tbody></table>
+<table><thead><tr><th>Control</th><th>Source call</th></tr></thead><tbody><tr><td>Award list</td><td><code>AwardsRepo.GetByUserId(userId)</code></td></tr><tr><td>Load one</td><td><code>AwardsRepo.GetById(...)</code></td></tr><tr><td>Create / update / delete</td><td><code>AwardsRepo.Create/Update/Delete(...)</code></td></tr><tr><td>Badge image</td><td><code>ImagePicker</code> (category <code>awards</code>)</td></tr><tr><td>User selector (Admin)</td><td><code>UserRepo.GetAll(...)</code></td></tr></tbody></table>
 <p><strong>Lineage:</strong> page → <code>IUserAwardsRepo</code> → <code>UserAwardsRepo.cs</code> → <code>INSERT/UPDATE/DELETE userawards</code>.</p>
 <h2 id="author-manage-stats-missing">Author · Manage stats — MISSING<a class="anchor-link" href="#author-manage-stats-missing">#</a></h2>
 <p><code>docs/OldDocs/feature-ideation-images-resume.md</code> §1.3 and the resume page both expect a <strong>UserStats</strong> editor (<code>ManageStats.razor</code>), and <code>IUserStatsRepo</code> <strong>is registered</strong> in <code>BlogSvcInitializer.cs:69</code>. No admin page exists to maintain those rows — the "About" and "Community" statistics on <code>/resume</code> can only be populated by direct SQL. Logged to REQ-UI-037/REQ-FN-027 as a gap.</p>
@@ -301,11 +208,9 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <p>Guarded <code>AdminOnly</code>, so an Author <strong>cannot</strong> open the library — but the <code>ImagePicker</code> component they use inside the editor and profile pages talks to the same service. See the Admin guide for the screen.</p>
 <p><code>Components/ImagePicker.razor.cs</code> calls <code>ImageService.ValidateImageAsync</code>, <code>UploadImageAsync</code> and <code>GetImagesByCategoryAsync</code> on <code>IBlogImageService</code> (<code>BlogEngine/Services/BlogImageService.cs</code>), which writes to <code>wwwroot/uploads/{category}/</code> and records metadata through <code>BlogImageRepo</code> (<code>INSERT INTO blogimage</code>).</p>
 <p><strong>Known issue (static):</strong> an Author can upload through the picker but cannot browse or delete their uploads, because the only gallery screen is <code>AdminOnly</code>. Logged to REQ-UI-034.</p>
-<hr>
-<p>Generated 2026-08-02 · reflects code as built · ⚠ STATIC-ONLY</p>
+<p>--- Generated 2026-08-02 · reflects code as built · ⚠ STATIC-ONLY</p>
   </main>
 </div>
-
 <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
 <script>// Light/dark toggle. The initial theme was already applied flash-free by the

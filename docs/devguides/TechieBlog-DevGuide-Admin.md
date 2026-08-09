@@ -1,10 +1,38 @@
 # TechieBlog — Developer Guide · Admin
 
-> ⚠ **STATIC-ONLY (2026-08-02)** — built from code reading; NOT yet runtime-verified. Render-status is
-> unconfirmed until `*verify` runs against the running app (the solution currently does not compile —
-> REQ-FN-043).
+> ✅ **Runtime-verified 2026-08-09 as Admin and Editor** — supersedes the 2026-08-02 `STATIC-ONLY`
+> banner, whose stated reason (solution does not compile, REQ-FN-043) is stale. Every screen below was
+> exercised on **both heads**: the web host and the BlogApp desktop head.
 
 Index: [TechieBlog-DevGuide.md](./TechieBlog-DevGuide.md)
+
+## Runtime verification (2026-08-09)
+
+Every count below was cross-checked against PostgreSQL **at the instant of measurement** (a start-of-run
+snapshot proved unsafe — sibling agents moved the data mid-run).
+
+| Screen | Observed | Detail |
+|--------|----------|--------|
+| `/admin` dashboard | **renders ✓ (runtime-confirmed)** | Posts 10, Users 4, Comments 16, Subscribers 7 — every tile an exact psql match. Needs-Attention 6/1/1 exact. Quick actions genuinely role-gated: an Editor is offered only the 2 non-`AdminOnly` destinations and both open without an access-denied bounce |
+| `/admin` popular posts | **renders-empty (NO-DATA, downstream defect)** | shows an explicit empty state rather than a fabricated ranking — correct behaviour, but it can never populate because view tracking is dead code (`REQ-FN-034`) |
+| `/users`, `/AddUser` | **renders ✓** | 4 rows with email + role badge, search narrows 4→1, all 7 create-form controls present. **Mutation half unproven** — the change-role Select's option list could not be driven, so role persistence is unverified |
+| `/CommentsList` | **renders ✓** | 16/16 rows all cells populated, tabs exact vs psql, 26 per-row controls + bulk actions; delete dialog opened and **cancelled** |
+| `/admin/categories`, `/admin/tags` | **renders ✓** | 5 and 15 rows; per-row counts sum to the published-only totals exactly (8 and 27); editors load populated; delete dialogs opened and **cancelled** |
+| `/admin/subscribers` | **renders ✓** | 7 rows = psql, summary "7 total (6 active)" exact, CSV export produced a real download. **Gap:** no delete/remove control exists — `Unsubscribe` is reachable only from the public token |
+| `/settings` | **renders ✓** | all six tabs render and every value equals its `SiteSetting` row; 21 controls checked, 0 blank. The TR-032 `TabsTrigger` crash is **gone**. At 390 the tabs wrap to two rows and Storage is reachable |
+| theme selector | **renders ✓** | preview does not persist and does not write LocalStorage; after Save a **fresh anonymous context** received the saved site theme. Restored afterwards |
+| `/admin/analytics` | **renders-empty (NO-DATA, downstream defect)** | rating and comment tiles carry real numbers and the date range provably moves them; Views/Unique are 0 and the trend, popular and category panels show empty states — because `postviews` is never written (`REQ-FN-034`) |
+| `AdminLayout` | **renders ✓** | 6 group headings, 17 entries for Admin vs 10 for Editor — refused groups are **hidden, not rendered empty**; exactly one active highlight; account menu names the identity |
+| `/admin/images` | **render-error (DEFECT)** | gallery and per-category validation work end to end (upload → serve → delete), but the **user-filter Select displays the raw value `0`** instead of its "All Users" label. Reproduced on both heads |
+| `/admin/skills` | **render-error (DEFECT)** | 13 skills in 5 categories = psql, but the **admin user selector shows the raw id `1`** instead of a user name — same defect class as above |
+| `/admin/experience`, `/admin/awards` | **render-error (DEFECT)** | lists, ordering, add/edit/delete and the user selector all render, but the acceptance-named **company-logo picker and badge-image picker do not exist** — both are plain text path inputs with 0 `ImagePicker` instances |
+| `/admin/profile` | **visual-broken (DEFECT)** | all 10 fields match psql byte-for-byte and the **`REQ-FN-053` data-loss regression holds** (md5 over the nine at-risk columns identical across a no-edit save). At 390 `clear-image` **overlaps** `upload-new-image` and is invisible in the render |
+| `/admin/newsletter` | **renders ✓ with a dead link (DEFECT)** | compose, preview, live audience estimate, send and per-recipient delivery log all work — but every message carries an unsubscribe link to `/unsubscribe/{token}`, which **404s with a zero-byte body**. No page is routed there |
+| `/ManagePost` (see Author guide) | **render-error (DEFECT)** | the Markdown textarea **loses and reorders keystrokes**; saving with no category selected surfaces a **raw PostgreSQL FK violation** to the user |
+
+**Dark mode:** measured, not eyeballed — contrast resolved through a 1-px canvas across 8 admin screens
+(43–140 text nodes each): **0 nodes below WCAG AA**. **Icons:** 333 rendered `<svg>` nodes across 13
+routes, **0 empty** — no Lucide alias-name misses remain.
 
 An Admin sees every screen in the app. The eleven below are guarded by
 `@attribute [Authorize(Policy = "AdminOnly")]` and use `AdminLayout`.

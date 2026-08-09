@@ -1,10 +1,28 @@
 # TechieBlog — Developer Guide · Reader (and Contributor)
 
-> ⚠ **STATIC-ONLY (2026-08-02)** — built from code reading; NOT yet runtime-verified. Render-status is
-> unconfirmed until `*verify` runs against the running app (the solution currently does not compile —
-> REQ-FN-043).
+> ⚠ **This guide documents a role that no longer exists.** Reader accounts and public registration were
+> retired on 2026-08-06 (BRD-1/13/43/44), and `019-SampleData.sql` deliberately seeds **no** Reader
+> account. The screens described here — `/profile`, `/my-favorites`, `/my-comments` — are `N/A (removed)`
+> in the checklist and `MyFavorites.razor` / `FavoriteToggle.razor` no longer exist in the tree.
+>
+> ✅ **Contributor runtime-verified 2026-08-09** — supersedes the 2026-08-02 `STATIC-ONLY` banner, whose
+> stated reason (solution does not compile, REQ-FN-043) is stale.
 
 Index: [TechieBlog-DevGuide.md](./TechieBlog-DevGuide.md)
+
+## Runtime verification (2026-08-09) — Contributor only
+
+| Observation | Result |
+|-------------|--------|
+| Sign-in landing | Contributor signs in successfully and lands on `/`, per `RoleLandingRoutes` — it has no staff surface |
+| Policy matrix | **denied** `/users`, `/admin` and `/BlogsList`; every denial landed on the access-denied surface, never a raw 403 |
+| Access-denied affordance | correctly offers **no** "Go to Dashboard" button for this role, because there is no dashboard it may open |
+| Forced password change | with `MustChangePassword` set, the Contributor sign-in was held on `/change-password` and navigating to `/` or `/BlogsList` **bounced straight back** — the flag is genuinely enforced, not merely displayed |
+| `ContributorOrAbove` policy | registered but still attached to **no page**, so it grants nothing beyond anonymous access. Unchanged from the static finding, and documented as deliberate |
+
+**Engagement is anonymous now.** Commenting and rating no longer require an account at all: they are
+email-keyed with a captcha and double opt-in, and runtime checks found no sign-in gate and zero `/login`
+links in either component. The Favourite toggle this guide describes has been removed outright.
 
 A Reader sees every Guest screen plus the four below. **Contributor is functionally identical to
 Reader** — the `ContributorOrAbove` policy exists (`Program.cs:96`) but no page requires it, so the

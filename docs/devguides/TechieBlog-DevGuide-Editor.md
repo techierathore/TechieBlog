@@ -1,10 +1,28 @@
 # TechieBlog — Developer Guide · Editor
 
-> ⚠ **STATIC-ONLY (2026-08-02)** — built from code reading; NOT yet runtime-verified. Render-status is
-> unconfirmed until `*verify` runs against the running app (the solution currently does not compile —
-> REQ-FN-043).
+> ✅ **Runtime-verified 2026-08-09 as Editor** — supersedes the 2026-08-02 `STATIC-ONLY` banner, whose
+> stated reason (solution does not compile, REQ-FN-043) is stale.
 
 Index: [TechieBlog-DevGuide.md](./TechieBlog-DevGuide.md)
+
+## Runtime verification (2026-08-09)
+
+The Editor role was exercised specifically to prove that authorisation **hides** rather than
+half-renders, and that the dashboard never offers a destination the role cannot open.
+
+| Observation | Result |
+|-------------|--------|
+| Admin sidebar entries | **10 for Editor vs 17 for Admin** — categories, tags, images, users, subscribers, newsletter and settings are **absent from the navigation**, not rendered-then-refused |
+| Dashboard quick actions | Editor is offered only `New Post` and `Moderate Comments`; the two `AdminOnly` destinations (Send Newsletter, Manage Users) are **not offered**. Both offered actions opened with **no `/access-denied` bounce** — this closes the defect where an Editor was shown actions that then bounced |
+| Policy matrix | Editor **denied** `/users` and `/settings`, **allowed** `/admin` and `/BlogsList`. Every denial landed on the access-denied surface, never a raw 403 |
+| Comment moderation | 16/16 rows with every cell populated; status tabs exact against psql; approve moved a comment to publicly visible |
+| Post management | Editor sees all posts (unlike an Author's own-only scoping), with real author names and publish dates |
+| Sign-in landing | Editor lands on `/admin`, per `RoleLandingRoutes` |
+
+**Defect visible to this role:** `/access-denied` renders the `AuthLayout` card **nested inside the
+public blog shell** on client-side navigation — two TechieBlog logos, an unrelated Search/Categories
+sidebar beside the permission card, and a duplicated `theme-toggle` overlapping itself. It renders
+correctly on a full page load, so this is a layout-nesting issue on client-side routing.
 
 An Editor sees every Author screen plus the three below. All are guarded by
 `@attribute [Authorize(Policy = "EditorOrAbove")]` (Admin, Editor) and use `AdminLayout`.

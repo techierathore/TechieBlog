@@ -106,7 +106,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <div class="layout">
   <nav class="side">
     <h1>TechieBlog — Status</h1>
-    <div class="sub">Last rendered: 2026-08-08 · Phase: Verify</div>
+    <div class="sub">Last rendered: 2026-08-09 · Phase: Build</div>
     <div class="group">Contents</div>
     <ol>
       <li><a href="#where-i-am">Where I am</a></li>
@@ -115,136 +115,55 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
       <li><a href="#known-blockers">Known blockers</a></li>
       <li><a href="#verification-log">Verification log</a></li>
       <li><a href="#library-feedback-summary">Library feedback summary</a></li>
-      <li><a href="#standards-compliance-2026-08-08">Standards compliance (2026-08-08)</a></li>
+      <li><a href="#standards-compliance-2026-08-09">Standards compliance (2026-08-09)</a></li>
       <li><a href="#deferred-future">Deferred / future</a></li>
     </ol>
   </nav>
   <main>
-    <h1>TechieBlog — Status</h1>
-    <div class="subtitle">.NET 10 / Blazor Server / TrBlazeUI / PostgreSQL + Dapper + DbUp / Serilog / BlogApp MAUI (Windows, in progress)<br>
-    Last updated <strong>2026-08-08</strong> · Phase <strong>Verify</strong> · Build <strong>PASS</strong> (verified 2026-08-08)</div>
+    <div class="subtitle">.NET 10 / Blazor Server / TrBlazeUI / PostgreSQL + Dapper + DbUp / Serilog / BlogApp MAUI (Windows)<br>
+    Last updated <strong>2026-08-09</strong> · Build <strong>PASS</strong> (verified 2026-08-09)</div>
 
-    <div class="toc-inline">
-      <div>Contents</div>
-      <ol>
-        <li><a href="#where-i-am">Where I am</a></li>
-        <li><a href="#next-command-to-run">Next command to run</a></li>
-        <li><a href="#open-requirements">Open requirements</a></li>
-        <li><a href="#known-blockers">Known blockers</a></li>
-        <li><a href="#verification-log">Verification log</a></li>
-        <li><a href="#library-feedback-summary">Library feedback summary</a></li>
-        <li><a href="#standards-compliance-2026-08-08">Standards compliance (2026-08-08)</a></li>
-        <li><a href="#deferred-future">Deferred / future</a></li>
-      </ol>
-    </div>
-
-    <h2 id="where-i-am">Where I am<a class="anchor-link" href="#where-i-am">#</a></h2>
-
-    <p>A second unified <code>*build-phase</code> ran 2026-08-08 across 15 clusters (7 build + 8 documentation). It opened
-    by finding the <strong>build was RED, not green</strong> as the previous status claimed, and that those 15 declaration
-    errors masked 26 more — <code>BlogUI</code>, the host and the test project had never compiled. This is the first
-    genuinely full green build.</p>
-
-    <p>Closed this pass: the async conversion's last two repositories, BlogApp admin-surface crashes, dark mode
-    on TrBlazeUI, the WCAG re-audit (1.1.1 now genuinely met), secrets out of source, forwarded headers,
-    Serilog size cap and volume, seeded-admin hashing + forced first-login change, the login audit trail,
-    <code>svctoken</code> removal, and XML docs across <code>BlogModels</code> + <code>BlogEngine</code> (694 members). One data-loss defect
-    was found and fixed: <strong>REQ-FN-053</strong> — saving Manage Profile erased the site owner's résumé.</p>
-
-    <p><strong>Nothing is <code>Verified</code>.</strong> <code>*build-phase</code>'s ceiling is <code>Implemented</code>; 67 rows await an executed verify run.</p>
-
-    <h2 id="next-command-to-run">Next command to run<a class="anchor-link" href="#next-command-to-run">#</a></h2>
-
-    <pre><code>/TechieFlow:agents:verifier *verify all TechieBlog</code></pre>
-
-    <p>Build no longer leads: every buildable REQ is built and observable, and 67 rows wait on a verdict. The
-    remaining open rows are owner-action (REQ-NFR-025), verifier work (REQ-UI-005/006), or explicitly
-    deferred scope (REQ-NFR-001 concurrency, REQ-NFR-008 out-of-scope projects).</p>
-
-    <h2 id="open-requirements">Open requirements<a class="anchor-link" href="#open-requirements">#</a></h2>
-
-    <ul>
-      <li>☐ <strong>Not Started (1)</strong> — REQ-NFR-025 <em>(owner: revoke + reissue the committed GitHub PAT)</em></li>
-      <li>☐ <strong>PARTIAL (2)</strong> — REQ-NFR-001 <em>(page-load MET; ≥100 concurrent NOT MET, blocked on REQ-NFR-026 stages 3–4)</em>, REQ-NFR-008 <em>(92%; BlogUI + host out of scope)</em></li>
-      <li>☐ <strong>Needs re-verify (2)</strong> — REQ-UI-005, REQ-UI-006 <em>(build work landed under REQ-UI-048/049/050 + REQ-NFR-007)</em></li>
-      <li>☐ <strong>Implemented, awaiting verifier (67)</strong> — see the checklist Status table</li>
-    </ul>
-
-    <p>Counts: 139 rows. Terminal 67 (59 pre-existing + 8 N/A); <code>Implemented</code> 67; open 5.</p>
-
-    <h2 id="known-blockers">Known blockers<a class="anchor-link" href="#known-blockers">#</a></h2>
-
-    <ul>
-      <li><strong>⚠ SECURITY — live GitHub PAT committed</strong> in <code>nuget.config</code>; it is in git history, so it must be
-        <strong>revoked and reissued on GitHub</strong> by the owner. Left in place by owner decision. → REQ-NFR-025.</li>
-      <li><strong>⚠ Host will not start without <code>JwtSigningKey</code> (≥32) and <code>AppEncryptionKey</code> (≥16)</strong> — by design
-        (REQ-NFR-027). Set in user secrets locally; <strong>production needs its own</strong>. Rotating <code>AppEncryptionKey</code>
-        makes existing <code>SiteSettings</code> ciphertext permanently undecryptable (no key versioning).</li>
-      <li><strong>⚠ JWT signatures are never verified</strong> — <code>SvcUtils.GetUserIDFromToken</code> decodes without validating;
-        session validity is DB-backed. The JWT is a session <em>handle</em>, not a bearer credential.</li>
-      <li><strong>⚠ Projection-completeness is a systemic gap — 4 instances found, gate NOT built.</strong> A read projection
-        omitting columns the write path persists; invisible to compiler and unit tests (the fakes never run
-        SQL). REQ-UI-017, script 021, REQ-NFR-008 (<code>BlogPostRepo</code>), and REQ-FN-053 — the last two are the same
-        stored function fixed hours apart. Fixing the fourth does not prevent a fifth.</li>
-      <li><strong>Admin session dies on any full page load</strong> — JWT is localStorage-only and invisible during prerender;
-        automation must use <code>Blazor.navigateTo</code>, never <code>page.goto</code>.</li>
-      <li><strong>Concurrency ceiling ~3.5 req/s</strong> — REQ-NFR-026 stages 3–4 outstanding; logging volume fixed
-        (65,761 → 144 bytes/request) but the load figure is <strong>not re-measured</strong>.</li>
-      <li><strong><code>source/BlogApp</code> not wired for <code>AppSecrets</code></strong> (throws on first <code>AppEncrypt</code> use); REQ-UI-052 is
-        <code>⚠ STATIC-ONLY</code> — smoked on the web head only.</li>
-      <li><strong>32 critical axe nodes on admin, all library-caused</strong> (TR-054/055); 200% zoom and screen-reader passes
-        uncovered. <strong>Integration tests hang</strong> (Testcontainers), excluded from the 383-test run.</li>
-      <li><strong><code>TagsList.razor</code> / <code>CommentsList.razor</code> headers are a reconstruction</strong> after an agent's revert regex
-        over-matched; they compile, render and smoke clean with all expected test ids — <strong>owner should diff</strong>.</li>
-    </ul>
-
-    <h2 id="verification-log">Verification log<a class="anchor-link" href="#verification-log">#</a></h2>
-
-    <table>
-      <thead><tr><th>Date</th><th>Phase</th><th>Result</th><th>Status table</th></tr></thead>
-      <tbody>
-        <tr><td>2026-08-02</td><td>Discovery (day-1)</td><td>Docs only</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
-        <tr><td>2026-08-06</td><td>Docs amendment</td><td>Docs only — BRD-92…97 added</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
-        <tr><td>2026-08-06</td><td>Mockups + design review</td><td>Docs only — 38 screens</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
-        <tr><td>2026-08-07</td><td>Unified *build-phase (11 clusters)</td><td>Build PASS claimed · no verifier run</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
-        <tr><td>2026-08-08</td><td>Unified *build-phase (15 clusters)</td><td>Build was RED (15 errors masking 26) → PASS 0 errors · 383/383 tests · 12 REQs closed · REQ-FN-053 data-loss fixed · ~31 defects found · no verifier run</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
-      </tbody>
-    </table>
-
-    <h2 id="library-feedback-summary">Library feedback summary<a class="anchor-link" href="#library-feedback-summary">#</a></h2>
-
-    <ul>
-      <li><strong>TrBlazeUI:</strong> next free <strong>TR-056</strong>. Root cause logged (TR-051): the AI reference and the <code>trblazeui</code>
-        persona both promise all components splat unmatched attributes — false for <strong>132 of 334</strong> types
-        (machine-classified via <code>MetadataLoadContext</code>). That one false premise caused seven page-killing
-        <code>data-testid</code> crashes; full matrix contributed. A11y: TR-031/044/045 (app-side mitigated),
-        TR-054/055 (Tabs/ItemGroup — not fixable from app code).</li>
-      <li><strong>TechieRag:</strong> not used (no AI/RAG features).</li>
-    </ul>
-
-    <h2 id="standards-compliance-2026-08-08">Standards compliance (2026-08-08)<a class="anchor-link" href="#standards-compliance-2026-08-08">#</a></h2>
-
-    <ul>
-      <li>Underscore fields <strong>0</strong>; <code>obj</code>/Hungarian <strong>0</strong>; <code>a</code>/<code>v</code> prefixes remediated across <code>BlogModels</code>,
-        <code>BlogEngine/{DbAccess,Services,Common}</code> and <code>SvcUtils</code> this pass.</li>
-      <li>XML docs: <strong>694 members newly documented</strong>; <code>BlogModels</code> proves <strong>0 doc warnings</strong> under a forced
-        <code>GenerateDocumentationFile</code> build. <code>BlogUI</code> + host still out of scope → REQ-NFR-008 at 92%.</li>
-      <li>Build 0 errors / 178 warnings (up from 6 only because downstream projects now compile).</li>
-    </ul>
-
-    <h2 id="deferred-future">Deferred / future<a class="anchor-link" href="#deferred-future">#</a></h2>
-
-    <ul>
-      <li>Verify JWT signatures on read (<code>SvcUtils</code>/<code>AuthSvc</code>); build the projection-completeness gate.</li>
-      <li>REQ-NFR-026 stages 3–4, then re-measure the concurrency ceiling.</li>
-      <li>Wire <code>AppSecrets</code> into <code>source/BlogApp</code>; re-smoke REQ-UI-052 on the desktop head.</li>
-      <li>Delete the <code>[Obsolete]</code> <code>AppUser.TwiiterUrl</code> alias once 3 <code>.razor</code> references move to <code>TwitterUrl</code>.</li>
-      <li>macOS (<code>net10.0-maccatalyst</code>) BlogApp head — not buildable from the Windows host.</li>
-      <li>Social login, magic links, drip sequences, lead magnets; admin theme creator; multi-tenancy, localization.</li>
-    </ul>
+<h1>TechieBlog — Status</h1>
+<h2 id="where-i-am">Where I am<a class="anchor-link" href="#where-i-am">#</a></h2>
+<p><strong>The first executed <code>*verify all</code> is complete</strong> — 131 of 139 REQs graded against the running app (the other 8 are <code>N/A (removed)</code>), across nine clusters, with the acceptance, data-render and visual-truth gates all applied. <strong>98 are now <code>Verified</code></strong> on runtime evidence rather than migrated claims, and the <code>⚠ STATIC-ONLY</code> stamp on the BlogApp desktop head is <strong>lifted</strong>: 19/19 admin routes were driven over WebView2 CDP with grid counts matching PostgreSQL exactly, plus a publish round trip that appeared on the separate web host.</p>
+<p><strong>29 rows are open, and most were previously marked done.</strong> The serious ones are functional, not cosmetic: <code>/series/{slug}</code> <strong>leaks unpublished drafts to anonymous visitors</strong>; every newsletter carries an unsubscribe link to a route that 404s; the sidebar subscribe form on every public page writes subscribers with <strong>no captcha and no double opt-in</strong>; unmatched routes return a <strong>blank zero-byte page</strong>; RSS does not exist at all; and post-view tracking is <strong>dead code</strong>, which silently empties the whole analytics surface. The Markdown editor also loses keystrokes.</p>
+<p>The <code>REQ-FN-053</code> data-loss regression <strong>holds</strong> (md5 over the nine at-risk columns identical across a no-edit save), and the committed GitHub PAT is <strong>still in <code>nuget.config</code></strong> despite two commits titled as removing it.</p>
+<h2 id="next-command-to-run">Next command to run<a class="anchor-link" href="#next-command-to-run">#</a></h2>
+<pre><code>/TechieFlow:agents:flow-master *build-phase TechieBlog</code></pre>
+<p>Fix the 29 open rows: 17 <code>FAIL</code>, 8 <code>Needs re-verify</code>, 4 <code>In Progress</code>. Start with the anonymous-exposure set — <code>REQ-FN-015</code>, <code>REQ-UI-056</code>, <code>REQ-FN-032</code>, <code>REQ-UI-012</code>.</p>
+<h2 id="open-requirements">Open requirements<a class="anchor-link" href="#open-requirements">#</a></h2>
+<ul><li><strong>FAIL (17)</strong> — REQ-UI-012, REQ-UI-016, REQ-UI-031, REQ-UI-037, REQ-UI-039, REQ-UI-046, REQ-UI-056, REQ-FN-015, REQ-FN-017, REQ-FN-020, REQ-FN-026, REQ-FN-032, REQ-NFR-001, REQ-NFR-007, REQ-NFR-010, REQ-NFR-016, REQ-NFR-026</li><li><strong>Needs re-verify (8)</strong> — REQ-UI-004, REQ-UI-005, REQ-UI-007, REQ-UI-011, REQ-UI-017, REQ-UI-040, REQ-UI-045, REQ-FN-035 <em>(render/visual gate failures)</em></li><li><strong>In Progress (4)</strong> — REQ-FN-008 <em>(token refresh unreachable)</em>, REQ-FN-034 <em>(view tracking never called)</em>, REQ-FN-037 <em>(no RSS feed)</em>, REQ-NFR-025 <em>(owner: revoke the committed PAT)</em></li><li><strong>N/A — no test surface (4)</strong> — REQ-FN-010, REQ-FN-033, REQ-NFR-008, REQ-NFR-009</li></ul>
+<p>Counts: 139 rows. Terminal 110 (98 <code>Verified</code> + 4 <code>N/A</code> + 8 <code>N/A removed</code>); open 29.</p>
+<h2 id="known-blockers">Known blockers<a class="anchor-link" href="#known-blockers">#</a></h2>
+<ul><li><strong>⚠ Anonymous exposure — 4 defects.</strong> <code>/series/{slug}</code> lists unpublished drafts to anonymous</li></ul>
+<p>visitors (<code>BlogPostRepo.cs:246-248</code> omits <code>Published = TRUE</code> where the sibling COUNT includes it); the sidebar subscribe form bypasses captcha <em>and</em> double opt-in (<code>isconfirmed=t</code> on write); <code>/unsubscribe/{token}</code> 404s so every mailed unsubscribe link is dead; unmatched routes return a zero-byte blank page instead of <code>/404</code>.</p>
+<ul><li><strong>⚠ Projection-completeness is now a FIFTH instance and the gate is still not built.</strong> <code>REQ-FN-015</code></li></ul>
+<p>is the same shape as the four already logged: a read projection omitting a column the write path honours, invisible to compiler and unit tests. This one has a security consequence.</p>
+<ul><li><strong>⚠ SECURITY — live GitHub PAT still committed</strong> in <code>nuget.config</code> (<code>ClearTextPassword</code>), verified</li></ul>
+<p>present this run despite commits titled "Removed nuget config". Must be revoked and reissued by the owner. → REQ-NFR-025.</p>
+<ul><li><strong>⚠ The two user-secret stores disagree.</strong> WSL <code>~/.microsoft/usersecrets/techieblog-host-secrets</code></li></ul>
+<p>and Windows <code>%APPDATA%\Microsoft\UserSecrets\...</code> hold <strong>different</strong> <code>JwtSigningKey</code> / <code>AppEncryptionKey</code>. Both heads read the same encrypted <code>SiteSetting</code> rows and a mismatch fails silently. Currently inert (0 rows with <code>issecret=true</code>); BlogApp's store was aligned to the WSL pair.</p>
+<ul><li><strong>⚠ Analytics cannot populate.</strong> <code>TrackViewAsync</code> has no caller anywhere — <code>postviews</code> stayed 0</li></ul>
+<p>through the entire run — so popular posts, the traffic chart and per-post stats are permanently empty.</p>
+<ul><li><strong>⚠ Prerender→interactive handover shows both shells for ~1.5s</strong>, and the post page blanks entirely</li></ul>
+<p>inside that window. It is the root cause of the <code>document-title</code> a11y violation and of repeated phantom "zero rows" / "2 elements" readings in automation.</p>
+<ul><li><strong>Test suite is green but thin</strong> — 383/386 pass, yet BlogEngine line coverage is <strong>24%</strong> against an</li></ul>
+<p>80% target and no bUnit test touches a real BlogUI component.</p>
+<ul><li><strong>Concurrency ceiling unchanged</strong> — 221 sync Dapper call sites remain; post TTFB measured 3.09s</li></ul>
+<p>under load, 1.7× the 2s budget.</p>
+<h2 id="verification-log">Verification log<a class="anchor-link" href="#verification-log">#</a></h2>
+<table><thead><tr><th>Date</th><th>Phase</th><th>Result</th><th>Status table</th></tr></thead><tbody><tr><td>2026-08-02</td><td>Discovery (day-1)</td><td>Docs only</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr><tr><td>2026-08-06</td><td>Docs amendment</td><td>Docs only — BRD-92…97 added</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr><tr><td>2026-08-06</td><td>Mockups + design review</td><td>Docs only — 38 screens</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr><tr><td>2026-08-07</td><td>Unified *build-phase (11 clusters)</td><td>Build PASS claimed · no verifier run</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr><tr><td>2026-08-08</td><td>Unified *build-phase (15 clusters)</td><td>Build RED → PASS · 383/383 tests · no verifier run</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr><tr><td>2026-08-08</td><td>Build repair (owner-reported RED)</td><td>4 × CS1061 fixed; PASS 0 errors 7/7 · no verifier run</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr><tr><td>2026-08-09</td><td><strong><em>verify all</em> (9 clusters, first executed run)</strong></td><td>Build PASS 0 errors 7/7 · 131 REQs graded · <strong>98 Verified</strong>, 17 FAIL, 8 Needs re-verify, 4 In Progress, 4 N/A · BlogApp STATIC-ONLY lifted · 183 screenshots · seed data restored</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr></tbody></table>
+<h2 id="library-feedback-summary">Library feedback summary<a class="anchor-link" href="#library-feedback-summary">#</a></h2>
+<ul><li><strong>TrBlazeUI:</strong> next free <strong>TR-057</strong>. TR-032 (<code>TabsTrigger</code> splat) is <strong>confirmed fixed</strong> — <code>/settings</code></li></ul>
+<p>renders all six tabs. Still open from app-side observation: <code>DatePicker</code> drops <code>data-testid</code> (TR-030/046 class), and 333 rendered icons showed <strong>0</strong> alias-name misses after the Lucide rename.</p>
+<ul><li><strong>TechieRag:</strong> not used (no AI/RAG features).</li></ul>
+<h2 id="standards-compliance-2026-08-09">Standards compliance (2026-08-09)<a class="anchor-link" href="#standards-compliance-2026-08-09">#</a></h2>
+<ul><li>Underscore fields <strong>0</strong> in hand-written source; <code>obj</code>/Hungarian <strong>0</strong> (re-confirmed by grep this run).</li><li>Nullable enabled in all 6 source projects; build 0 errors / 248 warnings.</li><li>XML docs: no project sets <code>GenerateDocumentationFile</code>, so the recorded 92% cannot be proved or</li></ul>
+<p>disproved — REQ-NFR-008 is now <code>N/A</code> pending that switch.</p>
+<h2 id="deferred-future">Deferred / future<a class="anchor-link" href="#deferred-future">#</a></h2>
+<ul><li>Build the projection-completeness gate (now 5 known instances).</li><li>Wire <code>TrackViewAsync</code> into the post page, then re-verify the analytics surface.</li><li>Raise BlogEngine coverage toward 80% and add bUnit tests over real BlogUI components.</li><li>REQ-NFR-026 stages 3–4, then re-measure the concurrency ceiling.</li><li>Install Firefox + WebKit so REQ-NFR-009 browser compatibility becomes observable.</li><li>macOS (<code>net10.0-maccatalyst</code>) BlogApp head — not buildable from the Windows host.</li></ul>
   </main>
 </div>
-
 <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
 <script>

@@ -1,11 +1,15 @@
 # TechieBlog — Developer Guide (index)
 
-> ⚠ **STATIC-ONLY (2026-08-02)** — built from code reading; NOT yet runtime-verified. Render-status is
-> unconfirmed until `*verify` runs against the running app. **Reason:** the solution does not compile —
-> `dotnet build` / `dotnet run` fail with `NU1605` on both ladder rung #2 (`~/.dotnet/dotnet`) and rung
-> #4 (`cmd.exe /c dotnet`); `BlogUI` pins `Microsoft.AspNetCore.Components.Web 10.0.0` while
-> `Microsoft.FluentUI.AspNetCore.Components 4.*` resolves to 4.14.4 requiring ≥ 10.0.9 (REQ-FN-043).
-> No screenshots could be captured for the same reason.
+> ✅ **Runtime-verified 2026-08-09** as Guest, Contributor, Author, Editor and Admin — superseding the
+> 2026-08-02 `STATIC-ONLY` banner. That banner's stated reason (the solution does not compile, `NU1605`)
+> is **stale**: the solution builds `0 Error(s)` across 7/7 projects and both heads run. `*verify all`
+> exercised 131 REQs against the running app on `http://localhost:5399` plus the BlogApp desktop head
+> over WebView2 CDP, capturing 183 screenshots.
+>
+> Render-status cells below that still read `static-only (unconfirmed)` were **not** individually
+> re-stamped; the authoritative per-screen runtime observations are in each role guide's
+> **"Runtime verification (2026-08-09)"** section, and the authoritative per-REQ verdicts are in
+> `docs/TechieBlog-Checklist.md` → Requirements Status.
 
 **Generated 2026-08-02 · reflects code as built.**
 

@@ -1,10 +1,29 @@
 # TechieBlog — Developer Guide · Author
 
-> ⚠ **STATIC-ONLY (2026-08-02)** — built from code reading; NOT yet runtime-verified. Render-status is
-> unconfirmed until `*verify` runs against the running app (the solution currently does not compile —
-> REQ-FN-043).
+> ✅ **Runtime-verified 2026-08-09 as Author (and Admin, for the scoping comparison)** — supersedes the
+> 2026-08-02 `STATIC-ONLY` banner, whose stated reason (solution does not compile, REQ-FN-043) is stale.
 
 Index: [TechieBlog-DevGuide.md](./TechieBlog-DevGuide.md)
+
+## Runtime verification (2026-08-09)
+
+| Screen / control | Observed | Detail |
+|------------------|----------|--------|
+| `/BlogsList` | **renders ✓** | the 2026-08-02 note that an Author "cannot reach any post list" is **resolved**: the page is `AuthorOrAbove` with server-side scoping. Author sees exactly her own 2 rows, all authored "Arun Nair", **0 "Unknown" cells**, published rows showing `PublishedOn` not `CreatedOn`. Admin sees 10 with tabs All 10 / Published 8 / Drafts 1 / **Scheduled 1** — the Scheduled tab that could once only show 0 now works |
+| `/BlogsList` tab strip | **visual-broken (DEFECT)** | at 390 the "Scheduled (1)" tab measures `right=411` in a 390px viewport with `overflow-x:visible`, so 21px is **clipped rather than scrollable** and the count digit is cut. Still operable. 1280 clean |
+| `/ManagePost` Markdown body | **render-error (DEFECT)** | **the textarea loses and reorders keystrokes** — typing a 15-character string retained only 3–12 characters in 3 of 4 runs, at both 120ms and 1000ms per key. Every keystroke round-trips to the server and the re-render overwrites the DOM value. The live preview itself is correct and updates without blur or save |
+| `/ManagePost` category | **render-error (DEFECT)** | saving with the dropdown on its "-- Select Category --" default writes `CategoryId=0` and surfaces the **raw database error** `23503: ... violates foreign key constraint "blogpost_categoryid_fkey"` to the user, with no row saved. Reproduced in all 4 runs and independently on the desktop head |
+| `/ManagePost` schedule | **renders ✓** | scheduling persisted and the **background publisher was proved end to end** — a row set due was picked up by `ScheduledPostPublisher`'s minute tick, which flipped `published=true` and cleared `scheduledpublishon`. Note `data-testid="publish-date-picker"` never reaches the DOM (TrBlazeUI `DatePicker` drops unmatched attributes) |
+| `/ManagePost` tags / series / featured image | **renders ✓** | inline tag creation wrote the tag plus exactly 1 junction row; series selector auto-assigned the next part number; picker present |
+| `/admin/preview/{id}` | **renders ✓** | draft renders in full with the "not published" banner, author, reading time and 655 chars of Markdig HTML |
+| `/admin/series`, `ManageSeries` | **renders ✓** | both series with real authors and part badges matching the published-only count; full create/update/delete round trip returned the count to 2 |
+| slug generation | **renders ✓** | auto-generated from the title; a second post with an identical title produced a distinct `-2` slug |
+
+**Cross-head note:** a post authored and published in the **BlogApp desktop head** appeared immediately
+on the **web host** (separate process, same database), proving the shared `BlogUI`/`BlogEngine` write path.
+
+**Known harness trap for the next agent:** `Blazor.navigateTo('/ManagePost')` from `/ManagePost` is a
+**no-op**, so the editor keeps the post it just saved and a "new post" silently becomes an update.
 
 An Author sees every Reader screen plus the ten below, all guarded by
 `@attribute [Authorize(Policy = "AuthorOrAbove")]` (Admin, Editor, Author) and rendered in `AdminLayout`.

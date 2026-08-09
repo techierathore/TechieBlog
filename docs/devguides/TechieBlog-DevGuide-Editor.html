@@ -104,24 +104,30 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 @media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{position:static;height:auto}}</style>
 </head>
 <body>
-<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">&#9782; Dark</button>
-<div class="layout no-toc">
-
-  <main>
+<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">☾ Dark</button>
+<div class="layout">
+  <nav class="side">
     <h1>TechieBlog — Developer Guide · Editor</h1>
-    <div class="subtitle">Generated 2026-08-02 · code as built · STATIC-ONLY</div>
+    <div class="sub">Last rendered: 2026-08-09</div>
+    <div class="group">Contents</div>
+    <ol>
+      <li><a href="#runtime-verification-2026-08-09">Runtime verification (2026-08-09)</a></li>
+      <li><a href="#editor-admin-dashboard-admin-admindashboard">Editor · Admin dashboard (`/admin`, `/AdminDashboard`)</a></li>
+      <li><a href="#editor-comment-moderation-commentslist-comments">Editor · Comment moderation (`/CommentsList`, `/comments`)</a></li>
+      <li><a href="#editor-all-posts-blogslist">Editor · All posts (`/BlogsList`)</a></li>
+    </ol>
+  </nav>
+  <main>
+    <div class="subtitle">Runtime-verified 2026-08-09 by <code>*verify all</code></div>
 
-<div class="toc-inline">
-<div>Contents</div>
-<ol>
-<li><a href="#editor-admin-dashboard-admin-admindashboard">Editor · Admin dashboard (<code>/admin</code>, <code>/AdminDashboard</code>)</a></li>
-<li><a href="#editor-comment-moderation-commentslist-comments">Editor · Comment moderation (<code>/CommentsList</code>, <code>/comments</code>)</a></li>
-<li><a href="#editor-all-posts-blogslist">Editor · All posts (<code>/BlogsList</code>)</a></li>
-</ol>
-</div>
-<blockquote>⚠ <strong>STATIC-ONLY (2026-08-02)</strong> — built from code reading; NOT yet runtime-verified. Render-status is unconfirmed until <code>*verify</code> runs against the running app (the solution currently does not compile — REQ-FN-043).</blockquote>
-<p>Index: <a href="./TechieBlog-DevGuide.html">TechieBlog-DevGuide.md</a></p>
-<p>An Editor sees every Author screen plus the three below. All are guarded by <code>@attribute [Authorize(Policy = &quot;EditorOrAbove&quot;)]</code> (Admin, Editor) and use <code>AdminLayout</code>. Editors are also the lowest role that the post-login redirect (<code>/admin</code>) actually works for.</p>
+<h1>TechieBlog — Developer Guide · Editor</h1>
+<p>&gt; ✅ <strong>Runtime-verified 2026-08-09 as Editor</strong> — supersedes the 2026-08-02 <code>STATIC-ONLY</code> banner, whose &gt; stated reason (solution does not compile, REQ-FN-043) is stale.</p>
+<p>Index: <a href="./TechieBlog-DevGuide.md">TechieBlog-DevGuide.md</a></p>
+<h2 id="runtime-verification-2026-08-09">Runtime verification (2026-08-09)<a class="anchor-link" href="#runtime-verification-2026-08-09">#</a></h2>
+<p>The Editor role was exercised specifically to prove that authorisation <strong>hides</strong> rather than half-renders, and that the dashboard never offers a destination the role cannot open.</p>
+<table><thead><tr><th>Observation</th><th>Result</th></tr></thead><tbody><tr><td>Admin sidebar entries</td><td><strong>10 for Editor vs 17 for Admin</strong> — categories, tags, images, users, subscribers, newsletter and settings are <strong>absent from the navigation</strong>, not rendered-then-refused</td></tr><tr><td>Dashboard quick actions</td><td>Editor is offered only <code>New Post</code> and <code>Moderate Comments</code>; the two <code>AdminOnly</code> destinations (Send Newsletter, Manage Users) are <strong>not offered</strong>. Both offered actions opened with <strong>no <code>/access-denied</code> bounce</strong> — this closes the defect where an Editor was shown actions that then bounced</td></tr><tr><td>Policy matrix</td><td>Editor <strong>denied</strong> <code>/users</code> and <code>/settings</code>, <strong>allowed</strong> <code>/admin</code> and <code>/BlogsList</code>. Every denial landed on the access-denied surface, never a raw 403</td></tr><tr><td>Comment moderation</td><td>16/16 rows with every cell populated; status tabs exact against psql; approve moved a comment to publicly visible</td></tr><tr><td>Post management</td><td>Editor sees all posts (unlike an Author's own-only scoping), with real author names and publish dates</td></tr><tr><td>Sign-in landing</td><td>Editor lands on <code>/admin</code>, per <code>RoleLandingRoutes</code></td></tr></tbody></table>
+<p><strong>Defect visible to this role:</strong> <code>/access-denied</code> renders the <code>AuthLayout</code> card <strong>nested inside the public blog shell</strong> on client-side navigation — two TechieBlog logos, an unrelated Search/Categories sidebar beside the permission card, and a duplicated <code>theme-toggle</code> overlapping itself. It renders correctly on a full page load, so this is a layout-nesting issue on client-side routing.</p>
+<p>An Editor sees every Author screen plus the three below. All are guarded by <code>@attribute [Authorize(Policy = "EditorOrAbove")]</code> (Admin, Editor) and use <code>AdminLayout</code>. Editors are also the lowest role that the post-login redirect (<code>/admin</code>) actually works for.</p>
 <h2 id="editor-admin-dashboard-admin-admindashboard">Editor · Admin dashboard (<code>/admin</code>, <code>/AdminDashboard</code>)<a class="anchor-link" href="#editor-admin-dashboard-admin-admindashboard">#</a></h2>
 <p><strong>File:</strong> <code>source/BlogUI/Pages/AdminPages/AdminDashboard.razor</code> + <code>.razor.cs</code></p>
 <div class="diagram">
@@ -131,41 +137,19 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     <button data-zin title="Zoom in">+</button>
     <button data-fit title="Fit to width">Fit</button>
     <button data-one title="Actual size">1:1</button>
-    <button data-fs title="Fullscreen">⬜</button>
+    <button data-fs title="Fullscreen">⛶</button>
     <button data-pop title="Open in new tab">↗</button>
   </div>
-<pre class="mermaid">flowchart LR
+  <pre class="mermaid">flowchart LR
   AD["AdminDashboard.razor.cs"] --> B["BlogSvc.GetAllPosts"]
   B --> R["BlogPostRepo"]
   R --> DB[("BlogPost")]
   AD --> Stub["TotalUsers, TotalSubscribers, TotalComments — hardcoded"]</pre>
 </div>
-<table>
-<thead><tr><th>Control</th><th>What it shows</th><th>Source</th><th>Render status</th></tr></thead>
-<tbody>
-<tr><td>Total posts tile</td><td><code>posts.Count</code></td><td><code>BlogService.GetAllPosts(0, true)</code> — <code>AdminDashboard.razor.cs:46-47</code></td><td>static-only (unconfirmed)</td></tr>
-<tr><td>Posts this month</td><td><code>posts.Count(p =&gt; p.CreatedOn &gt;= startOfMonth)</code></td><td><code>:51-52</code></td><td>static-only (unconfirmed)</td></tr>
-<tr><td>Draft / scheduled counts</td><td>LINQ over the same list</td><td><code>:48-49</code></td><td>static-only (unconfirmed)</td></tr>
-<tr><td><strong>Total users tile</strong></td><td><strong><code>TotalUsers = 1</code> — hardcoded</strong></td><td><code>:63</code></td><td><strong>DEFECT (static) — stub data</strong></td></tr>
-<tr><td><strong>Users this month</strong></td><td><strong><code>UsersThisMonth = 0</code> — hardcoded</strong></td><td><code>:64</code></td><td><strong>DEFECT (static) — stub data</strong></td></tr>
-<tr><td><strong>Subscribers tile</strong></td><td><strong><code>TotalSubscribers = 1</code> — hardcoded</strong></td><td><code>:65</code></td><td><strong>DEFECT (static) — stub data</strong></td></tr>
-<tr><td><strong>Subscribers this month</strong></td><td><strong><code>SubscribersThisMonth = 0</code> — hardcoded</strong></td><td><code>:66</code></td><td><strong>DEFECT (static) — stub data</strong></td></tr>
-<tr><td><strong>Comments tile</strong></td><td><strong><code>TotalComments = 0</code> — hardcoded</strong></td><td><code>:67</code></td><td><strong>DEFECT (static) — stub data</strong></td></tr>
-<tr><td><strong>Pending comments badge</strong></td><td><strong><code>PendingComments = 0</code> — hardcoded</strong>, so the badge always reads "All reviewed"</td><td><code>:68</code>, markup <code>AdminDashboard.razor:33-40</code></td><td><strong>DEFECT (static) — stub data</strong></td></tr>
-<tr><td><strong>"Popular posts"</strong></td><td>Recent <em>published</em> posts with <code>Views = 0</code></td><td><code>:55-59</code></td><td><strong>DEFECT (static) — mislabelled; no view data exists</strong></td></tr>
-<tr><td>Recent activity feed</td><td>Derived from published posts</td><td><code>BuildRecentActivity(...)</code> <code>:85-92</code></td><td>static-only (unconfirmed)</td></tr>
-</tbody></table>
+<table><thead><tr><th>Control</th><th>What it shows</th><th>Source</th><th>Render status</th></tr></thead><tbody><tr><td>Total posts tile</td><td><code>posts.Count</code></td><td><code>BlogService.GetAllPosts(0, true)</code> — <code>AdminDashboard.razor.cs:46-47</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Posts this month</td><td><code>posts.Count(p =&gt; p.CreatedOn &gt;= startOfMonth)</code></td><td><code>:51-52</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Draft / scheduled counts</td><td>LINQ over the same list</td><td><code>:48-49</code></td><td>static-only (unconfirmed)</td></tr><tr><td><strong>Total users tile</strong></td><td><strong><code>TotalUsers = 1</code> — hardcoded</strong></td><td><code>:63</code></td><td><strong>DEFECT (static) — stub data</strong></td></tr><tr><td><strong>Users this month</strong></td><td><strong><code>UsersThisMonth = 0</code> — hardcoded</strong></td><td><code>:64</code></td><td><strong>DEFECT (static) — stub data</strong></td></tr><tr><td><strong>Subscribers tile</strong></td><td><strong><code>TotalSubscribers = 1</code> — hardcoded</strong></td><td><code>:65</code></td><td><strong>DEFECT (static) — stub data</strong></td></tr><tr><td><strong>Subscribers this month</strong></td><td><strong><code>SubscribersThisMonth = 0</code> — hardcoded</strong></td><td><code>:66</code></td><td><strong>DEFECT (static) — stub data</strong></td></tr><tr><td><strong>Comments tile</strong></td><td><strong><code>TotalComments = 0</code> — hardcoded</strong></td><td><code>:67</code></td><td><strong>DEFECT (static) — stub data</strong></td></tr><tr><td><strong>Pending comments badge</strong></td><td><strong><code>PendingComments = 0</code> — hardcoded</strong>, so the badge always reads "All reviewed"</td><td><code>:68</code>, markup <code>AdminDashboard.razor:33-40</code></td><td><strong>DEFECT (static) — stub data</strong></td></tr><tr><td><strong>"Popular posts"</strong></td><td>Recent <em>published</em> posts with <code>Views = 0</code></td><td><code>:55-59</code></td><td><strong>DEFECT (static) — mislabelled; no view data exists</strong></td></tr><tr><td>Recent activity feed</td><td>Derived from published posts</td><td><code>BuildRecentActivity(...)</code> <code>:85-92</code></td><td>static-only (unconfirmed)</td></tr></tbody></table>
 <p><strong>This is the highest-value finding in the guide.</strong> <code>CommentSvc.GetAdminCounts()</code> and the <code>AdminCounts</code> model exist and would supply real comment counts, and <code>IBlogUserRepo</code> / <code>ISubscriberRepo</code> could supply the rest — but the dashboard injects <strong>only <code>BlogSvc</code></strong> (<code>AdminDashboard.razor.cs:15-16</code>) and fills the other three tiles with constants. The screen renders and looks correct; the numbers are fiction. Logged to REQ-UI-019 and REQ-FN-036 as <code>Needs re-verify</code>.</p>
 <p><strong>Data lineage</strong></p>
-<table>
-<thead><tr><th>Step</th><th>Symbol</th><th>File</th></tr></thead>
-<tbody>
-<tr><td>Page</td><td><code>AdminDashboard.razor.cs</code> <code>[Inject] BlogSvc BlogService</code></td><td><code>Pages/AdminPages/AdminDashboard.razor.cs:15</code></td></tr>
-<tr><td>Service</td><td><code>BlogSvc.GetAllPosts(int, bool)</code></td><td><code>BlogEngine/Services/BlogSvc.cs</code></td></tr>
-<tr><td>Data access</td><td><code>BlogPostRepo</code></td><td><code>BlogEngine/DbAccess/BlogPostRepo.cs</code></td></tr>
-<tr><td>SQL</td><td>inline <code>SELECT p.PostID …</code> on <code>BlogPost</code></td><td><code>BlogPostRepo.cs</code></td></tr>
-<tr><td>Users / comments / subscribers</td><td><strong>none — constants in the page</strong></td><td><code>AdminDashboard.razor.cs:63-68</code></td></tr>
-</tbody></table>
+<table><thead><tr><th>Step</th><th>Symbol</th><th>File</th></tr></thead><tbody><tr><td>Page</td><td><code>AdminDashboard.razor.cs</code> <code>[Inject] BlogSvc BlogService</code></td><td><code>Pages/AdminPages/AdminDashboard.razor.cs:15</code></td></tr><tr><td>Service</td><td><code>BlogSvc.GetAllPosts(int, bool)</code></td><td><code>BlogEngine/Services/BlogSvc.cs</code></td></tr><tr><td>Data access</td><td><code>BlogPostRepo</code></td><td><code>BlogEngine/DbAccess/BlogPostRepo.cs</code></td></tr><tr><td>SQL</td><td>inline <code>SELECT p.PostID …</code> on <code>BlogPost</code></td><td><code>BlogPostRepo.cs</code></td></tr><tr><td>Users / comments / subscribers</td><td><strong>none — constants in the page</strong></td><td><code>AdminDashboard.razor.cs:63-68</code></td></tr></tbody></table>
 <p><strong>Fix sketch:</strong> inject <code>CommentSvc</code>, <code>IBlogUserRepo</code> and <code>SubscriberSvc</code>; replace lines 63–68 with <code>CommentService.GetAdminCounts()</code>, <code>UserRepo.GetAll(...).Count()</code> and <code>SubscriberService.GetAllSubscribers().Count()</code>; leave <code>PopularPosts</code> stubbed until REQ-FN-034 (view tracking) lands, but rename it so it does not claim to be popularity.</p>
 <h2 id="editor-comment-moderation-commentslist-comments">Editor · Comment moderation (<code>/CommentsList</code>, <code>/comments</code>)<a class="anchor-link" href="#editor-comment-moderation-commentslist-comments">#</a></h2>
 <p><strong>File:</strong> <code>source/BlogUI/Pages/AdminPages/CommentsList.razor</code></p>
@@ -176,45 +160,24 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     <button data-zin title="Zoom in">+</button>
     <button data-fit title="Fit to width">Fit</button>
     <button data-one title="Actual size">1:1</button>
-    <button data-fs title="Fullscreen">⬜</button>
+    <button data-fs title="Fullscreen">⛶</button>
     <button data-pop title="Open in new tab">↗</button>
   </div>
-<pre class="mermaid">flowchart LR
+  <pre class="mermaid">flowchart LR
   CL["CommentsList.razor"] --> CS["CommentSvc"]
   CL --> BS["BlogSvc.GetSinglePost"]
   CS --> CR["BlogCommentRepo"]
   CR --> DB[("blogcomment")]</pre>
 </div>
-<table>
-<thead><tr><th>Control</th><th>What it does</th><th>Source call</th><th>Render status</th></tr></thead>
-<tbody>
-<tr><td>Comment table</td><td>All comments, paged</td><td><code>CommentService.GetAllComments(...)</code></td><td>static-only (unconfirmed)</td></tr>
-<tr><td>Post title per row</td><td>Resolves the owning post</td><td><code>BlogService.GetSinglePost(...)</code></td><td>static-only (unconfirmed) — <em>per-row lookup; potential N+1</em></td></tr>
-<tr><td>Approve</td><td>Publishes a pending comment</td><td><code>CommentService.ApproveComment(...)</code></td><td>static-only (unconfirmed)</td></tr>
-<tr><td>Delete</td><td>Removes a comment</td><td><code>CommentService.DeleteComment(...)</code></td><td>static-only (unconfirmed)</td></tr>
-</tbody></table>
+<table><thead><tr><th>Control</th><th>What it does</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Comment table</td><td>All comments, paged</td><td><code>CommentService.GetAllComments(...)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Post title per row</td><td>Resolves the owning post</td><td><code>BlogService.GetSinglePost(...)</code></td><td>static-only (unconfirmed) — <em>per-row lookup; potential N+1</em></td></tr><tr><td>Approve</td><td>Publishes a pending comment</td><td><code>CommentService.ApproveComment(...)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Delete</td><td>Removes a comment</td><td><code>CommentService.DeleteComment(...)</code></td><td>static-only (unconfirmed)</td></tr></tbody></table>
 <p><strong>Data lineage:</strong> page → <code>CommentSvc</code> (<code>BlogEngine/Services/CommentSvc.cs</code>, 313 lines, FIX-005) → <code>BlogCommentRepo</code> → <code>SELECT * FROM blogcomment</code>, <code>UPDATE blogcomment</code>, <code>DELETE FROM blogcomment</code>, <code>INSERT INTO blogcomment</code>.</p>
 <p><strong>Business rules:</strong> approval is required only when comment moderation is enabled — but that setting is never persisted (see the Admin guide, Settings). <code>{unresolved — TODO: locate the runtime source of the moderation flag.}</code></p>
-<p><strong>Known issues (static):</strong></p>
-<ol>
-<li><code>GetSinglePost</code> is called per row to render the post title — an N+1 query pattern on a page that</li>
-</ol>
-<p>   pages through all comments. Worth a join in <code>CommentSvc.GetAllComments</code>.</p>
-<ol>
-<li>Story 4.2 specifies bulk approve/reject and a rejection reason; only single approve and delete were</li>
-</ol>
-<p>   found. <code>{unresolved — TODO: confirm whether bulk actions exist in the markup.}</code></p>
-<ol>
-<li><code>ManageComments.razor</code> exists with an 11-line code-behind containing only a <code>partial class</code></li>
-</ol>
-<p>   declaration — an empty scaffold. Confirm whether it is reachable or dead    (<code>Pages/AdminPages/ManageComments.razor.cs:9</code>).</p>
+<p><strong>Known issues (static):</strong> 1. <code>GetSinglePost</code> is called per row to render the post title — an N+1 query pattern on a page that pages through all comments. Worth a join in <code>CommentSvc.GetAllComments</code>. 2. Story 4.2 specifies bulk approve/reject and a rejection reason; only single approve and delete were found. <code>{unresolved — TODO: confirm whether bulk actions exist in the markup.}</code> 3. <code>ManageComments.razor</code> exists with an 11-line code-behind containing only a <code>partial class</code> declaration — an empty scaffold. Confirm whether it is reachable or dead (<code>Pages/AdminPages/ManageComments.razor.cs:9</code>).</p>
 <h2 id="editor-all-posts-blogslist">Editor · All posts (<code>/BlogsList</code>)<a class="anchor-link" href="#editor-all-posts-blogslist">#</a></h2>
 <p>Documented in the Author guide (the page is guarded <code>EditorOrAbove</code>, so in practice it is an Editor screen — that mismatch is itself a logged finding).</p>
-<hr>
-<p>Generated 2026-08-02 · reflects code as built · ⚠ STATIC-ONLY</p>
+<p>--- Generated 2026-08-02 · reflects code as built · ⚠ STATIC-ONLY</p>
   </main>
 </div>
-
 <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
 <script>// Light/dark toggle. The initial theme was already applied flash-free by the
