@@ -21,6 +21,19 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
     /// </remarks>
     public const string MustChangePasswordClaim = "MustChangePassword";
 
+    /// <summary>
+    /// Serialises session renewals within one circuit (REQ-FN-008).
+    /// </summary>
+    /// <remarks>
+    /// A single page load can rebuild the authentication state more than once, and a renewal
+    /// rotates the token: two resolutions that both read the <i>old</i> value would each try to
+    /// redeem it, and the second would be refused because the first already replaced it — signing
+    /// the user out at the exact moment the feature was supposed to keep them in. The gate makes
+    /// the second one wait and then discover that the session is already renewed. The provider is
+    /// scoped to a circuit, so this never contends across users.
+    /// </remarks>
+    private readonly SemaphoreSlim refreshGate = new(1, 1);
+
     public ILocalStorageService LocalStorageSvc { get; }
     public IAuthService AuthSvc { get; set; }
 
@@ -42,7 +55,7 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
 
             if (vAccessToken != null && vAccessToken != string.Empty)
             {
-                AppUser? user = await AuthSvc.GetUserByAccessTokenAsync(vAccessToken);
+                AppUser? user = await ResolveSessionUserAsync(vAccessToken);
                 vIdentity = GetClaimsIdentity(user);
             }
             else
@@ -59,6 +72,81 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
 
         var vClaimsPrincipal = new ClaimsPrincipal(vIdentity);
         return await Task.FromResult(new AuthenticationState(vClaimsPrincipal));
+    }
+
+    /// <summary>
+    /// Resolves the signed-in user behind the stored access token, renewing the session when that
+    /// token has expired (REQ-FN-008, BRD-6).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> This is the one place every circuit passes through to rehydrate
+    /// its principal, which is why the refresh belongs here rather than in a page: an expired token
+    /// resolved anywhere else would already have become a redirect to the sign-in screen. The stored
+    /// refresh token is only reached for when the access token fails, so a live session costs
+    /// exactly one lookup, as before.</para>
+    /// <para><b>Flow:</b> resolve the access token → on failure read the refresh token → redeem it →
+    /// persist the replacement pair → return the user.</para>
+    /// <para><b>Side Effects:</b> On a successful renewal, rewrites both browser storage slots and
+    /// the session's <c>UserLogin</c> row. Nothing is written when the session cannot be renewed —
+    /// the stale values are left for <c>MarkUserAsLoggedOut</c> or the desktop head to clear, so a
+    /// transient database failure does not sign a user out permanently.</para>
+    /// <para><b>Storing the replacement is not optional.</b> The engine rewrites the session row on
+    /// use, so the token that was presented stops working the moment the refresh succeeds. Dropping
+    /// the two writes below would renew the session on every single render and leave the browser
+    /// holding a value that is already dead.</para>
+    /// <para><b>Scope of the guarantee.</b> Blazor Server asks for the authentication state when a
+    /// circuit starts, not on a timer, so a session is renewed at the next reconnect, reload or
+    /// navigation that rebuilds the state — not at the instant the token expires. Within one
+    /// long-lived circuit nothing re-checks, which is the same behaviour the product had before and
+    /// is why the access-token lifetime is a policy value rather than something to minimise.</para>
+    /// </remarks>
+    /// <param name="accessToken">The access token held in browser local storage.</param>
+    /// <returns>The signed-in user, or <c>null</c> when the session is over.</returns>
+    protected async Task<AppUser?> ResolveSessionUserAsync(string accessToken)
+    {
+        var user = await AuthSvc.GetUserByAccessTokenAsync(accessToken);
+        if (user != null)
+        {
+            return user;
+        }
+
+        await refreshGate.WaitAsync();
+        try
+        {
+            var storedToken = await LocalStorageSvc.GetItemAsync<string>(AppConstants.AccessKey);
+            if (!string.IsNullOrEmpty(storedToken) && storedToken != accessToken)
+            {
+                // Another resolution on this circuit renewed the session while this one waited.
+                var renewedElsewhere = await AuthSvc.GetUserByAccessTokenAsync(storedToken);
+                if (renewedElsewhere != null)
+                {
+                    return renewedElsewhere;
+                }
+
+                accessToken = storedToken;
+            }
+
+            var refreshToken = await LocalStorageSvc.GetItemAsync<string>(AppConstants.RefreshKey);
+            if (string.IsNullOrEmpty(refreshToken))
+            {
+                return null;
+            }
+
+            var refreshedUser = await AuthSvc.RefreshTokenAsync(
+                new RefreshRequest { AccessToken = accessToken, RefreshToken = refreshToken });
+            if (refreshedUser == null)
+            {
+                return null;
+            }
+
+            await LocalStorageSvc.SetItemAsync(AppConstants.AccessKey, refreshedUser.AccessToken);
+            await LocalStorageSvc.SetItemAsync(AppConstants.RefreshKey, refreshedUser.RefreshToken);
+            return refreshedUser;
+        }
+        finally
+        {
+            refreshGate.Release();
+        }
     }
 
     public async Task MarkUserAsAuthenticated(AppUser aLoggedUser)

@@ -16,16 +16,27 @@
 
 <header class="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
         data-testid="public-header">
-    <div class="mx-auto flex h-16 w-full max-w-7xl items-center gap-4 px-4 sm:px-6">
+    @* REQ-UI-005 (2026-08-09): the bar must fit a 320px viewport with NO horizontal scroll.
+       The previous `gap-4 px-4` plus a dedicated flex-1 spacer element cost 32px of padding
+       and TWO 16px gaps, which pushed the actions cluster to x=325 on a 320px screen. Below
+       `sm` the padding shrinks to px-3, the container gap halves, and the spacer is replaced by
+       `ml-auto` on the actions (one fewer flex child, so one fewer gap); the brand can also
+       shrink and truncate instead of forcing its intrinsic width. The desktop spacing is
+       unchanged in effect because the nav already carries its own `ml-2`.
+
+       The three icon buttons are the fixed cost here: utilities.css raises every square icon
+       control to the 44px target-size token (REQ-NFR-007), so the actions cluster cannot be
+       made narrower — the room has to come from the padding, the gaps and the brand. *@
+    <div class="mx-auto flex h-16 w-full max-w-7xl items-center gap-2 px-3 sm:px-6">
 
         @* Brand *@
         <a href="/"
-           class="flex shrink-0 items-center gap-2 font-semibold text-foreground no-underline"
+           class="flex min-w-0 items-center gap-2 font-semibold text-foreground no-underline"
            data-testid="brand-link">
-            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <LucideIcon Name="code" Size="16" />
             </span>
-            <span class="text-base">TechieBlog</span>
+            <span class="truncate text-base">TechieBlog</span>
         </a>
 
         @* Desktop navigation *@
@@ -55,10 +66,9 @@
             </ul>
         </nav>
 
-        <div class="flex-1"></div>
-
-        @* Actions: search, theme, mobile drawer trigger *@
-        <div class="flex items-center gap-1">
+        @* Actions: search, theme, mobile drawer trigger.
+           `ml-auto` does the spacer's job without adding a flex child (see the note above). *@
+        <div class="ml-auto flex shrink-0 items-center gap-0.5">
             <Button Variant="ButtonVariant.Ghost"
                     Size="ButtonSize.Icon"
                     OnClick="NavigateToSearch"

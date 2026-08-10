@@ -104,8 +104,25 @@
             {
                 <Card data-testid="search-result">
                     <CardContent Class="flex flex-col gap-4 p-4 sm:flex-row">
+                        @* REQ-UI-011 (2026-08-09): the thumbnail was a hardcoded grey "Image" box on
+                           every row even though every published post carries a FeaturedImage. The
+                           search projection selects that column, so the real cover is shown and the
+                           placeholder is kept only as the genuine no-image fallback — the same
+                           rule PostCard applies on the home and archive listings. *@
                         <div class="h-28 w-full shrink-0 overflow-hidden rounded-md bg-muted sm:w-40">
-                            <div class="flex h-full w-full items-center justify-center text-xs text-muted-foreground">Image</div>
+                            @if (!string.IsNullOrWhiteSpace(result.ImageUrl))
+                            {
+                                <img src="@result.ImageUrl"
+                                     alt="@result.Title"
+                                     loading="lazy"
+                                     class="h-full w-full object-cover"
+                                     data-testid="search-result-image" />
+                            }
+                            else
+                            {
+                                <div class="flex h-full w-full items-center justify-center text-xs text-muted-foreground"
+                                     data-testid="search-result-image-placeholder">Image</div>
+                            }
                         </div>
                         <div class="flex flex-1 flex-col gap-2">
                             <div>
@@ -114,7 +131,7 @@
                             <h3 class="text-lg font-semibold leading-snug">
                                 <a href="/post/@result.Slug"
                                    class="text-foreground no-underline hover:text-primary hover:underline"
-                                   data-testid="search-result-title">@result.Title</a>
+                                   data-testid="search-result-title">@((MarkupString)result.TitleWithHighlights)</a>
                             </h3>
                             <p class="text-sm text-muted-foreground" data-testid="search-result-excerpt">
                                 @((MarkupString)result.ExcerptWithHighlights)
@@ -168,6 +185,12 @@ else
     private int totalResults = 0;
     private int currentPage = 1;
     private const int PageSize = 10;
+
+    /// <summary>Characters of the post abstract kept in a result card.</summary>
+    private const int ExcerptLength = 200;
+
+    /// <summary>Characters of the post title kept in a result card.</summary>
+    private const int TitleLength = 160;
 
     /// <summary>
     /// Initialize component and perform search if query provided.
@@ -241,15 +264,43 @@ else
         // Convert BlogPost to SearchResult with highlighted excerpts
         searchResults = posts.Select(post => new SearchResult
         {
-            Category = "Blog", // Category name would require a join - simplified for now
+            Category = ResolveCategoryName(post.CategoryId),
             Title = post.Title ?? string.Empty,
-            ExcerptWithHighlights = HighlightSearchTerms(post.Abstract ?? string.Empty, searchQuery),
+            TitleWithHighlights = HighlightSearchTerms(post.Title ?? string.Empty, searchQuery, TitleLength),
+            ExcerptWithHighlights = HighlightSearchTerms(post.Abstract ?? string.Empty, searchQuery, ExcerptLength),
             Slug = post.Slug ?? string.Empty,
             Author = post.BlogWriter ?? "Unknown",
             Date = post.CreatedOn.ToString("MMM dd, yyyy"),
             ReadTime = EstimateReadTime(post.PostContent),
+            ImageUrl = post.FeaturedImage ?? string.Empty,
             Rating = 0
         }).ToList();
+    }
+
+    /// <summary>
+    /// Maps a post's category id onto the category's display name.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Every result card used to render the literal badge "Blog"
+    /// because the page assumed the name needed an extra join (REQ-UI-011 defect, 2026-08-09).
+    /// It does not: the search projection already returns <c>CategoryId</c>, and the full
+    /// category list is loaded up front for the filter dropdown — so the name is a lookup in a
+    /// list that is in memory anyway, with no additional database round trip.</para>
+    /// <para><b>Flow:</b> match on id → fall back to "Uncategorized" for id 0 or a category that
+    /// has since been deleted.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <param name="categoryId">The post's category id; zero means uncategorised.</param>
+    /// <returns>The category name, or "Uncategorized" when it cannot be resolved.</returns>
+    private string ResolveCategoryName(int categoryId)
+    {
+        if (categoryId <= 0)
+            return "Uncategorized";
+
+        var match = categories.FirstOrDefault(category => category.CategoryId == categoryId);
+        return match is null || string.IsNullOrWhiteSpace(match.CategoryName)
+            ? "Uncategorized"
+            : match.CategoryName;
     }
 
     /// <summary>
@@ -264,16 +315,20 @@ else
     /// (REQ-NFR-006 / BRD-83).</para>
     /// <para><b>Side Effects:</b> None.</para>
     /// </remarks>
-    /// <param name="text">The raw post abstract.</param>
+    /// <param name="text">The raw post abstract or title.</param>
     /// <param name="query">The visitor's search query.</param>
+    /// <param name="maxLength">Characters kept before the text is elided with an ellipsis.</param>
     /// <returns>Encoded HTML safe to render as a <c>MarkupString</c>.</returns>
-    private string HighlightSearchTerms(string text, string query)
+    private string HighlightSearchTerms(string text, string query, int maxLength)
     {
         if (string.IsNullOrWhiteSpace(text))
             return string.Empty;
 
-        // Truncate text to reasonable excerpt length
-        var excerpt = text.Length > 200 ? text.Substring(0, 200) + "..." : text;
+        // Truncate text to a reasonable display length. The same routine now serves the title
+        // as well as the abstract (REQ-UI-011, 2026-08-09): the search matches Title, Abstract,
+        // PostContent and Tags, so a title-only hit previously produced a result card with no
+        // <mark> anywhere and no visible reason for being in the list.
+        var excerpt = text.Length > maxLength ? text.Substring(0, maxLength) + "..." : text;
 
         var words = (query ?? string.Empty)
             .Split(' ', StringSplitOptions.RemoveEmptyEntries)
@@ -341,11 +396,13 @@ else
     {
         public string Category { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
+        public string TitleWithHighlights { get; set; } = string.Empty;
         public string ExcerptWithHighlights { get; set; } = string.Empty;
         public string Slug { get; set; } = string.Empty;
         public string Author { get; set; } = string.Empty;
         public string Date { get; set; } = string.Empty;
         public string ReadTime { get; set; } = string.Empty;
+        public string ImageUrl { get; set; } = string.Empty;
         public int Rating { get; set; }
     }
 }

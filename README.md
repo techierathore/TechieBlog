@@ -70,29 +70,49 @@ This renames:
    - [.NET 10 SDK](https://dotnet.microsoft.com/download)
    - [PostgreSQL 15+](https://www.postgresql.org/download/)
 
-2. **Configure Database**
+2. **Authenticate to the TrBlazeUI NuGet feed** (required — restore fails without it)
+
+   The UI layer depends on `TrBlazeUI.Components` and `TrBlazeUI.Icons.Lucide`,
+   which live on a **private** GitHub Packages feed. `nuget.config` declares the
+   feed but deliberately carries **no credentials** — store yours in your
+   user-level NuGet config, outside the repo:
+
+   ```bash
+   dotnet nuget add source https://nuget.pkg.github.com/techierathore/index.json \
+     --name TrBlazeUI \
+     --username <your-github-username> \
+     --password <a PAT with the read:packages scope> \
+     --store-password-in-clear-text
+   ```
+
+   Skipping this produces `error NU1301 … 403 (Forbidden)` on restore.
+   See [GETTING_STARTED.md](GETTING_STARTED.md#nuget-feed-access-required--the-build-will-not-restore-without-it)
+   for the CI equivalent (`TrBlazeUiPackagesToken`).
+
+3. **Configure Database**
    ```bash
    # Create PostgreSQL database
    createdb techieblog
    ```
 
-3. **Update Connection String**
+4. **Update Connection String**
 
-   Edit `source/TechieBlog/appsettings.Development.json`:
+   Edit `source/TechieBlog/appsettings.Development.json`. The key is a
+   **top-level `AppDbConString`** — not `ConnectionStrings:DefaultConnection`
+   (see `source/TechieBlog/Program.cs`, which reads
+   `builder.Configuration["AppDbConString"]` and throws at startup if it is absent):
    ```json
    {
-     "ConnectionStrings": {
-       "DefaultConnection": "Host=localhost;Database=techieblog;Username=postgres;Password=YOUR_PASSWORD"
-     }
+     "AppDbConString": "Host=localhost;Port=5432;Database=techieblog;Username=postgres;Password=YOUR_PASSWORD"
    }
    ```
 
-4. **Run the Application**
+5. **Run the Application**
    ```bash
    dotnet run --project source/TechieBlog
    ```
 
-5. **Open in Browser**
+6. **Open in Browser**
 
    Navigate to `https://localhost:5001`
 

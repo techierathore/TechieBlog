@@ -6,6 +6,13 @@
     ThemeService owns the Blazored.LocalStorage persistence and raises
     OnThemeChanged, which ThemeProvider translates into the DOM class.
 
+    REQ-UI-031 (2026-08-09): the control is an on/off toggle, so it exposes the
+    ARIA switch pattern — role="switch" plus aria-checked tracking dark mode —
+    rather than a plain button. The accessible name names the thing being
+    toggled ("Dark mode"); the CHECKED STATE, not the label, is what tells a
+    screen-reader user which way it is set. The `title` keeps the sighted
+    hover hint phrased as the action the next click performs.
+
     Usage: <ThemeToggle /> in every shell header (public, auth, admin topbar).
 *@
 
@@ -15,7 +22,9 @@
 <Button Variant="ButtonVariant.Ghost"
         Size="ButtonSize.Icon"
         OnClick="ToggleThemeAsync"
-        AriaLabel="@ToggleLabel"
+        AriaLabel="Dark mode"
+        role="switch"
+        aria-checked="@(isDarkMode ? "true" : "false")"
         title="@ToggleLabel"
         data-testid="theme-toggle">
     @if (isDarkMode)

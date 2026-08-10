@@ -61,6 +61,16 @@ namespace BlogEngine.DbAccess;
 ///   listing built on it must date posts by <c>CreatedOn</c>, not by when they went live.</description></item>
 /// </list>
 ///
+/// <para><b>Authoring reads and public reads are separate statements — pick the right one
+/// (REQ-FN-015).</b> <c>SelectBySeriesSql</c> filters only on soft-deletion so the admin series
+/// editor can list draft parts; <c>SelectPublishedBySeriesSql</c> adds <c>Published = TRUE</c> and is
+/// the only one a public page may use. The pair exists because the single unfiltered statement, read
+/// straight onto <c>/series/{slug}</c>, published every draft part's title, abstract and featured
+/// image to anonymous visitors while the sibling <c>CountBySeriesSql</c> counted published parts only
+/// — a listing query and its own COUNT disagreeing about what "a part" means. When you add a public
+/// listing here, give it the same filter as the COUNT that pages it, and add a case to
+/// <c>BlogPostRepoProjectionTests</c>, which asserts that pairing on the SQL text itself.</para>
+///
 /// <para><b>Never write back an entity read through a narrow projection.</b> This is the sharp edge,
 /// and it has already cost this codebase real data. <see cref="UpdateAsync"/> writes
 /// <c>PublishedOn</c> and <c>ScheduledPublishOn</c> unconditionally from the entity it is handed. An
@@ -236,6 +246,9 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
                 AND (p.IsDeleted = FALSE OR p.IsDeleted IS NULL)
             ORDER BY p.ScheduledPublishOn ASC";
 
+    // REQ-FN-015: the AUTHORING projection. It deliberately has no Published filter because the admin
+    // series editor must see draft parts. Never serve this to an anonymous visitor — use
+    // SelectPublishedBySeriesSql, whose filter matches CountBySeriesSql column for column.
     private const string SelectBySeriesSql = @"
             SELECT p.PostID, p.Title, p.Slug, p.Abstract, p.PostContent, p.CreatedOn, p.UpdatedOn,
                    p.UserID, p.Tags, p.CategoryId, p.FeaturedImage, p.Published, p.PublishedOn,
@@ -244,6 +257,22 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
             FROM BlogPost p
             LEFT JOIN BlogUser u ON p.UserID = u.UserId
             WHERE p.SeriesId = @SeriesId
+                AND (p.IsDeleted = FALSE OR p.IsDeleted IS NULL)
+            ORDER BY p.SeriesPartNumber ASC";
+
+    // REQ-FN-015: the PUBLIC projection behind /series/{slug}. Same columns as SelectBySeriesSql plus
+    // the Published filter CountBySeriesSql already applied, so the parts a reader is shown and the
+    // "N Parts" badge above them can never disagree — the drift that leaked draft titles, abstracts and
+    // featured images to anonymous visitors.
+    private const string SelectPublishedBySeriesSql = @"
+            SELECT p.PostID, p.Title, p.Slug, p.Abstract, p.PostContent, p.CreatedOn, p.UpdatedOn,
+                   p.UserID, p.Tags, p.CategoryId, p.FeaturedImage, p.Published, p.PublishedOn,
+                   p.SeriesId, p.SeriesPartNumber,
+                   CONCAT(u.FirstName, ' ', u.LastName) as BlogWriter
+            FROM BlogPost p
+            LEFT JOIN BlogUser u ON p.UserID = u.UserId
+            WHERE p.SeriesId = @SeriesId
+                AND p.Published = TRUE
                 AND (p.IsDeleted = FALSE OR p.IsDeleted IS NULL)
             ORDER BY p.SeriesPartNumber ASC";
 
@@ -677,11 +706,34 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
     }
 
     /// <summary>
+    /// Gets the published posts in a series ordered by part number, without blocking the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The public counterpart to <see cref="GetPostsBySeriesAsync"/>
+    /// (REQ-FN-015). Drafts are excluded in SQL, so <c>/series/{slug}</c> cannot leak an unpublished
+    /// part's title, abstract or featured image to an anonymous visitor by forgetting to filter, and
+    /// the rows returned always agree with the count from
+    /// <see cref="GetPostCountBySeriesAsync"/>.</para>
+    /// <para><b>Flow:</b> helper opens the connection asynchronously → published-and-not-deleted query
+    /// ordered by part number → materialised list.</para>
+    /// <para><b>Side Effects:</b> None — read-only query.</para>
+    /// </remarks>
+    /// <param name="seriesId">The series identifier.</param>
+    /// <param name="cancellationToken">Cancels the query.</param>
+    /// <returns>The series' published posts in part order.</returns>
+    public async Task<IEnumerable<BlogPost>> GetPublishedPostsBySeriesAsync(long seriesId, CancellationToken cancellationToken = default)
+    {
+        return await QueryAsync<BlogPost>(
+            SelectPublishedBySeriesSql, new { SeriesId = seriesId }, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Gets the number of published posts in a series, without blocking the calling thread.
     /// </summary>
     /// <remarks>
     /// <para><b>Business Logic:</b> Counts published parts only, so the "N parts" a reader sees equals
-    /// the number of parts they can actually open.</para>
+    /// the number of parts they can actually open. Its filter is the one
+    /// <see cref="GetPublishedPostsBySeriesAsync"/> applies, so the badge and the list agree.</para>
     /// <para><b>Flow:</b> helper opens the connection asynchronously → counting query.</para>
     /// <para><b>Side Effects:</b> None — read-only query.</para>
     /// </remarks>
@@ -1009,6 +1061,21 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
     {
         using var connection = GetOpenConnection();
         return connection.Query<BlogPost>(SelectBySeriesSql, new { SeriesId = seriesId }).ToList();
+    }
+
+    /// <summary>
+    /// Gets the published posts in a series ordered by part number.
+    /// </summary>
+    /// <remarks>
+    /// REQ-FN-015: the public counterpart to <see cref="GetPostsBySeries"/>. Drafts are excluded in
+    /// SQL so <c>/series/{slug}</c> cannot leak an unpublished part to an anonymous visitor.
+    /// </remarks>
+    /// <param name="seriesId">The series identifier.</param>
+    /// <returns>The series' published posts in part order.</returns>
+    public IEnumerable<BlogPost> GetPublishedPostsBySeries(long seriesId)
+    {
+        using var connection = GetOpenConnection();
+        return connection.Query<BlogPost>(SelectPublishedBySeriesSql, new { SeriesId = seriesId }).ToList();
     }
 
     /// <summary>

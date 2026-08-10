@@ -4,10 +4,25 @@
     Provides edit, split and preview view modes.
 
     Usage: <PostMarkdownEditor @bind-Value="content" />
-    Dependencies: BlogEngine.Common.MarkdownRenderer, TrBlazeUI Toolbar/Tabs/Textarea (REQ-UI-048)
+    Dependencies: BlogEngine.Common.MarkdownRenderer, TrBlazeUI Toolbar/Tabs (REQ-UI-048)
     Note: preview typography comes from wwwroot/css/base.css `.markdown-content`.
+
+    [REQ-UI-016] 2026-08-09 — the body input is a RAW <textarea>, deliberately, and must stay
+    one. TrBlazeUI's <Textarea> is a CONTROLLED input: its markup is
+    `<textarea value="@Value" @oninput="HandleInput">` and HandleInput assigns `Value` before
+    raising ValueChanged. Under Blazor Server every keystroke therefore round-trips, and the
+    render that comes back writes a value into the DOM that is already one or more keystrokes
+    behind whatever the user typed in the meantime — the textarea LOST and REORDERED keystrokes
+    ('## Live heading' arrived as '## ivehading'). The fix is an UNCONTROLLED input: the DOM
+    value is seeded exactly once as the element's child content (`editorSeed`) and the server
+    never writes it again, so no re-render can clobber what the user typed. `editorSeed` moves
+    only for a PROGRAMMATIC change (toolbar insert, view-mode switch, an externally supplied
+    value before the first edit), and each move bumps `editorRevision`, whose @key forces Blazor
+    to re-create the element so the new text actually reaches the DOM.
+    Library gap TR-057. Do NOT "restore" <Textarea> here.
 *@
 @namespace BlogUI.Components
+@implements IDisposable
 @inject BlogEngine.Common.MarkdownRenderer Renderer
 
 <div class="overflow-hidden rounded-md border border-border bg-card" data-testid="markdown-editor">
@@ -153,19 +168,21 @@
         @if (ViewMode != "preview")
         {
             <div class="flex min-w-0 flex-1">
-                <Textarea Value="@Value"
-                          ValueChanged="@OnContentChanged"
-                          Placeholder="@InputPlaceholder"
-                          Class="min-h-[400px] flex-1 resize-none rounded-none border-0 bg-card px-4 py-3 font-mono text-sm"
-                          AriaLabel="Post content in Markdown"
-                          data-testid="markdown-input" />
+                @* Uncontrolled by design — see the file header (REQ-UI-016 / TR-057). *@
+                <textarea @key="editorRevision"
+                          class="@EditorCssClass"
+                          placeholder="@InputPlaceholder"
+                          aria-label="Post content in Markdown"
+                          data-slot="textarea-control"
+                          data-testid="markdown-input"
+                          @oninput="OnContentChanged">@editorSeed</textarea>
             </div>
         }
         @if (ViewMode != "edit")
         {
             <div class="min-w-0 flex-1 overflow-y-auto bg-card p-4 @(ViewMode == "split" ? "border-l border-border" : string.Empty)"
                  data-testid="markdown-preview">
-                @if (string.IsNullOrWhiteSpace(Value))
+                @if (string.IsNullOrWhiteSpace(markdownSource))
                 {
                     <div class="flex h-full flex-col items-center justify-center gap-2 text-center text-muted-foreground"
                          data-testid="markdown-preview-empty">
@@ -207,42 +224,161 @@
     private const string InputPlaceholder =
         "Write your content in Markdown...\n\n**Bold**  *Italic*  `code`\n# Heading 1\n- Bullet list\n[Link text](url)\n> Blockquote";
 
+    /// <summary>
+    /// Quiet period, in milliseconds, before a keystroke burst re-renders the preview.
+    /// </summary>
+    /// <remarks>
+    /// Only the PREVIEW is debounced. The parent is notified on every keystroke so that a save
+    /// pressed immediately after typing can never persist stale content.
+    /// </remarks>
+    private const int PreviewDebounceMs = 250;
+
+    /// <summary>
+    /// Classes the TrBlazeUI Textarea used to produce for this editor, resolved by hand.
+    /// </summary>
+    /// <remarks>
+    /// These are the library's shadcn textarea base classes with the conflicts this editor
+    /// overrode already collapsed (min-h, rounded, border, padding, background, type size), so
+    /// the uncontrolled element is pixel-identical to the controlled one it replaced.
+    /// </remarks>
+    private const string EditorCssClass =
+        "flex field-sizing-content min-h-[400px] w-full flex-1 resize-none rounded-none border-0 " +
+        "bg-card px-4 py-3 font-mono text-sm shadow-xs placeholder:text-muted-foreground " +
+        "outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 " +
+        "disabled:cursor-not-allowed disabled:opacity-50 transition-[color,box-shadow]";
+
     /// <summary>Rendered HTML for the current markdown source.</summary>
     private string renderedHtml = string.Empty;
+
+    /// <summary>Authoritative markdown source held by this component.</summary>
+    private string markdownSource = string.Empty;
+
+    /// <summary>
+    /// Text the textarea element is seeded with. Changes only for programmatic edits — never
+    /// for user keystrokes — which is what stops a re-render from clobbering the DOM value.
+    /// </summary>
+    private string editorSeed = string.Empty;
+
+    /// <summary>
+    /// Incremented with every <see cref="editorSeed"/> move; keys the textarea so Blazor
+    /// re-creates the element and the new seed reaches the DOM.
+    /// </summary>
+    private int editorRevision;
+
+    /// <summary>True once the user has typed, after which supplied values are echoes.</summary>
+    private bool hasLocalEdits;
+
+    /// <summary>Cancels the in-flight preview debounce when another keystroke arrives.</summary>
+    private CancellationTokenSource? previewDebounce;
 
     /// <inheritdoc />
     protected override void OnInitialized()
     {
+        markdownSource = Value ?? string.Empty;
+        editorSeed = markdownSource;
         UpdatePreview();
     }
 
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
+        // Once the user has typed, every value arriving from the parent is an echo of a
+        // keystroke this component already sent — adopting it is exactly the clobber that
+        // lost keystrokes. Only a pre-edit value (the post loaded into the editor) is adopted.
+        if (hasLocalEdits || string.Equals(Value ?? string.Empty, markdownSource, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        markdownSource = Value ?? string.Empty;
+        ReseedEditor();
         UpdatePreview();
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        previewDebounce?.Cancel();
+        previewDebounce?.Dispose();
+        previewDebounce = null;
     }
 
     /// <summary>Re-renders the preview HTML from the current markdown source.</summary>
     private void UpdatePreview()
     {
-        renderedHtml = Renderer.ToHtml(Value ?? string.Empty);
+        renderedHtml = Renderer.ToHtml(markdownSource);
+    }
+
+    /// <summary>
+    /// Pushes <see cref="markdownSource"/> into the textarea by re-creating the element.
+    /// </summary>
+    private void ReseedEditor()
+    {
+        editorSeed = markdownSource;
+        editorRevision++;
     }
 
     /// <summary>Handles input from the markdown textarea and notifies the parent.</summary>
-    private async Task OnContentChanged(string value)
+    private async Task OnContentChanged(ChangeEventArgs args)
     {
-        Value = value ?? string.Empty;
-        UpdatePreview();
-        await ValueChanged.InvokeAsync(Value);
+        hasLocalEdits = true;
+        markdownSource = args.Value?.ToString() ?? string.Empty;
+
+        // Immediate, so the post body is current the instant a save button is pressed.
+        await ValueChanged.InvokeAsync(markdownSource);
+
+        SchedulePreviewRefresh();
+    }
+
+    /// <summary>
+    /// Re-renders the preview once typing pauses, instead of on every keystroke.
+    /// </summary>
+    private void SchedulePreviewRefresh()
+    {
+        previewDebounce?.Cancel();
+        previewDebounce?.Dispose();
+
+        var debounce = new CancellationTokenSource();
+        previewDebounce = debounce;
+        _ = RefreshPreviewAfterQuietPeriodAsync(debounce.Token);
+    }
+
+    /// <summary>
+    /// Waits out the debounce window and then re-renders the preview.
+    /// </summary>
+    /// <param name="cancellationToken">Cancelled when a further keystroke arrives.</param>
+    private async Task RefreshPreviewAfterQuietPeriodAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(PreviewDebounceMs, cancellationToken);
+            UpdatePreview();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer keystroke owns the preview now.
+        }
+        catch (ObjectDisposedException)
+        {
+            // The circuit went away while the debounce was pending.
+        }
     }
 
     /// <summary>Switches the editor between edit, split and preview modes.</summary>
     private void SetViewMode(string mode)
     {
-        if (!string.IsNullOrEmpty(mode))
+        if (string.IsNullOrEmpty(mode) || mode == ViewMode)
         {
-            ViewMode = mode;
+            return;
         }
+
+        ViewMode = mode;
+
+        // The textarea is torn out of the tree in preview mode, so it has to be re-seeded with
+        // the current source when it comes back — otherwise it would return to its stale seed.
+        ReseedEditor();
+        UpdatePreview();
     }
 
     /// <summary>
@@ -252,11 +388,13 @@
     {
         // Simple insertion - appends to end.
         // In a full implementation, would use JS interop to insert at cursor.
-        Value = string.IsNullOrEmpty(Value)
+        markdownSource = string.IsNullOrEmpty(markdownSource)
             ? before + placeholder + after
-            : Value + "\n" + before + placeholder + after;
+            : markdownSource + "\n" + before + placeholder + after;
 
+        // A programmatic edit is the one case where the DOM value MUST be rewritten.
+        ReseedEditor();
         UpdatePreview();
-        await ValueChanged.InvokeAsync(Value);
+        await ValueChanged.InvokeAsync(markdownSource);
     }
 }

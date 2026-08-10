@@ -102,23 +102,40 @@ public class AuthService : IAuthService
     /// Exchanges a refresh token for the user it belongs to.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Mirrors the web head: the engine currently treats the refresh
-    /// token and the access token as the same artefact, so the refresh path re-validates the token
-    /// rather than minting a new pair.</para>
-    /// <para><b>Flow:</b> wrap the token → call the engine → decrypt → deserialise.</para>
-    /// <para><b>Side Effects:</b> None.</para>
+    /// <para><b>Business Logic:</b> Mirrors the web head exactly (REQ-FN-008): the engine treats the
+    /// expired access token as its own refresh token, matches it against the <c>UserLogin</c> row
+    /// and — while that row is inside its refresh window — rewrites it with a replacement token.
+    /// The returned user carries the replacement, and the presented value stops working, so the
+    /// caller must store what comes back.</para>
+    /// <para><b>Flow:</b> guard → wrap the token → call the engine → decrypt → deserialise.</para>
+    /// <para><b>Side Effects:</b> The engine updates one <c>UserLogin</c> row in the site database.</para>
     /// </remarks>
     /// <param name="refreshRequest">Envelope carrying the refresh token.</param>
-    /// <returns>The user the token identifies, or <c>null</c> when it is not usable.</returns>
-    public Task<AppUser?> RefreshTokenAsync(RefreshRequest refreshRequest)
+    /// <returns>The user with a replacement token, or <c>null</c> when the session is over.</returns>
+    public async Task<AppUser?> RefreshTokenAsync(RefreshRequest refreshRequest)
     {
         var refreshToken = refreshRequest?.RefreshToken;
         if (string.IsNullOrWhiteSpace(refreshToken))
         {
-            return Task.FromResult<AppUser?>(null);
+            return null;
         }
 
-        return GetUserByAccessTokenAsync(refreshToken);
+        try
+        {
+            var response = await authSvc
+                .RefreshSessionAsync(new SvcData { JwToken = refreshToken }).ConfigureAwait(false);
+            if (response == null)
+            {
+                return null;
+            }
+
+            var decryptedUser = AppEncrypt.DecryptText(response.ComplexData);
+            return JsonSerializer.Deserialize<AppUser>(decryptedUser);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 
     /// <summary>

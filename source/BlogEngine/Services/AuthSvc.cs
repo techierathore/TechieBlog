@@ -61,6 +61,16 @@ namespace BlogEngine.Services;
 /// tracked separately; it is stated here rather than left implicit because a reader who assumes
 /// the signature is checked will write exactly that bug.</para>
 ///
+/// <para><b>Session lifetime and renewal (REQ-FN-008, BRD-6).</b> A session has two clocks, both
+/// named by <see cref="SessionPolicy"/> and both now enforced by
+/// <see cref="GetUserByTokenAsync"/>: the access token's own <c>exp</c> claim, and the refresh
+/// window stored on the <c>UserLogin</c> row. When the first runs out
+/// <see cref="RefreshSessionAsync"/> rewrites the row with a replacement token and slides the
+/// window; when the second runs out the session is over and only a sign-in creates a new one. There
+/// is no separate refresh-token artefact and none should be added — REQ-FN-052 deleted the
+/// <c>svctoken</c> table as dead code and <c>UserLogin</c> is the single store of interactive
+/// session state.</para>
+///
 /// <para><b>Usage:</b> Registered as a transient service by <c>BlogSvcInitializer</c>.</para>
 /// </remarks>
 public class AuthSvc
@@ -73,6 +83,7 @@ public class AuthSvc
     private readonly ILoginThrottle loginThrottle;
     private readonly IEmailService emailService;
     private readonly ILoginLogRepo loginLogRepo;
+    private readonly SessionPolicy sessionPolicy;
 
     /// <summary>
     /// Initialises the authentication service.
@@ -85,6 +96,8 @@ public class AuthSvc
     /// <param name="loginThrottle">Per-account failed-login throttle.</param>
     /// <param name="emailService">Outbound email service.</param>
     /// <param name="logger">Logger for authentication events.</param>
+    /// <param name="sessionPolicy">The two session durations (REQ-FN-008). Optional so a test can
+    /// construct the service without one; the container always supplies the configured instance.</param>
     public AuthSvc(
         IBlogUserRepo userRepo,
         IUserCredentialRepo credentialRepo,
@@ -93,7 +106,8 @@ public class AuthSvc
         ILoginLogRepo loginLogRepo,
         ILoginThrottle loginThrottle,
         IEmailService emailService,
-        ILogger<AuthSvc> logger)
+        ILogger<AuthSvc> logger,
+        SessionPolicy? sessionPolicy = null)
     {
         this.userRepo = userRepo;
         this.credentialRepo = credentialRepo;
@@ -103,6 +117,7 @@ public class AuthSvc
         this.loginThrottle = loginThrottle;
         this.emailService = emailService;
         this.appLogger = logger;
+        this.sessionPolicy = sessionPolicy ?? SessionPolicy.Default;
     }
 
     /// <summary>
@@ -343,6 +358,13 @@ public class AuthSvc
     /// revoked, and the encrypted user envelope is what the UI persists in local storage.</para>
     /// <para><b>Flow:</b> generate token → insert <c>UserLogin</c> → serialise and encrypt.</para>
     /// <para><b>Side Effects:</b> Inserts one <c>UserLogin</c> row.</para>
+    /// <para><b>Two clocks, one origin (REQ-FN-008).</b> The row's <c>ExipryDate</c> is the end of
+    /// the <i>refresh window</i> — how long <see cref="RefreshSessionAsync"/> may keep reissuing —
+    /// while the token's own <c>exp</c> claim is the much shorter access-token lifetime. Both are
+    /// measured from the same UTC instant stamped here. They were previously written from
+    /// <c>DateTime.Today</c>, i.e. local midnight, which made the stored window depend on the host's
+    /// time zone and on how late in the day the user signed in; every comparison in this service is
+    /// against <see cref="DateTime.UtcNow"/>, so the write side is UTC too.</para>
     /// </remarks>
     /// <param name="user">The authenticated user.</param>
     /// <param name="cancellationToken">Cancels the insert.</param>
@@ -350,13 +372,14 @@ public class AuthSvc
     private async Task<SvcData> IssueSessionAsync(AppUser user, CancellationToken cancellationToken)
     {
         var jwToken = GenerateJWToken(user);
+        var issuedAt = DateTime.UtcNow;
         await loginRepo.InsertAsync(
             new UserLogin
             {
                 LoginToken = jwToken,
-                IssueDate = DateTime.Today,
-                LoginDate = DateTime.Today,
-                ExipryDate = DateTime.Today.AddDays(2),
+                IssueDate = issuedAt,
+                LoginDate = issuedAt,
+                ExipryDate = issuedAt.Add(sessionPolicy.RefreshWindow),
                 TokenStatus = TokenStatus.ValidToken.ToString(),
                 UserId = user.UserId
             },
@@ -378,10 +401,19 @@ public class AuthSvc
     /// <para><b>Business Logic:</b> The token must still be recorded against the user in
     /// <c>UserLogin</c>, so a revoked token stops working even before it expires. That row is the
     /// authority on whether a session is live — not the token itself.</para>
-    /// <para><b>Flow:</b> read subject id from the token → confirm it is still issued → load
-    /// profile → encrypt envelope.</para>
+    /// <para><b>Flow:</b> read subject id from the token → confirm it is still issued → confirm
+    /// neither clock has run out → load profile → encrypt envelope.</para>
     /// <para><b>Side Effects:</b> None. This method neither refreshes the token nor extends the
     /// <c>UserLogin</c> expiry, so calling it repeatedly does not keep a session alive.</para>
+    /// <para><b>Expiry is enforced here, and the caller is expected to refresh (REQ-FN-008).</b>
+    /// Two clocks are checked, and either running out yields <c>null</c>: the token's own
+    /// <c>exp</c> claim (the access-token lifetime) and the row's <c>ExipryDate</c> (the refresh
+    /// window). Neither was consulted before this requirement landed, so a session simply never
+    /// ended. The distinction matters to whoever handles the <c>null</c>: an expired <i>access
+    /// token</i> is recoverable by calling <see cref="RefreshSessionAsync"/> with the same value,
+    /// while an expired <i>window</i> is not and means a fresh sign-in. Callers that cannot tell
+    /// the two apart should simply attempt the refresh and treat its own <c>null</c> as the end of
+    /// the session — which is exactly what <c>CustomAuthStateProvider</c> does.</para>
     /// <para><b>Security — the signature is NOT verified here.</b>
     /// <c>SvcUtils.GetUserIDFromToken</c> <i>decodes</i> the JWT
     /// (<c>JwtSecurityTokenHandler.ReadJwtToken</c>); it does not validate the HMAC, the expiry or
@@ -403,6 +435,22 @@ public class AuthSvc
         if (validatedToken == null)
             return null;
 
+        if (IsRefreshWindowOver(validatedToken))
+        {
+            appLogger.LogInformation(
+                "Session {LoginId} for user {UserId} is past its refresh window; a new sign-in is required",
+                validatedToken.LoginId, userId);
+            return null;
+        }
+
+        if (IsAccessTokenExpired(tokenData.JwToken))
+        {
+            appLogger.LogInformation(
+                "Access token for user {UserId} has expired; the caller must refresh session {LoginId}",
+                userId, validatedToken.LoginId);
+            return null;
+        }
+
         var validatedUser = await userRepo.GetSingleAsync(userId, cancellationToken).ConfigureAwait(false);
         if (validatedUser == null)
             return null;
@@ -414,6 +462,186 @@ public class AuthSvc
             ComplexData = AppEncrypt.EncryptText(JsonSerializer.Serialize(validatedUser)),
             JwToken = tokenData.JwToken
         };
+    }
+
+    /// <summary>
+    /// Renews a session whose access token has expired, without asking for the password again
+    /// (REQ-FN-008, BRD-6).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The presented token must still be the token recorded against
+    /// its own subject in <c>UserLogin</c> with status <c>ValidToken</c>, and that row must still
+    /// be inside its refresh window. Only then is a replacement access token minted. The old token
+    /// value is <b>overwritten</b> on the same row rather than a second row being inserted, which
+    /// has three consequences worth stating: the replaced token stops working immediately (there is
+    /// no window in which two tokens authorise the same session), a revoked or signed-out session
+    /// can never be revived, and the sessions table does not grow by one row per renewal.</para>
+    /// <para><b>Flow:</b> read subject id → match the row → refresh-window check → load profile →
+    /// mint a replacement → rewrite the row, sliding the window → encrypt envelope.</para>
+    /// <para><b>Side Effects:</b> Updates one <c>UserLogin</c> row — its token, its dates and its
+    /// window — and writes one information-level log line naming the session that was renewed.</para>
+    /// <para><b>Why the expired token is accepted as its own refresh token.</b> This product has no
+    /// separate refresh-token artefact and deliberately does not grow one: the sibling requirement
+    /// REQ-FN-052 deleted the <c>svctoken</c> table as dead code, and <c>UserLogin</c> is the only
+    /// store of interactive session state. The security property a refresh token normally provides
+    /// — "possession of this proves the session was not merely observed" — is provided here by the
+    /// row itself: the exact string must be present, the status must be <c>ValidToken</c>, and the
+    /// row is rewritten on use. What this design does <i>not</i> provide is a credential that
+    /// survives the access token being stolen; that is a real limitation and the reason the refresh
+    /// window is bounded rather than perpetual.</para>
+    /// <para><b>The window slides.</b> Each renewal moves <c>ExipryDate</c> forward by
+    /// <see cref="SessionPolicy.RefreshWindow"/> from now, so a user who keeps using the site is
+    /// never signed out and one who stops is signed out a window later. There is deliberately no
+    /// absolute cap on total session age; adding one means recording the original sign-in instant
+    /// separately, since <c>IssueDate</c> is rewritten here.</para>
+    /// <para><b>Security:</b> the same unverified-signature caveat as
+    /// <see cref="GetUserByTokenAsync"/> applies. Nothing is trusted out of the presented token
+    /// except the subject id used as a lookup key, and the returned profile is re-read from
+    /// <c>BlogUser</c>. An unreadable token is refused rather than throwing, because this method is
+    /// reached with whatever a browser happened to have in local storage.</para>
+    /// </remarks>
+    /// <param name="refreshData">Envelope carrying the token to redeem.</param>
+    /// <param name="cancellationToken">Cancels the lookups and the update.</param>
+    /// <returns>The encrypted user envelope carrying the replacement token, or <c>null</c> when the
+    /// session cannot be renewed and the user must sign in again.</returns>
+    public async Task<SvcData?> RefreshSessionAsync(SvcData refreshData, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(refreshData?.JwToken))
+            return null;
+
+        long userId;
+        try
+        {
+            userId = SvcUtils.GetUserIDFromToken(refreshData.JwToken);
+        }
+        catch (Exception ex)
+        {
+            appLogger.LogWarning(ex, "Session refresh refused: the presented value is not a readable token");
+            return null;
+        }
+
+        var session = await loginRepo
+            .GetUserByTokenAsync(userId, refreshData.JwToken, cancellationToken).ConfigureAwait(false);
+        if (session == null)
+        {
+            appLogger.LogInformation(
+                "Session refresh refused for user {UserId}: the token is not a live session", userId);
+            return null;
+        }
+
+        if (IsRefreshWindowOver(session))
+        {
+            appLogger.LogInformation(
+                "Session refresh refused for user {UserId}: session {LoginId} is past its refresh window",
+                userId, session.LoginId);
+            return null;
+        }
+
+        var sessionUser = await userRepo.GetSingleAsync(userId, cancellationToken).ConfigureAwait(false);
+        if (sessionUser == null)
+        {
+            appLogger.LogInformation(
+                "Session refresh refused for user {UserId}: the account no longer exists", userId);
+            return null;
+        }
+
+        var renewedToken = await RotateSessionTokenAsync(session, sessionUser, cancellationToken)
+            .ConfigureAwait(false);
+
+        sessionUser.AccessToken = renewedToken;
+        sessionUser.RefreshToken = renewedToken;
+        return new SvcData
+        {
+            ComplexData = AppEncrypt.EncryptText(JsonSerializer.Serialize(sessionUser)),
+            JwToken = renewedToken
+        };
+    }
+
+    /// <summary>
+    /// Mints a replacement access token and writes it over the session row.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Everything time-related on the row is re-stamped from one UTC
+    /// instant, and the status is re-asserted so a row can never be renewed into an ambiguous
+    /// state. The update is matched on <c>LoginId</c>, so the row identity survives the rotation and
+    /// an operator watching <c>userlogins</c> sees one session being renewed rather than a new
+    /// session appearing.</para>
+    /// <para><b>Flow:</b> mint → stamp the row → update → log.</para>
+    /// <para><b>Side Effects:</b> Updates one <c>UserLogin</c> row; logs the renewal.</para>
+    /// </remarks>
+    /// <param name="session">The session row being renewed.</param>
+    /// <param name="sessionUser">The account the session belongs to, used to build the claims.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns>The replacement token.</returns>
+    private async Task<string> RotateSessionTokenAsync(
+        UserLogin session,
+        AppUser sessionUser,
+        CancellationToken cancellationToken)
+    {
+        var renewedToken = GenerateJWToken(sessionUser);
+        var renewedAt = DateTime.UtcNow;
+
+        session.LoginToken = renewedToken;
+        session.LoginDate = renewedAt;
+        session.IssueDate = renewedAt;
+        session.ExipryDate = renewedAt.Add(sessionPolicy.RefreshWindow);
+        session.TokenStatus = TokenStatus.ValidToken.ToString();
+        await loginRepo.UpdateAsync(session, cancellationToken).ConfigureAwait(false);
+
+        appLogger.LogInformation(
+            "Session refreshed for user {UserId}: session {LoginId} reissued for {AccessMinutes} minutes, " +
+            "refresh window now ends {WindowEnd:u}",
+            sessionUser.UserId,
+            session.LoginId,
+            sessionPolicy.AccessTokenLifetime.TotalMinutes,
+            session.ExipryDate);
+
+        return renewedToken;
+    }
+
+    /// <summary>
+    /// Reports whether a session has outlived the window in which it may be renewed.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The row's <c>ExipryDate</c> is stored as a
+    /// <c>TIMESTAMP</c> without time zone and is written from <see cref="DateTime.UtcNow"/>, so it
+    /// is compared against UTC. Rows written before REQ-FN-008 carry a local-midnight value, which
+    /// can be out by the host's UTC offset — hours on a window measured in days, and only ever in
+    /// the direction of ending the session slightly early.</para>
+    /// <para><b>Flow:</b> compare.</para>
+    /// <para><b>Side Effects:</b> None; pure.</para>
+    /// </remarks>
+    /// <param name="session">The session row to test.</param>
+    /// <returns><c>true</c> when the session can no longer be renewed.</returns>
+    private static bool IsRefreshWindowOver(UserLogin session)
+    {
+        return session.ExipryDate < DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Reports whether an access token has passed its <c>exp</c> claim.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> A token carrying no expiry is treated as unexpired — see
+    /// <c>SvcUtils.GetTokenExpiryUtc</c> on why this fails open. An unreadable token is treated as
+    /// expired: it cannot be honoured, and reporting it as expired routes the caller to the refresh
+    /// path, which refuses it for the same reason without throwing.</para>
+    /// <para><b>Flow:</b> read the claim → compare against now.</para>
+    /// <para><b>Side Effects:</b> None; pure.</para>
+    /// </remarks>
+    /// <param name="jwToken">The token presented by the caller.</param>
+    /// <returns><c>true</c> when the token may no longer be used without a refresh.</returns>
+    private static bool IsAccessTokenExpired(string jwToken)
+    {
+        try
+        {
+            var expiresAtUtc = SvcUtils.GetTokenExpiryUtc(jwToken);
+            return expiresAtUtc.HasValue && expiresAtUtc.Value <= DateTime.UtcNow;
+        }
+        catch (Exception)
+        {
+            return true;
+        }
     }
 
     /// <summary>
@@ -431,19 +659,21 @@ public class AuthSvc
     /// with HMAC-SHA256 → serialise.</para>
     /// <para><b>Side Effects:</b> None — this method only builds a string. The session becomes real
     /// when <see cref="IssueSessionAsync"/> writes the <c>UserLogin</c> row.</para>
-    /// <para><b>Two expiries, and why they differ.</b> The <c>exp</c> claim stamped here is 15 days
-    /// out, while the <c>UserLogin</c> row <see cref="IssueSessionAsync"/> writes expires after 2.
-    /// The shorter one wins in practice, because <see cref="GetUserByTokenAsync"/> never reads
-    /// <c>exp</c> — see that method on the signature not being verified. Do not shorten the claim
-    /// expecting sessions to end sooner, and do not lengthen the row expecting the claim to hold
-    /// the line; the row is the control.</para>
+    /// <para><b>Two expiries, and how they now relate (REQ-FN-008).</b> The <c>exp</c> claim
+    /// stamped here is the <i>access-token lifetime</i> from <see cref="SessionPolicy"/> — an hour
+    /// by default — and the <c>UserLogin</c> row <see cref="IssueSessionAsync"/> writes carries the
+    /// much longer <i>refresh window</i>. Both are now read on the way back in, so the claim is the
+    /// thing that expires and the row is the thing that authorises the reissue. The pair used to be
+    /// 15 days against 2 with neither ever consulted, which is why sessions never ended and the
+    /// refresh path had nothing to do; do not restore a hard-coded value here, change the policy.</para>
     /// <para><b>Security:</b> the claims are copied into the token for convenience only. Because
     /// nothing verifies them on the way back in, no authorization decision anywhere in the product
-    /// may be made from a claim read out of this token.</para>
+    /// may be made from a claim read out of this token. That includes <c>exp</c>: it is honoured
+    /// only for a token already matched against its <c>UserLogin</c> row.</para>
     /// </remarks>
     /// <param name="loggedInUser">The authenticated user.</param>
     /// <returns>The serialised JWT.</returns>
-    private static string GenerateJWToken(AppUser loggedInUser)
+    private string GenerateJWToken(AppUser loggedInUser)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
         // REQ-NFR-027: the signing key comes from configuration, never from a literal in source.
@@ -457,9 +687,16 @@ public class AuthSvc
                 new Claim(ClaimTypes.PrimarySid, Convert.ToString(loggedInUser.UserId)),
                 new Claim(ClaimTypes.Name, loggedInUser.FullName),
                 new Claim(ClaimTypes.Email, loggedInUser.EmailId),
-                new Claim(ClaimTypes.Role, loggedInUser.UserRole)
+                new Claim(ClaimTypes.Role, loggedInUser.UserRole),
+                // REQ-FN-008: without a unique id, two tokens minted for the same user inside the
+                // same second are byte-identical, because every other claim - including the
+                // whole-second exp - is identical. A refresh would then "rotate" the session to the
+                // value it already had: the row would be rewritten with the same string, the old
+                // token would keep working, and nothing downstream could tell a renewal from a
+                // no-op. This claim is what makes each issued token distinguishable.
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N"))
             }),
-            Expires = DateTime.UtcNow.AddDays(15),
+            Expires = DateTime.UtcNow.Add(sessionPolicy.AccessTokenLifetime),
             SigningCredentials = new SigningCredentials(
                 new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };

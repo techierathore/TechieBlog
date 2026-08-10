@@ -202,6 +202,23 @@
                 </p>
             }
 
+            @* [REQ-FN-026] Alt text is captured at upload time so BlogImage.AltText carries a real
+               description rather than a NULL, which REQ-NFR-007 (WCAG 1.1.1) depends on. *@
+            <Field>
+                <FieldLabel For="upload-alt-text">Alt text</FieldLabel>
+                <FieldContent>
+                    <Input Id="upload-alt-text"
+                           @bind-Value="UploadAltText"
+                           Placeholder="Describe the image for screen readers"
+                           maxlength="255"
+                           Disabled="@IsUploading"
+                           data-testid="upload-alt-text-input" />
+                    <FieldDescription>
+                        Leave blank to derive one from the file name. A real description is always better.
+                    </FieldDescription>
+                </FieldContent>
+            </Field>
+
             @if (!string.IsNullOrEmpty(UploadError))
             {
                 <Alert Variant="AlertVariant.Danger" data-testid="upload-error">

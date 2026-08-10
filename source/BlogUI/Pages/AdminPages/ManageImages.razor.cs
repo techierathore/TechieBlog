@@ -102,6 +102,13 @@ public partial class ManageImages : ComponentBase
     public string? UploadError { get; set; }
 
     /// <summary>
+    /// Accessible alternative text typed for the staged upload [REQ-FN-026]. Blank is allowed — the
+    /// image service then derives a readable phrase from the file name, so <c>BlogImage.AltText</c>
+    /// is never persisted as NULL.
+    /// </summary>
+    public string? UploadAltText { get; set; }
+
+    /// <summary>
     /// Files currently staged in the upload dropzone.
     /// </summary>
     public IReadOnlyList<FileUploadItem>? PendingFiles { get; set; }
@@ -241,6 +248,7 @@ public partial class ManageImages : ComponentBase
         SelectedFile = null;
         PendingFiles = null;
         UploadError = null;
+        UploadAltText = null;
         IsUploading = false;
     }
 
@@ -250,6 +258,7 @@ public partial class ManageImages : ComponentBase
         SelectedFile = null;
         PendingFiles = null;
         UploadError = null;
+        UploadAltText = null;
         IsUploading = false;
     }
 
@@ -302,7 +311,8 @@ public partial class ManageImages : ComponentBase
 
         try
         {
-            var uploadedImage = await ImageService.UploadImageAsync(SelectedFile, UploadCategory, CurrentUserId);
+            var uploadedImage = await ImageService.UploadImageAsync(
+                SelectedFile, UploadCategory, CurrentUserId, UploadAltText);
             StatusMessage = $"Image '{uploadedImage.ImageName}' uploaded successfully.";
             IsError = false;
             CloseUploadDialog();

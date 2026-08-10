@@ -5,7 +5,13 @@
 
     REQ-UI-048 — migrated from Microsoft Fluent UI to TrBlazeUI.
 
-    Dependencies: BlogBreadcrumb component, SeriesSvc
+    REQ-FN-015 — the part list is PUBLISHED-ONLY for anonymous and non-staff
+    visitors. Unpublished parts are attached only when the signed-in user holds a
+    content-manager role (Admin / Editor / Author), and then they are labelled as
+    a staff-only preview. The page used to render every draft part's title,
+    abstract and featured image to anyone as a "Coming Soon" row.
+
+    Dependencies: BlogBreadcrumb component, SeriesSvc, AuthenticationState
     Layout: Uses FullWidthLayout (no sidebar - content focused)
 *@
 
@@ -110,6 +116,16 @@
         <section class="my-8">
             <TypographyH2 Class="mb-4">Posts in this Series</TypographyH2>
 
+            @* REQ-FN-015: drafts reach this list only for staff, and the header badge still counts
+               published parts, so say plainly why the two numbers differ. *@
+            @if (canSeeDrafts && series.Posts != null && series.Posts.Any(p => !p.Published))
+            {
+                <p class="mb-4 text-sm text-muted-foreground" data-testid="series-draft-notice">
+                    Unpublished parts are shown because you are signed in as a content manager. Readers
+                    see only the @series.PostCount published part(s) counted above.
+                </p>
+            }
+
             @if (series.Posts != null && series.Posts.Any())
             {
                 <div class="flex flex-col gap-4" data-testid="series-posts">
@@ -154,7 +170,8 @@
                                         }
                                         else
                                         {
-                                            <Badge Variant="BadgeVariant.Secondary" data-testid="series-post-status">Coming Soon</Badge>
+                                            @* Only a content manager ever reaches this branch — REQ-FN-015. *@
+                                            <Badge Variant="BadgeVariant.Secondary" data-testid="series-post-status">Draft — not public</Badge>
                                         }
                                     </div>
                                 </div>
@@ -221,14 +238,55 @@
     [Parameter]
     public string Slug { get; set; } = string.Empty;
 
+    /// <summary>
+    /// The signed-in visitor, supplied by the router's cascading authentication state.
+    /// </summary>
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
     private List<BlogBreadcrumbItem> breadcrumbItems = new();
     private BlogModels.BlogSeries series;
     private List<BlogModels.BlogSeries> otherSeries = new();
     private List<BlogModels.BlogSeries> allSeries = new();
+    private bool canSeeDrafts;
 
-    protected override void OnParametersSet()
+    /// <summary>
+    /// Resolves the visitor's role before loading, so the part list is chosen from what this
+    /// visitor is allowed to see rather than filtered after the fact (REQ-FN-015).
+    /// </summary>
+    protected override async Task OnParametersSetAsync()
     {
+        canSeeDrafts = await IsContentManagerAsync();
         LoadData();
+    }
+
+    /// <summary>
+    /// Reports whether the signed-in visitor holds a content-manager role and may therefore see
+    /// unpublished parts of a series.
+    /// </summary>
+    /// <remarks>
+    /// An anonymous visitor, a signed-out circuit and any reader-level account all answer
+    /// <c>false</c>, so the page falls back to the published-only read. A failure to resolve the
+    /// authentication state answers <c>false</c> as well — the safe direction.
+    /// </remarks>
+    /// <returns><c>true</c> when the visitor is an Admin, Editor or Author.</returns>
+    private async Task<bool> IsContentManagerAsync()
+    {
+        if (AuthStateTask is null)
+            return false;
+
+        try
+        {
+            var user = (await AuthStateTask).User;
+            if (user?.Identity?.IsAuthenticated != true)
+                return false;
+
+            return AppRoles.ContentManagers.Any(role => user.IsInRole(role));
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private void LoadData()
@@ -245,8 +303,9 @@
 
         if (!string.IsNullOrEmpty(Slug))
         {
-            // Load specific series with its posts
-            series = SeriesService.GetSeriesBySlug(Slug);
+            // Load specific series with its posts. REQ-FN-015: only a content manager gets the
+            // draft parts; every other visitor gets the published-only list.
+            series = SeriesService.GetSeriesBySlug(Slug, canSeeDrafts);
 
             if (series != null && series.SeriesId > 0)
             {

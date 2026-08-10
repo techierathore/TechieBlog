@@ -1,3 +1,4 @@
+using BlogEngine.Common;
 using BlogModels;
 using BlogModels.Interfaces;
 using BlogModels.Models;
@@ -41,6 +42,19 @@ public class BlogImageService : IBlogImageService
     /// Root folder, relative to the storage backend, that all uploads live under.
     /// </summary>
     private const string UploadRootFolder = "uploads";
+
+    /// <summary>
+    /// Leading bytes handed to <see cref="ImageDimensionReader"/>. PNG, GIF, BMP and WebP declare
+    /// their size in the first 30 bytes; JPEG hides it behind however many EXIF, ICC and comment
+    /// segments the camera or editor wrote, so the window has to be generous. 64 KB clears a full
+    /// ICC profile and an embedded thumbnail.
+    /// </summary>
+    private const int HeaderProbeLength = 64 * 1024;
+
+    /// <summary>
+    /// Maximum length of <c>blogimage.alttext</c>, which is <c>VARCHAR(255)</c>.
+    /// </summary>
+    private const int MaxAltTextLength = 255;
 
     /// <summary>
     /// Category constraints defining max size and allowed formats per category.
@@ -107,7 +121,8 @@ public class BlogImageService : IBlogImageService
     }
 
     /// <inheritdoc />
-    public async Task<BlogImage> UploadImageAsync(IBrowserFile file, string category, long userId)
+    public async Task<BlogImage> UploadImageAsync(
+        IBrowserFile file, string category, long userId, string? altText = null)
     {
         if (userId <= 0)
             throw new ArgumentException("Invalid user ID.", nameof(userId));
@@ -123,7 +138,8 @@ public class BlogImageService : IBlogImageService
         var relativePath =
             $"{UploadRootFolder}/{normalizedCategory}/{BuildFileName(normalizedCategory, userId, extension)}";
 
-        return await StoreAsync(file, normalizedCategory, userId, extension, relativePath).ConfigureAwait(false);
+        return await StoreAsync(file, normalizedCategory, userId, extension, relativePath, altText)
+            .ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -137,7 +153,7 @@ public class BlogImageService : IBlogImageService
 
         try
         {
-            var image = imageRepo.GetSingle(imageId);
+            var image = await imageRepo.GetSingleAsync(imageId).ConfigureAwait(false);
             if (image == null || image.UserID != userId)
             {
                 logger.LogWarning("User {UserId} may not delete image {ImageId}", userId, imageId);
@@ -156,12 +172,13 @@ public class BlogImageService : IBlogImageService
     }
 
     /// <inheritdoc />
-    public Task<IEnumerable<BlogImage>> GetImagesByCategoryAsync(string category, long? userId = null)
+    public async Task<IEnumerable<BlogImage>> GetImagesByCategoryAsync(string category, long? userId = null)
     {
         try
         {
             var normalizedCategory = category?.ToLowerInvariant().Trim() ?? "general";
-            var filtered = imageRepo.GetAll()
+            var all = await imageRepo.GetAllAsync().ConfigureAwait(false);
+            var filtered = all
                 .Where(image => string.Equals(image.Category, normalizedCategory, StringComparison.OrdinalIgnoreCase));
 
             if (userId.HasValue && userId.Value > 0)
@@ -169,50 +186,50 @@ public class BlogImageService : IBlogImageService
                 filtered = filtered.Where(image => image.UserID == userId.Value);
             }
 
-            return Task.FromResult(filtered.OrderByDescending(image => image.CreatedTime).AsEnumerable());
+            return filtered.OrderByDescending(image => image.CreatedTime).AsEnumerable();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to get images by category {Category}", category);
-            return Task.FromResult(Enumerable.Empty<BlogImage>());
+            return Enumerable.Empty<BlogImage>();
         }
     }
 
     /// <inheritdoc />
-    public Task<IEnumerable<BlogImage>> GetImagesByUserAsync(long userId)
+    public async Task<IEnumerable<BlogImage>> GetImagesByUserAsync(long userId)
     {
         if (userId <= 0)
         {
-            return Task.FromResult(Enumerable.Empty<BlogImage>());
+            return Enumerable.Empty<BlogImage>();
         }
 
         try
         {
-            return Task.FromResult(imageRepo.GetAllById(userId));
+            return await imageRepo.GetAllByIdAsync(userId).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to get images for user {UserId}", userId);
-            return Task.FromResult(Enumerable.Empty<BlogImage>());
+            return Enumerable.Empty<BlogImage>();
         }
     }
 
     /// <inheritdoc />
-    public Task<BlogImage?> GetImageAsync(long imageId)
+    public async Task<BlogImage?> GetImageAsync(long imageId)
     {
         if (imageId <= 0)
         {
-            return Task.FromResult<BlogImage?>(null);
+            return null;
         }
 
         try
         {
-            return Task.FromResult<BlogImage?>(imageRepo.GetSingle(imageId));
+            return await imageRepo.GetSingleAsync(imageId).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to get image {ImageId}", imageId);
-            return Task.FromResult<BlogImage?>(null);
+            return null;
         }
     }
 
@@ -231,30 +248,39 @@ public class BlogImageService : IBlogImageService
     /// <remarks>
     /// <para><b>Business Logic:</b> Storage and metadata must not drift apart, so a failure after
     /// the bytes land removes the stored file before the exception propagates.</para>
-    /// <para><b>Flow:</b> Resolve the backend, copy the browser stream, insert the row, roll the
-    /// file back on failure.</para>
+    /// <para><b>Flow:</b> Resolve the backend, buffer the browser stream, read the pixel dimensions
+    /// out of the buffered header, write the bytes, insert the row, roll the file back on failure.</para>
     /// <para><b>Side Effects:</b> Writes one file and one database row.</para>
+    /// <para><b>Why the upload is buffered (REQ-FN-026).</b> An <see cref="IBrowserFile"/> stream is
+    /// forward-only and single-use, so the bytes cannot be inspected for dimensions and then handed
+    /// to the storage provider — one pass has to serve both. The buffer is bounded by the category's
+    /// own size ceiling, which is 10 MB at its largest, so the cost is the price of the two columns
+    /// the requirement asks for.</para>
     /// </remarks>
     /// <param name="file">The browser file being uploaded.</param>
     /// <param name="category">The normalised upload category.</param>
     /// <param name="userId">Owner of the upload.</param>
     /// <param name="extension">Lower-case file extension without the dot.</param>
     /// <param name="relativePath">Storage-relative destination path.</param>
+    /// <param name="altText">Alternative text supplied by the uploader, or <c>null</c>.</param>
     /// <returns>The persisted image record including its generated identifier.</returns>
     private async Task<BlogImage> StoreAsync(
-        IBrowserFile file, string category, long userId, string extension, string relativePath)
+        IBrowserFile file, string category, long userId, string extension, string relativePath,
+        string? altText)
     {
         var storage = await fileStorageFactory.GetStorageAsync().ConfigureAwait(false);
         var mimeType = GetMimeType(extension);
 
-        await using var source = file.OpenReadStream(maxAllowedSize: GetMaxSizeForCategory(category));
+        await using var buffer = await BufferUploadAsync(file, category).ConfigureAwait(false);
+        var dimensions = ReadDimensions(buffer, file.Name);
+
         var stored = await storage
-            .SaveAsync(source, relativePath, mimeType, CancellationToken.None)
+            .SaveAsync(buffer, relativePath, mimeType, CancellationToken.None)
             .ConfigureAwait(false);
 
         try
         {
-            return PersistMetadata(file, category, userId, mimeType, stored);
+            return PersistMetadata(file, category, userId, mimeType, stored, altText, dimensions);
         }
         catch (Exception ex)
         {
@@ -265,21 +291,85 @@ public class BlogImageService : IBlogImageService
     }
 
     /// <summary>
+    /// Copies the browser upload into a seekable in-memory buffer.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The buffer is capped at the category's own limit, which
+    /// <c>ValidateImageAsync</c> has already applied to the declared size — so a client that lies
+    /// about its file size is stopped by <see cref="IBrowserFile.OpenReadStream"/> rather than
+    /// allowed to allocate without bound.</para>
+    /// <para><b>Flow:</b> open the bounded stream → copy → rewind for the reader that follows.</para>
+    /// <para><b>Side Effects:</b> Allocates a buffer the size of the upload; the caller disposes it.</para>
+    /// </remarks>
+    /// <param name="file">The browser file being uploaded.</param>
+    /// <param name="category">The normalised upload category, which sets the ceiling.</param>
+    /// <returns>A rewound stream holding the complete upload.</returns>
+    private static async Task<MemoryStream> BufferUploadAsync(IBrowserFile file, string category)
+    {
+        var buffer = new MemoryStream();
+        await using (var source = file.OpenReadStream(maxAllowedSize: GetMaxSizeForCategory(category)))
+        {
+            await source.CopyToAsync(buffer).ConfigureAwait(false);
+        }
+
+        buffer.Position = 0;
+        return buffer;
+    }
+
+    /// <summary>
+    /// Reads an upload's pixel dimensions from its buffered header.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> A format this build cannot measure — SVG, PDF — is a normal
+    /// outcome and yields nulls rather than zeros, because <c>NULL</c> means "not probed" while
+    /// <c>0</c> would claim the image has no size. The stream is rewound afterwards so the storage
+    /// provider still receives the whole file.</para>
+    /// <para><b>Flow:</b> read the leading bytes → probe → rewind.</para>
+    /// <para><b>Side Effects:</b> Moves and restores the buffer's position.</para>
+    /// </remarks>
+    /// <param name="buffer">The rewound upload buffer.</param>
+    /// <param name="fileName">Original file name, for the diagnostic log entry only.</param>
+    /// <returns>The dimensions, or a pair of nulls when the format was not recognised.</returns>
+    private (int? Width, int? Height) ReadDimensions(MemoryStream buffer, string fileName)
+    {
+        var headerLength = (int)Math.Min(buffer.Length, HeaderProbeLength);
+        var header = new byte[headerLength];
+        _ = buffer.Read(header, 0, headerLength);
+        buffer.Position = 0;
+
+        if (ImageDimensionReader.TryReadDimensions(header, out var width, out var height))
+        {
+            return (width, height);
+        }
+
+        logger.LogInformation("Dimensions of {FileName} could not be read from its header", fileName);
+        return (null, null);
+    }
+
+    /// <summary>
     /// Inserts the metadata row describing a stored file.
     /// </summary>
     /// <remarks>
     /// <para><b>Business Logic:</b> <c>ImagePath</c> holds the provider's public URL so existing
     /// rendering code needs no change when the backend changes.</para>
     /// <para><b>Side Effects:</b> Inserts one <c>BlogImage</c> row.</para>
+    /// <para><b>Every descriptive column is populated (REQ-FN-026).</b> This method previously set
+    /// only name, path, size, time, owner, category and MIME type, which left <c>AltText</c>,
+    /// <c>Width</c> and <c>Height</c> NULL on every upload — the columns existed but the record did
+    /// not actually carry the attributes the requirement names, and the missing alternative text is
+    /// what REQ-NFR-007's WCAG 1.1.1 obligation depends on.</para>
     /// </remarks>
     /// <param name="file">The uploaded file, used for its original name.</param>
     /// <param name="category">The normalised upload category.</param>
     /// <param name="userId">Owner of the upload.</param>
     /// <param name="mimeType">Resolved MIME type.</param>
     /// <param name="stored">The storage backend's description of the written file.</param>
+    /// <param name="altText">Alternative text supplied by the uploader, or <c>null</c>.</param>
+    /// <param name="dimensions">Pixel size read from the header, or a pair of nulls.</param>
     /// <returns>The image record with its generated identifier populated.</returns>
     private BlogImage PersistMetadata(
-        IBrowserFile file, string category, long userId, string mimeType, FileStorageResult stored)
+        IBrowserFile file, string category, long userId, string mimeType, FileStorageResult stored,
+        string? altText, (int? Width, int? Height) dimensions)
     {
         var blogImage = new BlogImage
         {
@@ -289,14 +379,71 @@ public class BlogImageService : IBlogImageService
             CreatedTime = DateTime.UtcNow,
             UserID = userId,
             Category = category,
-            MimeType = mimeType
+            MimeType = mimeType,
+            AltText = BuildAltText(altText, file.Name),
+            Width = dimensions.Width,
+            Height = dimensions.Height
         };
 
         blogImage.BlogImageID = imageRepo.InsertToGetId(blogImage);
         logger.LogInformation(
-            "Image {ImageId} stored at {PublicUrl} via {Provider}",
-            blogImage.BlogImageID, stored.PublicUrl, stored.ProviderName);
+            "Image {ImageId} stored at {PublicUrl} via {Provider} at {Width}x{Height}",
+            blogImage.BlogImageID, stored.PublicUrl, stored.ProviderName,
+            blogImage.Width, blogImage.Height);
         return blogImage;
+    }
+
+    /// <summary>
+    /// Chooses the alternative text stored against an upload.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> A typed description always wins. When the uploader supplies
+    /// none, the original file name — with its extension and its separators removed — is stored
+    /// rather than NULL: it is a poor description, but it is an editable starting point and a
+    /// screen reader announces something meaningful instead of a generated storage name. The value
+    /// is clipped to the column width so a long name cannot fail the insert.</para>
+    /// <para><b>Flow:</b> trim the supplied text → fall back to the humanised file name → clip.</para>
+    /// <para><b>Side Effects:</b> None; pure.</para>
+    /// </remarks>
+    /// <param name="suppliedAltText">Text typed by the uploader, possibly blank or <c>null</c>.</param>
+    /// <param name="fileName">The original file name.</param>
+    /// <returns>Alternative text no longer than the column allows; never <c>null</c> or blank.</returns>
+    private static string BuildAltText(string? suppliedAltText, string fileName)
+    {
+        var candidate = suppliedAltText?.Trim();
+        if (string.IsNullOrEmpty(candidate))
+        {
+            candidate = HumaniseFileName(fileName);
+        }
+
+        return candidate.Length <= MaxAltTextLength ? candidate : candidate[..MaxAltTextLength];
+    }
+
+    /// <summary>
+    /// Turns a file name into readable words for use as fallback alternative text.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> "my-holiday_photo.JPG" reads better to a screen reader as "my
+    /// holiday photo" than as its raw file name. An extension-only or empty name has nothing to
+    /// humanise and falls back to a generic word rather than to an empty string, which would signal
+    /// "decorative" and hide the image from assistive technology altogether.</para>
+    /// <para><b>Flow:</b> drop the extension → replace separators with spaces → collapse blanks.</para>
+    /// <para><b>Side Effects:</b> None; pure.</para>
+    /// </remarks>
+    /// <param name="fileName">The original file name.</param>
+    /// <returns>A non-empty, human-readable phrase.</returns>
+    private static string HumaniseFileName(string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return "Uploaded image";
+        }
+
+        var lastDot = fileName.LastIndexOf('.');
+        var stem = lastDot > 0 ? fileName[..lastDot] : fileName;
+        var words = stem.Replace('-', ' ').Replace('_', ' ').Replace('.', ' ').Trim();
+
+        return string.IsNullOrWhiteSpace(words) ? "Uploaded image" : words;
     }
 
     /// <summary>

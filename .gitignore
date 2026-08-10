@@ -418,3 +418,10 @@ logs/
 # from history. It still needs `git rm --cached nuget.config`, and the PAT still needs REVOKING
 # on GitHub. CI does not use it: .github/workflows/ci.yml writes a throwaway nuget.ci.config.
 /nuget.config
+
+# TechieFlow agent artifacts — machine-generated test harness & logs, never commit (managed by scaffold/update-framework.sh)
+tests/.artifacts/
+test-results-*/
+
+# TechieFlow agent artifacts — machine-generated test harness & logs, never commit (managed by scaffold/update-framework.sh)
+/scripts-*/

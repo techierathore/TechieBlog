@@ -19,9 +19,16 @@
                      alt="Selected image"
                      class="h-full w-full object-cover"
                      data-testid="selected-image" />
+                @*
+                    REQ-UI-040 / TR-019 instance: the shipped trblazeui.css carries no `.top-1` rule
+                    (only top-0 / top-1.5 / top-1\/2 / top-2 / top-3.5 / top-4), so the previous
+                    `top-1` left this button with a STATIC vertical position. It fell below the
+                    h-full image, out of the overflow-hidden frame, and landed on the action row at
+                    390px. `top-2` is present in the bundle.
+                *@
                 <Button Variant="ButtonVariant.Ghost"
                         Size="ButtonSize.IconSmall"
-                        Class="absolute right-1 top-1 rounded-full bg-background/80"
+                        Class="absolute right-2 top-2 rounded-full bg-background/80"
                         AriaLabel="Clear selection"
                         OnClick="@ClearSelection"
                         data-testid="clear-image">

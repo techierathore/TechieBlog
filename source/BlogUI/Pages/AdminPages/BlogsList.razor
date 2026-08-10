@@ -54,16 +54,27 @@
             Library gap TR-030/TR-046; do not put test hooks back on the
             TabsList/TabsTrigger elements.
         *@
-        <Tabs Value="@StatusFilter"
-              ValueChanged="@((string value) => SetFilter(value))"
-              data-testid="posts-status-tabs">
-            <TabsList>
-                <TabsTrigger Value="all"><span data-testid="posts-tab-all">All (@(ObjectList?.Count ?? 0))</span></TabsTrigger>
-                <TabsTrigger Value="published"><span data-testid="posts-tab-published">Published (@PublishedCount)</span></TabsTrigger>
-                <TabsTrigger Value="draft"><span data-testid="posts-tab-draft">Drafts (@DraftCount)</span></TabsTrigger>
-                <TabsTrigger Value="scheduled"><span data-testid="posts-tab-scheduled">Scheduled (@ScheduledCount)</span></TabsTrigger>
-            </TabsList>
-        </Tabs>
+        @*
+            [REQ-UI-017] 2026-08-09 — the four triggers measure ~411px, so on a 390px phone the
+            "Scheduled (n)" tab used to be CLIPPED: TabsList is `inline-flex` (content-sized) and
+            nothing on the page scrolls horizontally, so the overflowing 21px were simply
+            unreachable and the count digit was cut in half. This wrapper caps the row at the
+            viewport width and makes the overflow SCROLLABLE instead of clipped; at 1280px the
+            row fits and no scrollbar appears. `w-full sm:w-auto` keeps the tabs and the search
+            box side by side on desktop and stacked on a phone.
+        *@
+        <div class="w-full min-w-0 overflow-x-auto sm:w-auto" data-testid="posts-status-tabs-scroller">
+            <Tabs Value="@StatusFilter"
+                  ValueChanged="@((string value) => SetFilter(value))"
+                  data-testid="posts-status-tabs">
+                <TabsList Class="w-max">
+                    <TabsTrigger Value="all"><span data-testid="posts-tab-all">All (@(ObjectList?.Count ?? 0))</span></TabsTrigger>
+                    <TabsTrigger Value="published"><span data-testid="posts-tab-published">Published (@PublishedCount)</span></TabsTrigger>
+                    <TabsTrigger Value="draft"><span data-testid="posts-tab-draft">Drafts (@DraftCount)</span></TabsTrigger>
+                    <TabsTrigger Value="scheduled"><span data-testid="posts-tab-scheduled">Scheduled (@ScheduledCount)</span></TabsTrigger>
+                </TabsList>
+            </Tabs>
+        </div>
 
         <div class="flex items-center gap-2">
             <LucideIcon Name="search" Size="16" Class="text-muted-foreground" />

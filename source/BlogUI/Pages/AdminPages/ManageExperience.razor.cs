@@ -52,8 +52,17 @@ public partial class ManageExperience : ComponentBase
     private string? StatusMessage { get; set; }
     private bool IsError { get; set; }
 
-    // Edit mode
+    // Edit mode — route-level: the page was deep-linked as /admin/experience/{id}.
     private bool IsEditMode => EventId > 0;
+
+    /// <summary>
+    /// Whether the dialog is editing a persisted row rather than composing a new one.
+    /// </summary>
+    /// <remarks>
+    /// Distinct from <see cref="IsEditMode"/>, which only reports the ROUTE. Editing from the list
+    /// happens in place with no navigation, so the route says "add" while the dialog is editing.
+    /// </remarks>
+    private bool IsExistingEntry => CurrentEvent.EventID > 0;
 
     // Auth state
     private ClaimsPrincipal? LoggedInUser;
@@ -78,6 +87,32 @@ public partial class ManageExperience : ComponentBase
     {
         get => CurrentEvent.EventDate == default ? null : CurrentEvent.EventDate;
         set => CurrentEvent.EventDate = value ?? DateTime.Today;
+    }
+
+    /// <summary>
+    /// Nullable projection of <see cref="UserEvent.LogoIconPath"/> for the company-logo
+    /// <c>ImagePicker</c> (REQ-UI-037), whose bound value is <see cref="string"/>?.
+    /// </summary>
+    /// <remarks>
+    /// Business Logic: the picker clears a selection by pushing <c>null</c>, but
+    /// <see cref="UserEvent.LogoIconPath"/> is non-nullable, so a cleared logo is stored as
+    /// <see cref="string.Empty"/> - the same value the column already uses for "no logo".
+    /// Side Effects: none beyond the field assignment.
+    /// </remarks>
+    private string? LogoIconPath
+    {
+        get => string.IsNullOrEmpty(CurrentEvent.LogoIconPath) ? null : CurrentEvent.LogoIconPath;
+        set => CurrentEvent.LogoIconPath = value ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Non-null projection of <see cref="UserEvent.LogoIconPath"/> for the manual path Input,
+    /// kept alongside the picker so both controls drive one property.
+    /// </summary>
+    private string LogoIconPathText
+    {
+        get => CurrentEvent.LogoIconPath ?? string.Empty;
+        set => CurrentEvent.LogoIconPath = value ?? string.Empty;
     }
 
     /// <summary>
@@ -244,9 +279,48 @@ public partial class ManageExperience : ComponentBase
         StatusMessage = string.Empty;
     }
 
+    /// <summary>
+    /// Opens an existing entry in the add/edit dialog.
+    /// </summary>
+    /// <param name="eventId">The identifier of the entry to edit.</param>
+    /// <remarks>
+    /// Business Logic: edits happen IN PLACE rather than by navigating to
+    /// <c>/admin/experience/{id}</c>. The navigation form left the page unusable after a save -
+    /// returning to <c>/admin/experience</c> reuses the same component instance, so
+    /// <see cref="EventId"/> reset to 0 while <c>ShowForm</c> stayed true and the dialog hung open
+    /// over a stale list. The <c>{EventId:long}</c> route still works for deep links via
+    /// <see cref="OnParametersSetAsync"/>.
+    /// Side Effects: opens the dialog; clears any status message.
+    /// </remarks>
     private void EditExperience(long eventId)
     {
-        NavManager.NavigateTo($"/admin/experience/{eventId}");
+        var entry = ExperienceList?.FirstOrDefault(item => item.EventID == eventId);
+        if (entry is null)
+        {
+            NavManager.NavigateTo($"/admin/experience/{eventId}");
+            return;
+        }
+
+        // Edit a COPY: binding the list item itself would let a cancelled edit leave its
+        // half-typed values on the card behind the dialog.
+        CurrentEvent = new UserEvent
+        {
+            EventID = entry.EventID,
+            UserID = entry.UserID,
+            EventType = entry.EventType,
+            EventTitle = entry.EventTitle,
+            SessionTitle = entry.SessionTitle,
+            LogoIconPath = entry.LogoIconPath,
+            EventUrl = entry.EventUrl,
+            EventDate = entry.EventDate,
+            StartDate = entry.StartDate,
+            Description = entry.Description,
+            DisplayOrder = entry.DisplayOrder,
+            IsCurrent = entry.IsCurrent
+        };
+        StatusMessage = string.Empty;
+        IsError = false;
+        ShowForm = true;
     }
 
     /// <summary>
@@ -261,17 +335,24 @@ public partial class ManageExperience : ComponentBase
         }
     }
 
+    /// <summary>
+    /// Closes the add/edit dialog and discards the in-progress entry.
+    /// </summary>
+    /// <remarks>
+    /// Business Logic: the dialog state is ALWAYS reset, including on the deep-linked
+    /// <c>/admin/experience/{id}</c> route. Navigating without resetting left <c>ShowForm</c> true,
+    /// and because the destination reuses the same component instance the dialog stayed on screen.
+    /// Side Effects: navigates back to the list route when the page was deep-linked.
+    /// </remarks>
     private void CancelEdit()
     {
+        ShowForm = false;
+        CurrentEvent = new UserEvent();
+        StatusMessage = string.Empty;
+
         if (IsEditMode)
         {
             NavManager.NavigateTo("/admin/experience");
-        }
-        else
-        {
-            ShowForm = false;
-            CurrentEvent = new UserEvent();
-            StatusMessage = string.Empty;
         }
     }
 
@@ -330,15 +411,15 @@ public partial class ManageExperience : ComponentBase
 
             IsError = false;
 
-            // Navigate back to list
+            // Always close the dialog and refresh the list; only the deep-linked
+            // /admin/experience/{id} route additionally returns to the list URL.
+            ShowForm = false;
+            CurrentEvent = new UserEvent();
+            await LoadData();
+
             if (IsEditMode)
             {
                 NavManager.NavigateTo("/admin/experience");
-            }
-            else
-            {
-                ShowForm = false;
-                await LoadData();
             }
         }
         catch (Exception ex)

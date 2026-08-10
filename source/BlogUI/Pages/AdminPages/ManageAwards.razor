@@ -83,7 +83,13 @@
             {
                 var current = award;
                 <Card data-testid="award-card">
-                    <CardContent Class="flex items-start gap-4 pt-6">
+                    @*
+                        The card body WRAPS. With `min-w-0 flex-1` the title column shrank to ~120px
+                        at 390px — four icon buttons plus the badge take the row — and the title then
+                        painted over the edit/delete icons. A 200px floor plus flex-wrap drops the
+                        action group onto its own line instead.
+                    *@
+                    <CardContent Class="flex flex-wrap items-start gap-4 pt-6">
 
                         <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded bg-muted text-muted-foreground">
                             @if (!string.IsNullOrEmpty(current.BadgeImagePath))
@@ -98,8 +104,8 @@
                             }
                         </div>
 
-                        <div class="min-w-0 flex-1">
-                            <div class="font-semibold" data-testid="award-title">
+                        <div class="min-w-[200px] flex-1 break-words">
+                            <div class="font-semibold break-words" data-testid="award-title">
                                 @if (!string.IsNullOrEmpty(current.AwardUrl))
                                 {
                                     <a href="@current.AwardUrl"
@@ -123,7 +129,7 @@
                             }
                         </div>
 
-                        <div class="flex shrink-0 items-center gap-1">
+                        <div class="flex shrink-0 items-center gap-1 ml-auto">
                             <Button Variant="ButtonVariant.Ghost"
                                     Size="ButtonSize.IconSmall"
                                     AriaLabel="Edit award"
@@ -196,15 +202,24 @@
                 </FieldContent>
             </Field>
 
+            @* REQ-UI-039: the acceptance names a badge-image PICKER, not a path box.
+               ImagePicker (media library + upload, "awards" category) is the control; the
+               mono path box below stays as the manual-entry escape hatch and binds the
+               same field, so the two stay in sync in both directions. *@
             <Field>
-                <FieldLabel For="award-badge">Badge Image URL (optional)</FieldLabel>
+                <FieldLabel>Badge Image (optional)</FieldLabel>
                 <FieldContent>
+                    <div data-testid="award-badge-picker">
+                        <ImagePicker Category="awards"
+                                     @bind-SelectedImagePath="FormBadgeImagePathValue"
+                                     UserId="@SelectedUserId" />
+                    </div>
                     <Input Id="award-badge"
                            @bind-Value="FormBadgeImagePath"
                            Placeholder="/images/awards/mvp-badge.png"
                            Class="font-mono"
                            data-testid="award-badge-input" />
-                    <FieldDescription>Path to the badge image. Upload images via the media library.</FieldDescription>
+                    <FieldDescription>Pick a badge from the library or upload one - or paste a path directly.</FieldDescription>
                 </FieldContent>
             </Field>
 

@@ -4,12 +4,15 @@
     entirely from the site owner's resume data (BRD-30 revised, REQ-UI-049).
 
     Section order follows docs/mockups/01-home.html:
-        hero -> headline stats -> about summary -> latest articles -> contact
+        hero -> headline stats -> about summary -> featured post -> latest
+        articles -> contact
 
     The hero and contact blocks REUSE the resume components (<ResumeHero>,
     <ResumeContact>) rather than duplicating their markup; the three home-only
-    sections live in Components/Home. Supersedes the featured-post + recent-grid
-    home (REQ-UI-006).
+    sections live in Components/Home. The portfolio redesign replaced the old
+    recent-post grid layout (REQ-UI-006) but NOT the featured post itself:
+    REQ-FN-020 / BRD-31 require the newest published article to lead the page,
+    so the featured block sits above the latest-articles grid.
 
     BRD-93 / REQ-UI-050 — this page exposes no login link and no user menu.
     REQ-UI-048 — TrBlazeUI throughout.
@@ -58,6 +61,39 @@ else
 
         @* Short about summary; the full story stays on /resume. *@
         <HomeAbout Summary="@siteOwner.ProfileDescription" />
+
+        @* REQ-FN-020 / BRD-31 — the featured post: the newest published article, given its own
+           full-width block above the grid so the landing page always leads with one piece of
+           writing. Selection is BlogSvc.GetFeaturedPost(); nothing is curated by hand. *@
+        @if (featuredPost is not null)
+        {
+            <section class="py-4" data-testid="home-featured">
+                <div class="mb-3 flex items-center gap-2">
+                    <Badge data-testid="home-featured-badge">Featured</Badge>
+                    <span class="text-sm text-muted-foreground">Latest from the blog</span>
+                </div>
+
+                <Card data-testid="home-featured-post">
+                    <CardContent Class="flex flex-col gap-3 p-6">
+                        <h2 class="text-2xl font-bold leading-snug">
+                            <a href="/post/@featuredPost.Slug"
+                               class="text-foreground no-underline hover:text-primary hover:underline"
+                               data-testid="home-featured-title">@featuredPost.Title</a>
+                        </h2>
+                        <p class="text-muted-foreground" data-testid="home-featured-excerpt">@FeaturedExcerpt</p>
+                        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                            <span data-testid="home-featured-author">
+                                By @(string.IsNullOrWhiteSpace(featuredPost.BlogWriter) ? "Unknown" : featuredPost.BlogWriter)
+                            </span>
+                            <span data-testid="home-featured-date">@featuredPost.CreatedOn.ToString("MMM dd, yyyy")</span>
+                            <span data-testid="home-featured-readtime">
+                                @BlogEngine.Common.ReadingTimeCalculator.Calculate(featuredPost.PostContent ?? string.Empty)
+                            </span>
+                        </div>
+                    </CardContent>
+                </Card>
+            </section>
+        }
 
         @* Most recent published posts, linking to the real articles. *@
         <HomeLatestArticles Posts="@latestPosts" IsLoading="false" />

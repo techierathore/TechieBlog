@@ -132,7 +132,29 @@ public class MarkupAccessibilityContractTests
     /// <exception cref="DirectoryNotFoundException">The folder is not above the test binary.</exception>
     private static string SourceRoot()
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        return WalkUpFrom(AppContext.BaseDirectory)
+            ?? WalkUpFrom(Path.GetDirectoryName(ThisFilePath()))
+            ?? throw new DirectoryNotFoundException("Could not locate the repository's source folder.");
+    }
+
+    /// <summary>
+    /// Walks up from a starting folder looking for <c>source/BlogUI</c>.
+    /// </summary>
+    /// <remarks>
+    /// The compile-time fallback in <see cref="SourceRoot"/> matters because
+    /// <c>dotnet test --artifacts-path …</c> stages the test binary OUTSIDE the repository tree, and
+    /// the walk from <c>AppContext.BaseDirectory</c> then finds nothing. Before this, running the
+    /// suite with a redirected output folder failed three accessibility tests with
+    /// <c>DirectoryNotFoundException</c> — a harness artefact that reads exactly like a real defect.
+    /// </remarks>
+    /// <param name="startFolder">Folder to start from; may be <c>null</c>.</param>
+    /// <returns>The source folder, or <c>null</c> when it is not above the start.</returns>
+    private static string? WalkUpFrom(string? startFolder)
+    {
+        if (string.IsNullOrWhiteSpace(startFolder) || !Directory.Exists(startFolder))
+            return null;
+
+        var directory = new DirectoryInfo(startFolder);
 
         while (directory != null)
         {
@@ -143,6 +165,16 @@ public class MarkupAccessibilityContractTests
             directory = directory.Parent;
         }
 
-        throw new DirectoryNotFoundException("Could not locate the repository's source folder.");
+        return null;
+    }
+
+    /// <summary>
+    /// This source file's path, captured by the compiler.
+    /// </summary>
+    /// <param name="filePath">Supplied by the compiler; never pass a value.</param>
+    /// <returns>The absolute path of this file on the machine that compiled it.</returns>
+    private static string ThisFilePath([System.Runtime.CompilerServices.CallerFilePath] string filePath = "")
+    {
+        return filePath;
     }
 }

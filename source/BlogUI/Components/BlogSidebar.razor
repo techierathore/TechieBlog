@@ -6,6 +6,14 @@
     REQ-UI-048 — rebuilt on TrBlazeUI (Card / Input / Badge / Button / Alert).
     Renamed from Sidebar.razor: the old name collided with TrBlazeUI's own
     Sidebar navigation component once the library namespaces entered _Imports.
+
+    REQ-UI-056 / BRD-99 — SECURITY. MainLayout renders this component on EVERY public page,
+    which makes the subscribe form below the widest-reach anonymous write surface in the site.
+    It used to call SubscriberSvc.Subscribe directly, which writes IsConfirmed = true: no
+    captcha, and no consent from the address owner. It now sits behind the same CaptchaWidget
+    as the comment form, the rating panel and the newsletter card, and writes through
+    SubscriberSvc.SubscribePendingAsync, which stores a PENDING row and mails a confirmation
+    link (BRD-98 / REQ-FN-048). Nothing is ever sent to an address that has not clicked it.
 *@
 
 @inject BlogEngine.Services.CategorySvc CategoryService
@@ -116,6 +124,10 @@
                        AriaLabel="Email address"
                        data-testid="subscribe-email" />
 
+                @* Self-hosted human check (BRD-99 / REQ-UI-056), with the accessible
+                   question alternative it carries for free (REQ-UI-057). *@
+                <CaptchaWidget @ref="captcha" data-testid="sidebar-subscribe-captcha" />
+
                 <Button OnClick="HandleSubscribe"
                         Disabled="@isSubscribing"
                         Class="w-full"
@@ -130,12 +142,23 @@
                         <span>Subscribe</span>
                     }
                 </Button>
+
+                @* Double opt-in explainer (BRD-98) — the same promise the newsletter card makes. *@
+                <p class="m-0 text-xs text-muted-foreground" data-testid="subscribe-optin-note">
+                    We send a confirmation link — your subscription starts once you click it.
+                </p>
             }
         </CardContent>
     </Card>
 </aside>
 
 @code {
+    /// <summary>Accepts anything with a single @@ and a dotted domain; the confirmation mail is the real test.</summary>
+    private static readonly System.Text.RegularExpressions.Regex EmailPattern =
+        new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+            System.Text.RegularExpressions.RegexOptions.Compiled
+            | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
     private string searchQuery = string.Empty;
     private string emailAddress = string.Empty;
     private List<Category> categories = new();
@@ -144,6 +167,7 @@
     private string subscribeMessage = string.Empty;
     private bool subscribeSuccess;
     private bool isSubscribing;
+    private CaptchaWidget captcha;
 
     /// <inheritdoc />
     protected override void OnInitialized()
@@ -212,8 +236,21 @@
     }
 
     /// <summary>
-    /// Registers the supplied address with the subscriber service.
+    /// Screens the visitor with the captcha, then starts a double opt-in subscription.
     /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> [REQ-UI-056] Two gates stand in front of the write, in this
+    /// order. The address is shape-checked first so a typo does not burn the single-use captcha
+    /// challenge; then the captcha is validated, and only a visitor who passes it reaches
+    /// <c>SubscribePendingAsync</c>. That method writes <c>IsConfirmed = false</c> and mails a
+    /// confirmation link, so even a solved captcha cannot put a stranger's address on the list —
+    /// the address owner still has to click.</para>
+    /// <para><b>Flow:</b> reject an empty address → validate the captcha → submit → report the
+    /// outcome → re-arm the challenge.</para>
+    /// <para><b>Side Effects:</b> May insert an unconfirmed <c>Subscriber</c> row, a verification
+    /// token row and one email; always consumes and replaces the captcha challenge.</para>
+    /// </remarks>
+    /// <returns>A task that completes when the outcome has been shown.</returns>
     private async Task HandleSubscribe()
     {
         if (isSubscribing)
@@ -230,17 +267,32 @@
             return;
         }
 
+        // Shape-checked here FIRST so a typo does not burn the single-use captcha challenge.
+        if (!EmailPattern.IsMatch(emailAddress.Trim()))
+        {
+            subscribeMessage = "Please enter a valid email address.";
+            subscribeSuccess = false;
+            return;
+        }
+
+        if (!await IsHumanAsync())
+        {
+            subscribeSuccess = false;
+            subscribeMessage = captcha?.IsQuestionMode == true
+                ? "That was not the right answer. Please answer the new verification question and try again."
+                : "That answer did not match the image. Please try again.";
+            return;
+        }
+
         isSubscribing = true;
         StateHasChanged();
 
         try
         {
-            var result = await Task.Run(() => SubscriberService.Subscribe(emailAddress.Trim()));
+            var result = await SubscriberService.SubscribePendingAsync(emailAddress.Trim());
 
             subscribeSuccess = result.IsSuccess;
-            subscribeMessage = result.IsSuccess
-                ? "Thank you for subscribing!"
-                : result.ErrorMessage;
+            subscribeMessage = ResolveMessage(result);
 
             if (result.IsSuccess)
             {
@@ -255,7 +307,61 @@
         finally
         {
             isSubscribing = false;
+            captcha?.Reset();
             StateHasChanged();
         }
+    }
+
+    /// <summary>
+    /// Validates the self-hosted captcha answer.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> [REQ-UI-056] The widget is the gate, so a MISSING widget is a
+    /// hard refusal rather than a pass — this form is reachable anonymously from every page in the
+    /// site, and failing open here is exactly the defect this requirement exists to close. An
+    /// empty answer box is refused without a service round trip so an unanswered challenge is not
+    /// burned.</para>
+    /// <para><b>Side Effects:</b> Consumes the current challenge and issues a new one.</para>
+    /// </remarks>
+    /// <returns>True only when a rendered widget accepted the typed answer.</returns>
+    private async Task<bool> IsHumanAsync()
+    {
+        if (captcha == null)
+        {
+            return false;
+        }
+
+        if (!captcha.HasAnswer)
+        {
+            captcha.ShowError(captcha.IsQuestionMode
+                ? "Please answer the verification question."
+                : "Please type the characters from the verification image.");
+            return false;
+        }
+
+        return await captcha.ValidateAsync();
+    }
+
+    /// <summary>
+    /// Turns a subscribe outcome into the sentence shown under the form.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> A successful submission never claims the subscription is
+    /// active — it is not, until the mailed link is clicked. The "already subscribed" case
+    /// deliberately reads the same as the confirmed case would to a stranger probing addresses.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <param name="result">The service outcome; <c>Data</c> is false when nothing was mailed.</param>
+    /// <returns>The visitor-facing message.</returns>
+    private static string ResolveMessage(Result<bool> result)
+    {
+        if (result.IsFailure)
+        {
+            return result.ErrorMessage;
+        }
+
+        return result.Data
+            ? "Almost there — check your inbox and click the confirmation link."
+            : "That address is already subscribed.";
     }
 }

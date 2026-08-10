@@ -47,6 +47,13 @@
    instead of the table shrinking and clipping its right-hand columns. */
 .min-w-\[720px\] { min-width: 720px; }
 
+/* `h-36` was gap-filled below but its `w-36` partner never was, so every
+   `h-36 w-36` square in the app — the ImagePicker preview frame on
+   /admin/profile, /admin/experience, /admin/awards and the post editor — rendered
+   144px tall and FULL WIDTH, stretching the thumbnail with object-cover.
+   Found 2026-08-09 (REQ-UI-037/039/040). */
+.w-36 { width: 9rem; }
+
 /* --- Layout: height ------------------------------------------------------- */
 .h-20 { height: 5rem; }
 .h-28 { height: 7rem; }
@@ -295,4 +302,27 @@ button.size-10,
 a.size-10 {
     min-block-size: var(--tb-target-min);
     min-inline-size: var(--tb-target-min);
+}
+
+/* -----------------------------------------------------------------------------
+   Nested dialog stacking — REQ-UI-037 / REQ-UI-039. Logged upstream as TR-060.
+
+   TrBlazeUI portals every Dialog into a `.trblazeui-portal` div appended to
+   <body>, and every dialog's overlay AND panel are hard-coded to `z-50`. When one
+   Dialog is opened from inside another Dialog's content — which is exactly what
+   the company-logo and award-badge ImagePickers do — the child's portal is NOT
+   guaranteed to land after the parent's in document order. Measured on
+   /admin/experience: the gallery portal was inserted at DOM index 0 and the
+   parent experience-dialog portal sat at index 1, so with equal z-index the
+   PARENT painted over the child. The gallery was visible but its tiles could not
+   be clicked: hit-testing the centre of a tile returned the parent picker's
+   preview frame, and Playwright reported "subtree intercepts pointer events".
+
+   Raising both children of the picker's own portals puts them unambiguously above
+   any parent dialog regardless of insertion order. Scoped to the ImagePicker's two
+   dialogs on purpose — this is a targeted fix, not a blanket z-index escalation.
+   -------------------------------------------------------------------------- */
+.trblazeui-portal:has([data-testid="image-gallery-dialog"]) > *,
+.trblazeui-portal:has([data-testid="image-upload-dialog"]) > * {
+    z-index: 120;
 }

@@ -86,7 +86,10 @@ public class DesktopAuthStateProvider : CustomAuthStateProvider
                 return Anonymous();
             }
 
-            var user = await AuthSvc.GetUserByAccessTokenAsync(accessToken);
+            // REQ-FN-008: resolve through the shared helper, not through IAuthService directly, so
+            // an expired access token is renewed here too. Calling the service straight would make
+            // this head delete a token the website would have refreshed.
+            var user = await ResolveSessionUserAsync(accessToken);
             if (user == null || string.IsNullOrEmpty(user.EmailId))
             {
                 await ForgetTokensAsync();

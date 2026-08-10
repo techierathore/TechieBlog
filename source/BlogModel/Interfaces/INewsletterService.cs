@@ -18,7 +18,9 @@ namespace BlogModels.Interfaces;
 ///   <item><b>Audit</b> — <see cref="GetSendHistoryAsync"/> shows who the issue reached.</item>
 ///   <item><b>Archive</b> — <see cref="GetPublishedIssuesAsync"/>,
 ///         <see cref="GetPublishedBySlugAsync"/> and <see cref="GetNavigationAsync"/> serve readers.</item>
-///   <item><b>Unsubscribe</b> — <see cref="UnsubscribeAsync"/> consumes the token in the link.</item>
+///   <item><b>Unsubscribe</b> — <see cref="UnsubscribeAsync"/> consumes the token in the link, and
+///         <see cref="BuildUnsubscribeUrl"/> builds the link that carries it. Both must stay
+///         reachable without a sign-in: the page behind the link is anonymous by design.</item>
 /// </list>
 ///
 /// <para><b>Dependencies:</b> <c>INewsletterRepo</c>, the engine's <c>IEmailService</c>, and
@@ -97,17 +99,28 @@ public interface INewsletterService
     Task<IReadOnlyList<NewsletterRecipient>> GetSendHistoryAsync(long newsletterId);
 
     /// <summary>
-    /// Removes a subscriber using the token from an unsubscribe link.
+    /// Removes a subscriber using the token from an unsubscribe link, and reports which of the two
+    /// success cases applied.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> An unknown or empty token is rejected. A token that resolves to
-    /// an already-inactive subscriber succeeds so the link is idempotent for the reader.</para>
-    /// <para><b>Flow:</b> validate token → resolve subscriber → deactivate → log.</para>
-    /// <para><b>Side Effects:</b> Deactivates the subscriber.</para>
+    /// <para><b>Business Logic:</b> The token is the authorisation — an unsubscribe link is followed
+    /// from a mail client with no session, so an unguessable per-subscriber token stands in for an
+    /// identity and the call must remain reachable anonymously. A token that resolves to a
+    /// subscriber who is already opted out succeeds as
+    /// <see cref="UnsubscribeOutcome.AlreadyUnsubscribed"/>, which is what makes re-opening the same
+    /// link a harmless no-op instead of an error.</para>
+    /// <para><b>Flow:</b> validate token → resolve subscriber → branch on the current state →
+    /// deactivate → log.</para>
+    /// <para><b>Side Effects:</b> Deactivates the subscriber on the
+    /// <see cref="UnsubscribeOutcome.Unsubscribed"/> path only; the other paths write nothing.</para>
+    /// <para><b>Does not leak whether a token exists.</b> A blank token, an unknown token and an
+    /// internal failure all come back as failures carrying the same wording, so the route cannot be
+    /// used to test whether a guessed token belongs to a real subscriber.</para>
     /// </remarks>
     /// <param name="unsubscribeToken">Token taken from the link.</param>
-    /// <returns>Success when the address will no longer receive mail.</returns>
-    Task<Result> UnsubscribeAsync(string unsubscribeToken);
+    /// <returns>The outcome when the token resolved; a failure carrying a deliberately vague message
+    /// when it did not.</returns>
+    Task<Result<UnsubscribeOutcome>> UnsubscribeAsync(string unsubscribeToken);
 
     /// <summary>
     /// Reads one page of the public newsletter archive.

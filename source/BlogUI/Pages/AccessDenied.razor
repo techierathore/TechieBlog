@@ -5,11 +5,23 @@
     REQ-UI-048 — rebuilt on TrBlazeUI; the previous <style> block is gone and the
     surface is now token-driven, so it is readable in dark mode (REQ-UI-033).
     Layout: AuthLayout (bare centered card, per the UI design spec).
+
+    REQ-UI-004 — this component has TWO call sites and only one of them routes:
+      1. the /access-denied ROUTE, where @layout AuthLayout applies and the card is
+         correctly alone on a bare centered shell;
+      2. Routes.razor's <NotAuthorized> fragment, which renders it as a plain child.
+         AuthorizeRouteView puts that fragment inside the LAYOUT OF THE ROUTE THE USER
+         ASKED FOR, so the inner <LayoutView Layout="AuthLayout"> nested a second shell
+         inside MainLayout: two brand marks, two ThemeToggles (they overlapped in the
+         geometry check) and the public blog sidebar sitting beside a "you don't have
+         permission" card. @layout cannot cancel an outer layout, so case 2 hands over to
+         case 1 by navigating to the real route as soon as the circuit is interactive.
 *@
 
 @page "/access-denied"
 @layout BlogUI.Layouts.AuthLayout
 @using System.Security.Claims
+@inject NavigationManager Navigation
 
 <PageTitle>Access denied - TechieBlog</PageTitle>
 
@@ -63,6 +75,9 @@
     /// </remarks>
     private bool HasStaffLanding => LandingRoute != RoleLandingRoutes.PublicHome;
 
+    /// <summary>The canonical route this card lives on.</summary>
+    private const string OwnRoute = "access-denied";
+
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
@@ -74,5 +89,48 @@
         var authState = await AuthStateTask;
         var role = authState.User.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty;
         LandingRoute = RoleLandingRoutes.ResolveFor(role);
+    }
+
+    /// <summary>
+    /// Sends a visitor who was bounced here by the router on to the real /access-denied route.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> REQ-UI-004. When <c>AuthorizeRouteView</c> renders this
+    /// component as its <c>NotAuthorized</c> fragment, the fragment sits inside the layout of the
+    /// page the visitor asked for — for an admin URL that resolves to <c>MainLayout</c>, so the
+    /// bare auth card ends up nested in the full public blog shell. A component cannot cancel an
+    /// outer layout, so the only clean exit is to leave that render tree entirely and land on the
+    /// route whose own <c>@layout</c> is correct. The URL changing to <c>/access-denied</c> is the
+    /// desired outcome, not a side effect: the visitor can now reload or bookmark the page and see
+    /// the same thing.</para>
+    /// <para><b>Flow:</b> first interactive render only → compare the current path with the card's
+    /// own route → navigate when they differ.</para>
+    /// <para><b>Side Effects:</b> A client-side navigation. Deliberately skipped during the static
+    /// prerender, where <c>RendererInfo.IsInteractive</c> is false and the authentication state is
+    /// not yet readable.</para>
+    /// </remarks>
+    /// <param name="firstRender">True on the component's first render.</param>
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender || !RendererInfo.IsInteractive || IsOnOwnRoute())
+        {
+            return;
+        }
+
+        Navigation.NavigateTo("/" + OwnRoute);
+    }
+
+    /// <summary>
+    /// True when the browser is already sitting on <c>/access-denied</c>.
+    /// </summary>
+    /// <remarks>
+    /// Compared on the PATH only, so a query string or a fragment never causes a redirect loop.
+    /// </remarks>
+    /// <returns>True when no navigation is needed.</returns>
+    private bool IsOnOwnRoute()
+    {
+        var relativePath = Navigation.ToBaseRelativePath(Navigation.Uri);
+        var pathOnly = relativePath.Split('?', '#')[0].Trim('/');
+        return string.Equals(pathOnly, OwnRoute, StringComparison.OrdinalIgnoreCase);
     }
 }

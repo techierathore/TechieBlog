@@ -28,6 +28,18 @@
     <title>@siteTitle</title>
     <meta name="description" content="@metaDescription" />
     <base href="/" />
+
+    @*
+        RSS auto-discovery (REQ-UI-046, BRD-63). This tag is the entire mechanism by which a
+        browser, a reader extension or an aggregator finds the feed from any page of the site —
+        without it the feed exists but is undiscoverable, which is how it was verified as missing
+        on 2026-08-09. It belongs in the shared document head, not on /rss, precisely so that
+        landing on ANY page is enough. The href must stay in step with RssFeedSvc.FeedPath, the
+        route Program.cs maps.
+
+        Written through MarkupString rather than as literal Razor markup: see RssDiscoveryTag.
+    *@
+    @RssDiscoveryTag
     <ResourcePreloader />
     <ImportMap />
 
@@ -168,6 +180,122 @@
                 attributeFilter: ['tabindex', 'data-a11y-decorative']
             });
         })();
+
+        // ---------------------------------------------------------------------------------
+        // [REQ-NFR-007] WCAG 4.1.2 — TrBlazeUI `Tabs` repairs (library gaps TR-054, TR-063).
+        //
+        // Same shape and the same justification as the TR-052 observer above: the component
+        // states something about itself that is not true, the component exposes no parameter
+        // to stop it, so the untrue part is corrected from outside. Nothing here invents a
+        // meaning the DOM does not already carry — every rule either DELETES an unbacked
+        // claim or transcribes a state the library itself already rendered.
+        //
+        //  (a) aria-controls -> a missing id (TR-054, 44 axe `aria-valid-attr-value` nodes).
+        //      Only the ACTIVE `TabsContent` is rendered and there is no ForceMount/
+        //      KeepMounted parameter, so every inactive `TabsTrigger` points at an element
+        //      that is not in the document. Three of the five admin screens drive the tabs
+        //      themselves and render NO `TabsContent` at all, so on those every trigger
+        //      dangles. An absent aria-controls is strictly better for a screen reader than
+        //      one that resolves to nothing: "move to the controlled element" simply is not
+        //      offered, instead of being offered and failing.
+        //
+        //  (b) role="tab" with no role="tablist" ancestor (TR-054b, 4 nodes,
+        //      `aria-required-parent`). Measured 2026-08-09: these are the Write/Preview
+        //      buttons inside the LIBRARY's own `MarkdownEditor`, whose list wrapper is a
+        //      bare <div> — not, as first supposed, the composer's nested Tabs. Injecting
+        //      role="tablist" onto that wrapper was rejected: arrow keys and Home/End were
+        //      measured on those two buttons and do NOT move focus, so a tablist would
+        //      promise assistive technology a roving-focus contract the widget does not
+        //      honour. Dropping the role leaves two correctly-named, fully operable buttons
+        //      and removes a promise nothing keeps.
+        //
+        //  (c) aria-selected (TR-063). The library writes aria-selected="" — an EMPTY token
+        //      value, which ARIA resolves to the attribute default, i.e. "not exposed" — on
+        //      the active tab, and omits the attribute entirely on the inactive ones.
+        //      Chrome's accessibility tree was read over CDP on /settings: SIX tabs, ZERO
+        //      carrying a `selected` property. axe cannot see this (its aria-valid-attr-value
+        //      rule skips empty values), but a screen-reader user cannot tell which tab is
+        //      current. The correct value is not guessed: it is transcribed 1:1 from the
+        //      library's own data-state="active|inactive" on the same element.
+        //
+        // (a) and (b) are REVERSIBLE. The removed value is parked on a data- attribute and
+        // put back the moment the DOM makes it true again — so a render batch that lands a
+        // trigger before its panel, or a tab before its list, self-heals instead of being
+        // permanently stripped.
+        // ---------------------------------------------------------------------------------
+        (function () {
+            var scheduled = false;
+
+            function repairDanglingControls() {
+                document.querySelectorAll('[aria-controls]').forEach(function (el) {
+                    var id = el.getAttribute('aria-controls');
+                    if (id && !document.getElementById(id)) {
+                        el.setAttribute('data-a11y-controls-removed', id);
+                        el.removeAttribute('aria-controls');
+                    }
+                });
+                document.querySelectorAll('[data-a11y-controls-removed]').forEach(function (el) {
+                    var id = el.getAttribute('data-a11y-controls-removed');
+                    if (id && document.getElementById(id)) {
+                        el.setAttribute('aria-controls', id);
+                        el.removeAttribute('data-a11y-controls-removed');
+                    }
+                });
+            }
+
+            function repairOrphanTabs() {
+                document.querySelectorAll('[role="tab"]').forEach(function (el) {
+                    if (!el.closest('[role="tablist"]')) {
+                        el.setAttribute('data-a11y-role-removed', 'tab');
+                        el.removeAttribute('role');
+                        // aria-selected belongs to the tab role and is not allowed on the
+                        // plain button that is left behind (axe `aria-allowed-attr`,
+                        // critical — measured, this exact node appeared the first time the
+                        // role was dropped without it). repairSelectedState puts it back
+                        // from data-state if the element ever regains the role.
+                        el.removeAttribute('aria-selected');
+                    }
+                });
+                document.querySelectorAll('[data-a11y-role-removed]').forEach(function (el) {
+                    if (el.closest('[role="tablist"]')) {
+                        el.setAttribute('role', el.getAttribute('data-a11y-role-removed'));
+                        el.removeAttribute('data-a11y-role-removed');
+                    }
+                });
+            }
+
+            function repairSelectedState() {
+                document.querySelectorAll('[role="tab"][data-state]').forEach(function (el) {
+                    var selected = el.getAttribute('data-state') === 'active' ? 'true' : 'false';
+                    if (el.getAttribute('aria-selected') !== selected) {
+                        el.setAttribute('aria-selected', selected);
+                    }
+                });
+            }
+
+            function sweep() {
+                scheduled = false;
+                // Order matters: drop the unbacked role first so a button that is no longer
+                // claiming to be a tab does not then get a tab's selected state.
+                repairOrphanTabs();
+                repairDanglingControls();
+                repairSelectedState();
+            }
+
+            function schedule() {
+                if (scheduled) return;
+                scheduled = true;
+                requestAnimationFrame(sweep);
+            }
+
+            schedule();
+            new MutationObserver(schedule).observe(document.documentElement, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['aria-controls', 'aria-selected', 'role', 'data-state', 'id']
+            });
+        })();
     </script>
 </body>
 </html>
@@ -182,6 +310,26 @@
     private string siteTitle = "Techie Blog";
     private string metaDescription = string.Empty;
     private bool isDarkModeDefault;
+
+    /// <summary>
+    /// The RSS auto-discovery tag, emitted as raw markup (REQ-UI-046).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Why not plain Razor markup.</b> Razor renders every attribute value through
+    /// <c>HtmlEncoder.Default</c>, which deliberately escapes <c>+</c> to <c>&amp;#x2B;</c> — a
+    /// hardening rule aimed at attribute-injection and legacy UTF-7 sniffing. A browser parses the
+    /// escaped form back to <c>application/rss+xml</c> and honours it, but the tag no longer
+    /// contains that literal string, so every feed-discovery scraper and verifier that looks for it
+    /// by text reports the site as having no feed. Writing the element as markup keeps the media
+    /// type byte-for-byte what the specification says it is.</para>
+    /// <para><b>Safety:</b> the only dynamic part is the site title, which an administrator can set
+    /// to arbitrary text, so it is HTML-encoded explicitly here. Nothing else in the string comes
+    /// from data — do not add an interpolated value without encoding it the same way.</para>
+    /// </remarks>
+    private MarkupString RssDiscoveryTag => (MarkupString)
+        ("<link rel=\"alternate\" type=\"application/rss+xml\" title=\""
+         + System.Net.WebUtility.HtmlEncode($"{siteTitle} - RSS feed")
+         + "\" href=\"/feed.xml\" />");
 
     /// <summary>
     /// Loads the administrator-selected site defaults before the document shell is rendered.

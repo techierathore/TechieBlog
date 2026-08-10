@@ -789,4 +789,243 @@ runs were silently auditing the home page. **Next free ID: TR-056.**
   token that carries the obligation.
 
 TR-056 recorded 2026-08-08 by *build-phase (Cluster C — REQ-UI-033 dark-mode corrections).
-**Next free ID: TR-057.**
+
+- **TR-057 — `Textarea` (and `Input`) are CONTROLLED inputs with no uncontrolled/debounced mode, so
+  under Blazor Server they LOSE AND REORDER KEYSTROKES on a slow circuit.**
+  *Severity:* **High** — silent data loss in the primary authoring surface of any Blazor **Server**
+  consumer, and it only appears under load, which is exactly when nobody is testing.
+  *Repro:* `<Textarea @bind-Value="text" />` on an InteractiveServer page; emulate 400ms of network
+  latency (CDP `Network.emulateNetworkConditions`) and type a 15-character string at 0–15ms per
+  key.
+  *Expected:* the textarea holds exactly what was typed.
+  *Actual:* measured 2026-08-09 on `TrBlazeUI.Components 2.0.1`, typing `## Live heading`:
+  `#ve he`, `## ng`, `## Living`, `## Lie edg` — **4 of 9 runs wrong**. TechieBlog's verifier had
+  already seen the same signature at 120ms and 1000ms per key under 7-way agent concurrency
+  (`## Li`, `#ve`, `## ivehading`, `#L ag` — 3 of 4 runs).
+  *Cause:* `Textarea.razor` renders `<textarea value="@Value" @oninput="HandleInput">` and
+  `HandleInput` assigns `Value` before raising `ValueChanged`. Every keystroke therefore
+  round-trips, and the render that comes back writes a `value` into the DOM that is already one or
+  more keystrokes behind what the user has typed since. `Input` has the identical shape and the
+  identical latent defect.
+  *Encountered in:* `source/BlogUI/Components/PostMarkdownEditor.razor` (REQ-UI-016).
+  *Workaround applied:* replaced `<Textarea>` with a RAW `<textarea>` carrying the library's own
+  resolved classes, seeded once via child content and re-keyed only on programmatic writes, so the
+  server never rewrites the DOM value. This deliberately breaks the AI-reference rule "NEVER use
+  raw `<textarea>` elements" (§6) — there is currently no supported way to obey that rule and keep
+  the user's keystrokes. Proven by counterfactual: the pre-fix build fails the stress above 4/9,
+  the fixed build passes 9/9 (`tests/verify/cluster-c-authoring.spec.ts`).
+  *Suggested fix:* one of — (a) an `Uncontrolled="true"` / `SeedOnly` mode that renders the value
+  once and never diffs it again; (b) a `DebounceMilliseconds` parameter that also suppresses the
+  value write-back while the control has focus; or (c) at minimum, stop assigning `Value` inside
+  `HandleInput` and skip the `value` attribute in the render tree while the element is focused.
+  Whichever is chosen, the AI reference should carry an explicit Blazor **Server** warning next to
+  every text-entry component.
+
+- **TR-058 — `SelectValue` shows the RAW bound value instead of the item's `Text` until the
+  dropdown has been opened once.**
+  *Severity:* Medium — cosmetic but pervasive and it looks like a data defect.
+  *Repro:* a `Select` whose items live inside `SelectContent` (a popover), bound to `"0"` with
+  `<SelectItem Value="0" Text="-- Select Category --">`. Render the page and do not open it.
+  *Expected:* the trigger reads `-- Select Category --`.
+  *Actual:* the trigger reads `0`. `SelectValue.GetSelectedText()` falls back to
+  `SelectContext.Value?.ToString()` when no display text has been registered, and items only
+  register when `SelectContent` first renders — which is when the popover opens.
+  *Encountered in:* `source/BlogUI/Pages/AdminPages/ManagePost.razor` — the Category and Series
+  pickers both show a bare number on first paint (screenshot
+  `test-results-cluster-c/ui016-managepost-1280.png`). Pre-existing; not introduced by REQ-UI-016.
+  *Workaround applied:* none — left as-is rather than distorting the binding, since the fix
+  belongs in the library.
+  *Suggested fix:* let `SelectItem` register its `Value`/`Text` pair with the context at
+  `OnInitialized` regardless of whether the popover content is currently rendered, or expose an
+  `ItemsSource`-style registration the trigger can read before first open.
+
+- **TR-059 — no "prose" / rendered-HTML container, so arbitrary Markdown output has no
+  responsive story.**
+  *Severity:* Low–Medium — every content-driven site hits it, and the failure is a page-level
+  horizontal scroll, which is a WCAG 1.4.10 (Reflow) problem rather than a cosmetic one.
+  *Repro:* render Markdig output into a plain `<div>` inside a TrBlazeUI page and view it at
+  390px. A three-column pipe table measures ~420px at its minimum content width and pushes the
+  whole document sideways; `<pre>` blocks behave the same way unless the app has already styled
+  them. TrBlazeUI ships `Card`, `Separator`, `TypographyH2` and friends for markup the developer
+  writes, but nothing for markup the developer *receives* — there is no `Prose`/`RichText`
+  component and no documented utility class that constrains an opaque HTML blob to its container.
+  *Expected:* something like `<Prose>@((MarkupString)html)</Prose>` that gives tables and pre
+  blocks their own overflow context and caps image widths, the way a typography plugin does.
+  *Actual:* each app re-derives it. `DataTable` cannot help here because the content is HTML, not
+  a bound collection.
+  *Encountered in:* `source/BlogUI/Pages/BlogPages/PostView.razor` (REQ-UI-007) — the post body is
+  one `MarkupString`, so the fix had to be a string transform that wraps every `<table>` in a
+  scroll container before the markup reaches the DOM. A CSS rule alone cannot do it: the extra
+  scrolling box has to exist as an element.
+  *Workaround applied:* `WrapTablesInScrollContainer` in `PostView.razor`; page-level horizontal
+  scroll at 390px went from 46px to 0px.
+  *Suggested fix:* ship a `Prose` component (or a documented `trb-prose` class) covering
+  `table`/`pre`/`img`/`iframe` overflow, and mention it in the AI reference next to the Markdown
+  guidance.
+
+TR-057 / TR-058 recorded 2026-08-09 by *build-phase (Cluster C fix pass — REQ-UI-016 / REQ-UI-017).
+TR-059 recorded 2026-08-09 by *build-phase (Cluster B fix pass — REQ-UI-007).
+
+- **TR-060 — a `Dialog` opened from INSIDE another `Dialog`'s content is not guaranteed to stack
+  above its parent, so the child renders but cannot be clicked.**
+  *Severity:* High — the nested dialog looks correct in a screenshot and is completely dead to the
+  user, which is the worst possible failure shape.
+  *Repro:* put a control that owns its own `Dialog` inside another `DialogContent` — here the
+  `ImagePicker` (gallery + upload dialogs) inside the add/edit dialog on `/admin/experience`. Open
+  the outer dialog, then open the inner one, then click an item in the inner one.
+  *Expected:* the inner dialog and its overlay sit above the outer dialog.
+  *Actual:* both dialogs' overlay AND panel are hard-coded `z-50`, and the portal host does not
+  guarantee that a later-opened portal lands later in document order. Measured on this page: the
+  gallery's portal was inserted at **DOM index 0** and the parent experience dialog's portal sat at
+  **index 1**, so with equal z-index the PARENT painted over the child. `document.elementFromPoint`
+  at the centre of a gallery tile returned the parent picker's 144px preview frame, and Playwright
+  reported `<div class="flex h-36 w-36 …"> from <div class="trblazeui-portal" data-portal-id=
+  "dialog-25-portal"> subtree intercepts pointer events`. It is order-dependent, not constant —
+  an earlier run of the same page produced the opposite order and worked, which is why this reads
+  as a flaky product bug rather than a layout bug.
+  *Encountered in:* `source/BlogUI/Pages/AdminPages/ManageExperience.razor` and
+  `ManageAwards.razor` (REQ-UI-037 / REQ-UI-039 — the acceptance requires a picker inside the
+  add/edit dialog, so nesting is not avoidable).
+  *Workaround applied:* a scoped rule in `source/BlogUI/wwwroot/css/utilities.css` raises both
+  children of the ImagePicker's own portals to `z-index: 120`:
+  `.trblazeui-portal:has([data-testid="image-gallery-dialog"]) > *`. Verified by re-measuring the
+  hit test — it now resolves to the gallery tile — and by a full create/edit/delete round trip.
+  *Suggested fix:* give each opened dialog a z-index derived from a monotonically increasing open
+  counter (a stack), or append every newly opened portal to the END of the portal host. Either
+  makes "last opened wins" true by construction instead of by luck.
+
+- **TR-019 — two more instances of the pre-compiled-bundle gap** (not new IDs; recording the
+  specimens because they cost a run each). `trblazeui.css` ships `.top-0`, `.top-1\.5`, `.top-1\/2`,
+  `.top-2`, `.top-3\.5`, `.top-4` but **no `.top-1`** — `ImagePicker`'s clear-selection button used
+  `absolute right-1 top-1`, so it kept a STATIC vertical position, fell below the `h-full` image,
+  out of the `overflow-hidden` frame, and landed on the action row at 390px (this was the recorded
+  REQ-UI-040 visual defect). And `w-36` was missing from BOTH the bundle and TechieBlog's own
+  gap-fill file even though `h-36` was present, so every `h-36 w-36` preview square rendered 144px
+  tall and FULL WIDTH. Both fixed locally. The general point stands: a missing utility is silent,
+  and the failure it produces looks like an application bug every time.
+
+TR-060 recorded 2026-08-09 by *build-phase (Cluster D fix pass — REQ-UI-037 / REQ-UI-039 / REQ-UI-040).
+
+- **TR-061 — `ItemGroup` declares `role="list"` but `Item` never emits `role="listitem"`, so every
+  list built from the pair is announced as EMPTY.** (Supersedes the informal note filed as TR-055 in
+  the REQ-NFR-007 checklist row; this is the reproducible write-up.)
+  *Severity:* High — the failure is invisible in a screenshot and total for a screen-reader user.
+  *Repro:* render any `<ItemGroup>` with `<Item>` children and read the DOM.
+  *Expected:* `role="list"` on the group and `role="listitem"` (or a real `<li>`) on each item —
+  ARIA requires `list` to own `listitem` children and treats any other child as breaking the
+  relationship.
+  *Actual (measured 2026-08-09 on `/admin`, `tests/verify/cluster-l-probe.spec.ts`):*
+  `<div role="list" class="flex flex-col gap-0.5">` whose five children are
+  `<div data-slot="item" class="group relative flex items-center gap-3 rounded-lg px-4 py-3">` —
+  **no role at all**. axe-core reports `aria-required-children` (**critical**), and a screen reader
+  announces "list, 0 items" on the admin landing page's Recent Activity feed. There is no parameter
+  on `Item` to supply the role, and no documented alternative.
+  *Encountered in:* `source/BlogUI/Pages/AdminPages/AdminDashboard.razor` (REQ-NFR-007).
+  *Workaround applied:* the block was rebuilt on a real `<ul>`/`<li>` carrying the exact class
+  strings captured from the library's own rendered output, so the visuals are unchanged and the
+  semantics come from HTML rather than from an ARIA claim. Same remedy as TR-044 (`NavigationMenu`
+  → `<nav><ul><li>`). Re-measured: `/admin` axe nodes 1 → 0, light and dark.
+  *Suggested fix:* emit `role="listitem"` from `Item` whenever its ancestor `ItemGroup` emits
+  `role="list"` — or drop the `role="list"` and let the consumer choose the semantics. Either is
+  correct; the current pair is the one combination that is actively wrong.
+
+- **TR-062 — `Input` has no way to supply an accessible name, so a control with no placeholder and
+  no visible label ships nameless.**
+  *Severity:* Medium — one control, but it is a WCAG 4.1.2 **critical** axe node and it hid for
+  three audits behind axe's `non-empty-placeholder` check.
+  *Repro:* `<Input Value="@x" readonly />` with no `Placeholder`. Run axe.
+  *Expected:* an `AriaLabel` parameter, documented, the way `Button`, `Toggle`, `Toolbar`,
+  `ToolbarButton` and `Spinner` all have one (AI reference §Button, §Toggle, §Toolbar, §Spinner).
+  *Actual:* the `Input` parameter table lists `AriaInvalid` and `AriaDescribedBy` but **no
+  `AriaLabel`** — the two ARIA attributes an author is least likely to need, and not the one they
+  always need. Existing app code (`BlogSidebar.razor`) passes `AriaLabel` to `Input` anyway and it
+  is accepted at runtime, which makes the omission from the reference doubly misleading: authors
+  cannot tell whether it is a supported parameter or an unmatched attribute that happens not to
+  throw. Every other `Input` in this application passes axe only because it carries a
+  `Placeholder` — which is a *hint*, not a name, and disappears the moment the field has content.
+  *Encountered in:* `source/BlogUI/Pages/BlogPages/RssFeed.razor` (REQ-NFR-007) — the readonly feed
+  URL box, the one field in the app that cannot use a placeholder because it is never empty.
+  *Workaround applied:* `Id` on the `Input` plus a `<Label For=… Class="sr-only">`. Verified in the
+  served HTML: `<label for="rss-url-input" … sr-only>RSS feed URL</label>` +
+  `<input id="rss-url-input" … readonly>`. axe `label` node on `/rss`: 1 → 0, light and dark.
+  *Suggested fix:* add `AriaLabel` to `Input`/`Textarea` and document it; and state explicitly in
+  the reference that `Placeholder` is not an accessible name.
+
+TR-061 / TR-062 recorded 2026-08-09 by *build-phase (Cluster L fix pass — REQ-NFR-007 / REQ-NFR-010).
+
+---
+
+## Gaps found closing the residual `Tabs` violations (2026-08-09, Cluster M — REQ-NFR-007)
+
+Three findings from taking the admin area's last 48 axe nodes to 0. All three are in `Tabs`
+(`TrBlazeUI.Components 2.0.1`), all three were measured on a running build, and two of them
+**correct earlier guesses recorded against TR-054** — which should be read together with these.
+
+- **TR-063 — the active tab is marked `aria-selected=""` (EMPTY) and the inactive ones carry no
+  `aria-selected` at all, so NO tab is announced as selected.**
+  *Severity:* **High** — WCAG 4.1.2 Name/Role/**Value**. It affects every tab set in every
+  consuming application and it is invisible to automated tooling, which is why three previous
+  audits of this repository missed it.
+  *Repro:* render any `Tabs` and read `document.querySelector('[role="tab"]').getAttribute('aria-selected')`.
+  *Expected:* `aria-selected="true"` on the active trigger and `aria-selected="false"` on the rest —
+  the state is already computed; only its serialisation is wrong.
+  *Actual (measured 2026-08-09 on `/settings`, `tests/verify/cluster-m-probe.spec.ts`):* the DOM is
+  `aria-selected=""` on the active trigger and the attribute is **absent** on the other five. ARIA
+  resolves an empty token value to the attribute's default, and the default for `aria-selected` is
+  *undefined*, so nothing is exposed. Confirmed against **Chrome's own accessibility tree** read over
+  CDP (`Accessibility.getFullAXTree`), not merely inferred from the markup: **6 tab nodes, 0 with a
+  `selected` property**; the same probe on `/admin/images` gave **7 tabs, 0 selected**. A screen
+  reader announces "General, tab" with no indication that it is the current one.
+  *Why axe never reported it:* the `aria-valid-attr-value` rule skips empty attribute values by
+  design, so `aria-selected=""` passes every audit while conveying nothing. **An axe-clean tab set
+  is not evidence that this works.**
+  *Workaround applied:* an observer in `source/TechieBlog/Components/App.razor` transcribes the
+  library's own `data-state="active|inactive"`, on the same element, into
+  `aria-selected="true|false"`. Nothing is guessed — the mapping is 1:1 with a value the component
+  already renders. Re-measured over CDP after the change: **13 tabs across the two routes, 13 with
+  the state exposed, exactly 1 selected per route** (0 before).
+  *Suggested fix:* write `aria-selected` as the string `"true"`/`"false"` on every trigger. A Blazor
+  `bool` interpolated into an attribute renders as `True`/`False`, and a `bool?`/conditional that
+  yields `null` renders as an empty attribute — one of those two is almost certainly the cause.
+
+- **TR-064 — `MarkdownEditor` renders its own Write/Preview `TabsTrigger` pair inside a plain
+  `<div>`, with no `role="tablist"`, and no roving arrow-key navigation.** (Supersedes the
+  "intermittently … no `role="tablist"` parent" half of **TR-054**, which guessed at a *nested*
+  `Tabs` in the consuming page. It is not the consumer's nesting — it is inside the library
+  component, and it is not intermittent; it is constant.)
+  *Severity:* **High** — axe `aria-required-parent`, **critical**, on every screen that hosts a
+  `MarkdownEditor`.
+  *Repro:* place a `<MarkdownEditor>` anywhere and read the DOM around its view-mode toggle.
+  *Actual (measured 2026-08-09 on `/admin/newsletter`, `cluster-m-probe.spec.ts`):* the two buttons
+  are `#tabs-N-trigger-write` and `#tabs-N-trigger-preview` — the `Tabs` id scheme, so they ARE
+  `TabsTrigger`s — and their parent is
+  `<div class="inline-flex items-center rounded-md border border-input bg-muted/60 p-0.5">` with **no
+  role**, whose only two children are those buttons. The composer's own outer `Tabs` on the same page
+  renders its `role="tablist"` correctly, which is what made this look like a nesting problem.
+  *Also measured, and the reason a DOM workaround had to be chosen carefully:* **arrow keys do not
+  work on this pair.** Focusing `#tabs-N-trigger-write` and pressing `ArrowRight`, then `End`, leaves
+  focus on the same button in all three reads. So the pair is not merely missing a `tablist`
+  element — it is missing the tablist *behaviour* as well.
+  *Workaround applied:* the App.razor observer **removes `role="tab"`** (and the `aria-selected` that
+  only the tab role permits) from any `role="tab"` with no `role="tablist"` ancestor, parking the
+  value so it is restored the moment a tablist appears. Injecting `role="tablist"` onto the wrapper
+  was considered and **rejected**: it would promise assistive technology a roving-focus contract the
+  measurement above shows the widget does not honour. What is left is two correctly-named, fully
+  operable `<button>`s — everything that actually reaches a user today, minus a broken promise.
+  *Suggested fix:* render that toolbar with `TabsList` so it emits `role="tablist"` and inherits the
+  keyboard handling the outer `Tabs` already has.
+
+- **TR-054 addendum — the `aria-controls` half is worse than recorded, because three of the five
+  affected screens render NO `TabsContent` at all.** `ManageImages`, `CommentsList` and `BlogsList`
+  drive `Tabs` through `Value`/`ValueChanged` and paint the filtered result set themselves, which is
+  a documented and reasonable use of the component. On those screens **every** trigger's
+  `aria-controls` dangles, not just the inactive ones — measured 7/7, 4/4 and 4/4. Any fix that only
+  keeps inactive panels mounted would still leave these three broken; the attribute needs to be
+  omitted when the `Tabs` has no `TabsContent` children.
+  *Workaround applied:* the App.razor observer removes an `aria-controls` whose target id is not in
+  the document, parking it for restoration if the target ever appears. Node counts over the five
+  affected admin routes, light **and** dark, same spec before and after
+  (`tests/verify/cluster-m-tr054-tabs.spec.ts`): **48 -> 0**.
+
+TR-063 / TR-064 recorded 2026-08-09 by *build-phase (Cluster M fix pass — REQ-NFR-007).
+**Next free ID: TR-065.**

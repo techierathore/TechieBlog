@@ -54,6 +54,17 @@ namespace BlogEngine.Services;
 /// <see cref="IBlogTagRepo"/> for content, <c>IConfiguration</c> for
 /// <c>SiteSettings:BaseUrl</c>, and <see cref="ILogger{TCategoryName}"/>.</para>
 ///
+/// <para><b>Async surface (REQ-NFR-026 stage 3):</b> <see cref="GenerateSitemapAsync"/> is the async
+/// twin of <see cref="GenerateSitemap"/> and produces a <b>byte-identical</b> document — the same
+/// sections in the same order, the same inclusion rules, the same per-section swallow-and-log, and
+/// the same empty-<c>urlset</c> fallback. It routes all three reads through the repositories'
+/// <c>…Async</c> members with the caller's <see cref="CancellationToken"/> flowed in.
+/// <b>Call the async member.</b> The synchronous surface is retained only until the
+/// <c>GET /sitemap.xml</c> endpoint migrates and is <b>pending deletion in stage 4</b>. The three
+/// section helpers exist in matching pairs for the same reason; <see cref="AddUrl"/> is pure string
+/// building and is shared by both surfaces, which is what guarantees the two documents cannot
+/// drift.</para>
+///
 /// <para><b>Usage:</b> Registered transient by <c>BlogSvcInitializer</c>. Requires no
 /// authorization — the endpoint is anonymous by design, which is exactly why the inclusion rules
 /// above must stay published-only. Set <c>SiteSettings:BaseUrl</c> per deployment: the fallback is
@@ -144,6 +155,67 @@ public class SitemapSvc
     }
 
     /// <summary>
+    /// Generates the complete sitemap document without blocking the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The async twin of <see cref="GenerateSitemap"/> (REQ-NFR-026
+    /// stage 3), producing a byte-identical document. Emits the site root at priority 1.0 with a
+    /// daily change frequency, published posts at 0.8/monthly, categories at 0.6/weekly and tags at
+    /// 0.5/weekly. The priorities are relative hints within this site only — they carry no meaning
+    /// across sites — and are ordered to match how often each surface actually changes. The
+    /// inclusion rules are unchanged and stay published-only: drafts and scheduled posts are filtered
+    /// out in SQL by <c>IBlogPostRepo.GetPublishedPostsAsync</c>, and newsletter issues and every
+    /// authenticated route are still never walked.</para>
+    /// <para><b>Flow:</b> XML prologue and <c>urlset</c> open → root URL → await published posts →
+    /// await categories → await tags → close. The three sections are awaited sequentially rather
+    /// than concurrently: they append to one <see cref="StringBuilder"/>, which is not thread-safe,
+    /// and their order is what makes the output byte-identical to the synchronous twin.</para>
+    /// <para><b>Side Effects:</b> Reads from three repositories; writes nothing. Each section is
+    /// guarded on its own, so a failing section is logged and skipped while the rest still ships. On
+    /// an unexpected failure of the whole document it logs the exception and substitutes an empty
+    /// <c>urlset</c>, so the endpoint never returns malformed XML.</para>
+    /// </remarks>
+    /// <param name="cancellationToken">
+    /// Cancels the three repository reads. A cancellation surfaces as an exception at the
+    /// <c>await</c>, which the per-section guards swallow and log exactly as they would any other
+    /// read failure — so a cancelled generation yields a shorter document, not a fault.
+    /// </param>
+    /// <returns>
+    /// A sitemap-protocol 0.9 document. Never null, and always well formed — an empty
+    /// <c>urlset</c> when generation failed outright.
+    /// </returns>
+    public async Task<string> GenerateSitemapAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+            sb.AppendLine("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">");
+
+            // Home page - highest priority
+            AddUrl(sb, "/", DateTime.UtcNow, "daily", "1.0");
+
+            // Published posts - high priority
+            await AddPublishedPostsAsync(sb, cancellationToken).ConfigureAwait(false);
+
+            // Category pages - medium priority
+            await AddCategoriesAsync(sb, cancellationToken).ConfigureAwait(false);
+
+            // Tag pages - lower priority
+            await AddTagsAsync(sb, cancellationToken).ConfigureAwait(false);
+
+            sb.AppendLine("</urlset>");
+            return sb.ToString();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error generating sitemap");
+            // Return minimal valid sitemap on error
+            return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\"></urlset>";
+        }
+    }
+
+    /// <summary>
     /// Appends one entry per published post.
     /// </summary>
     /// <remarks>
@@ -166,6 +238,43 @@ public class SitemapSvc
         try
         {
             var posts = postRepo.GetPublishedPosts(10000, 0);
+            foreach (var post in posts)
+            {
+                var lastmod = post.PublishedOn ?? post.CreatedOn;
+                AddUrl(sb, $"/post/{post.Slug}", lastmod, "monthly", "0.8");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error adding posts to sitemap");
+        }
+    }
+
+    /// <summary>
+    /// Appends one entry per published post, without blocking the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The async twin of <see cref="AddPublishedPosts"/> (REQ-NFR-026
+    /// stage 3) and behaviourally identical to it, down to the page size. Reads through the
+    /// repository's published-only listing, so a draft or a still-scheduled post is filtered out in
+    /// SQL rather than here — there is no second, divergent definition of "public" in this file.
+    /// <c>lastmod</c> prefers the publish date and falls back to the creation date, because a crawler
+    /// uses it to decide whether a re-fetch is worthwhile.</para>
+    /// <para><b>Flow:</b> await up to 10,000 published posts → append a URL per post.</para>
+    /// <para><b>Side Effects:</b> Mutates <paramref name="sb"/>. A repository failure — cancellation
+    /// included — is logged and swallowed so the rest of the sitemap still ships.</para>
+    /// <para><b>Known limit:</b> the page size is capped at 10,000, which is also the practical
+    /// ceiling on posts this sitemap can advertise. The protocol allows 50,000 URLs per file; a site
+    /// that grows past 10,000 posts needs a paged sitemap index, not a larger number here.</para>
+    /// </remarks>
+    /// <param name="sb">The document being assembled.</param>
+    /// <param name="cancellationToken">Cancels the post read.</param>
+    /// <returns>A task that completes once the section has been appended or skipped.</returns>
+    private async Task AddPublishedPostsAsync(StringBuilder sb, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var posts = await postRepo.GetPublishedPostsAsync(10000, 0, cancellationToken).ConfigureAwait(false);
             foreach (var post in posts)
             {
                 var lastmod = post.PublishedOn ?? post.CreatedOn;
@@ -207,6 +316,37 @@ public class SitemapSvc
     }
 
     /// <summary>
+    /// Appends one entry per category landing page, without blocking the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The async twin of <see cref="AddCategories"/> (REQ-NFR-026
+    /// stage 3) and behaviourally identical to it. Every category is listed, including one that
+    /// currently has no published posts — the page still renders and an empty category is not
+    /// sensitive. No <c>lastmod</c> is emitted, because a category page's freshness is that of its
+    /// newest post and the taxonomy row does not track it.</para>
+    /// <para><b>Flow:</b> await all categories → append a URL per category.</para>
+    /// <para><b>Side Effects:</b> Mutates <paramref name="sb"/>; a failure is logged and skipped.</para>
+    /// </remarks>
+    /// <param name="sb">The document being assembled.</param>
+    /// <param name="cancellationToken">Cancels the category read.</param>
+    /// <returns>A task that completes once the section has been appended or skipped.</returns>
+    private async Task AddCategoriesAsync(StringBuilder sb, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var categories = await categoryRepo.GetAllAsync(cancellationToken).ConfigureAwait(false);
+            foreach (var category in categories)
+            {
+                AddUrl(sb, $"/category/{category.Slug}", null, "weekly", "0.6");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error adding categories to sitemap");
+        }
+    }
+
+    /// <summary>
     /// Appends one entry per tag landing page.
     /// </summary>
     /// <remarks>
@@ -222,6 +362,36 @@ public class SitemapSvc
         try
         {
             var tags = tagRepo.GetAll();
+            foreach (var tag in tags)
+            {
+                AddUrl(sb, $"/tag/{tag.Slug}", null, "weekly", "0.5");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error adding tags to sitemap");
+        }
+    }
+
+    /// <summary>
+    /// Appends one entry per tag landing page, without blocking the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The async twin of <see cref="AddTags"/> (REQ-NFR-026 stage 3) and
+    /// behaviourally identical to it. Tags rank below categories (0.5 against 0.6) because a tag page
+    /// is a narrower slice of the same content and competes with the category page for the same crawl
+    /// budget.</para>
+    /// <para><b>Flow:</b> await all tags → append a URL per tag.</para>
+    /// <para><b>Side Effects:</b> Mutates <paramref name="sb"/>; a failure is logged and skipped.</para>
+    /// </remarks>
+    /// <param name="sb">The document being assembled.</param>
+    /// <param name="cancellationToken">Cancels the tag read.</param>
+    /// <returns>A task that completes once the section has been appended or skipped.</returns>
+    private async Task AddTagsAsync(StringBuilder sb, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var tags = await tagRepo.GetAllAsync(cancellationToken).ConfigureAwait(false);
             foreach (var tag in tags)
             {
                 AddUrl(sb, $"/tag/{tag.Slug}", null, "weekly", "0.5");

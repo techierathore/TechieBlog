@@ -114,13 +114,20 @@ else
         <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="posts-grid">
             @foreach (var post in posts)
             {
+                @* [REQ-UI-045] 2026-08-09 — ImageUrl/ImagePlaceholder were missing here, so every
+                   card on this page fell back to PostCard's grey placeholder even though the
+                   category projection selects FeaturedImage and every published post has one.
+                   The acceptance is that PostCard renders IDENTICALLY on home, archive and search;
+                   this matches what HomeLatestArticles already passes. *@
                 <PostCard Category="@category.CategoryName"
                           Title="@post.Title"
                           Excerpt="@(string.IsNullOrEmpty(post.Abstract) ? GetExcerpt(post.PostContent) : post.Abstract)"
                           PostUrl="@($"/post/{post.Slug}")"
                           AuthorName="@(string.IsNullOrEmpty(post.BlogWriter) ? "Unknown" : post.BlogWriter)"
                           Date="@post.CreatedOn.ToString("MMM dd")"
-                          ReadTime="@GetReadingTime(post.PostContent)" />
+                          ReadTime="@GetReadingTime(post.PostContent)"
+                          ImageUrl="@post.FeaturedImage"
+                          ImagePlaceholder="@post.Title" />
             }
         </div>
 

@@ -26,11 +26,34 @@ namespace BlogModels.Interfaces;
 ///
 /// <para><b>Dependencies:</b> <c>IPostViewRepo</c> for the conditional insert.</para>
 ///
-/// <para><b>Usage:</b> Call from the post page's first render only; ignore the returned flag unless
-/// the caller wants to know whether the view was new.</para>
+/// <para><b>Usage:</b> A page normally calls <see cref="TrackCurrentVisitAsync"/>, which reads the
+/// visitor's address and user-agent from the ambient HTTP request itself; the three-argument
+/// <see cref="TrackViewAsync"/> stays available for callers that already hold those values (imports,
+/// tests, a future API head). Ignore the returned flag unless the caller wants to know whether the
+/// view was new.</para>
 /// </remarks>
 public interface IPostViewTracker
 {
+    /// <summary>
+    /// Records a view of a post for the visitor behind the request currently being served.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Identical to <see cref="TrackViewAsync"/> except that the
+    /// visitor's address and user-agent are read from the ambient HTTP request instead of being
+    /// supplied. When there is no ambient request — a Blazor Server component re-rendering inside an
+    /// established circuit, or a background worker — nothing is written and the call reports a
+    /// de-duplicated view rather than failing, because "there is no visitor here" is a normal
+    /// outcome and analytics must never break a page.</para>
+    /// <para><b>Flow:</b> resolve the ambient request → no request means nothing to count → read the
+    /// address and user-agent → delegate to <see cref="TrackViewAsync"/>.</para>
+    /// <para><b>Side Effects:</b> May write one row to <c>PostViews</c>. Never throws.</para>
+    /// </remarks>
+    /// <param name="postId">The post being viewed; must be greater than zero.</param>
+    /// <returns>Success carrying true when a new view row was written, false when de-duplicated or
+    /// when there was no ambient request to attribute the view to; failure when the write could not
+    /// be attempted.</returns>
+    Task<Result<bool>> TrackCurrentVisitAsync(long postId);
+
     /// <summary>
     /// Records a view of a post for the calling visitor.
     /// </summary>

@@ -85,6 +85,38 @@ public static class SvcUtils
     }
 
     /// <summary>
+    /// Reads the moment an access token stops being usable, in UTC.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The <c>exp</c> claim written by <c>AuthSvc.GenerateJWToken</c>
+    /// is what makes a session need refreshing (REQ-FN-008). A token minted before the claim was
+    /// treated as meaningful — or by any other issuer that omitted it — carries no expiry at all,
+    /// which is reported as <c>null</c> and read by the caller as "does not expire" rather than as
+    /// "expired". Failing open here is deliberate: failing closed would sign out every session
+    /// issued before this requirement landed.</para>
+    /// <para><b>Flow:</b> decode the token → read <c>ValidTo</c> → map the sentinel to
+    /// <c>null</c>.</para>
+    /// <para><b>Side Effects:</b> None; pure. Nothing is logged — the token is session material.</para>
+    /// <para><b>Security:</b> the same unverified-signature caveat as
+    /// <see cref="GetUserIDFromToken"/> applies — this expiry is read out of an unvalidated token
+    /// and a forged token could name any expiry it liked. It is not a defence on its own, and it is
+    /// not used as one: <c>AuthSvc</c> only ever consults it for a token string it has already
+    /// matched against the <c>UserLogin</c> row, so the expiry being read is the expiry of a token
+    /// this application itself issued.</para>
+    /// </remarks>
+    /// <param name="jwToken">The access token issued at sign-in.</param>
+    /// <returns>The UTC expiry, or <c>null</c> when the token carries no <c>exp</c> claim.</returns>
+    /// <exception cref="ArgumentException">The value is not a readable JWT.</exception>
+    public static DateTime? GetTokenExpiryUtc(string jwToken)
+    {
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var token = tokenHandler.ReadJwtToken(jwToken);
+        return token.ValidTo == DateTime.MinValue
+            ? null
+            : DateTime.SpecifyKind(token.ValidTo, DateTimeKind.Utc);
+    }
+
+    /// <summary>
     /// Decrypts the database connection string carried by a multi-tenant token.
     /// </summary>
     /// <remarks>

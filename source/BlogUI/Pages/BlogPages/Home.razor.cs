@@ -18,6 +18,8 @@ namespace BlogUI.Pages.BlogPages;
 ///   <item>Resolve the site owner; a missing owner short-circuits the page to an empty state.</item>
 ///   <item>Load that owner's statistics in display order.</item>
 ///   <item>Load the newest published posts for the article cards.</item>
+///   <item>Load the featured post — the newest published article — for the lead block
+///   (REQ-FN-020, BRD-31).</item>
 /// </list>
 ///
 /// <para><b>Dependencies:</b> <see cref="IBlogUserRepo"/>, <see cref="IUserStatsRepo"/>,
@@ -37,9 +39,15 @@ public partial class Home
     /// </summary>
     private const int HeadlineStatCount = 4;
 
+    /// <summary>
+    /// Characters of body text used when a featured post has no abstract of its own.
+    /// </summary>
+    private const int FeaturedExcerptLength = 220;
+
     private AppUser? siteOwner;
     private IReadOnlyList<UserStat> ownerStats = [];
     private IReadOnlyList<BlogPost> latestPosts = [];
+    private BlogPost? featuredPost;
     private bool isLoading = true;
 
     /// <summary>
@@ -81,6 +89,7 @@ public partial class Home
         siteOwner = LoadSiteOwner();
         ownerStats = siteOwner is null ? [] : LoadStats(siteOwner.UserId);
         latestPosts = LoadLatestPosts();
+        featuredPost = LoadFeaturedPost();
 
         isLoading = false;
         await InvokeAsync(StateHasChanged);
@@ -141,6 +150,60 @@ public partial class Home
         catch
         {
             return [];
+        }
+    }
+
+    /// <summary>
+    /// Loads the post that leads the landing page (REQ-FN-020, BRD-31).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> "Featured" is a selection rule, not an editorial flag —
+    /// <c>BlogSvc.GetFeaturedPost</c> returns the newest published, non-deleted post — so the block
+    /// stays current with no one having to remember to move a marker. A site with nothing published
+    /// yields <c>null</c> and the section is simply not rendered.</para>
+    /// <para><b>Side Effects:</b> None beyond the read; a failure leaves the block absent rather
+    /// than blanking the landing page.</para>
+    /// </remarks>
+    /// <returns>The newest published post, or null when there is none or the read fails.</returns>
+    private BlogPost? LoadFeaturedPost()
+    {
+        try
+        {
+            return BlogService.GetFeaturedPost();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The blurb shown under the featured post's title.
+    /// </summary>
+    /// <remarks>
+    /// Prefers the post's own abstract and falls back to a trimmed slice of the body with the
+    /// commonest Markdown syntax characters removed, matching how the article cards build theirs.
+    /// </remarks>
+    private string FeaturedExcerpt
+    {
+        get
+        {
+            if (featuredPost is null)
+                return string.Empty;
+
+            if (!string.IsNullOrWhiteSpace(featuredPost.Abstract))
+                return featuredPost.Abstract;
+
+            var text = (featuredPost.PostContent ?? string.Empty)
+                .Replace("#", string.Empty)
+                .Replace("*", string.Empty)
+                .Replace("_", string.Empty)
+                .Replace("`", string.Empty)
+                .Trim();
+
+            return text.Length <= FeaturedExcerptLength
+                ? text
+                : text[..FeaturedExcerptLength].TrimEnd() + "...";
         }
     }
 }

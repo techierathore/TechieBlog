@@ -22,7 +22,12 @@ namespace BlogEngine.Services;
 ///         link, records the outcome, then stamps the issue sent with a unique slug.</item>
 ///   <item>Archive reads go through the repository's published-only predicate, so a draft or unsent
 ///         issue is never publicly reachable.</item>
-///   <item><see cref="UnsubscribeAsync"/> consumes the token from an unsubscribe link.</item>
+///   <item><see cref="UnsubscribeAsync"/> consumes the token from an unsubscribe link, and
+///         <see cref="BuildUnsubscribeUrl"/> builds that link. The page it addresses is
+///         <c>BlogUI.Pages.BlogPages.Unsubscribe</c>, routed at <c>/unsubscribe/{Token}</c> with
+///         <b>no authorization attribute</b> — a link that demands a sign-in is not an unsubscribe
+///         link, and until 2026-08-09 that page did not exist, so every issue already mailed
+///         carried a URL that answered 404.</item>
 /// </list>
 ///
 /// <para><b>The publish/archive contract — an unsent draft must never be publicly reachable.</b>
@@ -81,15 +86,30 @@ namespace BlogEngine.Services;
 /// <para><b>Configure <c>SiteSettings:BaseUrl</c> before sending.</b> It is read once at
 /// construction and defaults to an empty string, which yields a relative unsubscribe URL — useless
 /// in an email client. A misconfigured base URL is not detected and produces a mailing that nobody
-/// can opt out of.</para>
+/// can opt out of. The path it is joined to is the <c>UnsubscribePath</c> constant, which must stay
+/// in step with the route template on the unsubscribe page.</para>
 /// </remarks>
 public class NewsletterSvc : INewsletterService
 {
     private const int MaxPageSize = 100;
     private const int MaxSlugAttempts = 50;
 
+    /// <summary>
+    /// The single wording used for every unresolvable unsubscribe link. Blank, unknown and
+    /// malformed tokens must be indistinguishable, or the route becomes a membership oracle.
+    /// </summary>
+    private const string InvalidLinkMessage = "This unsubscribe link is not valid.";
+
+    /// <summary>
+    /// Path segment the unsubscribe page is routed at. It is a constant here and the route template
+    /// on <c>BlogUI.Pages.BlogPages.Unsubscribe</c> so the two are edited together — a mismatch
+    /// mails a dead link to every subscriber and is invisible until someone tries to opt out.
+    /// </summary>
+    private const string UnsubscribePath = "/unsubscribe";
+
     private readonly INewsletterRepo newsletterRepo;
     private readonly IEmailService emailService;
+    private readonly MarkdownRenderer markdownRenderer;
     private readonly ILogger<NewsletterSvc> logger;
     private readonly string baseUrl;
 
@@ -98,16 +118,19 @@ public class NewsletterSvc : INewsletterService
     /// </summary>
     /// <param name="newsletterRepo">Newsletter data access.</param>
     /// <param name="emailService">Outbound email transport.</param>
+    /// <param name="markdownRenderer">Shared sanitising Markdown pipeline used to render the mail body.</param>
     /// <param name="configuration">Application configuration, read for <c>SiteSettings:BaseUrl</c>.</param>
     /// <param name="logger">Logger for send outcomes and failures.</param>
     public NewsletterSvc(
         INewsletterRepo newsletterRepo,
         IEmailService emailService,
+        MarkdownRenderer markdownRenderer,
         IConfiguration configuration,
         ILogger<NewsletterSvc> logger)
     {
         this.newsletterRepo = newsletterRepo;
         this.emailService = emailService;
+        this.markdownRenderer = markdownRenderer;
         this.logger = logger;
         baseUrl = configuration?["SiteSettings:BaseUrl"]?.TrimEnd('/') ?? string.Empty;
     }
@@ -274,18 +297,23 @@ public class NewsletterSvc : INewsletterService
     /// unguessable per-subscriber token stands in for an identity. That is also why the URL carries
     /// a token rather than an email address: an address in the URL would let anyone unsubscribe a
     /// stranger by typing theirs.</para>
-    /// <para><b>Flow:</b> require a token → resolve the subscriber → deactivate.</para>
-    /// <para><b>Side Effects:</b> Sets the subscriber inactive — a soft opt-out, so the row and its
-    /// history survive. Logs the subscriber id (not the address). <b>The token is not burned</b>:
-    /// it stays valid, so re-opening the link is a harmless no-op rather than an error, and a
-    /// subscriber who resubscribes keeps the same link working.</para>
-    /// <para><b>Result contract:</b> an unknown or blank token is returned as a failure with a
-    /// deliberately vague message; unexpected failures are logged without the token.</para>
+    /// <para><b>Flow:</b> require a token → resolve the subscriber → report the already-opted-out
+    /// case without writing → otherwise deactivate.</para>
+    /// <para><b>Side Effects:</b> On the <see cref="UnsubscribeOutcome.Unsubscribed"/> path only,
+    /// sets the subscriber inactive — a soft opt-out, so the row and its history survive. Logs the
+    /// subscriber id, never the address and never the token. <b>The token is not burned</b>: it
+    /// stays valid, so re-opening the link reports
+    /// <see cref="UnsubscribeOutcome.AlreadyUnsubscribed"/> rather than failing, and a subscriber
+    /// who resubscribes keeps the same link working.</para>
+    /// <para><b>Result contract:</b> a blank token, an unknown token and an internal failure are all
+    /// returned as failures carrying the <i>same</i> wording, so the route cannot be used to test
+    /// whether a guessed token belongs to a real subscriber. Unexpected failures are logged without
+    /// the token.</para>
     /// </remarks>
-    public async Task<Result> UnsubscribeAsync(string unsubscribeToken)
+    public async Task<Result<UnsubscribeOutcome>> UnsubscribeAsync(string unsubscribeToken)
     {
         if (string.IsNullOrWhiteSpace(unsubscribeToken))
-            return Result.Failure("An unsubscribe token is required.");
+            return Result<UnsubscribeOutcome>.Failure(InvalidLinkMessage);
 
         try
         {
@@ -293,16 +321,32 @@ public class NewsletterSvc : INewsletterService
                 .GetSubscriberByUnsubscribeTokenAsync(unsubscribeToken.Trim()).ConfigureAwait(false);
 
             if (subscriber == null)
-                return Result.Failure("This unsubscribe link is not valid.");
+            {
+                logger.LogWarning("An unsubscribe link was opened with a token that matches no subscriber");
+                return Result<UnsubscribeOutcome>.Failure(InvalidLinkMessage);
+            }
+
+            // IsConfirmed is the single mailability bit — see the remarks on Subscriber. A row that
+            // is already off the list must not be written again, so the page can say "already done".
+            if (!subscriber.IsConfirmed)
+            {
+                logger.LogInformation(
+                    "Subscriber {SubscriberId} re-opened an unsubscribe link and was already opted out",
+                    subscriber.SubscriberId);
+                return Result<UnsubscribeOutcome>.Success(UnsubscribeOutcome.AlreadyUnsubscribed);
+            }
 
             await newsletterRepo.DeactivateSubscriberAsync(subscriber.SubscriberId).ConfigureAwait(false);
             logger.LogInformation("Subscriber {SubscriberId} unsubscribed via newsletter link", subscriber.SubscriberId);
-            return Result.Success();
+            return Result<UnsubscribeOutcome>.Success(UnsubscribeOutcome.Unsubscribed);
         }
         catch (Exception ex)
         {
+            // Deliberately NOT InvalidLinkMessage: an outage is not a bad link, and telling a reader
+            // their link is invalid when the database is down would send them away for good.
             logger.LogError(ex, "Failed to process an unsubscribe request");
-            return Result.Failure("The unsubscribe request could not be processed.");
+            return Result<UnsubscribeOutcome>.Failure(
+                "The unsubscribe request could not be processed just now. Please try the link again shortly.");
         }
     }
 
@@ -447,7 +491,7 @@ public class NewsletterSvc : INewsletterService
         if (string.IsNullOrWhiteSpace(unsubscribeToken))
             return string.Empty;
 
-        return $"{baseUrl}/unsubscribe/{unsubscribeToken}";
+        return $"{baseUrl}{UnsubscribePath}/{Uri.EscapeDataString(unsubscribeToken.Trim())}";
     }
 
     /// <summary>
@@ -672,17 +716,30 @@ public class NewsletterSvc : INewsletterService
     /// Renders the newsletter body with its mandatory unsubscribe footer.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> The unsubscribe link is appended here rather than left to the
-    /// composer, so no issue can ever go out without one.</para>
-    /// <para><b>Flow:</b> content → footer containing the archive-friendly unsubscribe link.</para>
+    /// <para><b>Business Logic:</b> The composer writes Markdown and its preview pane promises "this
+    /// is exactly what a subscriber receives", so the body is rendered through the same sanitising
+    /// <see cref="MarkdownRenderer"/> the preview uses. Interpolating the raw Markdown straight into
+    /// the HTML body — which is what this used to do — mailed subscribers literal <c>##</c> headings
+    /// and unrendered links, and made the preview a lie.</para>
+    /// <para><b>The unsubscribe footer is appended here, not left to the composer</b>, so no issue
+    /// can ever go out without one — that is the whole compliance guarantee, and moving it into
+    /// author-editable content would let a single forgotten paste mail a list with no way off
+    /// it.</para>
+    /// <para><b>Flow:</b> render the Markdown → append the footer carrying the recipient's personal
+    /// unsubscribe link.</para>
     /// <para><b>Side Effects:</b> None; pure.</para>
+    /// <para><b>Security:</b> The renderer disables raw HTML and strips unsafe URLs and attributes,
+    /// so a body pasted from an untrusted source cannot smuggle markup into the mail. The footer's
+    /// styling is inline because mail clients discard a stylesheet.</para>
     /// </remarks>
     /// <param name="newsletter">The issue being rendered.</param>
     /// <param name="unsubscribeUrl">The recipient's personal unsubscribe URL.</param>
     /// <returns>The HTML body.</returns>
-    private static string BuildBody(Newsletter newsletter, string unsubscribeUrl)
+    private string BuildBody(Newsletter newsletter, string unsubscribeUrl)
     {
-        return $@"{newsletter.Content}
+        var contentHtml = markdownRenderer.ToHtml(newsletter.Content ?? string.Empty);
+
+        return $@"{contentHtml}
 <hr />
 <p style=""font-size:12px"">You are receiving this because you subscribed to the newsletter.
 <a href=""{unsubscribeUrl}"">Unsubscribe</a></p>";

@@ -10,9 +10,18 @@
     REQ-UI-027 — anonymous, email-keyed star rating (PostRatingPanel).
     REQ-UI-029 — anonymous comment thread + comment form (CommentThread, CommentForm).
     REQ-UI-056 — both public write surfaces carry a CaptchaWidget.
+    REQ-FN-034 — this page is the ONLY writer of the PostViews table: it calls
+                 IPostViewTracker.TrackCurrentVisitAsync while its markup is being
+                 produced for the HTTP response. See TrackVisitAndReadCountsAsync
+                 for why that cannot double-count on a prerendered Blazor page.
+    REQ-FN-035 — the byline carries the post's own total/unique view counts, the
+                 public face of the per-post engagement statistics.
+    REQ-UI-007 — markdown tables get their own horizontal scroll container so a wide
+                 table can never make the whole page scroll sideways on a phone.
 
     Dependencies: BlogBreadcrumb, PostRatingPanel, CommentThread, CommentForm components;
-    FullWidthLayout, BlogSvc, SeriesSvc, CommentSvc, MarkdownRenderer
+    FullWidthLayout, BlogSvc, SeriesSvc, CommentSvc, MarkdownRenderer,
+    IPostViewTracker, IAnalyticsService
     Layout: Uses FullWidthLayout (no sidebar - content focused)
 *@
 
@@ -23,6 +32,8 @@
 @inject BlogEngine.Services.SeriesSvc SeriesService
 @inject BlogEngine.Services.CommentSvc CommentService
 @inject BlogEngine.Common.MarkdownRenderer MarkdownRenderer
+@inject BlogModels.Interfaces.IPostViewTracker PostViewTracker
+@inject BlogModels.Interfaces.IAnalyticsService AnalyticsService
 @inject NavigationManager Navigation
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 
@@ -71,6 +82,13 @@ else if (blogPost != null)
                 </span>
                 <span data-testid="post-date">@blogPost.CreatedOn.ToString("MMMM dd, yyyy")</span>
                 <span data-testid="post-readtime">@GetReadingTime(blogPost.PostContent)</span>
+                @* REQ-FN-035 — per-post engagement, read straight from the recorded views *@
+                <span class="inline-flex items-center gap-1" data-testid="post-views">
+                    <LucideIcon Name="eye" Size="14" />
+                    <span data-testid="post-views-total">@viewCounts.TotalViews.ToString("N0")</span>
+                    <span>@(viewCounts.TotalViews == 1 ? "view" : "views")</span>
+                    <span class="text-xs" data-testid="post-views-unique">(@viewCounts.UniqueViews.ToString("N0") unique)</span>
+                </span>
             </div>
         </header>
 
@@ -313,8 +331,15 @@ else if (blogPost != null)
     private List<BlogModels.BlogPost> relatedPosts = new();
     private BlogModels.SeriesNavigation seriesNavigation;
     private List<BlogModels.BlogComment> comments = new();
+    private BlogModels.PostViewCounts viewCounts = new();
     private bool isLoading = true;
     private bool notFound = false;
+
+    /// <summary>
+    /// The post this component instance has already counted a view for, so an in-page navigation
+    /// (a paginated article, a re-render) cannot ask the tracker again for the same article.
+    /// </summary>
+    private long trackedPostId;
 
     // Pagination state
     private int paginationWordCount = 500;
@@ -389,8 +414,43 @@ else if (blogPost != null)
             notFound = true;
         }
 
+        if (!notFound && blogPost != null)
+        {
+            await TrackVisitAndReadCountsAsync();
+        }
+
         isLoading = false;
         StateHasChanged();
+    }
+
+    /// <summary>
+    /// Counts this visit against the post and reads back the figures shown in the byline.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> This is the call site REQ-FN-034 was missing — without it the
+    /// tracker, the repository and every analytics panel downstream are dead code. Counting is
+    /// attempted on every render pass and is nevertheless safe from the prerender double-count trap
+    /// twice over: the tracker can only attribute a view while an HTTP request is in flight, which
+    /// on an interactively rendered Blazor page is the prerender pass alone, and the repository's
+    /// conditional insert would refuse a second row for the same visitor and post anyway. The local
+    /// guard adds a third, cheaper stop for the re-renders inside one instance — moving between the
+    /// pages of a paginated article is still one view of one article.</para>
+    /// <para><b>Flow:</b> count the visit unless this instance already counted this post → read the
+    /// post's total and unique views for the byline.</para>
+    /// <para><b>Side Effects:</b> May insert one <c>PostViews</c> row; replaces
+    /// <c>viewCounts</c>. Neither call throws — analytics never costs a reader the article — so no
+    /// guard is needed around them.</para>
+    /// </remarks>
+    /// <returns>A task that completes when the byline figures are current.</returns>
+    private async Task TrackVisitAndReadCountsAsync()
+    {
+        if (trackedPostId != blogPost.PostID)
+        {
+            trackedPostId = blogPost.PostID;
+            await PostViewTracker.TrackCurrentVisitAsync(blogPost.PostID);
+        }
+
+        viewCounts = await AnalyticsService.GetPostViewCountsAsync(blogPost.PostID);
     }
 
     /// <summary>
@@ -603,6 +663,50 @@ else if (blogPost != null)
         if (string.IsNullOrWhiteSpace(content))
             return "<p>No content available.</p>";
 
-        return MarkdownRenderer.ToHtml(content);
+        return WrapTablesInScrollContainer(MarkdownRenderer.ToHtml(content));
+    }
+
+    /// <summary>
+    /// Opening tag of the scroll container each rendered table is wrapped in.
+    /// </summary>
+    private const string TableScrollOpenTag =
+        "<div class=\"markdown-table-scroll\" style=\"overflow-x:auto;max-width:100%\">";
+
+    /// <summary>
+    /// Matches the opening tag of a rendered table, with or without attributes.
+    /// </summary>
+    private static readonly System.Text.RegularExpressions.Regex TableOpenPattern =
+        new("<table(?=[\\s>])", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    /// <summary>
+    /// Matches the closing tag of a rendered table.
+    /// </summary>
+    private static readonly System.Text.RegularExpressions.Regex TableClosePattern =
+        new("</table\\s*>", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    /// <summary>
+    /// Gives every table in the rendered article its own horizontal scroll container.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> REQ-UI-007 — a table cannot shrink below the width of its widest
+    /// row, so a three-column markdown table is around 420px wide and pushed the whole 390px page
+    /// sideways by 46px. Wrapping it makes the table, and only the table, scroll; the article keeps
+    /// its own width. The wrapper is emitted here rather than styled in the shared stylesheet because
+    /// the markdown body arrives as one opaque HTML string, and a CSS rule alone cannot introduce the
+    /// extra scrolling box a table needs.</para>
+    /// <para><b>Flow:</b> leave table-free content untouched → wrap each opening tag → close the
+    /// wrapper after each closing tag.</para>
+    /// <para><b>Side Effects:</b> None; pure. Markdown tables cannot nest, so a single pass over the
+    /// opening and closing tags is enough.</para>
+    /// </remarks>
+    /// <param name="html">The rendered article body.</param>
+    /// <returns>The same HTML with every table wrapped in a scroll container.</returns>
+    private static string WrapTablesInScrollContainer(string html)
+    {
+        if (string.IsNullOrEmpty(html) || html.IndexOf("<table", StringComparison.OrdinalIgnoreCase) < 0)
+            return html;
+
+        var wrapped = TableOpenPattern.Replace(html, TableScrollOpenTag + "<table");
+        return TableClosePattern.Replace(wrapped, "</table></div>");
     }
 }

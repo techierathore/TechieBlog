@@ -59,18 +59,27 @@ public interface IBlogImageService
     /// rethrowing, so a failed upload leaves no orphan.</para>
     /// <para><b>Side Effects:</b> Writes one object to the storage provider and one row to
     /// <c>BlogImage</c>. The two are not transactional together.</para>
+    /// <para><b>The returned record is fully described (REQ-FN-026).</b> Besides the identifier and
+    /// path, the implementation records the MIME type, the alternative text and the pixel width and
+    /// height read from the file's own header. <c>Width</c> and <c>Height</c> stay <c>null</c> for a
+    /// format whose dimensions cannot be read from a header — SVG and PDF — and that is reported as
+    /// <c>null</c>, never as zero.</para>
     /// </remarks>
     /// <param name="file">The browser file to upload.</param>
     /// <param name="category">The image category (profiles, logos, awards, icons, blog, cv, general);
     /// matched case-insensitively. Each category carries its own size ceiling and format allow-list.</param>
     /// <param name="userId">The ID of the user uploading the image; must be greater than zero. It is
     /// recorded as the owner and is what <see cref="DeleteImageAsync"/> later checks against.</param>
+    /// <param name="altText">Accessible alternative text for the image. Optional: when it is
+    /// <c>null</c> or blank the implementation derives a readable phrase from the original file name
+    /// rather than storing <c>null</c>, so no row is left without an accessible name. A caller that
+    /// has real descriptive text should always pass it — the derived value is a placeholder.</param>
     /// <returns>The persisted record with its generated identifier and public <c>ImagePath</c>
     /// populated. Never <c>null</c> — this member reports failure by throwing.</returns>
     /// <exception cref="ArgumentException">The user id is not greater than zero.</exception>
     /// <exception cref="InvalidOperationException">The file failed validation; the message is the same
     /// text <see cref="ValidateImageAsync"/> would have returned and is safe to show the user.</exception>
-    Task<BlogImage> UploadImageAsync(IBrowserFile file, string category, long userId);
+    Task<BlogImage> UploadImageAsync(IBrowserFile file, string category, long userId, string? altText = null);
 
     /// <summary>
     /// Deletes an image from disk and database.

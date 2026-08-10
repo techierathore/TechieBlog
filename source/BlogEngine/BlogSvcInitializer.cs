@@ -129,6 +129,12 @@ public static class BlogSvcInitializer
                 : ActivatorUtilities.CreateInstance<Services.ConsoleEmailService>(x);
         });
 
+        // Session durations behind sign-in and token refresh (REQ-FN-008). Singleton because the
+        // policy is an immutable value read from configuration once; AuthSvc takes it as an
+        // optional dependency so a test can construct the service without a container.
+        services.AddSingleton(x => SessionPolicy.FromConfiguration(
+            x.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>()));
+
         // Auth service
         services.AddTransient<Services.AuthSvc>();
 
@@ -181,6 +187,11 @@ public static class BlogSvcInitializer
 
         // Sitemap service
         services.AddTransient<Services.SitemapSvc>();
+
+        // RSS 2.0 feed served at /feed.xml (REQ-FN-037). Transient for the same reason as the
+        // sitemap: it holds no state between requests and the output cache, not the container,
+        // is what stops it running once per subscriber.
+        services.AddTransient<Services.RssFeedSvc>();
 
         // Markdown rendering (REQ-NFR-006). Singleton because the sanitising Markdig pipeline is
         // immutable once built and expensive to rebuild; the renderer holds no per-caller state.

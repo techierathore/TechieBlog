@@ -1,6 +1,5 @@
 using System.Text.RegularExpressions;
 using BlogEngine.Services;
-using BlogModels;
 using BlogUI.Components;
 using Microsoft.AspNetCore.Components;
 using TrBlazeUI.Components.Alert;
@@ -14,22 +13,25 @@ namespace BlogUI.Pages.BlogPages;
 /// <remarks>
 /// <para><b>Purpose:</b> Implements the reader-facing half of double opt-in (BRD-98) for
 /// REQ-UI-053 and REQ-UI-054. A submitted address becomes a <b>pending</b> subscriber
-/// (<see cref="Subscriber.IsConfirmed"/> = <c>false</c>) and a confirmation link is mailed;
-/// the subscription only becomes real when that link is redeemed on <c>/verify/{token}</c>.</para>
+/// (<c>IsConfirmed = false</c>) and a confirmation link is mailed; the subscription only becomes
+/// real when that link is redeemed on <c>/verify/{token}</c>.</para>
 ///
 /// <para><b>Code Flow:</b></para>
 /// <list type="number">
-///   <item>The address is validated locally, then the self-hosted captcha answer is checked
-///         (BRD-99) so an unattended script cannot mail-bomb a stranger's inbox.</item>
+///   <item>The self-hosted captcha answer is checked (BRD-99) so an unattended script cannot
+///         mail-bomb a stranger's inbox.</item>
+///   <item><see cref="SubscriberSvc.SubscribePendingAsync"/> validates the address, resolves or
+///         creates the pending row and mails the confirmation link.</item>
 ///   <item>An already-confirmed address is told it is subscribed and no second mail goes out.</item>
-///   <item>Otherwise a pending subscriber row is created (or an existing unconfirmed row is
-///         reused) and <see cref="IEmailVerificationService.IssueAsync"/> mails the link.</item>
 /// </list>
 ///
-/// <para><b>Dependencies:</b> <see cref="ISubscriberRepo"/> for the pending row and
-/// <see cref="IEmailVerificationService"/> for the token and its email. The card deliberately
-/// does NOT use <c>SubscriberSvc.Subscribe</c>, which auto-confirms (a pre-double-opt-in
-/// behaviour retained for REQ-FN-030's sidebar form).</para>
+/// <para><b>Dependencies:</b> <see cref="SubscriberSvc"/> for the whole write, and
+/// <see cref="CaptchaWidget"/> for the human check. [REQ-UI-056] 2026-08-09: the card used to
+/// drive <c>ISubscriberRepo</c> and <c>IEmailVerificationService</c> itself. That flow now lives in
+/// <see cref="SubscriberSvc.SubscribePendingAsync"/> so the sidebar form and this card share ONE
+/// double opt-in implementation — a second copy is how the sidebar drifted onto the auto-confirming
+/// path in the first place. The card deliberately does NOT use <c>SubscriberSvc.Subscribe</c>,
+/// which auto-confirms and is administrative only.</para>
 ///
 /// <para><b>Usage:</b> <c>&lt;NewsletterSubscribeCard Compact="true" /&gt;</c> renders the
 /// condensed call-to-action used at the foot of an issue page.</para>
@@ -47,17 +49,10 @@ public partial class NewsletterSubscribeCard : ComponentBase
     private CaptchaWidget? captcha;
 
     /// <summary>
-    /// Pending-row store. A pending subscriber is written directly because the repository is
-    /// the only component that can persist <c>IsConfirmed = false</c>.
+    /// Owns the double opt-in write: pending row, verification token and confirmation email.
     /// </summary>
     [Inject]
-    public ISubscriberRepo SubscriberRepo { get; set; } = default!;
-
-    /// <summary>
-    /// Issues and mails the single-use confirmation link (REQ-FN-048).
-    /// </summary>
-    [Inject]
-    public IEmailVerificationService EmailVerification { get; set; } = default!;
+    public SubscriberSvc SubscriberService { get; set; } = default!;
 
     /// <summary>
     /// When true the card renders the condensed variant used on an issue page — no header,
@@ -84,17 +79,16 @@ public partial class NewsletterSubscribeCard : ComponentBase
     private string emailInputId => $"{TestId}-email-input";
 
     /// <summary>
-    /// Validates the form, creates a pending subscriber and mails the confirmation link.
+    /// Screens the visitor with the captcha and starts a double opt-in subscription.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> The subscriber row is written BEFORE the token is issued,
-    /// because the token has to carry the pending row's id. A failure to mail therefore leaves
-    /// an unconfirmed row that receives nothing — the safe direction to fail in. An address that
-    /// is already confirmed is never mailed a second link.</para>
-    /// <para><b>Flow:</b> validate address → check captcha → resolve or create the pending row →
-    /// issue the token → report the outcome and reset the challenge.</para>
-    /// <para><b>Side Effects:</b> Inserts a <c>Subscriber</c> row, inserts a verification token
-    /// row and sends one email.</para>
+    /// <para><b>Business Logic:</b> The captcha is the first gate — an unanswered or wrong
+    /// challenge stops the submission before any row is written. The service then owns the rest:
+    /// it validates the address, writes an UNCONFIRMED row and mails the link, so a solved captcha
+    /// still cannot put a stranger's address on the list.</para>
+    /// <para><b>Flow:</b> check the captcha → submit → report the outcome → re-arm the challenge.</para>
+    /// <para><b>Side Effects:</b> May insert a <c>Subscriber</c> row, a verification token row and
+    /// send one email; always consumes and replaces the captcha challenge.</para>
     /// </remarks>
     /// <returns>A task that completes when the outcome has been reported to the visitor.</returns>
     private async Task HandleSubscribeAsync()
@@ -104,8 +98,9 @@ public partial class NewsletterSubscribeCard : ComponentBase
             return;
         }
 
-        var email = (emailAddress ?? string.Empty).Trim().ToLowerInvariant();
-        if (!EmailPattern.IsMatch(email))
+        // Shape-checked here FIRST so a typo does not burn the single-use captcha challenge.
+        // The service re-validates; this check exists only for the message the visitor sees.
+        if (!EmailPattern.IsMatch((emailAddress ?? string.Empty).Trim()))
         {
             ShowStatus(AlertVariant.Danger, "Please enter a valid email address.");
             return;
@@ -124,7 +119,7 @@ public partial class NewsletterSubscribeCard : ComponentBase
         isSubmitting = true;
         try
         {
-            await SubmitAsync(email).ConfigureAwait(true);
+            await SubmitAsync().ConfigureAwait(true);
         }
         finally
         {
@@ -137,90 +132,63 @@ public partial class NewsletterSubscribeCard : ComponentBase
     /// Checks the self-hosted captcha answer.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> The widget is supplied by REQ-UI-056. If it has not been
-    /// rendered the form still works rather than locking every visitor out, which would be a
-    /// worse failure than a missing challenge on a personal blog.</para>
-    /// <para><b>Flow:</b> delegate to the widget when present.</para>
-    /// <para><b>Side Effects:</b> None; the widget owns its own challenge state.</para>
+    /// <para><b>Business Logic:</b> [REQ-UI-056] A missing widget is a hard refusal, not a pass.
+    /// This card is reachable anonymously, so failing open would reopen exactly the hole the
+    /// requirement closes. An empty answer box is refused without a service round trip so an
+    /// unanswered challenge is not burned.</para>
+    /// <para><b>Side Effects:</b> Consumes the current challenge and issues a new one.</para>
     /// </remarks>
-    /// <returns>True when the visitor passed the challenge.</returns>
+    /// <returns>True only when a rendered widget accepted the typed answer.</returns>
     private async Task<bool> IsHumanAsync()
     {
         if (captcha == null)
         {
-            return true;
+            return false;
+        }
+
+        if (!captcha.HasAnswer)
+        {
+            captcha.ShowError(captcha.IsQuestionMode
+                ? "Please answer the verification question."
+                : "Please type the characters from the verification image.");
+            return false;
         }
 
         return await captcha.ValidateAsync().ConfigureAwait(true);
     }
 
     /// <summary>
-    /// Creates or reuses the pending subscriber row and mails its confirmation link.
+    /// Hands the address to the shared double opt-in path and reports what came back.
     /// </summary>
     /// <remarks>
     /// <para><b>Business Logic:</b> Re-submitting an address that is still pending re-sends the
     /// link against the SAME row, so a visitor who lost the first email is not duplicated in the
-    /// subscriber table.</para>
-    /// <para><b>Flow:</b> look the address up → short-circuit when confirmed → insert when new →
-    /// issue the token → report.</para>
-    /// <para><b>Side Effects:</b> May insert a <c>Subscriber</c> row; issues a token and an email.</para>
+    /// subscriber table. An address that has already confirmed is never mailed a second link.</para>
+    /// <para><b>Flow:</b> submit → branch on the outcome → clear the box on success.</para>
+    /// <para><b>Side Effects:</b> Delegated to <see cref="SubscriberSvc.SubscribePendingAsync"/>.</para>
     /// </remarks>
-    /// <param name="email">The normalised address being subscribed.</param>
     /// <returns>A task that completes when the outcome has been reported.</returns>
-    private async Task SubmitAsync(string email)
+    private async Task SubmitAsync()
     {
-        try
+        var result = await SubscriberService
+            .SubscribePendingAsync(emailAddress ?? string.Empty)
+            .ConfigureAwait(true);
+
+        if (result.IsFailure)
         {
-            var existing = SubscriberRepo.GetByEmail(email);
-            if (existing != null && existing.IsConfirmed)
-            {
-                ShowStatus(AlertVariant.Info, "That address is already subscribed.");
-                return;
-            }
-
-            var subscriberId = existing?.SubscriberId ?? CreatePendingSubscriber(email);
-            var issued = await EmailVerification
-                .IssueAsync(email, DeriveName(email), EmailVerificationPurpose.Subscription, subscriberId, string.Empty)
-                .ConfigureAwait(true);
-
-            if (issued.IsFailure)
-            {
-                ShowStatus(AlertVariant.Danger, issued.ErrorMessage ?? "We could not start the subscription. Please try again.");
-                return;
-            }
-
-            emailAddress = string.Empty;
-            ShowStatus(AlertVariant.Success,
-                "Almost there — check your inbox and click the confirmation link to start your subscription.");
+            ShowStatus(AlertVariant.Danger, result.ErrorMessage ?? "We could not complete the subscription. Please try again.");
+            return;
         }
-        catch (Exception)
-        {
-            ShowStatus(AlertVariant.Danger, "We could not complete the subscription. Please try again.");
-        }
-    }
 
-    /// <summary>
-    /// Writes the pending subscriber row.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> <c>IsConfirmed</c> is false and stays false until the mailed
-    /// link is redeemed — that is what makes the opt-in double.</para>
-    /// <para><b>Flow:</b> build the row → insert → return the generated id.</para>
-    /// <para><b>Side Effects:</b> Inserts one <c>Subscriber</c> row.</para>
-    /// </remarks>
-    /// <param name="email">The normalised address.</param>
-    /// <returns>The new subscriber id.</returns>
-    private long CreatePendingSubscriber(string email)
-    {
-        return SubscriberRepo.InsertToGetId(new Subscriber
+        if (!result.Data)
         {
-            Email = email,
-            Name = DeriveName(email),
-            SubscribedOn = DateTime.UtcNow,
-            IsConfirmed = false,
-            IsActive = false,
-            Preferences = string.Empty
-        });
+            ShowStatus(AlertVariant.Info, "That address is already subscribed.");
+            return;
+        }
+
+        emailAddress = string.Empty;
+        ShowStatus(AlertVariant.Success,
+            "Almost there — check your inbox and click the confirmation link to start your subscription.");
     }
 
     /// <summary>
@@ -232,16 +200,5 @@ public partial class NewsletterSubscribeCard : ComponentBase
     {
         statusVariant = variant;
         statusMessage = message;
-    }
-
-    /// <summary>
-    /// Derives a display name from an address, since the public form asks only for the email.
-    /// </summary>
-    /// <param name="email">The normalised address.</param>
-    /// <returns>The local part of the address.</returns>
-    private static string DeriveName(string email)
-    {
-        var atIndex = email.IndexOf('@');
-        return atIndex > 0 ? email[..atIndex] : email;
     }
 }

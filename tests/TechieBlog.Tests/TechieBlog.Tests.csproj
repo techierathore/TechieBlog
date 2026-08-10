@@ -105,21 +105,37 @@
   </ItemGroup>
 
   <!--
-    BlogUI is referenced ONLY when IncludeBlogUiTests=true.
+    BlogUI reference and the bUnit component suites — ON BY DEFAULT since 2026-08-09.
 
-    Reason: the UI layer is mid-rewrite (Fluent UI -> TrBlazeUI) and BlogUI is
-    transiently RED (NU1605, REQ-FN-043). An unconditional reference would make
-    TechieBlog.Tests un-buildable through no fault of its own. Flip it on with
-    `dotnet test tests/TechieBlog.Tests -p:IncludeBlogUiTests=true` (or set the
-    property in CI) once BlogUI restores green, and the bUnit component suites
-    that render real BlogUI components will compile.
+    History: this was introduced OFF because the UI layer was mid-rewrite (Fluent UI -> TrBlazeUI)
+    and BlogUI was transiently RED with NU1605 (REQ-FN-043). The reference had to be optional or
+    TechieBlog.Tests would have been un-buildable through no fault of its own.
+
+    Why it is now on (REQ-NFR-016, cluster M): REQ-FN-043 is CLOSED and the solution has been GREEN
+    across all 7 projects since 2026-08-08. Verified before flipping — `dotnet build` of this project
+    with the flag set returns 0 errors, and the five PostCard bUnit tests pass. Left off, those tests
+    were dead weight: the conditional Compile Remove below meant they never ran in CI and therefore
+    proved nothing about any real BlogUI component.
+
+    Set -p:IncludeBlogUiTests=false to get the old behaviour back if BlogUI ever goes red again while
+    an urgent engine fix has to ship.
   -->
   <PropertyGroup>
-    <IncludeBlogUiTests Condition="'$(IncludeBlogUiTests)' == ''">false</IncludeBlogUiTests>
+    <IncludeBlogUiTests Condition="'$(IncludeBlogUiTests)' == ''">true</IncludeBlogUiTests>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(IncludeBlogUiTests)' == 'true'">
     <ProjectReference Include="..\..\source\BlogUI\BlogUI.csproj" />
+  </ItemGroup>
+
+  <!--
+    Suites under Components\BlogUi\ render REAL BlogUI components, so they cannot compile
+    without the reference above. They are removed from the default compile so the flag is
+    the single switch that turns BlogUI testing on, rather than the reference and the files
+    having to be kept in step by hand.
+  -->
+  <ItemGroup Condition="'$(IncludeBlogUiTests)' != 'true'">
+    <Compile Remove="Components\BlogUi\**\*.cs" />
   </ItemGroup>
 
   <ItemGroup>

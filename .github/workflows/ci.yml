@@ -7,10 +7,14 @@
 # NuGet authentication
 # ---------------------------------------------------------------------------
 # The build needs the private GitHub Packages feed that hosts TrBlazeUI. The
-# nuget.config committed at the repo root carries a hard-coded username and
-# personal access token; CI must NOT use those. Instead this workflow writes a
-# throwaway nuget.ci.config at runtime and passes it with --configfile, so the
-# committed credentials are never read.
+# nuget.config committed at the repo root deliberately carries NO credentials
+# (REQ-NFR-025 — a PAT was committed there until 2026-08-09 and was invalidated
+# by GitHub secret scanning). This workflow therefore writes a throwaway
+# nuget.ci.config at run time from a repository secret and passes it with
+# --configfile.
+#
+# Step-by-step setup is in GETTING_STARTED.md, section
+# "NuGet feed access". Short version below.
 #
 # Token precedence:
 #   1. secrets.TrBlazeUiPackagesToken — a PAT with read:packages, required when
@@ -20,6 +24,13 @@
 #
 # Add the PAT under Settings -> Secrets and variables -> Actions ->
 # New repository secret, named exactly TrBlazeUiPackagesToken.
+#
+# 2026-08-09 (REQ-NFR-017): restore failed with NU1301 / 403 Forbidden because
+# TrBlazeUiPackagesToken was not configured and the GITHUB_TOKEN fallback cannot
+# read a user-scoped GitHub Packages feed unless the package explicitly grants
+# this repository access. The failure surfaced as ~60 lines of NuGet retry noise
+# that never named the real cause, so a preflight probe now runs BEFORE restore
+# and fails with one actionable message instead.
 # ---------------------------------------------------------------------------
 
 name: CI
@@ -66,8 +77,20 @@ jobs:
 
       - name: Write CI NuGet config
         env:
-          PackagesToken: ${{ secrets.TrBlazeUiPackagesToken || secrets.GITHUB_TOKEN }}
+          PatToken: ${{ secrets.TrBlazeUiPackagesToken }}
+          FallbackToken: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
+
+          if [ -n "$PatToken" ]; then
+            PackagesToken="$PatToken"
+            echo "Using TrBlazeUiPackagesToken (dedicated PAT)."
+          else
+            PackagesToken="$FallbackToken"
+            echo "::warning::TrBlazeUiPackagesToken is not set; falling back to GITHUB_TOKEN." \
+                 "This works only if the TrBlazeUI packages explicitly grant this repository read access."
+          fi
+
           cat > nuget.ci.config <<'XML'
           <?xml version="1.0" encoding="utf-8"?>
           <configuration>
@@ -83,6 +106,49 @@ jobs:
             --username techierathore \
             --password "$PackagesToken" \
             --store-password-in-clear-text
+
+      # Restore emits ~60 lines of retry noise and an NU1301 that never names the
+      # real cause. Probe the package base address directly first so a credential
+      # problem fails in one line with the exact remedy. (REQ-NFR-017)
+      - name: Preflight — TrBlazeUI feed authentication
+        env:
+          PatToken: ${{ secrets.TrBlazeUiPackagesToken }}
+          FallbackToken: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          PackagesToken="${PatToken:-$FallbackToken}"
+          probe="https://nuget.pkg.github.com/techierathore/download/trblazeui.components/index.json"
+          code=$(curl -s -o /dev/null -w '%{http_code}' -u "techierathore:$PackagesToken" "$probe")
+
+          if [ "$code" = "200" ]; then
+            echo "TrBlazeUI feed reachable and authenticated (HTTP 200)."
+            exit 0
+          fi
+
+          cat >&2 <<MSG
+          ============================================================================
+          Cannot read the private TrBlazeUI GitHub Packages feed (HTTP $code).
+
+          The build needs TrBlazeUI.Components and TrBlazeUI.Icons.Lucide, which live
+          on a private user-scoped feed. Without a token carrying the read:packages
+          scope, restore fails later with NU1301 / 403 Forbidden.
+
+          To fix, do ONE of:
+
+            1. Create a classic PAT with the read:packages scope, then add it at
+               Settings -> Secrets and variables -> Actions -> New repository secret
+               named exactly:  TrBlazeUiPackagesToken
+
+            2. Or, on each TrBlazeUI package page under
+               github.com/users/techierathore/packages , open Package settings ->
+               Manage Actions access and grant this repository Read access. The
+               built-in GITHUB_TOKEN then suffices and no secret is needed.
+
+          Note: the token previously committed in nuget.config was invalidated by
+          GitHub secret scanning and cannot be reused. (REQ-NFR-025)
+          ============================================================================
+          MSG
+          exit 1
 
       - name: Restore
         run: dotnet restore TechieBlog.slnx --configfile nuget.ci.config

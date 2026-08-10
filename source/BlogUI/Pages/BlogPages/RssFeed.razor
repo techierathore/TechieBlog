@@ -34,10 +34,27 @@
         </p>
 
         <div class="flex flex-col gap-3 rounded-lg bg-muted p-4 sm:flex-row sm:items-center">
-            <Input Value="@rssUrl" readonly Class="flex-1" data-testid="rss-url" />
+            @* [REQ-NFR-007] 2026-08-09 — WCAG 4.1.2 / 3.3.2. This box had NO accessible name at
+               all: axe reported `label` (CRITICAL) on /rss at both viewports, and a screen reader
+               announced the site's subscription address as an unnamed edit field. It is the only
+               Input in the app with neither a visible <Label> nor a Placeholder — every other one
+               passes axe's `non-empty-placeholder` check, which is exactly why this single control
+               slipped through three earlier audits. A visually-hidden label is used rather than a
+               placeholder because the field is READONLY and already full of text: a placeholder
+               would never be seen by anyone, sighted or not. *@
+            <Label For="rss-url-input" Class="sr-only">RSS feed URL</Label>
+            <Input Id="rss-url-input" Value="@rssUrl" readonly Class="flex-1" data-testid="rss-url" />
             <Button OnClick="CopyFeedUrl" data-testid="rss-copy">
                 <LucideIcon Name="copy" Size="16" />
                 Copy
+            </Button>
+            @* [REQ-UI-046] The feed is a real endpoint (Program.cs maps /feed.xml), so it can be
+               opened. Before 2026-08-09 this page advertised a URL that returned 404, and there
+               was no way to tell from the page itself — a link that a reader can follow is the
+               cheapest possible proof that the advertised address is live. *@
+            <Button Href="@rssUrl" Variant="ButtonVariant.Outline" data-testid="rss-open">
+                <LucideIcon Name="external-link" Size="16" />
+                Open feed
             </Button>
         </div>
 

@@ -21,6 +21,12 @@
                 <Router AppAssembly="@typeof(Routes).Assembly">
                     <Found Context="routeData">
                         <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                            @* [REQ-NFR-007] NO <LayoutView> IN HERE — see the Authorizing note below.
+                               AuthorizeRouteView already renders this fragment inside DefaultLayout,
+                               so the AuthLayout wrapper this branch used to carry nested a SECOND
+                               shell (its own <main data-testid="auth-content">, ToastProvider and
+                               PortalHost) inside MainLayout's — a nested <main>, duplicated portal
+                               hosts, and an axe landmark violation on every denied route. *@
                             <NotAuthorized>
                                 @if (context.User.Identity?.IsAuthenticated != true)
                                 {
@@ -28,30 +34,57 @@
                                 }
                                 else
                                 {
-                                    <LayoutView Layout="@typeof(AuthLayout)">
-                                        <BlogUI.Pages.AccessDenied />
-                                    </LayoutView>
+                                    <BlogUI.Pages.AccessDenied />
                                 }
                             </NotAuthorized>
+                            @* [REQ-NFR-007] 2026-08-09 — THE DOUBLE-SHELL BUG. This fragment used to be
+                               a <LayoutView Layout="MainLayout">. AuthorizeRouteView renders BOTH
+                               Authorizing and NotAuthorized through its own
+                               `LayoutView Layout="DefaultLayout"` (AuthorizeRouteViewCore
+                               .RenderContentInDefaultLayout), so wrapping the content in a second
+                               LayoutView painted MainLayout INSIDE MainLayout: two <header>s, two
+                               sidebars, two <footer>s and two PortalHosts for as long as the auth
+                               state took to resolve. It self-healed, which is why it survived — but it
+                               is the source of the "both shells for ~1.5s" blocker, of the transient
+                               duplicate-landmark / duplicate-testid readings that polluted verification
+                               runs, and of the `document-title` violation (HeadOutlet had no PageTitle
+                               to render while the real route was suspended). The spinner now renders
+                               bare, inside the ONE layout AuthorizeRouteView supplies, and carries a
+                               title of its own so <title> is never empty. *@
                             <Authorizing>
-                                <LayoutView Layout="@typeof(MainLayout)">
-                                    <div class="flex h-[60vh] items-center justify-center" data-testid="authorizing">
-                                        <Spinner Size="SpinnerSize.Large" Class="text-primary" />
-                                    </div>
-                                </LayoutView>
+                                <PageTitle>Loading - TechieBlog</PageTitle>
+                                <div class="flex h-[60vh] items-center justify-center" data-testid="authorizing">
+                                    <Spinner Size="SpinnerSize.Large" Class="text-primary" />
+                                </div>
                             </Authorizing>
                         </AuthorizeRouteView>
                         <FocusOnNavigate RouteData="@routeData" Selector="h1" />
                     </Found>
+                    @* REQ-UI-012 — LIVE AGAIN, and it must render the SAME screen as the server.
+                       The old comment here described a catch-all `@page "/{*NotFoundPath}"` on
+                       404Page.razor that no longer exists, and called this block dead code. Both
+                       statements went stale on 2026-08-09 when cluster F replaced the catch-all
+                       with `UseStatusCodePagesWithReExecute("/404")` in Program.cs: an unmatched
+                       URL now RE-EXECUTES against /404, so the visitor receives the real 404 page
+                       prerendered — but the browser's address bar still holds the original,
+                       unroutable path, so once the circuit hydrates the router matches nothing and
+                       fires this fragment for real.
+
+                       While this block carried its own hand-rolled 404 markup, that fired as a
+                       one-time VISUAL SWAP: `not-found-page` (server) was replaced in place by a
+                       differently-styled `not-found` (client). Status code and content were always
+                       correct; the screen simply changed under the visitor. Rendering the actual
+                       404Page component instead makes the hydrated result byte-identical to the
+                       prerendered one, so there is nothing to see.
+
+                       The LayoutView IS required here (unlike in <Authorizing> above): a Router
+                       NotFound fragment is rendered with no layout at all, and 404Page's own
+                       `@layout` directive only applies when the component is reached by routing.
+                       `_404Page` is the compiler-sanitised type name — a C# identifier cannot start
+                       with a digit, so `404Page.razor` compiles to `_404Page`. *@
                     <NotFound>
                         <LayoutView Layout="@typeof(MainLayout)">
-                            <PageTitle>Not Found - TechieBlog</PageTitle>
-                            <div class="flex flex-col items-center gap-4 py-16 text-center" data-testid="not-found">
-                                <LucideIcon Name="file-question-mark" Size="48" Class="text-muted-foreground" />
-                                <h1 class="text-2xl font-semibold">404 - Page Not Found</h1>
-                                <p class="text-muted-foreground">Sorry, there's nothing at this address.</p>
-                                <Button Href="/" data-testid="not-found-home">Go to Home</Button>
-                            </div>
+                            <BlogUI.Pages.AdminPages._404Page />
                         </LayoutView>
                     </NotFound>
                 </Router>

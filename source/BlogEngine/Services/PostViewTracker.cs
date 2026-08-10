@@ -1,6 +1,7 @@
 using BlogEngine.Common;
 using BlogModels;
 using BlogModels.Interfaces;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -28,11 +29,23 @@ namespace BlogEngine.Services;
 ///
 /// <para><b>Code Flow:</b></para>
 /// <list type="number">
-///   <item>A post page calls <see cref="TrackViewAsync"/> on first render.</item>
-///   <item>The visitor hash is derived from the salt and the request metadata.</item>
+///   <item>A post page calls <see cref="TrackCurrentVisitAsync"/> while its markup is being produced
+///         for the HTTP response.</item>
+///   <item>The address and user-agent are read from the ambient request and folded into the visitor
+///         hash together with the salt.</item>
 ///   <item>The repository performs a conditional insert, so the de-duplication test and the write
 ///         are one atomic statement.</item>
 /// </list>
+///
+/// <para><b>Where the visitor comes from, and the one case it does not cover.</b> The address and
+/// user-agent only exist while an HTTP request is being served. In a Blazor Server application that
+/// is the static/prerender pass of a page — the interactive pass runs over a SignalR circuit with no
+/// <c>HttpContext</c> at all, which is precisely why calling this on every render cannot double-count:
+/// the second pass has no visitor to attribute a view to and returns without writing. The de-duplication
+/// window is the second, independent guard behind that. The case genuinely not covered is a reader who
+/// reaches a post by client-side navigation inside an already-established circuit; counting those needs
+/// the connection metadata captured at circuit start, which is a host-level concern
+/// (<c>Program.cs</c>), not this service's.</para>
 ///
 /// <para><b>Privacy — what the site can and cannot learn.</b> The raw IP address is never
 /// persisted; only the salted digest is, and the legacy <c>ViewerIp</c> column is explicitly
@@ -85,6 +98,7 @@ public class PostViewTracker : IPostViewTracker
 
     private readonly IPostViewRepo postViewRepo;
     private readonly ILogger<PostViewTracker> logger;
+    private readonly IHttpContextAccessor? httpContextAccessor;
     private readonly string visitorSalt;
     private readonly int dedupeWindowHours;
 
@@ -94,18 +108,22 @@ public class PostViewTracker : IPostViewTracker
     /// <remarks>
     /// Reads <c>Analytics:VisitorSalt</c> and <c>Analytics:ViewDedupeWindowHours</c>. The salt is a
     /// deployment secret and belongs in user secrets or environment configuration, not in a shipped
-    /// settings file.
+    /// settings file. The HTTP context accessor is optional so a unit test can construct the tracker
+    /// without a request pipeline; the container always supplies it.
     /// </remarks>
     /// <param name="postViewRepo">Post-view data access.</param>
     /// <param name="configuration">Application configuration.</param>
     /// <param name="logger">Logger for tracking failures.</param>
+    /// <param name="httpContextAccessor">Access to the request being served, when there is one.</param>
     public PostViewTracker(
         IPostViewRepo postViewRepo,
         IConfiguration configuration,
-        ILogger<PostViewTracker> logger)
+        ILogger<PostViewTracker> logger,
+        IHttpContextAccessor? httpContextAccessor = null)
     {
         this.postViewRepo = postViewRepo;
         this.logger = logger;
+        this.httpContextAccessor = httpContextAccessor;
 
         var configuredSalt = configuration?["Analytics:VisitorSalt"];
         visitorSalt = string.IsNullOrWhiteSpace(configuredSalt) ? DefaultVisitorSalt : configuredSalt;
@@ -113,6 +131,31 @@ public class PostViewTracker : IPostViewTracker
             logger.LogWarning("Analytics:VisitorSalt is not configured — using the built-in default salt.");
 
         dedupeWindowHours = ResolveWindow(configuration);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para><b>Business Logic:</b> A view can only be attributed to a visitor while an HTTP request
+    /// is in flight, so the absence of one is reported as "nothing written" rather than as an error —
+    /// that is the normal answer on the interactive render pass of a Blazor Server page, and it is
+    /// what stops a page that renders twice from counting twice.</para>
+    /// <para><b>Flow:</b> resolve the ambient request → return early when there is none → read the
+    /// transport address and the user-agent header → delegate to <see cref="TrackViewAsync"/>.</para>
+    /// <para><b>Side Effects:</b> May insert one <c>PostViews</c> row. Never throws.</para>
+    /// </remarks>
+    /// <returns>
+    /// Success carrying <c>true</c> when a row was written, and <c>false</c> when the view was
+    /// de-duplicated or there was no request to attribute it to.
+    /// </returns>
+    public Task<Result<bool>> TrackCurrentVisitAsync(long postId)
+    {
+        var httpContext = httpContextAccessor?.HttpContext;
+        if (httpContext == null)
+            return Task.FromResult(Result<bool>.Success(false));
+
+        var ipAddress = httpContext.Connection?.RemoteIpAddress?.ToString() ?? string.Empty;
+        var userAgent = httpContext.Request?.Headers.UserAgent.ToString() ?? string.Empty;
+        return TrackViewAsync(postId, ipAddress, userAgent);
     }
 
     /// <inheritdoc />

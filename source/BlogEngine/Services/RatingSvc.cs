@@ -283,7 +283,7 @@ public class RatingSvc
     {
         try
         {
-            var stats = ratingRepo.GetStatsByPost(postId);
+            var stats = await ratingRepo.GetStatsByPostAsync(postId).ConfigureAwait(false);
             if (!string.IsNullOrWhiteSpace(email))
             {
                 var existing = await ratingRepo.GetByPostAndEmailAsync(postId, email).ConfigureAwait(false);

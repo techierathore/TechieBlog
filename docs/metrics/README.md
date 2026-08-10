@@ -14,6 +14,18 @@ after the fact.
 Schema, enums, and every known limitation: `.tfcore/telemetry/SCHEMA.md`.
 Report: `/TechieFlow:agents:flow-master *metrics <AppName>` → `METRICS.md`.
 
+**All four files are created empty, on purpose, and an empty one is not a fault.**
+The installer seeds the set so every repo has the same shape and no writer has to
+guess whether its stream exists. A stream stays at zero bytes until something
+actually happens: `gates.jsonl` until the first `*verify`, `runs.jsonl` until the
+first framework command, `sessions.jsonl` until the first agent session ends, and
+**`commits.jsonl` until your first commit after telemetry was installed** — that
+one is written by *your* `git commit`, never by an agent, so a repo you haven't
+committed to since the refresh will show it empty indefinitely. Nothing is broken;
+`.git/hooks/post-commit` is sitting there waiting. Commit these empty files along
+with the rest — a tracked empty stream is what makes the first record a one-line
+diff instead of a new file appearing from nowhere.
+
 **Never edit these files by hand, never sort them, never compact them.** They are
 a log. Rewriting one destroys exactly the history it exists to keep.
 

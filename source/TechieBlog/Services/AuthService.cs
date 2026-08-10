@@ -124,17 +124,29 @@ public class AuthService : IAuthService
     }
 
     /// <summary>
-    /// Refreshes an expired access token using a valid refresh token.
+    /// Renews an expired session without asking for the password again (REQ-FN-008, BRD-6).
     /// </summary>
-    /// <param name="refreshRequest">Contains the refresh token.</param>
-    /// <returns>AppUser with new tokens if valid, null otherwise.</returns>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Delegates to <c>AuthSvc.RefreshSessionAsync</c>, which rewrites
+    /// the <c>UserLogin</c> row with a replacement access token when the session is still inside
+    /// its refresh window. The returned user therefore carries a token that is <b>not</b> the one
+    /// that was presented, and the caller must store it — the presented value stops working the
+    /// moment this returns.</para>
+    /// <para><b>Flow:</b> wrap the token → call the engine → null check → decrypt → deserialise.</para>
+    /// <para><b>Side Effects:</b> The engine updates one <c>UserLogin</c> row and logs the renewal.</para>
+    /// <para><b>History:</b> this method used to call <c>GetUserByTokenAsync</c>, which validates a
+    /// token but never mints one — so nothing was refreshed even on the days something called it.
+    /// Nothing did: the verifier found no call site anywhere in the UI, which is what
+    /// <c>CustomAuthStateProvider</c> now supplies.</para>
+    /// </remarks>
+    /// <param name="refreshRequest">Carries the token to redeem.</param>
+    /// <returns>The user with a replacement token, or <c>null</c> when the session is over.</returns>
     public async Task<AppUser?> RefreshTokenAsync(RefreshRequest refreshRequest)
     {
         try
         {
-            // Use the refresh token to get user info (refresh token is same as access token in this impl)
             var tokenData = new SvcData { JwToken = refreshRequest.RefreshToken };
-            var svcResponse = await authSvc.GetUserByTokenAsync(tokenData);
+            var svcResponse = await authSvc.RefreshSessionAsync(tokenData).ConfigureAwait(false);
 
             if (svcResponse == null)
             {

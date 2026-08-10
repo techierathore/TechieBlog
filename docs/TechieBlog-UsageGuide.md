@@ -54,10 +54,16 @@
 >
 > ```sql
 > -- before the run
-> UPDATE BlogUser SET MustChangePassword = FALSE WHERE UserId IN (1, 5, 6, 7);
+> UPDATE BlogUser SET MustChangePassword = FALSE WHERE UserId IN (1, 2, 3, 4);
 > -- after the run
-> UPDATE BlogUser SET MustChangePassword = TRUE  WHERE UserId IN (1, 5, 6, 7);
+> UPDATE BlogUser SET MustChangePassword = TRUE  WHERE UserId IN (1, 2, 3, 4);
 > ```
+>
+> ⚠ **Corrected 2026-08-09.** These two statements previously read `WHERE UserId IN (1, 5, 6, 7)`,
+> which does not match the four seeded accounts listed in the table above — ids **1, 2, 3, 4**.
+> The old form silently cleared nothing for users 2–4 (no error, zero rows affected), so a scripted
+> smoke that followed this guide was still held on `/change-password` with no indication why.
+> Found by a build agent whose run was blocked by exactly that.
 >
 > The **passwords in this table are unchanged** — the forced change is a flag, not a rotation. If a test does complete a change, restore both the hash and the flag from `003-SeedData.sql` / `019-SampleData.sql` so the table remains the single source of truth.
 

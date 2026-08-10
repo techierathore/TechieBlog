@@ -92,7 +92,13 @@
                 var entry = exp;
                 <Card data-testid="experience-card">
                     <CardContent Class="flex flex-col gap-3 pt-6">
-                        <div class="flex items-start gap-4">
+                        @*
+                            The header WRAPS. With `min-w-0 flex-1` the title column shrank to 40px
+                            at 390px — the action group is 188px wide and won this row outright — and
+                            the h3 then painted straight over the Current/order badges. A 200px floor
+                            plus flex-wrap drops the action group onto its own line instead.
+                        *@
+                        <div class="flex flex-wrap items-start gap-4">
 
                             @if (!string.IsNullOrEmpty(entry.LogoIconPath))
                             {
@@ -107,15 +113,15 @@
                                 </div>
                             }
 
-                            <div class="min-w-0 flex-1">
-                                <h3 class="text-lg font-semibold" data-testid="experience-role">@entry.SessionTitle</h3>
-                                <div class="text-sm text-muted-foreground" data-testid="experience-company">@entry.EventTitle</div>
+                            <div class="min-w-[200px] flex-1 break-words">
+                                <h3 class="text-lg font-semibold break-words" data-testid="experience-role">@entry.SessionTitle</h3>
+                                <div class="text-sm text-muted-foreground break-words" data-testid="experience-company">@entry.EventTitle</div>
                                 <div class="text-xs text-muted-foreground" data-testid="experience-dates">
                                     @FormatDateRange(entry.StartDate, entry.EventDate, entry.IsCurrent)
                                 </div>
                             </div>
 
-                            <div class="flex shrink-0 items-center gap-1">
+                            <div class="flex shrink-0 items-center gap-1 ml-auto">
                                 @if (entry.IsCurrent)
                                 {
                                     <Badge Variant="BadgeVariant.Secondary" data-testid="experience-current-badge">Current</Badge>
@@ -159,7 +165,7 @@
 <Dialog Open="@ShowForm" OpenChanged="@OnFormOpenChanged">
     <DialogContent Class="max-w-2xl" data-testid="experience-dialog">
         <DialogHeader>
-            <DialogTitle>@(IsEditMode ? "Edit Experience" : "Add New Experience")</DialogTitle>
+            <DialogTitle>@(IsExistingEntry ? "Edit Experience" : "Add New Experience")</DialogTitle>
             <DialogDescription>Roles appear on the public resume ordered by display order.</DialogDescription>
         </DialogHeader>
 
@@ -190,15 +196,24 @@
                     </FieldContent>
                 </Field>
 
+                @* REQ-UI-037: the acceptance names a company-logo PICKER, not a path box.
+                   ImagePicker (media library + upload, "logos" category) is the control; the
+                   mono path box below stays as the manual-entry escape hatch and binds the
+                   same property, so the two stay in sync in both directions. *@
                 <Field>
-                    <FieldLabel For="experience-logo">Company Logo Path</FieldLabel>
+                    <FieldLabel>Company Logo</FieldLabel>
                     <FieldContent>
+                        <div data-testid="experience-logo-picker">
+                            <ImagePicker Category="logos"
+                                         @bind-SelectedImagePath="LogoIconPath"
+                                         UserId="@EffectiveUserId" />
+                        </div>
                         <Input Id="experience-logo"
-                               @bind-Value="CurrentEvent.LogoIconPath"
+                               @bind-Value="LogoIconPathText"
                                Placeholder="/images/logos/company-logo.png"
                                Class="font-mono"
                                data-testid="experience-logo-input" />
-                        <FieldDescription>Path to the company logo image (optional).</FieldDescription>
+                        <FieldDescription>Pick a logo from the library or upload one - or paste a path directly (optional).</FieldDescription>
                     </FieldContent>
                 </Field>
 

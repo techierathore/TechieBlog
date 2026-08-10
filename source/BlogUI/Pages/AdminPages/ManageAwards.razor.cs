@@ -52,6 +52,22 @@ public partial class ManageAwards
     private bool ShowDeleteDialog = false;
     private UserAward? AwardToDelete;
 
+    /// <summary>
+    /// Nullable projection of <see cref="FormBadgeImagePath"/> for the badge-image
+    /// <c>ImagePicker</c> (REQ-UI-039), whose bound value is <see cref="string"/>?.
+    /// </summary>
+    /// <remarks>
+    /// Business Logic: the picker clears a selection by pushing <c>null</c>, but the form field
+    /// is non-nullable, so a cleared badge is stored as <see cref="string.Empty"/> - which
+    /// <see cref="SaveAward"/> already normalises to a NULL <c>BadgeImagePath</c> column.
+    /// Side Effects: none beyond the field assignment.
+    /// </remarks>
+    private string? FormBadgeImagePathValue
+    {
+        get => string.IsNullOrEmpty(FormBadgeImagePath) ? null : FormBadgeImagePath;
+        set => FormBadgeImagePath = value ?? string.Empty;
+    }
+
     protected override async Task OnInitializedAsync()
     {
         await LoadCurrentUser();

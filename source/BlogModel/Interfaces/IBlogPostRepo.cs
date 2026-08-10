@@ -140,6 +140,17 @@ public interface IBlogPostRepo : IGenericRepository<BlogPost>
     IEnumerable<BlogPost> GetPostsBySeries(long seriesId);
 
     /// <summary>
+    /// Gets the published posts belonging to a series, ordered by part number.
+    /// </summary>
+    /// <remarks>
+    /// REQ-FN-015: the public counterpart to <see cref="GetPostsBySeries"/>. Drafts are excluded in
+    /// SQL so a public page cannot leak an unpublished part by forgetting to filter.
+    /// </remarks>
+    /// <param name="seriesId">Series ID.</param>
+    /// <returns>Published posts in the series ordered by SeriesPartNumber.</returns>
+    IEnumerable<BlogPost> GetPublishedPostsBySeries(long seriesId);
+
+    /// <summary>
     /// Gets count of posts in a series.
     /// </summary>
     /// <param name="seriesId">Series ID.</param>
@@ -353,6 +364,24 @@ public interface IBlogPostRepo : IGenericRepository<BlogPost>
     /// <param name="cancellationToken">Cancels the query.</param>
     /// <returns>Posts in the series ordered by SeriesPartNumber.</returns>
     Task<IEnumerable<BlogPost>> GetPostsBySeriesAsync(long seriesId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the published posts belonging to a series ordered by part number, without blocking the
+    /// calling thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Async twin of <see cref="GetPublishedPostsBySeries"/> and the only
+    /// series read a public page may use (REQ-FN-015). Its filter matches
+    /// <see cref="GetPostCountBySeriesAsync"/>, so the parts listed and the "N parts" badge above them
+    /// can never disagree.</para>
+    /// <para><b>Flow:</b> open the connection asynchronously → published-and-not-deleted query ordered
+    /// by part number.</para>
+    /// <para><b>Side Effects:</b> None — read-only query.</para>
+    /// </remarks>
+    /// <param name="seriesId">Series ID.</param>
+    /// <param name="cancellationToken">Cancels the query.</param>
+    /// <returns>Published posts in the series ordered by SeriesPartNumber.</returns>
+    Task<IEnumerable<BlogPost>> GetPublishedPostsBySeriesAsync(long seriesId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets the count of published posts in a series, without blocking the calling thread.

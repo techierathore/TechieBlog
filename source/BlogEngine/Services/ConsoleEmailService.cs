@@ -72,9 +72,14 @@ public class ConsoleEmailService : IEmailService
     /// Everything past that point is a log write: the success this returns means "the message was
     /// well-formed", <b>not</b> "the message was delivered". A newsletter run against this
     /// implementation will mark every recipient as sent while nobody receives anything.</para>
-    /// <para><b>Flow:</b> validate the recipient → write one Information entry → return success.</para>
-    /// <para><b>Side Effects:</b> Writes one log entry. No network I/O of any kind. The body is not
-    /// logged; only the recipient, the subject and the unsubscribe URL are.</para>
+    /// <para><b>Flow:</b> validate the recipient → write one Information entry → write the rendered
+    /// body at Debug → return success.</para>
+    /// <para><b>Side Effects:</b> Writes one or two log entries. No network I/O of any kind. The
+    /// Information entry carries the recipient, the subject and the unsubscribe URL; the <b>rendered
+    /// body is written separately at Debug</b>, which the Development configuration enables and no
+    /// deployed configuration does. That split matters: the body is the only place a
+    /// newsletter's unsubscribe footer can actually be inspected without a mail server, and it is
+    /// also the noisiest and most sensitive thing here, so it is off by default.</para>
     /// </remarks>
     /// <param name="message">The message that would have been sent.</param>
     /// <returns>Failure when no recipient was supplied; otherwise success, meaning only that the
@@ -90,6 +95,17 @@ public class ConsoleEmailService : IEmailService
             message.ToAddress,
             message.Subject,
             string.IsNullOrWhiteSpace(message.UnsubscribeUrl) ? "(none)" : message.UnsubscribeUrl);
+
+        // Guarded rather than unconditional: rendering a newsletter body into a log message costs
+        // real allocation per recipient, and a large send would pay it once per address.
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.LogDebug(
+                "[DEV EMAIL BODY] To {ToAddress} — {Subject}\n{Body}",
+                message.ToAddress,
+                message.Subject,
+                message.IsHtml ? message.HtmlBody : message.TextBody);
+        }
 
         return Task.FromResult(Result.Success());
     }

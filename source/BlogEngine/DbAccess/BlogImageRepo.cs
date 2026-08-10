@@ -43,15 +43,18 @@ public class BlogImageRepo : GenericRepository<BlogImage>, IBlogImageRepo
         SelectColumns + " ORDER BY createdtime DESC LIMIT @PageSize OFFSET @OffSet";
 
     private const string InsertSql = @"
-            INSERT INTO blogimage (imagename, imagepath, size, createdtime, userid, category, mimetype, alttext)
-            VALUES (@ImageName, @ImagePath, @Size, @CreatedTime, @UserID, @Category, @MimeType, @AltText)";
+            INSERT INTO blogimage (imagename, imagepath, size, createdtime, userid, category, mimetype,
+                                   alttext, width, height)
+            VALUES (@ImageName, @ImagePath, @Size, @CreatedTime, @UserID, @Category, @MimeType,
+                    @AltText, @Width, @Height)";
 
     private const string InsertReturningIdSql = InsertSql + " RETURNING blogimageid";
 
     private const string UpdateSql = @"
             UPDATE blogimage
             SET imagepath = @ImagePath, size = @Size, createdtime = @CreatedTime, userid = @UserID,
-                category = @Category, mimetype = @MimeType, alttext = @AltText
+                category = @Category, mimetype = @MimeType, alttext = @AltText,
+                width = @Width, height = @Height
             WHERE blogimageid = @BlogImageID";
 
     private const string DeleteSql = "DELETE FROM blogimage WHERE blogimageid = @ImageId";
@@ -248,6 +251,11 @@ public class BlogImageRepo : GenericRepository<BlogImage>, IBlogImageRepo
     /// <c>DbTimestamp.AsTimestamp</c> drops the Kind without moving the instant.</para>
     /// <para><b>Flow:</b> copy the writable fields, normalising the timestamp.</para>
     /// <para><b>Side Effects:</b> None; pure.</para>
+    /// <para><b>Width and height are written, not just read (REQ-FN-026).</b> They were absent from
+    /// both statements, so <c>blogimage.width</c> and <c>blogimage.height</c> stayed NULL on every
+    /// row no matter what the caller set on the model — the columns existed but carried nothing. A
+    /// dimension the upload path could not determine is bound as NULL deliberately: "unknown" and
+    /// "zero pixels" are different answers and the column must not conflate them.</para>
     /// </remarks>
     /// <param name="entity">The image metadata being written.</param>
     /// <returns>Parameters for the write statement.</returns>
@@ -262,6 +270,8 @@ public class BlogImageRepo : GenericRepository<BlogImage>, IBlogImageRepo
         parameters.Add("Category", string.IsNullOrWhiteSpace(entity.Category) ? "general" : entity.Category);
         parameters.Add("MimeType", entity.MimeType);
         parameters.Add("AltText", entity.AltText);
+        parameters.Add("Width", entity.Width);
+        parameters.Add("Height", entity.Height);
         return parameters;
     }
 
