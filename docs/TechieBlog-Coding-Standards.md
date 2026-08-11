@@ -129,12 +129,26 @@ public class DatabaseService
 
 ### Logging — Serilog file sink (MANDATORY, every .NET app type)
 - **Every executable head gets Serilog with a rolling FILE sink** — web, API, MAUI, desktop, console/CLI, background service. No exceptions.
-- Wire at startup, before anything else can fail: `Log.Logger = new LoggerConfiguration().MinimumLevel.Information().WriteTo.Console().WriteTo.File("logs/techieblog-.log", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 14).CreateLogger();` then `builder.Host.UseSerilog()`. Read overrides from the `Serilog` section of `appsettings.json`.
+- Wire at startup, before anything else can fail, then `builder.Host.UseSerilog()`. Read overrides from the `Serilog` section of `appsettings.json`.
+- **Anchor the path; never pass a bare relative one** (`REQ-NFR-037`). A relative sink path resolves against the process WORKING DIRECTORY, which differs between `dotnet run` (the project folder), the built exe (wherever it was launched from) and a container (`WORKDIR`). That produced **two** log folders for one application on one day — 6.2 MB in the repo root and 305 MB under `source/TechieBlog/`. Resolve against `AppContext.BaseDirectory`, which is identical however the head is launched. Not `ContentRootPath` — it defaults to `Directory.GetCurrentDirectory()` and re-creates the bug under another name.
+- **Bound the VOLUME, not just the file count** (`REQ-NFR-036`). `retainedFileCountLimit` alone is NOT a bound: Serilog defaults `fileSizeLimitBytes` to 1 GB and, with `rollOnFileSizeLimit` left `false`, silently STOPS WRITING at that ceiling — deaf on the loudest day, which is the day the log was needed. Always set all three, and treat `fileSizeLimitBytes × retainedFileCountLimit` as the number an operator budgets disk against:
+
+  ```csharp
+  .WriteTo.File(
+      path: Path.Combine(logDirectory, "techieblog-.log"),   // absolute, anchored on AppContext.BaseDirectory
+      rollingInterval: RollingInterval.Day,
+      retainedFileCountLimit: 10,
+      fileSizeLimitBytes: 10L * 1024 * 1024,
+      rollOnFileSizeLimit: true)
+  ```
+
+  Current contract: **web host 10 MB × 10 = 100 MB**, configurable via the `LogFile` section (`TechieBlog.Configuration.LogFileSettings`, which exposes `WorstCaseTotalBytes`); **BlogApp 10 MB × 14 = 140 MB**, hardcoded in `MauiProgram` because logging is wired before configuration is loaded. Log the resolved bound once at startup so it appears in the log it describes. Set `LogFileEnabled=false` in a container — the file lands in an ephemeral layer and Docker already captures stdout.
+- Development is loud **on purpose** and that is not the thing to fix: Blazor render-tree and SignalR at `Debug` cost ~61 KB per request against ~124 bytes in Production, and that detail is what makes a circuit defect diagnosable. Keep it; the bound above is what stops it filling a drive.
 - Log unhandled exceptions at the head boundary: `try/catch` + `Log.Fatal` around startup, `AppDomain.CurrentDomain.UnhandledException` / `TaskScheduler.UnobservedTaskException` handlers, and `Log.CloseAndFlush()` on exit.
 - **Class libraries never reference Serilog** — `BlogEngine`, `BlogUI`, `BlogModels` and `BlogDb` log through `ILogger<T>` / `Microsoft.Extensions.Logging.Abstractions` only. ✅ Already correct.
 - App code logs through injected `ILogger<T>` with structured message templates (`logger.LogInformation("Imported {Count} rows", n)`), not static `Log.*`, outside the startup boundary.
-- The `logs/` output folder is gitignored (the owner adds it — agents never run git).
-- **Current state:** compliant except for the two unhandled-exception handlers (`REQ-NFR-013`).
+- The `logs/` output folder is gitignored, as is `.smokeout/` (per-agent `-p:OutDir` build output) — `REQ-NFR-036`. Agents never run git, so the owner untracks anything already committed.
+- **Current state:** compliant. Both heads have the unhandled-exception handlers (`REQ-NFR-013`), an anchored path (`REQ-NFR-037`) and a total-volume bound (`REQ-NFR-036`).
 
 ### Blazor UI testability — stable element ids
 - Every interactive or data-bound element the verifier must reach (buttons, inputs, grids, key value labels) carries a stable, unique **`data-testid`** or element `id` so headless Playwright selectors do not drift.
@@ -183,6 +197,64 @@ grep -rEn "\b(a|v)[A-Z][a-zA-Z]*\s*[,)=;]" source/ --include=*.cs 2>/dev/null | 
 # Hardcoded colours in Razor/CSS outside the theme files
 grep -rnE "#[0-9a-fA-F]{3,6}\b" source/BlogUI --include="*.razor" 2>/dev/null
 ```
+
+#### Exception-text disclosure — the scope is `source/`, not a list of services (REQ-NFR-033)
+
+> **Widened 2026-08-11 (REQ-NFR-033).** The REQ-NFR-031 gate named four services — `BlogSvc`,
+> `TagSvc`, `CategorySvc`, `SeriesSvc` — and went green the moment those four were curated. **46
+> disclosures were still live elsewhere.** Counted, not estimated:
+>
+> | Where | Count | Reachable by |
+> |---|---|---|
+> | `UserStatsSvc` | 8 | admin only |
+> | `CommentSvc` | 6 | **anonymous** — the public article comment form |
+> | `SiteSettingsService` | 2 | admin only, but the rows hold the SMTP password |
+> | `SmtpEmailService` | 2 | **anonymous** — the newsletter-subscribe path |
+> | `DatabaseHealthProbe` | 1 | **anonymous** — `/healthz` is `AllowAnonymous` |
+> | `BlogApp/ConnectionProbe` + `ConnectionSetup` | 4 | pre-authentication first-run screen |
+> | Ten admin pages under `BlogUI` | 23 | admin only |
+>
+> Three of those groups were reachable **without authenticating**, which is precisely the case the
+> four-service gate was never able to see. Note also that 23 of the 46 lived in `.razor` and
+> `.razor.cs` files that the earlier `--include=*.cs`-only sweep never looked at.
+>
+> A gate that names files certifies the files, not the rule. These patterns take `source/` as their
+> path so a new service, page or head is covered the day it is written.
+
+```bash
+# 1. Exception text inside a Result the caller renders
+grep -rEn "Result(<[^>]*>)?\.Failure\s*\(.*\bex\.Message" source/ \
+  --include=*.cs --include=*.razor 2>/dev/null | grep -v "/obj/\|/bin/"
+
+# 2. Exception text assigned to a message a page binds into its markup
+grep -rEn "\b(StatusMessage|UploadError|ErrorMessage|errorMessage|statusMessage|Message)\s*=\s*[^;]*\bex\.Message" source/ \
+  --include=*.cs --include=*.razor 2>/dev/null | grep -v "/obj/\|/bin/"
+```
+
+**Both must return zero.** The rule: log the exception through `ILogger<T>` with context, then
+return or assign a curated `private const string`. The correlation id `CorrelationIdMiddleware`
+stamps on every event (REQ-NFR-015) is what ties a user's report back to the stack trace, so
+nothing is lost by withholding the text.
+
+The patterns target the **sinks** — a `Result` the caller renders, an assignment a page binds —
+rather than the `ex.Message` token itself. That is deliberate: three uses in `source/` are correct
+and must not be driven out by a blunter pattern.
+
+| Correct use | Where | Why it stays |
+|---|---|---|
+| `Console.WriteLine($"FATAL ERROR: {ex.Message}")` | `BlogDb/MigrationRunner.cs` | Process boundary of a CLI. The audience is an operator reading a terminal; there is no user surface. |
+| `Console.Error.WriteLine($"FATAL: …{ex.Message}")` | `TechieBlog/Program.cs` | Startup boundary. The host is already failing to start; nothing is being served. |
+| `throw new InvalidOperationException($"…: {ex.Message}", ex)` | `TechieBlog/Middleware/ForwardedHeadersSetup.cs` | Configuration validation that **fails the host at startup**, before a request exists. |
+
+One further deliberate exemption, marked by naming the caught variable `curated` rather than `ex`:
+`ImagePicker` and `ManageImages` surface `curated.Message` from an `InvalidOperationException`
+raised by `BlogImageService`. That message is always one of the service's own constants — a
+category validation rule, or the REQ-NFR-040 storage-failure sentence — and carries no exception
+text or server path. **`ex` means "an exception whose text is untrusted"; a differently-named
+variable is a claim that the message was authored, and that claim must be true.**
+
+Both patterns are also enforced as a test — `tests/unit/Ops/ExceptionDisclosureTests.cs` scans the
+same tree on every build, so the rule fails CI rather than waiting for someone to run a grep.
 
 ### Severity
 - **Error**: file-scoped namespace, underscore field prefix

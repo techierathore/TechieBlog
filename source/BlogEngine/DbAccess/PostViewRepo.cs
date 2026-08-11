@@ -18,11 +18,30 @@ namespace BlogEngine.DbAccess;
 ///   <item>The insert is conditional — <c>INSERT ... SELECT ... WHERE NOT EXISTS</c> — so the
 ///         de-duplication decision and the write happen in one statement and two simultaneous
 ///         requests cannot both slip a row through a read-then-write gap.</item>
-///   <item>Aggregate reads count rows for total views and distinct visitor hashes for unique views.</item>
+///   <item>Aggregate reads serve total views and unique views from the maintained rollup row.</item>
+/// </list>
+///
+/// <para><b>[REQ-NFR-034] The read path no longer aggregates <c>PostViews</c>.</b> Every figure the
+/// public post page shows now comes from <c>PostViewCount</c>, a one-row-per-post rollup created by
+/// migration 028 and maintained by <see cref="RecordViewAsync"/> inside the very statement that
+/// records the view. Two properties follow and both matter:</para>
+/// <list type="bullet">
+///   <item><b>The read is constant work.</b> <c>WHERE PostId = @PostId</c> against the rollup's
+///     primary key returns one row whether <c>PostViews</c> holds seventeen rows or seventeen
+///     million. The old query's plan was <c>Aggregate → Sort (Sort Key: visitorhash) → Seq Scan on
+///     postviews</c>, which is linear in a table that only ever grows.</item>
+///   <item><b>The counters cannot silently drift.</b> They move only as part of a successful
+///     conditional insert, in the same transaction, so there is no window in which a view exists but
+///     is uncounted. The one way to break that invariant is to write <c>PostViews</c> through the
+///     generic <see cref="InsertAsync"/>/<see cref="Insert"/> members, which bypass both the
+///     de-duplication rule and the rollup — they exist only to satisfy
+///     <c>GenericRepository&lt;T&gt;</c> and nothing in the application calls them. If a bulk import
+///     is ever added, it must re-run the backfill in script 028 afterwards.</item>
 /// </list>
 ///
 /// <para><b>Dependencies:</b> Dapper, Npgsql (via <c>DbConnectionFactory</c>), the
-/// <c>PostViews.VisitorHash</c> column added by migration 015.</para>
+/// <c>PostViews.VisitorHash</c> column added by migration 015, the <c>PostViewCount</c> rollup table
+/// and the <c>IdxPostViewsPostIdVisitorHash</c> index added by migrations 028 and 015.</para>
 ///
 /// <para><b>Usage:</b> Registered transient by <c>BlogSvcInitializer</c> as <c>IPostViewRepo</c>.
 /// The legacy <c>ViewerIp</c> column is deliberately written as NULL — no raw address is stored.</para>
@@ -41,20 +60,79 @@ public class PostViewRepo : GenericRepository<PostView>, IPostViewRepo
 {
     private const string ViewColumns = "ViewId, PostId, ViewedOn, ViewerIp, COALESCE(VisitorHash, '') AS VisitorHash";
 
+    /// <summary>
+    /// [REQ-NFR-034] Records the view and moves the rollup counters in ONE statement.
+    /// </summary>
+    /// <remarks>
+    /// <para>Three CTEs, and the order they see the world in is the whole point:</para>
+    /// <list type="number">
+    ///   <item><c>Seen</c> asks whether this visitor has EVER viewed this post. Every CTE in a
+    ///     statement observes the same snapshot, so this is evaluated against the table as it was
+    ///     <i>before</i> <c>Written</c> inserts — which is exactly the question
+    ///     <c>COUNT(DISTINCT VisitorHash)</c> would have answered. The probe is covered end to end
+    ///     by <c>IdxPostViewsPostIdVisitorHash (PostId, VisitorHash, ViewedOn DESC)</c>, so it is an
+    ///     index lookup that stops at the first tuple, not a scan.</item>
+    ///   <item><c>Written</c> is the original conditional insert, unchanged: the de-duplication test
+    ///     and the write stay one atomic statement, so two simultaneous renders by the same visitor
+    ///     still cannot both decide "not seen yet".</item>
+    ///   <item><c>Rolled</c> selects <c>FROM Written</c> — so it produces one row when a view was
+    ///     actually recorded and NO rows when the view was de-duplicated. That single dependency is
+    ///     what keeps the counters honest: they can only move when a <c>PostViews</c> row moved
+    ///     them, in the same transaction, so the rollup cannot drift from its source unless the
+    ///     insert itself failed. <c>ON CONFLICT</c> creates the rollup row on a post's first ever
+    ///     view, so no separate "seed the counters" step exists to forget.</item>
+    /// </list>
+    /// <para>A de-duplicated view is a no-op in both tables, which is why <c>UniqueViews</c> is not
+    /// adjusted on that path: being inside the de-duplication window <i>implies</i> the visitor is
+    /// already counted.</para>
+    /// <para>PostgreSQL runs a data-modifying CTE exactly once and always to completion whether or
+    /// not the primary query reads its output, so <c>Rolled</c> executes even though the final
+    /// SELECT only reads <c>Written</c>.</para>
+    /// </remarks>
     private const string InsertIfNotSeenSql = @"
-            INSERT INTO PostViews (PostId, ViewedOn, ViewerIp, VisitorHash)
-            SELECT @PostId, @ViewedOn, NULL, @VisitorHash
-            WHERE NOT EXISTS (
-                SELECT 1 FROM PostViews
-                WHERE PostId = @PostId
-                  AND VisitorHash = @VisitorHash
-                  AND ViewedOn > @WindowStart)";
+            WITH Seen AS (
+                SELECT EXISTS (
+                    SELECT 1 FROM PostViews
+                    WHERE PostId = @PostId
+                      AND VisitorHash = @VisitorHash) AS VisitorKnown
+            ),
+            Written AS (
+                INSERT INTO PostViews (PostId, ViewedOn, ViewerIp, VisitorHash)
+                SELECT @PostId, @ViewedOn, NULL, @VisitorHash
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM PostViews
+                    WHERE PostId = @PostId
+                      AND VisitorHash = @VisitorHash
+                      AND ViewedOn > @WindowStart)
+                RETURNING ViewId
+            ),
+            Rolled AS (
+                INSERT INTO PostViewCount (PostId, TotalViews, UniqueViews, UpdatedOn)
+                SELECT @PostId,
+                       1,
+                       CASE WHEN (SELECT VisitorKnown FROM Seen) THEN 0 ELSE 1 END,
+                       @ViewedOn
+                FROM Written
+                ON CONFLICT (PostId) DO UPDATE
+                    SET TotalViews  = PostViewCount.TotalViews  + EXCLUDED.TotalViews,
+                        UniqueViews = PostViewCount.UniqueViews + EXCLUDED.UniqueViews,
+                        UpdatedOn   = EXCLUDED.UpdatedOn
+                RETURNING PostId
+            )
+            SELECT COUNT(*)::int FROM Written";
 
+    /// <summary>
+    /// [REQ-NFR-034] Reads one post's readership figures by primary key — constant work.
+    /// </summary>
+    /// <remarks>
+    /// This replaced <c>SELECT COUNT(*), COUNT(DISTINCT VisitorHash) FROM PostViews WHERE
+    /// PostId = @PostId</c>, whose measured plan was <c>Aggregate → Sort → Seq Scan on postviews</c>.
+    /// A post with no rollup row has never been viewed and yields no row at all; the caller turns
+    /// that into a zeroed <c>PostViewCounts</c>, which is the same answer the aggregate gave.
+    /// </remarks>
     private const string SelectCountsSql = @"
-            SELECT @PostId AS PostId,
-                   COUNT(*)::int AS TotalViews,
-                   COUNT(DISTINCT VisitorHash)::int AS UniqueViews
-            FROM PostViews
+            SELECT PostId, TotalViews, UniqueViews
+            FROM PostViewCount
             WHERE PostId = @PostId";
 
     private const string SelectSiteTotalSql = "SELECT COUNT(*)::int FROM PostViews";
@@ -106,7 +184,12 @@ public class PostViewRepo : GenericRepository<PostView>, IPostViewRepo
     /// that matches nothing.</para>
     /// <para><b>Flow:</b> normalise both timestamps → helper opens the connection asynchronously →
     /// conditional insert → report whether a row was written.</para>
-    /// <para><b>Side Effects:</b> Writes at most one row to <c>PostViews</c>.</para>
+    /// <para><b>Side Effects:</b> Writes at most one row to <c>PostViews</c> and, when it does, moves
+    /// the matching <c>PostViewCount</c> rollup row by the same amount in the same statement.</para>
+    /// <para><b>[REQ-NFR-034]</b> The result is read as a scalar rather than as an affected-row count
+    /// because the statement now ends in a <c>SELECT</c> over the insert's <c>RETURNING</c> output;
+    /// <c>ExecuteAsync</c> would report <c>-1</c> for that shape and every view would look
+    /// de-duplicated.</para>
     /// </remarks>
     /// <param name="postId">The viewed post.</param>
     /// <param name="visitorHash">Salted, irreversible visitor hash.</param>
@@ -127,7 +210,7 @@ public class PostViewRepo : GenericRepository<PostView>, IPostViewRepo
         parameters.Add("ViewedOn", DbTimestamp.AsTimestamp(viewedOn));
         parameters.Add("WindowStart", DbTimestamp.AsTimestamp(viewedOn.AddHours(-Math.Abs(dedupeWindowHours))));
 
-        var rowsWritten = await ExecuteAsync(InsertIfNotSeenSql, parameters, cancellationToken)
+        var rowsWritten = await ExecuteScalarAsync<int>(InsertIfNotSeenSql, parameters, cancellationToken)
             .ConfigureAwait(false);
         return rowsWritten > 0;
     }
@@ -137,11 +220,17 @@ public class PostViewRepo : GenericRepository<PostView>, IPostViewRepo
     /// </summary>
     /// <remarks>
     /// <para><b>Business Logic:</b> Total views are rows; unique views are distinct visitor hashes over
-    /// all time. A post nobody has read produces one row of zeroes rather than no row, because the
-    /// aggregate is unconditional — the null coalesce only guards the provider returning nothing.</para>
-    /// <para><b>Flow:</b> helper opens the connection asynchronously → aggregate → counts or a zeroed
-    /// value carrying the post id.</para>
+    /// all time. Both are read from the maintained <c>PostViewCount</c> rollup rather than recomputed,
+    /// so the definitions are unchanged and only the cost of answering is. A post nobody has read has
+    /// no rollup row, and the null coalesce turns that into the same zeroed answer the old aggregate
+    /// produced.</para>
+    /// <para><b>Flow:</b> helper opens the connection asynchronously → primary-key lookup → counts or a
+    /// zeroed value carrying the post id.</para>
     /// <para><b>Side Effects:</b> None — read-only query.</para>
+    /// <para><b>[REQ-NFR-034] This is the per-render read, and it is now O(1).</b> It used to be
+    /// <c>COUNT(*)</c> + <c>COUNT(DISTINCT VisitorHash)</c> over every <c>PostViews</c> row belonging
+    /// to the post — measured as <c>Aggregate → Sort → Seq Scan</c> — on every single article view.
+    /// It is a unique-index probe of one row, and stays one row at any table size.</para>
     /// </remarks>
     /// <param name="postId">The post to count.</param>
     /// <param name="cancellationToken">Cancels the query.</param>

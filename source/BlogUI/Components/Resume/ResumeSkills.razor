@@ -86,8 +86,7 @@ else if (skillsByCategory is not null && skillsByCategory.Count > 0)
 
         try
         {
-            // Run synchronous repo call on a background thread
-            var skills = await Task.Run(() => SkillsRepo.GetByUserId(UserId));
+            var skills = await SkillsRepo.GetByUserIdAsync(UserId);
 
             // Group by Category and order each group by DisplayOrder
             skillsByCategory = skills

@@ -49,6 +49,25 @@ namespace BlogEngine.Services;
 /// </remarks>
 public class DatabaseHealthProbe
 {
+    /// <summary>
+    /// Message returned when the probe could not reach the database (REQ-NFR-033).
+    /// </summary>
+    /// <remarks>
+    /// <para>This message is rendered into the <c>/healthz</c> JSON body, and that endpoint is
+    /// mapped <c>AllowAnonymous</c> so a deployment pipeline and an uptime monitor can reach it —
+    /// which means anyone on the internet can. An Npgsql failure message names the host, the port,
+    /// the database and frequently the username ("28P01: password authentication failed for user
+    /// …"), so interpolating it published the whole connection topology to unauthenticated
+    /// callers.</para>
+    /// <para>The exception is already logged as a warning with the elapsed time, where the host's
+    /// <c>CorrelationIdMiddleware</c> has stamped the request's correlation id onto the event
+    /// (REQ-NFR-015). An operator reading <c>/healthz</c> gets the correlation id in the same JSON
+    /// body and can find the underlying reason in the log. Do not reintroduce <c>ex.Message</c>.</para>
+    /// </remarks>
+    private const string UnreachableMessage =
+        "Database unreachable. The underlying error is in the application log; " +
+        "match it on the correlationId in this response.";
+
     private readonly string connectionString;
     private readonly ILogger<DatabaseHealthProbe> logger;
 
@@ -96,7 +115,7 @@ public class DatabaseHealthProbe
         {
             stopwatch.Stop();
             logger.LogWarning(ex, "Database health probe failed after {ElapsedMs} ms", stopwatch.ElapsedMilliseconds);
-            return Result<long>.Failure($"Database unreachable: {ex.Message}");
+            return Result<long>.Failure(UnreachableMessage);
         }
     }
 }

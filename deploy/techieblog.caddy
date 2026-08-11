@@ -1,0 +1,60 @@
+# =============================================================================
+# TechieBlog — Caddy site snippet
+# =============================================================================
+# Installed by .github/workflows/deploy.yml at /srv/caddy/sites/techieblog.caddy
+# (= /etc/caddy/sites inside the `caddy` container, pulled in by the main
+# Caddyfile's `import sites/*.caddy`).
+#
+# CREATE-ONLY. The pipeline installs this file only when it does NOT already
+# exist on the server, and never reloads Caddy when it was skipped. A file that
+# is already there — whether written by hand or by an earlier run — is
+# AUTHORITATIVE. To change routing, edit /srv/caddy/sites/techieblog.caddy on
+# the server directly and reload:
+#
+#     docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+#
+# TLS is automatic: Caddy provisions and renews the Let's Encrypt certificate
+# for both names below once the DNS A records resolve to this VPS. That is why
+# the A records must exist BEFORE the first deploy — see deploy/SERVER-SETUP.md.
+#
+# -----------------------------------------------------------------------------
+# BLAZOR SERVER / WEBSOCKETS — Caddy's defaults are sufficient. No extra
+# directives are needed, and none are added here.
+# -----------------------------------------------------------------------------
+# TechieBlog is Blazor SERVER: after the first render every interaction travels
+# over a long-lived SignalR WebSocket at /_blazor. A proxy that mishandles the
+# upgrade produces the classic symptom — the page renders once, then every click
+# does nothing and "Attempting to reconnect to the server" appears.
+#
+# Caddy v2's `reverse_proxy` handles this correctly out of the box:
+#   * it forwards the Connection/Upgrade handshake and then streams the
+#     connection bidirectionally, with no per-connection read/write timeout;
+#   * it sets X-Forwarded-For / -Proto / -Host automatically (the app trusts
+#     them via ForwardedHeaders__KnownNetworks__0 in the compose file);
+#   * there is no buffering of the upgraded stream.
+# Nothing equivalent to nginx's `proxy_http_version 1.1` +
+# `proxy_set_header Upgrade/Connection` block is required.
+#
+# The ONE thing that can break the circuit here is response compression, so the
+# `encode` directive below explicitly excludes /_blazor* — that keeps the
+# long-polling fallback unbuffered on networks where WebSockets are blocked,
+# while still compressing ordinary HTML/CSS/JS.
+# =============================================================================
+
+# www -> apex redirect (DOMAIN is an APEX domain).
+# Permanent (308) and issued before any proxying, so www never reaches the app
+# and only one canonical origin is ever indexed. This must match
+# SiteSettings:BaseUrl in the compose file: https://techierathore.com
+www.techierathore.com {
+	redir https://techierathore.com{uri} permanent
+}
+
+techierathore.com {
+	# Request matcher: everything EXCEPT the Blazor circuit endpoint.
+	# (`encode`'s own `match` block is a RESPONSE matcher — status/header only —
+	# so excluding a path has to be done with a named request matcher like this.)
+	@notblazor not path /_blazor*
+	encode @notblazor zstd gzip
+
+	reverse_proxy techieblog:8080
+}

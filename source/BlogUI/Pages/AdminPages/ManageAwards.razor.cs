@@ -13,6 +13,33 @@ namespace BlogUI.Pages.AdminPages;
 /// </summary>
 public partial class ManageAwards
 {
+
+    /// <summary>
+    /// Curated messages shown when an unexpected failure is caught on this page (REQ-NFR-033).
+    /// </summary>
+    /// <remarks>
+    /// <para>These assignments previously interpolated <c>ex.Message</c>. The page is gated by
+    /// <c>AppPolicies.AdminOnly</c>, which was the defence offered for the disclosure, but an
+    /// exception's text is not written for an audience and routinely carries a SQL fragment, a
+    /// table name or a file-system path — none of which an administrator can act on and all of
+    /// which end up in a screenshot pasted into a ticket.</para>
+    /// <para>The engine service beneath every one of these calls already logs the exception with
+    /// its own context through <c>ILogger&lt;T&gt;</c>, where the host's
+    /// <c>CorrelationIdMiddleware</c> has stamped the request's correlation id onto the event
+    /// (REQ-NFR-015), so nothing is lost by curating here. This page injects no logger of its own;
+    /// adding one is tracked as a follow-up.</para>
+    /// </remarks>
+    private const string LoadFailureMessage =
+        "Could not load awards. Please try again later.";
+
+    private const string SaveFailureMessage =
+        "Could not save the award. Please try again later.";
+
+    private const string DeleteFailureMessage =
+        "Could not delete the award. Please try again later.";
+
+    private const string ReorderFailureMessage =
+        "Could not reorder the awards. Please try again later.";
     [Inject]
     public IUserAwardsRepo AwardsRepo { get; set; } = default!;
 
@@ -94,7 +121,7 @@ public partial class ManageAwards
             if (IsAdmin)
             {
                 // Load all users for admin dropdown
-                AllUsers = UserRepo.GetAll()?.ToList() ?? new List<AppUser>();
+                AllUsers = (await UserRepo.GetAllAsync())?.ToList() ?? new List<AppUser>();
             }
         }
         catch
@@ -104,7 +131,7 @@ public partial class ManageAwards
         }
     }
 
-    private Task LoadAwards()
+    private async Task LoadAwards()
     {
         IsLoading = true;
 
@@ -112,7 +139,7 @@ public partial class ManageAwards
         {
             if (SelectedUserId > 0)
             {
-                AllAwards = AwardsRepo.GetByUserId(SelectedUserId).ToList();
+                AllAwards = (await AwardsRepo.GetByUserIdAsync(SelectedUserId)).ToList();
             }
             else
             {
@@ -121,9 +148,9 @@ public partial class ManageAwards
 
             StatusMessage = string.Empty;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error loading awards: {ex.Message}";
+            StatusMessage = LoadFailureMessage;
             IsError = true;
             AllAwards = new List<UserAward>();
         }
@@ -131,8 +158,6 @@ public partial class ManageAwards
         {
             IsLoading = false;
         }
-
-        return Task.CompletedTask;
     }
 
     private async Task OnUserSelectionChanged(long userId)
@@ -251,7 +276,7 @@ public partial class ManageAwards
             if (IsEditMode)
             {
                 // Update existing award
-                var award = AwardsRepo.GetById(EditingAwardId);
+                var award = await AwardsRepo.GetByIdAsync(EditingAwardId);
                 if (award == null)
                 {
                     StatusMessage = "Award not found.";
@@ -265,7 +290,7 @@ public partial class ManageAwards
                 award.AwardUrl = string.IsNullOrWhiteSpace(FormAwardUrl) ? null : FormAwardUrl.Trim();
                 award.AwardYear = string.IsNullOrWhiteSpace(yearRange) ? null : yearRange;
 
-                AwardsRepo.Update(award);
+                await AwardsRepo.UpdateAsync(award);
 
                 StatusMessage = $"Award '{FormAwardTitle}' updated successfully.";
                 IsError = false;
@@ -287,7 +312,7 @@ public partial class ManageAwards
                     CreatedOn = DateTime.UtcNow
                 };
 
-                AwardsRepo.Create(newAward);
+                await AwardsRepo.CreateAsync(newAward);
 
                 StatusMessage = $"Award '{FormAwardTitle}' added successfully.";
                 IsError = false;
@@ -300,9 +325,9 @@ public partial class ManageAwards
 
             await LoadAwards();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error saving award: {ex.Message}";
+            StatusMessage = SaveFailureMessage;
             IsError = true;
         }
     }
@@ -341,7 +366,7 @@ public partial class ManageAwards
 
         try
         {
-            AwardsRepo.Delete(AwardToDelete.AwardId);
+            await AwardsRepo.DeleteAsync(AwardToDelete.AwardId);
 
             StatusMessage = $"Award '{AwardToDelete.AwardTitle}' deleted successfully.";
             IsError = false;
@@ -351,9 +376,9 @@ public partial class ManageAwards
 
             await LoadAwards();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error deleting award: {ex.Message}";
+            StatusMessage = DeleteFailureMessage;
             IsError = true;
             ShowDeleteDialog = false;
         }
@@ -406,14 +431,14 @@ public partial class ManageAwards
             award.DisplayOrder = targetAward.DisplayOrder;
             targetAward.DisplayOrder = tempOrder;
 
-            AwardsRepo.Update(award);
-            AwardsRepo.Update(targetAward);
+            await AwardsRepo.UpdateAsync(award);
+            await AwardsRepo.UpdateAsync(targetAward);
 
             await LoadAwards();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error reordering award: {ex.Message}";
+            StatusMessage = ReorderFailureMessage;
             IsError = true;
         }
     }

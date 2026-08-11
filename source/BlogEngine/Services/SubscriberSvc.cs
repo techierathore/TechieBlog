@@ -1,5 +1,6 @@
 using BlogModels;
 using Microsoft.Extensions.Logging;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 
 namespace BlogEngine.Services;
@@ -28,6 +29,29 @@ namespace BlogEngine.Services;
 /// on, so an unsubscribed address stops receiving mail without the site losing its record that the
 /// address once opted out. Hard-deleting instead would let the same address be re-added silently by
 /// a later import.</para>
+///
+/// <para><b>[REQ-FN-059] 2026-08-10 — consent is recorded, not overwritten.</b> Flipping the
+/// mailability bit is no longer the whole story. A withdrawal goes through
+/// <see cref="UnsubscribeByTokenAsync"/>, which stamps <c>UnsubscribedOn</c> and burns the link
+/// while leaving <c>ConfirmedOn</c> alone, so the row afterwards proves both that the address
+/// consented and that it later withdrew — the previous behaviour erased the first fact and left an
+/// opted-out address indistinguishable from one that never confirmed. A re-consent goes through
+/// <c>ISubscriberRepo.RecordConsentAsync</c>, which stamps the new consent instant and re-issues the
+/// unsubscribe link. The administrative paths here still use the plain status flip; the database
+/// trigger <c>TrgSubscriberConsentChange</c> stamps the consent columns for them, so no write
+/// anywhere in the solution can erase the record even if it predates this requirement.</para>
+///
+/// <para><b>[REQ-FN-060] 2026-08-11 — the mailed link is now scoped to one issue.</b> REQ-FN-059
+/// built the token lifecycle but nothing called <see cref="IssueUnsubscribeTokenAsync"/>, so the
+/// single row-level token still shipped in every issue an address received. A send now calls
+/// <see cref="IssueTokenForNewsletterAsync"/> per recipient, which ADDS a row to the
+/// <c>UnsubscribeToken</c> table keyed to that (subscriber, issue) pair. Two consequences to hold
+/// on to: a subscriber legitimately holds several live tokens at once, and a link in an OLDER issue
+/// still unsubscribes them — refusing that click would be a compliance failure, not a tightened
+/// credential. Rotation therefore happens on re-consent only, enforced by
+/// <c>IsTokenSuperseded</c>. The full reasoning, including why the literal "the newest send
+/// supersedes the older ones" reading was rejected, is in the header of
+/// <c>027-PerIssueUnsubscribeToken.sql</c>.</para>
 ///
 /// <para><b>Two subscription paths exist, and only one of them is double opt-in.</b>
 /// <see cref="SubscribePendingAsync"/> is the double opt-in path and is the ONLY one an
@@ -90,6 +114,39 @@ public class SubscriberSvc
     private static readonly Regex EmailRegex = new Regex(
         @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    /// <summary>
+    /// How long an unsubscribe token stays valid once its issuance has been recorded: 400 days.
+    /// </summary>
+    /// <remarks>
+    /// <para>Deliberately long. An unsubscribe link must still work for someone who opens a mail
+    /// weeks or months later — a short expiry recreates the very harm this requirement is about, a
+    /// mailing nobody can get off. 400 days is longer than any plausible "I finally read that
+    /// email" gap for a periodic newsletter, and it matches the 400-day cap browsers now impose on
+    /// cookie lifetimes, which is the closest widely accepted precedent for how long a bearer
+    /// credential held by a user should stay live.</para>
+    /// <para>The security comes from ROTATION and BURNING, not from the clock: a redeemed token is
+    /// burned in the same statement that records the withdrawal, any re-consent re-issues the token,
+    /// and <see cref="IssueUnsubscribeTokenAsync"/> lets the send path re-issue per mailing so a
+    /// live subscriber's clock restarts with every issue. The expiry is the backstop for a token
+    /// that stopped being re-issued because nothing is being sent to that address any more.</para>
+    /// <para>A token whose <c>UnsubscribeTokenIssuedOn</c> is <c>null</c> — every token that
+    /// predates REQ-FN-059 — is NOT subject to this and never expires. Those tokens are already
+    /// sitting in delivered mail and cannot be recalled, so expiring them could only strand a
+    /// subscriber. They are still burnable, and the first rotation puts them on the clock.</para>
+    /// </remarks>
+    public const int UnsubscribeTokenLifetimeDays = 400;
+
+    /// <summary>
+    /// The single wording returned for a blank, unknown, burned or expired unsubscribe token.
+    /// </summary>
+    /// <remarks>
+    /// One message for every failure mode on purpose: a caller probing the route must not be able
+    /// to tell a token that belongs to a real subscriber from one that does not, so the four cases
+    /// are indistinguishable from outside. They are distinguished in the log, which is not
+    /// reachable by the prober.
+    /// </remarks>
+    private const string InvalidLinkMessage = "This unsubscribe link is not valid.";
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SubscriberSvc"/> class.
@@ -232,13 +289,21 @@ public class SubscriberSvc
     /// <c>Foo@Example.com</c> and <c>foo@example.com</c> are one subscriber rather than two. Three
     /// outcomes follow: an already-active address is <i>refused</i> (a duplicate row would mean two
     /// copies of every issue); an inactive address is <i>reactivated</i> in place, keeping its
-    /// original id, subscription date and unsubscribe token; anything else is inserted. A missing
-    /// name defaults to the local part of the address, so the greeting in a newsletter is never
-    /// blank.</para>
+    /// original id and subscription date but receiving a FRESH unsubscribe token; anything else is
+    /// inserted. A missing name defaults to the local part of the address, so the greeting in a
+    /// newsletter is never blank.</para>
     /// <para><b>Flow:</b> require an address → normalise → validate the format → branch on the
     /// existing row → insert.</para>
-    /// <para><b>Side Effects:</b> Inserts a <c>Subscriber</c> row, or updates one row's active
-    /// flag. Sends no email — the caller decides whether confirmation is required.</para>
+    /// <para><b>Side Effects:</b> Inserts a <c>Subscriber</c> row, or records a re-consent on one
+    /// (stamping <c>ConfirmedOn</c> and rotating the unsubscribe token). Sends no email — the
+    /// caller decides whether confirmation is required.</para>
+    /// <para><b>Behaviourally identical to <see cref="SubscribeAsync"/> [REQ-FN-059].</b> The two
+    /// overloads must write the same consent record; the reactivation branch here calls
+    /// <c>ISubscriberRepo.RecordConsent</c>, the blocking twin of the <c>RecordConsentAsync</c> the
+    /// async overload uses, over the same SQL constant. Before 2026-08-10 this overload flipped
+    /// <c>IsConfirmed</c> alone, so which overload a caller happened to reach decided whether the
+    /// consent instant was stamped and whether the subscriber was left holding the burned token
+    /// that had removed them.</para>
     /// <para><b>ADMINISTRATIVE ONLY — never call this from an anonymous surface.</b> The new row is
     /// written with <c>IsConfirmed = true</c>, so this path is single opt-in and a visitor can
     /// subscribe an address they do not own. It also discloses, through its distinct "already
@@ -269,11 +334,25 @@ public class SubscriberSvc
             if (existing != null && existing.IsActive)
                 return Result<Subscriber>.Failure("This email is already subscribed.");
 
-            // Reactivate inactive subscription
+            // Reactivate inactive subscription. [REQ-FN-059] This is a re-consent, so it goes
+            // through RecordConsent rather than the bare status flip, exactly as SubscribeAsync
+            // does: the consent instant is stamped and the subscriber is handed a fresh, unburned
+            // unsubscribe link, because the one they were holding may well be the burned link that
+            // took them off the list. Until 2026-08-10 this overload did only UpdateStatus(id,
+            // true), so the SAME reactivation wrote a DIFFERENT consent record depending on which
+            // overload the caller reached — and the address came back holding a token the
+            // repository had already refused once.
             if (existing != null && !existing.IsActive)
             {
-                subscriberRepo.UpdateStatus(existing.SubscriberId, true);
+                var reissuedToken = GenerateUnsubscribeToken();
+                subscriberRepo.RecordConsent(existing.SubscriberId, reissuedToken);
+
                 existing.IsActive = true;
+                existing.IsConfirmed = true;
+                existing.ConfirmedOn = DateTime.UtcNow;
+                existing.UnsubscribeToken = reissuedToken;
+                existing.UnsubscribeTokenIssuedOn = existing.ConfirmedOn;
+                existing.UnsubscribeTokenUsedOn = null;
                 logger.LogInformation("Reactivated subscription for {Email}", email);
                 return Result<Subscriber>.Success(existing);
             }
@@ -353,11 +432,23 @@ public class SubscriberSvc
             if (existing != null && existing.IsActive)
                 return Result<Subscriber>.Failure("This email is already subscribed.");
 
-            // Reactivate inactive subscription
+            // Reactivate inactive subscription. [REQ-FN-059] This is a re-consent, so it goes
+            // through RecordConsentAsync rather than the bare status flip: the consent instant is
+            // stamped and the subscriber is handed a fresh, unburned unsubscribe link, because the
+            // one they were holding may well be the burned link that took them off the list.
             if (existing != null && !existing.IsActive)
             {
-                await subscriberRepo.UpdateStatusAsync(existing.SubscriberId, true, cancellationToken).ConfigureAwait(false);
+                var reissuedToken = GenerateUnsubscribeToken();
+                await subscriberRepo
+                    .RecordConsentAsync(existing.SubscriberId, reissuedToken, cancellationToken)
+                    .ConfigureAwait(false);
+
                 existing.IsActive = true;
+                existing.IsConfirmed = true;
+                existing.ConfirmedOn = DateTime.UtcNow;
+                existing.UnsubscribeToken = reissuedToken;
+                existing.UnsubscribeTokenIssuedOn = existing.ConfirmedOn;
+                existing.UnsubscribeTokenUsedOn = null;
                 logger.LogInformation("Reactivated subscription for {Email}", email);
                 return Result<Subscriber>.Success(existing);
             }
@@ -471,6 +562,361 @@ public class SubscriberSvc
             logger.LogError(ex, "Failed to unsubscribe {Email}", email);
             return Result.Failure("Failed to unsubscribe. Please try again later.");
         }
+    }
+
+    /// <summary>
+    /// Honours a one-click unsubscribe link, recording the withdrawal instead of erasing consent.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> [REQ-FN-059] The consent-aware replacement for the token path
+    /// that used to live on <c>NewsletterSvc.UnsubscribeAsync</c>, which flipped
+    /// <c>IsConfirmed</c> to false and so destroyed the record that the address had ever opted in.
+    /// A redemption now writes <c>UnsubscribedOn</c> alongside the flag and leaves
+    /// <c>ConfirmedOn</c> in place, so the row afterwards shows both when consent was given and when
+    /// it was withdrawn — and an opted-out address is no longer indistinguishable from one that
+    /// never confirmed. The token is burned in the same statement, so one link performs at most one
+    /// state change.</para>
+    /// <para><b>The token is the authorisation.</b> The link is followed from a mail client with no
+    /// session, so an unguessable per-subscriber token stands in for an identity. That is why the
+    /// URL carries a token and not an address: an address would let anyone unsubscribe a
+    /// stranger.</para>
+    /// <para><b>[REQ-FN-060] Two token stores, tried in that order.</b> A link mailed since
+    /// migration 027 is a PER-ISSUE token living in the <c>UnsubscribeToken</c> table, scoped to the
+    /// one issue it travelled in; a link mailed before that is a ROW-LEVEL token in
+    /// <c>Subscriber.UnsubscribeToken</c>. The table is consulted first and the column is the
+    /// fallback, because every link already sitting in a subscriber's inbox is a row-level one and
+    /// must keep working. From the caller's point of view nothing changes — same outcomes, same
+    /// wording, same failure modes — and every rule below applies identically to both, because the
+    /// per-issue lookup projects the token row's issuance and burn stamps onto the same three
+    /// properties the row-level lookup fills.</para>
+    /// <para><b>An older issue's link still works.</b> That is the deliberate consequence of the
+    /// design chosen in <c>027-PerIssueUnsubscribeToken.sql</c>: a subscriber who receives issue #1
+    /// and issue #2 and then clicks Unsubscribe in the OLDER mail is unsubscribed, not refused.
+    /// Narrowing the credential's blast radius must not cost anyone their opt-out — refusing a
+    /// genuine withdrawal is a compliance failure, not a usability wrinkle. What the newer issue
+    /// does NOT do is invalidate the older token; what a re-consent does is invalidate every token
+    /// issued before it, which is the rotation this requirement family promises.</para>
+    /// <para><b>Flow:</b> require a token → resolve it against the per-issue table, then the
+    /// row-level column → report an already-withdrawn subscriber without writing → refuse a burned
+    /// token → refuse a PER-ISSUE token superseded by a later re-consent → refuse an expired token
+    /// → record the withdrawal through whichever store resolved it.</para>
+    /// <para><b>Side Effects:</b> On the <see cref="UnsubscribeOutcome.Unsubscribed"/> path only:
+    /// one row is updated, the address stops being mailable, the withdrawal is stamped and the token
+    /// is burned. Logs the subscriber id — never the address and never the token.</para>
+    /// <para><b>Compatibility with the flow smoked under REQ-FN-032:</b> unchanged from the caller's
+    /// point of view. The same three outcomes come back in the same <c>Result</c> shape, an unknown
+    /// token still fails with the same vague wording, and re-opening a link that already did its
+    /// work still reports <see cref="UnsubscribeOutcome.AlreadyUnsubscribed"/> rather than an error.
+    /// One case behaves better than before: a subscriber who was still PENDING when they followed
+    /// the link now has that decision RECORDED as a withdrawal, so a future re-confirmation sweep
+    /// leaves them alone, where previously it was silently ignored.</para>
+    /// <para><b>Result contract:</b> a blank token, an unknown token, a burned token, a superseded
+    /// token and an expired token all fail with <see cref="InvalidLinkMessage"/>, so the route
+    /// cannot be used to test whether a guessed token belongs to a real subscriber. An infrastructure failure is reported
+    /// differently on purpose — telling a reader their link is invalid when the database is down
+    /// would send them away for good.</para>
+    /// </remarks>
+    /// <param name="unsubscribeToken">The opaque token from the unsubscribe URL.</param>
+    /// <param name="cancellationToken">Cancels the lookup and the update.</param>
+    /// <returns>
+    /// Success carrying <see cref="UnsubscribeOutcome.Unsubscribed"/> when this request opted the
+    /// address out, or <see cref="UnsubscribeOutcome.AlreadyUnsubscribed"/> when it was already off
+    /// the list; a failure when the token is blank, unknown, burned, expired, or could not be
+    /// processed.
+    /// </returns>
+    public async Task<Result<UnsubscribeOutcome>> UnsubscribeByTokenAsync(
+        string unsubscribeToken, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(unsubscribeToken))
+            return Result<UnsubscribeOutcome>.Failure(InvalidLinkMessage);
+
+        try
+        {
+            var token = unsubscribeToken.Trim();
+
+            // [REQ-FN-060] The per-issue table first, the row-level column second. A token mailed
+            // since migration 027 lives in the table; every link already sitting in someone's inbox
+            // from an earlier issue is a row-level one, and must keep resolving.
+            var subscriber = await subscriberRepo
+                .GetByNewsletterTokenAsync(token, cancellationToken)
+                .ConfigureAwait(false);
+            var isIssueScoped = subscriber != null;
+
+            subscriber ??= await subscriberRepo
+                .GetByUnsubscribeTokenAsync(token, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (subscriber == null)
+            {
+                logger.LogWarning("An unsubscribe link was opened with a token that matches no subscriber");
+                return Result<UnsubscribeOutcome>.Failure(InvalidLinkMessage);
+            }
+
+            // Already withdrawn. Report it without writing, so re-opening the same link is a no-op
+            // rather than an error and the recorded withdrawal instant is not moved.
+            if (subscriber.ConsentState == SubscriberConsentState.Withdrawn)
+            {
+                logger.LogInformation(
+                    "Subscriber {SubscriberId} re-opened an unsubscribe link and was already opted out",
+                    subscriber.SubscriberId);
+                return Result<UnsubscribeOutcome>.Success(UnsubscribeOutcome.AlreadyUnsubscribed);
+            }
+
+            // Burned, yet the subscriber is not withdrawn: the link was spent and a later re-consent
+            // should have rotated it. A spent link must not be able to opt an address out a second
+            // time after its owner deliberately came back.
+            if (subscriber.UnsubscribeTokenUsedOn.HasValue)
+            {
+                logger.LogWarning(
+                    "A burned unsubscribe token was replayed for subscriber {SubscriberId}",
+                    subscriber.SubscriberId);
+                return Result<UnsubscribeOutcome>.Failure(InvalidLinkMessage);
+            }
+
+            // [REQ-FN-060] Superseded by a later re-consent. PER-ISSUE TOKENS ONLY, and the
+            // qualifier matters: a row-level token rotates by being PHYSICALLY OVERWRITTEN, so an
+            // old one simply stops resolving and needs no staleness rule — whereas the token table
+            // keeps every row, and something has to decide which of a subscriber's several live
+            // tokens the current consent covers. Applying the rule to the row-level path as well
+            // would also refuse a perfectly good token whenever its issuance happened to predate a
+            // consent instant, which is representable and legitimate on that column.
+            if (isIssueScoped && IsTokenSuperseded(subscriber))
+            {
+                logger.LogWarning(
+                    "An unsubscribe token predating the current consent was presented for subscriber {SubscriberId}",
+                    subscriber.SubscriberId);
+                return Result<UnsubscribeOutcome>.Failure(InvalidLinkMessage);
+            }
+
+            if (IsTokenExpired(subscriber))
+            {
+                logger.LogWarning(
+                    "An expired unsubscribe token was presented for subscriber {SubscriberId}",
+                    subscriber.SubscriberId);
+                return Result<UnsubscribeOutcome>.Failure(InvalidLinkMessage);
+            }
+
+            // A per-issue redemption burns the token ROW; a row-level one burns the COLUMN. Both
+            // record the withdrawal in the same statement, and both leave ConfirmedOn alone.
+            var recorded = isIssueScoped
+                ? await subscriberRepo
+                    .RedeemNewsletterTokenAsync(subscriber.UnsubscribeToken, cancellationToken)
+                    .ConfigureAwait(false)
+                : await subscriberRepo
+                    .RecordWithdrawalAsync(subscriber.SubscriberId, cancellationToken)
+                    .ConfigureAwait(false);
+
+            if (!recorded)
+            {
+                // A concurrent redemption of the same link won the guarded UPDATE. The address is
+                // off the list either way, so this is a success, not a failure.
+                logger.LogInformation(
+                    "A concurrent redemption had already burned the link for subscriber {SubscriberId}",
+                    subscriber.SubscriberId);
+                return Result<UnsubscribeOutcome>.Success(UnsubscribeOutcome.AlreadyUnsubscribed);
+            }
+
+            logger.LogInformation(
+                "Subscriber {SubscriberId} withdrew consent via an unsubscribe link", subscriber.SubscriberId);
+            return Result<UnsubscribeOutcome>.Success(UnsubscribeOutcome.Unsubscribed);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to process an unsubscribe request");
+            return Result<UnsubscribeOutcome>.Failure(
+                "The unsubscribe request could not be processed just now. Please try the link again shortly.");
+        }
+    }
+
+    /// <summary>
+    /// Issues a fresh unsubscribe token for a subscriber and returns it for use in one mailing.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> [REQ-FN-059] This is what makes the token scoped rather than
+    /// permanent. Calling it immediately before composing a message means the link in that message
+    /// is the only live one, the link in every earlier issue stops working, and the 400-day expiry
+    /// clock restarts — so a subscriber who is still being mailed can never be holding a link that
+    /// has aged out.</para>
+    /// <para><b>Flow:</b> generate 256 bits of cryptographic randomness → install it, stamping the
+    /// issuance and clearing any burn → hand the caller the value to put in the URL.</para>
+    /// <para><b>Side Effects:</b> The subscriber's previous unsubscribe link stops resolving. The
+    /// caller MUST use the returned value rather than a token it read earlier, or it will mail a
+    /// dead link. Consent columns are untouched — re-issuing a link is not a consent decision.</para>
+    /// <para><b>[REQ-FN-060] This is NOT what the send path calls.</b> It replaces the subscriber's
+    /// single row-level token, which means every earlier issue's link dies the moment a newer issue
+    /// goes out — and a subscriber who opens last week's mail on Saturday would be told their link
+    /// is invalid while they are still on the list. A send therefore calls
+    /// <see cref="IssueTokenForNewsletterAsync"/> instead, which ADDS a token scoped to that issue
+    /// and leaves the earlier ones working. This member survives for administrative re-issuance —
+    /// "give this subscriber one fresh link and kill the old one", which is a deliberate act with a
+    /// human behind it, not something that should happen silently on a schedule.</para>
+    /// </remarks>
+    /// <param name="subscriberId">The subscriber the message is addressed to.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns>Success carrying the new token; a failure when the subscriber is unknown or the
+    /// token could not be written. A caller that cannot get a fresh token should fall back to the
+    /// stored one rather than skipping the unsubscribe link.</returns>
+    public async Task<Result<string>> IssueUnsubscribeTokenAsync(
+        long subscriberId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var token = GenerateUnsubscribeToken();
+            var rotated = await subscriberRepo
+                .RotateUnsubscribeTokenAsync(subscriberId, token, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (!rotated)
+                return Result<string>.Failure("Could not issue an unsubscribe token.");
+
+            return Result<string>.Success(token);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to issue an unsubscribe token for subscriber {Id}", subscriberId);
+            return Result<string>.Failure("Could not issue an unsubscribe token.");
+        }
+    }
+
+    /// <summary>
+    /// Issues an unsubscribe token scoped to ONE newsletter issue, for use in that issue's message.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> [REQ-FN-060] This is what makes a mailed unsubscribe link a
+    /// per-send credential instead of a permanent one. It is called once per recipient per send,
+    /// immediately before the message is composed, and the token it returns is the only one that
+    /// issue carries. The credential's blast radius is therefore one issue rather than "every mail
+    /// ever sent to this address" — the property this requirement is about.</para>
+    /// <para><b>It ADDS a token; it does not rotate one.</b> Every token this subscriber was issued
+    /// for an earlier issue stays live until it is used, expires, or is superseded by a re-consent.
+    /// That is a deliberate choice over the literal "the newest send invalidates the older ones"
+    /// reading, and the reasoning is recorded in full in the header of
+    /// <c>027-PerIssueUnsubscribeToken.sql</c>: a subscriber who receives two issues and then clicks
+    /// Unsubscribe in the OLDER one must be unsubscribed. Silently refusing that click is a
+    /// CAN-SPAM-shaped failure, strictly worse than the over-broad credential it would be fixing.
+    /// Rotation still happens, on re-consent only — the event this requirement's own title
+    /// names.</para>
+    /// <para><b>Flow:</b> generate 256 bits of cryptographic randomness → record it against the
+    /// (subscriber, issue) pair → hand the caller the value to put in the URL.</para>
+    /// <para><b>Side Effects:</b> Adds one <c>UnsubscribeToken</c> row. Nothing on the subscriber
+    /// row changes: the row-level token, the consent record and the mailability bit are all
+    /// untouched, because issuing a link is not a consent decision.</para>
+    /// <para><b>Failure is not fatal to the send.</b> A caller that cannot get a per-issue token
+    /// must fall back to the subscriber's row-level token rather than mailing a message with no
+    /// unsubscribe link — a coarser credential is a smaller harm than a mailing nobody can get off.
+    /// <c>NewsletterSvc.DeliverAsync</c> does exactly that.</para>
+    /// </remarks>
+    /// <param name="subscriberId">The subscriber the message is addressed to.</param>
+    /// <param name="newsletterId">The issue being sent; the scope of the returned token.</param>
+    /// <param name="cancellationToken">Cancels the insert.</param>
+    /// <returns>Success carrying the new per-issue token; a failure when the identifiers are not
+    /// usable or the token could not be recorded.</returns>
+    public async Task<Result<string>> IssueTokenForNewsletterAsync(
+        long subscriberId, long newsletterId, CancellationToken cancellationToken = default)
+    {
+        if (subscriberId <= 0 || newsletterId <= 0)
+            return Result<string>.Failure("Could not issue an unsubscribe token.");
+
+        try
+        {
+            var token = GenerateUnsubscribeToken();
+            var issued = await subscriberRepo
+                .IssueTokenForNewsletterAsync(subscriberId, newsletterId, token, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (!issued)
+                return Result<string>.Failure("Could not issue an unsubscribe token.");
+
+            return Result<string>.Success(token);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Failed to issue a per-issue unsubscribe token for subscriber {Id} on newsletter {NewsletterId}",
+                subscriberId,
+                newsletterId);
+            return Result<string>.Failure("Could not issue an unsubscribe token.");
+        }
+    }
+
+    /// <summary>
+    /// Generates an opaque unsubscribe token: 256 bits of cryptographic randomness, lower-case hex.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The token is a bearer credential, so it comes from
+    /// <see cref="RandomNumberGenerator"/> rather than from <c>md5(random())</c> as the SQL column
+    /// default does — a value produced by a predictable PRNG is guessable in principle, and this one
+    /// authorises a state change on a stranger's row. 64 hex characters is exactly the width of the
+    /// <c>VARCHAR(64)</c> column.</para>
+    /// <para><b>Side Effects:</b> None; pure apart from consuming entropy.</para>
+    /// </remarks>
+    /// <returns>A 64-character lower-case hexadecimal token.</returns>
+    public static string GenerateUnsubscribeToken()
+    {
+        var bytes = RandomNumberGenerator.GetBytes(32);
+        return Convert.ToHexString(bytes).ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Tests whether an unsubscribe token has outlived <see cref="UnsubscribeTokenLifetimeDays"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> A token with no recorded issuance never expires. That is not an
+    /// oversight: those tokens were mailed before REQ-FN-059 and cannot be recalled, so putting them
+    /// on a clock could only ever leave a subscriber with no working way off the list — the exact
+    /// failure this requirement exists to prevent. They are still burnable, and the first rotation
+    /// puts them on the clock.</para>
+    /// <para><b>Side Effects:</b> None; pure.</para>
+    /// </remarks>
+    /// <param name="subscriber">The subscriber whose token was presented.</param>
+    /// <returns>True when the token carries an issuance stamp older than the lifetime.</returns>
+    private static bool IsTokenExpired(Subscriber subscriber)
+    {
+        if (!subscriber.UnsubscribeTokenIssuedOn.HasValue)
+            return false;
+
+        return subscriber.UnsubscribeTokenIssuedOn.Value.AddDays(UnsubscribeTokenLifetimeDays)
+               < DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Tests whether a token was issued under a consent the subscriber has since re-given.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> [REQ-FN-060] This is how "unsubscribe tokens rotate on
+    /// re-consent" is enforced once a subscriber can hold several live tokens at once. Rather than
+    /// hunting down and revoking every outstanding row when someone resubscribes — a write that any
+    /// future consent path could forget to make — a token is simply stale if it predates the current
+    /// <c>ConfirmedOn</c>. Re-consent moves that instant forward and invalidates every token issued
+    /// under the previous consent in one stroke, on the read side, where no writer can bypass
+    /// it.</para>
+    /// <para><b>Why it matters:</b> without this rule an old link that leaked out of an archived
+    /// mailbox could opt an address out again <i>after</i> its owner deliberately came back. That is
+    /// the same harm REQ-FN-059 burned tokens to prevent, reappearing through the extra tokens
+    /// REQ-FN-060 hands out.</para>
+    /// <para><b>Applies to per-issue tokens only.</b> A row-level token rotates by being physically
+    /// overwritten in its column, so an old one stops resolving on its own and needs no staleness
+    /// rule; the token TABLE keeps every row, which is what creates the question this answers.
+    /// Applying it to the row-level path as well would refuse a live token whenever its issuance
+    /// merely predated a consent instant — representable and legitimate on that column, and
+    /// refusing it would strand a subscriber holding a working link.</para>
+    /// <para>The comparison is strict, so a token issued in the same instant as the consent — which
+    /// is exactly what <c>RecordConsentAsync</c> and <c>TrgSubscriberConsentChange</c> write — is
+    /// live rather than born stale. A token with no recorded issuance is never superseded, for the
+    /// reason <see cref="IsTokenExpired"/> gives: it cannot be recalled from delivered mail, so
+    /// refusing it could only strand a subscriber.</para>
+    /// <para><b>Side Effects:</b> None; pure.</para>
+    /// </remarks>
+    /// <param name="subscriber">The subscriber whose token was presented, carrying that token's
+    /// issuance stamp and the subscriber's own consent instant.</param>
+    /// <returns>True when the token was issued strictly before the current consent.</returns>
+    private static bool IsTokenSuperseded(Subscriber subscriber)
+    {
+        if (!subscriber.UnsubscribeTokenIssuedOn.HasValue || !subscriber.ConfirmedOn.HasValue)
+            return false;
+
+        return subscriber.UnsubscribeTokenIssuedOn.Value < subscriber.ConfirmedOn.Value;
     }
 
     /// <summary>

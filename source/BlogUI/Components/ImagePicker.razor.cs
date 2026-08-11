@@ -236,9 +236,15 @@ public partial class ImagePicker : ComponentBase
             await SelectedImagePathChanged.InvokeAsync(uploadedImage.ImagePath);
             CloseUpload();
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException curated)
         {
-            UploadError = ex.Message;
+            // The variable is named `curated`, not `ex`, deliberately: BlogImageService authors this
+            // message and it is always one of its own constants — a category validation rule, or the
+            // REQ-NFR-040 storage-failure sentence that distinguishes "the server cannot write here"
+            // from a retry-able failure. It carries no exception text and no server path, which is
+            // what makes surfacing it compatible with REQ-NFR-033. Every other exception falls to
+            // the generic branch below.
+            UploadError = curated.Message;
         }
         catch (Exception)
         {

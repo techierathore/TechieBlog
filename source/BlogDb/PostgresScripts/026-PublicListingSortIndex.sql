@@ -1,0 +1,63 @@
+-- ============================================================================
+-- Script: 026-PublicListingSortIndex.sql
+-- Purpose: Give the public listings' new sort key an index, now that they order
+--          by COALESCE(PublishedOn, CreatedOn) DESC, PostID DESC instead of by
+--          CreatedOn DESC.
+-- Author: flow-master (build phase, Cluster A)
+-- Created: 2026-08-11
+-- Requirements: REQ-UI-059 (public listings sort by the column they date by)
+-- Depends on:   001-CreateTables.sql (IdxBlogPostPublished), 004-FixPostTable.sql
+--               (PublishedOn column, Post -> BlogPost rename)
+--
+-- ----------------------------------------------------------------------------
+-- WHY THIS EXISTS
+-- ----------------------------------------------------------------------------
+-- REQ-FN-057 moved every public renderer onto `PublishedOn ?? CreatedOn` but
+-- left `ORDER BY p.CreatedOn DESC` on the listings underneath them, so a card's
+-- printed date and its position in the list came from two different columns. Any
+-- post whose PublishedOn differs materially from its CreatedOn — a back-dated
+-- import, a long-lived draft, a scheduled publish — read as mis-sorted.
+-- REQ-UI-059 changed those four public reads in BlogPostRepo plus the tag
+-- archive read in BlogTagRepo to
+--     ORDER BY COALESCE(p.PublishedOn, p.CreatedOn) DESC, p.PostID DESC
+--
+-- 001-CreateTables.sql created IdxBlogPostPublished (Published, CreatedOn DESC)
+-- precisely to serve the OLD expression. A btree on a bare column cannot serve
+-- an ORDER BY over a COALESCE of two columns, so without this script every
+-- public listing falls back to a sequential scan plus a sort — invisible at
+-- today's ten rows, and the reason the same page is slow at ten thousand.
+--
+-- The leading Published column matches the WHERE clause all five listings share
+-- (Published = TRUE); the two sort keys follow in the exact order and direction
+-- the statements request, so PostgreSQL can walk the index and stop at LIMIT.
+--
+-- IdxBlogPostPublished is deliberately LEFT IN PLACE: the admin reads
+-- (SelectAllSql, SelectAllByUserSql, SelectPagedSql) still order by CreatedOn
+-- DESC, because they include drafts whose PublishedOn is NULL and authoring
+-- order is the only order that means anything there.
+--
+-- ----------------------------------------------------------------------------
+-- CHANGES
+-- ----------------------------------------------------------------------------
+--   - CREATE INDEX IF NOT EXISTS IdxBlogPostPublicListing on BlogPost.
+--
+-- IF NOT EXISTS keeps the script idempotent if it is ever replayed against a
+-- restored database. CREATE INDEX (not CONCURRENTLY) because DbUp wraps each
+-- script in a transaction and CONCURRENTLY cannot run inside one; the table is
+-- small and the host is starting up, so the brief write lock costs nothing.
+--
+-- ----------------------------------------------------------------------------
+-- ROLLBACK
+-- ----------------------------------------------------------------------------
+--   DROP INDEX IF EXISTS IdxBlogPostPublicListing;
+--   -- and revert the ORDER BY in BlogPostRepo (SelectPublishedSql,
+--   -- SelectFeaturedSql, SelectByCategorySql, SearchSql) and BlogTagRepo
+--   -- (SelectPostsByTagSql) to `p.CreatedOn DESC`.
+-- ============================================================================
+
+CREATE INDEX IF NOT EXISTS IdxBlogPostPublicListing
+    ON BlogPost (Published, (COALESCE(PublishedOn, CreatedOn)) DESC, PostID DESC);
+
+-- ============================================================================
+-- End of Migration
+-- ============================================================================

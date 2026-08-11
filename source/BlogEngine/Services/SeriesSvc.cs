@@ -1,5 +1,6 @@
 using BlogEngine.Common;
 using BlogModels;
+using BlogModels.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace BlogEngine.Services;
@@ -39,8 +40,14 @@ namespace BlogEngine.Services;
 /// <para><b>Error contract:</b> reads swallow and log, returning an empty sequence or null — a
 /// broken series strip must not take a post page down. Mutations return <c>Result</c>: an expected
 /// failure (missing name, unknown id) is returned, and an unexpected one is caught, logged and
-/// converted. Note that mutation failures interpolate <c>ex.Message</c>, which is acceptable only
-/// because every caller is an admin screen.</para>
+/// converted.</para>
+///
+/// <para><b>Exception text never reaches the caller (REQ-NFR-031).</b> Mutation failures used to
+/// interpolate <c>ex.Message</c>, defended on the grounds that every caller is an admin screen —
+/// but nothing in this class enforces that, so the disclosure would have gone live the moment a
+/// mutation was reached anonymously. The exception now stays in the log, where the host's
+/// <c>CorrelationIdMiddleware</c> has already attached the request's correlation id to every event
+/// (REQ-NFR-015), and the caller sees only the curated constants below.</para>
 ///
 /// <para><b>Dependencies:</b> <see cref="IBlogSeriesRepo"/> and <see cref="IBlogPostRepo"/> for
 /// data access, <c>SlugGenerator</c> for URL slugs, <see cref="ILogger{TCategoryName}"/> for
@@ -64,9 +71,28 @@ namespace BlogEngine.Services;
 /// </remarks>
 public class SeriesSvc
 {
+    /// <summary>
+    /// Prefix used to build an identifier-based slug when a series name yields no slug at all.
+    /// </summary>
+    /// <remarks>
+    /// Feeds <c>SlugGenerator.EnsureSlug</c>, which turns it into <c>series-3</c> for a series that
+    /// already has an id, or <c>series-{name digest}</c> for one being inserted (REQ-FN-054).
+    /// </remarks>
+    private const string SlugPrefix = "series";
+
+    /// <summary>Curated message for an insert that could not be persisted (REQ-NFR-031).</summary>
+    private const string CreateFailureMessage = "Failed to create series. Please try again later.";
+
+    /// <summary>Curated message for an update that could not be persisted (REQ-NFR-031).</summary>
+    private const string UpdateFailureMessage = "Failed to update series. Please try again later.";
+
+    /// <summary>Curated message for a delete that could not be persisted (REQ-NFR-031).</summary>
+    private const string DeleteFailureMessage = "Failed to delete series. Please try again later.";
+
     private readonly IBlogSeriesRepo seriesRepo;
     private readonly IBlogPostRepo postRepo;
     private readonly ILogger<SeriesSvc> logger;
+    private readonly ICacheService? cacheService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SeriesSvc"/> class.
@@ -74,11 +100,21 @@ public class SeriesSvc
     /// <param name="seriesRepo">Series data access.</param>
     /// <param name="postRepo">Post data access, used for membership and part numbering.</param>
     /// <param name="logger">Logger for series changes and read failures.</param>
-    public SeriesSvc(IBlogSeriesRepo seriesRepo, IBlogPostRepo postRepo, ILogger<SeriesSvc> logger)
+    /// <param name="cacheService">
+    /// Taxonomy cache (REQ-NFR-018) holding the two series-wide listings. Optional: omitting it makes
+    /// every read go to the database, which is what a unit test that is not exercising caching wants.
+    /// The host always supplies it — it is a registered singleton.
+    /// </param>
+    public SeriesSvc(
+        IBlogSeriesRepo seriesRepo,
+        IBlogPostRepo postRepo,
+        ILogger<SeriesSvc> logger,
+        ICacheService? cacheService = null)
     {
         this.seriesRepo = seriesRepo;
         this.postRepo = postRepo;
         this.logger = logger;
+        this.cacheService = cacheService;
     }
 
     /// <summary>
@@ -95,7 +131,11 @@ public class SeriesSvc
     {
         try
         {
-            return seriesRepo.GetAll();
+            return ServiceCache.Read<IEnumerable<BlogSeries>>(
+                cacheService,
+                ServiceCache.SeriesAllKey,
+                CacheTags.Taxonomy,
+                () => seriesRepo.GetAll());
         }
         catch (Exception ex)
         {
@@ -123,7 +163,11 @@ public class SeriesSvc
     {
         try
         {
-            return await seriesRepo.GetAllAsync(cancellationToken).ConfigureAwait(false);
+            return await ServiceCache.ReadAsync<IEnumerable<BlogSeries>>(
+                cacheService,
+                ServiceCache.AsyncVariant(ServiceCache.SeriesAllKey),
+                CacheTags.Taxonomy,
+                () => seriesRepo.GetAllAsync(cancellationToken)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -145,7 +189,11 @@ public class SeriesSvc
     {
         try
         {
-            return seriesRepo.GetAllWithCounts();
+            return ServiceCache.Read<IEnumerable<BlogSeries>>(
+                cacheService,
+                ServiceCache.SeriesWithCountsKey,
+                CacheTags.Taxonomy,
+                () => seriesRepo.GetAllWithCounts());
         }
         catch (Exception ex)
         {
@@ -172,7 +220,11 @@ public class SeriesSvc
     {
         try
         {
-            return await seriesRepo.GetAllWithCountsAsync(cancellationToken).ConfigureAwait(false);
+            return await ServiceCache.ReadAsync<IEnumerable<BlogSeries>>(
+                cacheService,
+                ServiceCache.AsyncVariant(ServiceCache.SeriesWithCountsKey),
+                CacheTags.Taxonomy,
+                () => seriesRepo.GetAllWithCountsAsync(cancellationToken)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -549,24 +601,11 @@ public class SeriesSvc
         if (string.IsNullOrWhiteSpace(series.Name))
             return Result<BlogSeries>.Failure("Series name is required");
 
-        // Generate slug if not provided
-        if (string.IsNullOrWhiteSpace(series.Slug))
-        {
-            series.Slug = SlugGenerator.GenerateSlug(series.Name);
-        }
-
-        // Check for duplicate slug
-        if (seriesRepo.SlugExists(series.Slug))
-        {
-            series.Slug = SlugGenerator.GenerateUniqueSlug(series.Slug, 1);
-            int counter = 2;
-            while (seriesRepo.SlugExists(series.Slug) && counter < 100)
-            {
-                series.Slug = SlugGenerator.GenerateUniqueSlug(
-                    SlugGenerator.GenerateSlug(series.Name), counter);
-                counter++;
-            }
-        }
+        // Derive a guaranteed non-empty base slug, then suffix it until it is free (REQ-FN-054).
+        series.Slug = SlugGenerator.EnsureSlug(series.Slug, series.Name, SlugPrefix);
+        series.Slug = SlugGenerator.ResolveUniqueSlug(
+            series.Slug,
+            candidate => seriesRepo.SlugExists(candidate));
 
         // Set timestamps
         series.CreatedOn = DateTime.UtcNow;
@@ -581,6 +620,7 @@ public class SeriesSvc
         try
         {
             var seriesId = seriesRepo.InsertToGetId(series);
+            ServiceCache.InvalidateTaxonomy(cacheService);
             series.SeriesId = seriesId;
             logger.LogInformation("Created series '{Name}' with ID {SeriesId}", series.Name, seriesId);
             return Result<BlogSeries>.Success(series);
@@ -588,7 +628,7 @@ public class SeriesSvc
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to create series: {Name}", series.Name);
-            return Result<BlogSeries>.Failure($"Failed to create series: {ex.Message}");
+            return Result<BlogSeries>.Failure(CreateFailureMessage);
         }
     }
 
@@ -625,25 +665,11 @@ public class SeriesSvc
         if (string.IsNullOrWhiteSpace(series.Name))
             return Result<BlogSeries>.Failure("Series name is required");
 
-        // Generate slug if not provided
-        if (string.IsNullOrWhiteSpace(series.Slug))
-        {
-            series.Slug = SlugGenerator.GenerateSlug(series.Name);
-        }
-
-        // Check for duplicate slug
-        if (await seriesRepo.SlugExistsAsync(series.Slug, 0, cancellationToken).ConfigureAwait(false))
-        {
-            series.Slug = SlugGenerator.GenerateUniqueSlug(series.Slug, 1);
-            int counter = 2;
-            while (await seriesRepo.SlugExistsAsync(series.Slug, 0, cancellationToken).ConfigureAwait(false)
-                   && counter < 100)
-            {
-                series.Slug = SlugGenerator.GenerateUniqueSlug(
-                    SlugGenerator.GenerateSlug(series.Name), counter);
-                counter++;
-            }
-        }
+        // Derive a guaranteed non-empty base slug, then suffix it until it is free (REQ-FN-054).
+        series.Slug = SlugGenerator.EnsureSlug(series.Slug, series.Name, SlugPrefix);
+        series.Slug = await SlugGenerator.ResolveUniqueSlugAsync(
+            series.Slug,
+            candidate => seriesRepo.SlugExistsAsync(candidate, 0, cancellationToken)).ConfigureAwait(false);
 
         // Set timestamps
         series.CreatedOn = DateTime.UtcNow;
@@ -658,6 +684,7 @@ public class SeriesSvc
         try
         {
             var seriesId = await seriesRepo.InsertToGetIdAsync(series, cancellationToken).ConfigureAwait(false);
+            ServiceCache.InvalidateTaxonomy(cacheService);
             series.SeriesId = seriesId;
             logger.LogInformation("Created series '{Name}' with ID {SeriesId}", series.Name, seriesId);
             return Result<BlogSeries>.Success(series);
@@ -665,7 +692,7 @@ public class SeriesSvc
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to create series: {Name}", series.Name);
-            return Result<BlogSeries>.Failure($"Failed to create series: {ex.Message}");
+            return Result<BlogSeries>.Failure(CreateFailureMessage);
         }
     }
 
@@ -701,37 +728,25 @@ public class SeriesSvc
         if (existing == null)
             return Result<BlogSeries>.Failure("Series not found");
 
-        // Generate slug if not provided
-        if (string.IsNullOrWhiteSpace(series.Slug))
-        {
-            series.Slug = SlugGenerator.GenerateSlug(series.Name);
-        }
-
-        // Check for duplicate slug (exclude current series)
-        if (seriesRepo.SlugExists(series.Slug, series.SeriesId))
-        {
-            series.Slug = SlugGenerator.GenerateUniqueSlug(series.Slug, 1);
-            int counter = 2;
-            while (seriesRepo.SlugExists(series.Slug, series.SeriesId) && counter < 100)
-            {
-                series.Slug = SlugGenerator.GenerateUniqueSlug(
-                    SlugGenerator.GenerateSlug(series.Name), counter);
-                counter++;
-            }
-        }
+        // Derive a guaranteed non-empty base slug, then suffix it until it is free (REQ-FN-054).
+        series.Slug = SlugGenerator.EnsureSlug(series.Slug, series.Name, SlugPrefix, series.SeriesId);
+        series.Slug = SlugGenerator.ResolveUniqueSlug(
+            series.Slug,
+            candidate => seriesRepo.SlugExists(candidate, series.SeriesId));
 
         series.UpdatedOn = DateTime.UtcNow;
 
         try
         {
             seriesRepo.Update(series);
+            ServiceCache.InvalidateTaxonomy(cacheService);
             logger.LogInformation("Updated series '{Name}' with ID {SeriesId}", series.Name, series.SeriesId);
             return Result<BlogSeries>.Success(series);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to update series ID {SeriesId}: {Name}", series.SeriesId, series.Name);
-            return Result<BlogSeries>.Failure($"Failed to update series: {ex.Message}");
+            return Result<BlogSeries>.Failure(UpdateFailureMessage);
         }
     }
 
@@ -772,38 +787,25 @@ public class SeriesSvc
         if (existing == null)
             return Result<BlogSeries>.Failure("Series not found");
 
-        // Generate slug if not provided
-        if (string.IsNullOrWhiteSpace(series.Slug))
-        {
-            series.Slug = SlugGenerator.GenerateSlug(series.Name);
-        }
-
-        // Check for duplicate slug (exclude current series)
-        if (await seriesRepo.SlugExistsAsync(series.Slug, series.SeriesId, cancellationToken).ConfigureAwait(false))
-        {
-            series.Slug = SlugGenerator.GenerateUniqueSlug(series.Slug, 1);
-            int counter = 2;
-            while (await seriesRepo.SlugExistsAsync(series.Slug, series.SeriesId, cancellationToken).ConfigureAwait(false)
-                   && counter < 100)
-            {
-                series.Slug = SlugGenerator.GenerateUniqueSlug(
-                    SlugGenerator.GenerateSlug(series.Name), counter);
-                counter++;
-            }
-        }
+        // Derive a guaranteed non-empty base slug, then suffix it until it is free (REQ-FN-054).
+        series.Slug = SlugGenerator.EnsureSlug(series.Slug, series.Name, SlugPrefix, series.SeriesId);
+        series.Slug = await SlugGenerator.ResolveUniqueSlugAsync(
+            series.Slug,
+            candidate => seriesRepo.SlugExistsAsync(candidate, series.SeriesId, cancellationToken)).ConfigureAwait(false);
 
         series.UpdatedOn = DateTime.UtcNow;
 
         try
         {
             await seriesRepo.UpdateAsync(series, cancellationToken).ConfigureAwait(false);
+            ServiceCache.InvalidateTaxonomy(cacheService);
             logger.LogInformation("Updated series '{Name}' with ID {SeriesId}", series.Name, series.SeriesId);
             return Result<BlogSeries>.Success(series);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to update series ID {SeriesId}: {Name}", series.SeriesId, series.Name);
-            return Result<BlogSeries>.Failure($"Failed to update series: {ex.Message}");
+            return Result<BlogSeries>.Failure(UpdateFailureMessage);
         }
     }
 
@@ -898,13 +900,14 @@ public class SeriesSvc
 
             // Then delete the series
             seriesRepo.Delete(seriesId);
+            ServiceCache.InvalidateTaxonomy(cacheService);
             logger.LogInformation("Deleted series ID {SeriesId}", seriesId);
             return Result.Success();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to delete series ID {SeriesId}", seriesId);
-            return Result.Failure($"Failed to delete series: {ex.Message}");
+            return Result.Failure(DeleteFailureMessage);
         }
     }
 
@@ -948,13 +951,14 @@ public class SeriesSvc
 
             // Then delete the series
             await seriesRepo.DeleteAsync(seriesId, cancellationToken).ConfigureAwait(false);
+            ServiceCache.InvalidateTaxonomy(cacheService);
             logger.LogInformation("Deleted series ID {SeriesId}", seriesId);
             return Result.Success();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to delete series ID {SeriesId}", seriesId);
-            return Result.Failure($"Failed to delete series: {ex.Message}");
+            return Result.Failure(DeleteFailureMessage);
         }
     }
 

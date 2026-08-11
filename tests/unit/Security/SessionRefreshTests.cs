@@ -3,7 +3,6 @@ using BlogEngine.Services;
 using BlogModels;
 using BlogModels.Interfaces;
 using BlogModels.Models;
-using BlogSvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -89,6 +88,30 @@ public class SessionRefreshTests
         loginRepo
             .GetUserByTokenAsync(Arg.Any<long>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(call => MatchStoredSession(call.ArgAt<long>(0), call.ArgAt<string>(1)));
+    }
+
+    /// <summary>
+    /// The simple name <c>BlogSvc</c> binds to the post service type, not to a namespace, in a file
+    /// that also uses <see cref="SvcUtils"/> (REQ-NFR-032).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Why this test exists:</b> <c>SvcUtils</c> used to declare <c>namespace BlogSvc</c>,
+    /// which put a namespace named <c>BlogSvc</c> in the global namespace. Simple-name lookup finds
+    /// enclosing-namespace members before it consults <c>using</c> directives, so in any file that
+    /// imported this helper the bare name <c>BlogSvc</c> resolved to that namespace and
+    /// <c>typeof(BlogSvc)</c> below would not compile (CS0118, "is a namespace but is used like a
+    /// type"). Every reference to the post service had to be written out in full.</para>
+    /// <para><b>What it proves:</b> this is a compile-time assertion first and a runtime one second
+    /// — the file uses both <c>BlogSvc</c> and <c>SvcUtils</c> unqualified, so it only builds while
+    /// the collision is absent. The two <see cref="Type.FullName"/> checks then pin <i>which</i>
+    /// types those names reached, so the test cannot be satisfied by a namespace being renamed to
+    /// something else that happens to compile.</para>
+    /// </remarks>
+    [Fact]
+    public void BlogSvcNameResolvesToTheServiceTypeNotANamespace()
+    {
+        Assert.Equal("BlogEngine.Services.BlogSvc", typeof(BlogSvc).FullName);
+        Assert.Equal("BlogEngine.Common.SvcUtils", typeof(SvcUtils).FullName);
     }
 
     /// <summary>

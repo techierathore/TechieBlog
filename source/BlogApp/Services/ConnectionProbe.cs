@@ -28,6 +28,35 @@ public class ConnectionProbe
     /// </summary>
     private const string SchemaSentinelTable = "bloguser";
 
+    /// <summary>
+    /// Message returned when the server could not be reached or refused the credentials
+    /// (REQ-NFR-033).
+    /// </summary>
+    /// <remarks>
+    /// <para>Npgsql's own text is diagnostic gold and was previously interpolated straight into the
+    /// screen — but it names the host, the port, the database and, on <c>28P01</c>, the username
+    /// whose password was rejected. The setup screen is the one surface in the product that is
+    /// reached <i>before</i> any authentication exists, so nothing typed into it should be echoed
+    /// back enriched with server-side detail.</para>
+    /// <para><b>Tradeoff, stated deliberately:</b> this is the one place where curating costs the
+    /// reader something real, because the operator standing at this screen is the person debugging
+    /// the connection. The message therefore stays actionable — it names every input worth
+    /// re-checking — and the exception is logged in full against the server label
+    /// (<c>ConnectionProbe</c> category), which on a desktop head is a file the same operator can
+    /// open. Do not reintroduce <c>ex.Message</c>.</para>
+    /// </remarks>
+    private const string UnreachableMessage =
+        "Could not connect. Check the host, the port, the database name, the username and the " +
+        "password, and confirm the server accepts connections from this machine. The underlying " +
+        "error is recorded in the application log.";
+
+    /// <summary>
+    /// Message returned when the supplied settings are malformed. See <see cref="UnreachableMessage"/>.
+    /// </summary>
+    private const string InvalidSettingsMessage =
+        "The connection settings are not valid. Check for stray characters in the host, port or " +
+        "database name. The underlying error is recorded in the application log.";
+
     private readonly ILogger<ConnectionProbe> logger;
 
     /// <summary>
@@ -98,7 +127,7 @@ public class ConnectionProbe
         catch (NpgsqlException ex)
         {
             logger.LogWarning(ex, "Connection probe failed against {Server}", settings.ToDisplayLabel());
-            return Result<string>.Failure($"Could not connect: {ex.Message}");
+            return Result<string>.Failure(UnreachableMessage);
         }
         catch (TimeoutException ex)
         {
@@ -109,7 +138,7 @@ public class ConnectionProbe
         catch (ArgumentException ex)
         {
             logger.LogWarning(ex, "Connection probe rejected the supplied settings");
-            return Result<string>.Failure($"The connection settings are not valid: {ex.Message}");
+            return Result<string>.Failure(InvalidSettingsMessage);
         }
     }
 }

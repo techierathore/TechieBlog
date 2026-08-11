@@ -1,4 +1,5 @@
 using BlogEngine.Common;
+using BlogModels.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace BlogEngine.Services;
@@ -26,11 +27,47 @@ namespace BlogEngine.Services;
 /// caller-safe message, and an unexpected persistence error is logged and converted into one.
 /// Nothing here throws for an expected outcome.</para>
 ///
+/// <para><b>Exception text never reaches the caller (REQ-NFR-031).</b> Every <c>catch</c> logs the
+/// exception through <see cref="ILogger{TCategoryName}"/> and then returns one of the curated
+/// constants at the top of this class. The detail is recoverable from the log, where the host's
+/// <c>CorrelationIdMiddleware</c> has already attached the request's correlation id to every event
+/// (REQ-NFR-015) — so an operator can tie a user's report to the exact stack trace without the
+/// message itself disclosing a SQL fragment, a table name or a connection string. Do not reintroduce
+/// <c>ex.Message</c> into a <c>Result</c>: these services are admin-gated today but nothing in the
+/// class enforces that, and the disclosure would go live the moment one is reached anonymously.</para>
+///
 /// <para><b>Code Flow:</b> a page calls an <c>…Async</c> member → the member validates and generates
 /// slugs → <c>IBlogPostRepo</c> performs the I/O asynchronously → an expected failure comes back as
 /// <c>Result</c>/<c>Result&lt;BlogPost&gt;</c> and an unexpected one is logged and converted to one.</para>
 ///
-/// <para><b>Dependencies:</b> IBlogPostRepo for data access, SlugGenerator for URL slugs.</para>
+/// <para><b>Dependencies:</b> IBlogPostRepo for data access, SlugGenerator for URL slugs,
+/// <see cref="ICacheService"/> for the public listing cache.</para>
+///
+/// <para><b>Caching (REQ-NFR-018) — the public reads only.</b> Six reads go through
+/// <see cref="ICacheService"/> under <c>CacheTags.Content</c>, with their asynchronous twins:
+/// <see cref="GetPublishedPosts"/>, <see cref="GetFeaturedPost"/>,
+/// <see cref="GetPublishedPostCount"/>, <see cref="GetPostsByCategory"/>,
+/// <see cref="GetPostCountByCategory"/> and <see cref="GetPostBySlug"/>. Every one of them returns
+/// the same rows to every visitor, which is the property that makes them safe to share from a
+/// process-wide cache.</para>
+///
+/// <para><b>What is deliberately NOT cached, and why each one would be a defect.</b>
+/// <see cref="GetAllPosts"/> varies by user and privilege — caching it under a key that does not
+/// name the principal would serve one author's unpublished drafts to the next caller.
+/// <see cref="GetScheduledPosts"/> and <see cref="GetDueScheduledPosts"/> drive
+/// <c>ScheduledPostPublisher</c>, which must see the current state of the queue rather than a
+/// snapshot up to ten minutes old. <see cref="SearchPosts"/> is keyed by whatever a visitor types,
+/// so caching it hands an anonymous caller an unbounded lever on the cache's memory.
+/// <see cref="GetSinglePost"/> is the admin editor's read, where a stale row would be saved back
+/// over a newer one.</para>
+///
+/// <para><b>Invalidation contract:</b> every write path here — insert, update, soft delete, publish,
+/// unpublish, quick publish and schedule cancellation, in both their synchronous and asynchronous
+/// forms — calls <see cref="ServiceCache.InvalidateContent"/> immediately after the row is
+/// persisted, which evicts the content <i>and</i> taxonomy tags (a published post changes every
+/// category's and tag's post count). <c>SavePost</c>, <c>SaveDraft</c>, <c>PublishPost</c> and
+/// <c>SchedulePost</c> inherit it by delegating to create or update. A new write path that skips
+/// this leaves a published article invisible on the home page until the expiry lapses.</para>
 ///
 /// <para><b>Usage:</b> Call the <c>…Async</c> members. The synchronous twins are retained only while
 /// the rest of the call sites migrate (REQ-NFR-026).</para>
@@ -45,8 +82,62 @@ namespace BlogEngine.Services;
 /// </remarks>
 public class BlogSvc
 {
+    /// <summary>
+    /// Prefix used to build an identifier-based slug when a title yields no slug at all.
+    /// </summary>
+    /// <remarks>
+    /// Feeds <c>SlugGenerator.EnsureSlug</c>, which turns it into <c>post-42</c> for a post that
+    /// already has an id, or <c>post-{title digest}</c> for one that has not been inserted yet
+    /// (REQ-FN-054).
+    /// </remarks>
+    private const string SlugPrefix = "post";
+
+    /// <summary>
+    /// Message returned when a persistence failure has been logged but must not be described to the
+    /// caller.
+    /// </summary>
+    /// <remarks>
+    /// REQ-NFR-031: <c>Result.Failure</c>'s own contract forbids leaking internal detail, so the
+    /// exception text stays in the log — where the host's <c>CorrelationIdMiddleware</c> has already
+    /// stamped the request's correlation id onto every event (REQ-NFR-015) — and the caller sees only
+    /// this curated sentence.
+    /// </remarks>
+    private const string CreateFailureMessage = "Failed to create post. Please try again later.";
+
+    /// <summary>Curated message for an update that could not be persisted. See <see cref="CreateFailureMessage"/>.</summary>
+    private const string UpdateFailureMessage = "Failed to update post. Please try again later.";
+
+    /// <summary>Curated message for a delete that could not be persisted. See <see cref="CreateFailureMessage"/>.</summary>
+    private const string DeleteFailureMessage = "Failed to delete post. Please try again later.";
+
+    /// <summary>Curated message for a publish that could not be persisted. See <see cref="CreateFailureMessage"/>.</summary>
+    private const string PublishFailureMessage = "Failed to publish post. Please try again later.";
+
+    /// <summary>Curated message for an unpublish that could not be persisted. See <see cref="CreateFailureMessage"/>.</summary>
+    private const string UnpublishFailureMessage = "Failed to unpublish post. Please try again later.";
+
+    /// <summary>Curated message for a schedule cancellation that could not be persisted. See <see cref="CreateFailureMessage"/>.</summary>
+    private const string CancelScheduleFailureMessage = "Failed to cancel schedule. Please try again later.";
+
+    /// <summary>
+    /// Message returned when a state transition is refused because the post is soft-deleted.
+    /// </summary>
+    /// <remarks>
+    /// REQ-FN-055: <c>DeletePost</c> already refused to act twice on a deleted row, but the publish,
+    /// unpublish and cancel-schedule transitions did not check at all, so a deleted post could be put
+    /// back into the Published state and would then be counted and listed as live.
+    /// </remarks>
+    private const string DeletedPostMessage = "Post is deleted";
+
+    /// <summary>
+    /// Message returned when publication is refused because the post is soft-deleted.
+    /// </summary>
+    /// <remarks>REQ-FN-055 — the publish-side wording of <see cref="DeletedPostMessage"/>.</remarks>
+    private const string DeletedPostPublishMessage = "Post is deleted and cannot be published";
+
     private readonly IBlogPostRepo postRepo;
     private readonly ILogger<BlogSvc> logger;
+    private readonly ICacheService? cacheService;
 
     /// <summary>
     /// Initialises the blog post service.
@@ -59,10 +150,19 @@ public class BlogSvc
     /// </remarks>
     /// <param name="postRepo">Blog post data access.</param>
     /// <param name="logger">Logger for query and persistence failures.</param>
-    public BlogSvc(IBlogPostRepo postRepo, ILogger<BlogSvc> logger)
+    /// <param name="cacheService">
+    /// Listing cache (REQ-NFR-018). Optional: omitting it makes every read go to the database, which
+    /// is what a unit test that is not exercising caching wants. The host always supplies it — it is
+    /// a registered singleton — so the uncached path never runs in the application.
+    /// </param>
+    public BlogSvc(
+        IBlogPostRepo postRepo,
+        ILogger<BlogSvc> logger,
+        ICacheService? cacheService = null)
     {
         this.postRepo = postRepo;
         this.logger = logger;
+        this.cacheService = cacheService;
     }
 
     /// <summary>
@@ -145,7 +245,12 @@ public class BlogSvc
         {
             if (string.IsNullOrWhiteSpace(slug))
                 return null;
-            return postRepo.GetBySlug(slug);
+
+            return ServiceCache.Read(
+                cacheService,
+                ServiceCache.PostBySlugKey(slug),
+                CacheTags.Content,
+                () => postRepo.GetBySlug(slug));
         }
         catch (Exception ex)
         {
@@ -171,7 +276,11 @@ public class BlogSvc
     {
         try
         {
-            return postRepo.GetPublishedPosts(pageSize, offset);
+            return ServiceCache.Read<IEnumerable<BlogPost>>(
+                cacheService,
+                ServiceCache.PublishedPostsKey(pageSize, offset),
+                CacheTags.Content,
+                () => postRepo.GetPublishedPosts(pageSize, offset));
         }
         catch (Exception ex)
         {
@@ -219,7 +328,11 @@ public class BlogSvc
     {
         try
         {
-            return postRepo.GetFeaturedPost();
+            return ServiceCache.Read(
+                cacheService,
+                ServiceCache.FeaturedPostKey,
+                CacheTags.Content,
+                () => postRepo.GetFeaturedPost());
         }
         catch (Exception ex)
         {
@@ -243,7 +356,11 @@ public class BlogSvc
     {
         try
         {
-            return postRepo.GetPublishedPostCount();
+            return ServiceCache.Read(
+                cacheService,
+                ServiceCache.PublishedPostCountKey,
+                CacheTags.Content,
+                () => postRepo.GetPublishedPostCount());
         }
         catch (Exception ex)
         {
@@ -269,7 +386,11 @@ public class BlogSvc
     {
         try
         {
-            return postRepo.GetPostsByCategory(categoryId, pageSize, offset);
+            return ServiceCache.Read<IEnumerable<BlogPost>>(
+                cacheService,
+                ServiceCache.PostsByCategoryKey(categoryId, pageSize, offset),
+                CacheTags.Content,
+                () => postRepo.GetPostsByCategory(categoryId, pageSize, offset));
         }
         catch (Exception ex)
         {
@@ -293,7 +414,11 @@ public class BlogSvc
     {
         try
         {
-            return postRepo.GetPostCountByCategory(categoryId);
+            return ServiceCache.Read(
+                cacheService,
+                ServiceCache.PostCountByCategoryKey(categoryId),
+                CacheTags.Content,
+                () => postRepo.GetPostCountByCategory(categoryId));
         }
         catch (Exception ex)
         {
@@ -337,25 +462,9 @@ public class BlogSvc
         if (string.IsNullOrWhiteSpace(post.PostContent))
             return Result<BlogPost>.Failure("Content is required");
 
-        // Generate slug if not provided
-        if (string.IsNullOrWhiteSpace(post.Slug))
-        {
-            post.Slug = SlugGenerator.GenerateSlug(post.Title);
-        }
-
-        // Handle duplicate slug by appending timestamp
-        if (postRepo.SlugExists(post.Slug))
-        {
-            post.Slug = SlugGenerator.GenerateUniqueSlug(post.Slug, 1);
-            // Keep checking until we find a unique slug
-            int counter = 2;
-            while (postRepo.SlugExists(post.Slug) && counter < 100)
-            {
-                post.Slug = SlugGenerator.GenerateUniqueSlug(
-                    SlugGenerator.GenerateSlug(post.Title), counter);
-                counter++;
-            }
-        }
+        // Derive a guaranteed non-empty base slug, then suffix it until it is free (REQ-FN-054).
+        post.Slug = SlugGenerator.EnsureSlug(post.Slug, post.Title, SlugPrefix);
+        post.Slug = SlugGenerator.ResolveUniqueSlug(post.Slug, candidate => postRepo.SlugExists(candidate));
 
         // Set timestamps
         post.CreatedOn = DateTime.UtcNow;
@@ -364,6 +473,7 @@ public class BlogSvc
         try
         {
             var postId = postRepo.InsertToGetId(post);
+            ServiceCache.InvalidateContent(cacheService);
             post.PostID = postId;
             logger.LogInformation("Created post '{Title}' with ID {PostId}", post.Title, postId);
             return Result<BlogPost>.Success(post);
@@ -371,7 +481,7 @@ public class BlogSvc
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to create post: {Title}", post.Title);
-            return Result<BlogPost>.Failure($"Failed to create post: {ex.Message}");
+            return Result<BlogPost>.Failure(CreateFailureMessage);
         }
     }
 
@@ -384,8 +494,14 @@ public class BlogSvc
     /// updated nothing. Slug collision resolution excludes the row being edited, so re-saving a post
     /// without changing its title does not gratuitously suffix its slug — which matters because the
     /// slug is the public URL and changing it breaks every inbound link.</para>
-    /// <para><b>Flow:</b> validate → confirm existence → derive slug → resolve collisions →
-    /// stamp <c>UpdatedOn</c> → update → wrap in <c>Result</c>.</para>
+    /// <para><b>A soft-deleted row cannot be republished through here (REQ-FN-055).</b> Every publish
+    /// helper that carries a post object — <see cref="PublishPost"/>, <see cref="SavePost"/> and the
+    /// editor's own save — funnels into this method, so the check that the stored row is not deleted
+    /// sits here rather than being repeated in each of them. A deleted post may still be saved as a
+    /// draft, which is what keeps "restore then republish" possible; only the transition <i>into</i>
+    /// the published state is refused.</para>
+    /// <para><b>Flow:</b> validate → confirm existence → refuse publishing a deleted row → derive slug
+    /// → resolve collisions → stamp <c>UpdatedOn</c> → update → wrap in <c>Result</c>.</para>
     /// <para><b>Side Effects:</b> Updates one <c>BlogPost</c> row and mutates
     /// <paramref name="post"/> in place with the resolved slug and timestamp. Writes an information
     /// or error log entry.</para>
@@ -417,24 +533,14 @@ public class BlogSvc
         if (existing == null)
             return Result<BlogPost>.Failure("Post not found");
 
-        // Generate slug if not provided
-        if (string.IsNullOrWhiteSpace(post.Slug))
-        {
-            post.Slug = SlugGenerator.GenerateSlug(post.Title);
-        }
+        // REQ-FN-055: a soft-deleted row may not be transitioned back into the Published state by
+        // any route, and every publish helper on this class ultimately arrives here.
+        if (existing.IsDeleted && post.Published)
+            return Result<BlogPost>.Failure(DeletedPostPublishMessage);
 
-        // Handle duplicate slug (exclude current post)
-        if (postRepo.SlugExists(post.Slug, post.PostID))
-        {
-            post.Slug = SlugGenerator.GenerateUniqueSlug(post.Slug, 1);
-            int counter = 2;
-            while (postRepo.SlugExists(post.Slug, post.PostID) && counter < 100)
-            {
-                post.Slug = SlugGenerator.GenerateUniqueSlug(
-                    SlugGenerator.GenerateSlug(post.Title), counter);
-                counter++;
-            }
-        }
+        // Derive a guaranteed non-empty base slug, then suffix it until it is free (REQ-FN-054).
+        post.Slug = SlugGenerator.EnsureSlug(post.Slug, post.Title, SlugPrefix, post.PostID);
+        post.Slug = SlugGenerator.ResolveUniqueSlug(post.Slug, candidate => postRepo.SlugExists(candidate, post.PostID));
 
         // Set update timestamp
         post.UpdatedOn = DateTime.UtcNow;
@@ -442,13 +548,14 @@ public class BlogSvc
         try
         {
             postRepo.Update(post);
+            ServiceCache.InvalidateContent(cacheService);
             logger.LogInformation("Updated post '{Title}' with ID {PostId}", post.Title, post.PostID);
             return Result<BlogPost>.Success(post);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to update post ID {PostId}: {Title}", post.PostID, post.Title);
-            return Result<BlogPost>.Failure($"Failed to update post: {ex.Message}");
+            return Result<BlogPost>.Failure(UpdateFailureMessage);
         }
     }
 
@@ -516,13 +623,14 @@ public class BlogSvc
         try
         {
             postRepo.SoftDelete(postId);
+            ServiceCache.InvalidateContent(cacheService);
             logger.LogInformation("Deleted post ID {PostId}", postId);
             return Result.Success();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to delete post ID {PostId}", postId);
-            return Result.Failure($"Failed to delete post: {ex.Message}");
+            return Result.Failure(DeleteFailureMessage);
         }
     }
 
@@ -574,6 +682,11 @@ public class BlogSvc
         if (post == null)
             return Result<BlogPost>.Failure("Post cannot be null");
 
+        // REQ-FN-055: refuse before any flag is set, so the caller's object is not left mutated into a
+        // published state that was never persisted. UpdatePost re-checks against the stored row.
+        if (post.IsDeleted)
+            return Result<BlogPost>.Failure(DeletedPostPublishMessage);
+
         post.Published = true;
         post.UpdatedOn = DateTime.UtcNow;
 
@@ -594,13 +707,15 @@ public class BlogSvc
     /// <c>PublishedOn</c>, so the original publication date is available when the post goes back up
     /// (see <see cref="PublishPost"/>). Unpublishing an already-unpublished post is refused rather
     /// than reported as a no-op success.</para>
-    /// <para><b>Flow:</b> validate the id → load → reject if already unpublished → clear the flag →
-    /// update.</para>
+    /// <para><b>Flow:</b> validate the id → load → reject a soft-deleted row → reject if already
+    /// unpublished → clear the flag → update.</para>
     /// <para><b>Side Effects:</b> Updates one row; the post vanishes from every public surface.
     /// Comments and ratings already attached to it are not touched, but become unreachable along
     /// with the page.</para>
-    /// <para><b>Logging gap:</b> unlike its neighbours, the failure path here returns the exception
-    /// message without logging it, so a persistence failure leaves no trace in the log.</para>
+    /// <para><b>Parity with <see cref="UnpublishPostAsync"/> (REQ-FN-055):</b> this method previously
+    /// returned the exception message without logging it, so a persistence failure left no trace while
+    /// its async twin recorded one. Both now log the identical event before returning the identical
+    /// curated message.</para>
     /// </remarks>
     /// <param name="postId">Identifier of the post to unpublish.</param>
     /// <returns>Success, or a failure describing why the change was refused.</returns>
@@ -613,6 +728,11 @@ public class BlogSvc
         if (post == null)
             return Result.Failure("Post not found");
 
+        // REQ-FN-055: checked before the published-state test, because a soft-deleted row keeps
+        // whatever Published flag it had and would otherwise be reported as "already unpublished".
+        if (post.IsDeleted)
+            return Result.Failure(DeletedPostMessage);
+
         if (!post.Published)
             return Result.Failure("Post is already unpublished");
 
@@ -622,11 +742,13 @@ public class BlogSvc
         try
         {
             postRepo.Update(post);
+            ServiceCache.InvalidateContent(cacheService);
             return Result.Success();
         }
         catch (Exception ex)
         {
-            return Result.Failure($"Failed to unpublish post: {ex.Message}");
+            logger.LogError(ex, "Failed to unpublish post ID {PostId}", postId);
+            return Result.Failure(UnpublishFailureMessage);
         }
     }
 
@@ -640,11 +762,15 @@ public class BlogSvc
     /// publication meaningless and leaving it set would have <c>ScheduledPostPublisher</c> act on
     /// the post a second time. As with <see cref="PublishPost"/>, <c>PublishedOn</c> is preserved
     /// when it already has a value.</para>
-    /// <para><b>Flow:</b> validate the id → load → reject if already published → set the flag,
-    /// clear the schedule, stamp the dates → update.</para>
+    /// <para><b>Flow:</b> validate the id → load → reject a soft-deleted row → reject if already
+    /// published → set the flag, clear the schedule, stamp the dates → update.</para>
     /// <para><b>Side Effects:</b> Updates one row; the post becomes publicly visible immediately and
     /// its <c>ScheduledPublishOn</c> is discarded.</para>
-    /// <para><b>Logging gap:</b> the failure path returns the exception message without logging it.</para>
+    /// <para><b>Soft-deleted posts are refused (REQ-FN-055).</b> <c>DeletePost</c> only sets
+    /// <c>IsDeleted</c>; it leaves <c>Published</c> alone. Without this check a deleted draft could be
+    /// pushed live from the admin grid and would then be served to anonymous visitors.</para>
+    /// <para><b>Parity with <see cref="QuickPublishAsync"/> (REQ-FN-055):</b> the failure path now logs
+    /// the same event as its async twin before returning the same curated message.</para>
     /// </remarks>
     /// <param name="postId">Identifier of the post to publish.</param>
     /// <returns>Success, or a failure describing why the publication was refused.</returns>
@@ -656,6 +782,12 @@ public class BlogSvc
         var post = postRepo.GetSingle(postId);
         if (post == null)
             return Result.Failure("Post not found");
+
+        // REQ-FN-055: this is the defect that let a soft-deleted post be put back on the public site
+        // from the admin grid's one-click button. Checked before the already-published test so the
+        // refusal names the real reason.
+        if (post.IsDeleted)
+            return Result.Failure(DeletedPostPublishMessage);
 
         if (post.Published)
             return Result.Failure("Post is already published");
@@ -671,11 +803,13 @@ public class BlogSvc
         try
         {
             postRepo.Update(post);
+            ServiceCache.InvalidateContent(cacheService);
             return Result.Success();
         }
         catch (Exception ex)
         {
-            return Result.Failure($"Failed to publish post: {ex.Message}");
+            logger.LogError(ex, "Failed to publish post ID {PostId}", postId);
+            return Result.Failure(PublishFailureMessage);
         }
     }
 
@@ -771,11 +905,12 @@ public class BlogSvc
     /// <para><b>Business Logic:</b> Clears <c>ScheduledPublishOn</c> only; the post keeps whatever
     /// publication state it had, which for a scheduled post is unpublished. Cancelling a post that
     /// was never scheduled is refused rather than silently succeeding.</para>
-    /// <para><b>Flow:</b> validate the id → load → reject when nothing is scheduled → clear the
-    /// schedule → update.</para>
+    /// <para><b>Flow:</b> validate the id → load → reject a soft-deleted row → reject when nothing is
+    /// scheduled → clear the schedule → update.</para>
     /// <para><b>Side Effects:</b> Updates one row; <c>ScheduledPostPublisher</c> will no longer act
     /// on the post.</para>
-    /// <para><b>Logging gap:</b> the failure path returns the exception message without logging it.</para>
+    /// <para><b>Parity with <see cref="CancelScheduleAsync"/> (REQ-FN-055):</b> the soft-deleted check
+    /// and the failure-path log entry are now identical in both twins.</para>
     /// </remarks>
     /// <param name="postId">Identifier of the post whose schedule should be cancelled.</param>
     /// <returns>Success, or a failure describing why the cancellation was refused.</returns>
@@ -788,6 +923,11 @@ public class BlogSvc
         if (post == null)
             return Result.Failure("Post not found");
 
+        // REQ-FN-055: a soft-deleted post is not a live scheduling target, and clearing its schedule
+        // here would silently resurrect it into the plain-draft state the admin grid lists.
+        if (post.IsDeleted)
+            return Result.Failure(DeletedPostMessage);
+
         if (!post.ScheduledPublishOn.HasValue)
             return Result.Failure("Post is not scheduled");
 
@@ -797,11 +937,13 @@ public class BlogSvc
         try
         {
             postRepo.Update(post);
+            ServiceCache.InvalidateContent(cacheService);
             return Result.Success();
         }
         catch (Exception ex)
         {
-            return Result.Failure($"Failed to cancel schedule: {ex.Message}");
+            logger.LogError(ex, "Failed to cancel schedule for post ID {PostId}", postId);
+            return Result.Failure(CancelScheduleFailureMessage);
         }
     }
 
@@ -940,7 +1082,11 @@ public class BlogSvc
             if (string.IsNullOrWhiteSpace(slug))
                 return null;
 
-            return await postRepo.GetBySlugAsync(slug, cancellationToken).ConfigureAwait(false);
+            return await ServiceCache.ReadAsync(
+                cacheService,
+                ServiceCache.AsyncVariant(ServiceCache.PostBySlugKey(slug)),
+                CacheTags.Content,
+                () => postRepo.GetBySlugAsync(slug, cancellationToken)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -966,7 +1112,11 @@ public class BlogSvc
     {
         try
         {
-            return await postRepo.GetPublishedPostsAsync(pageSize, offset, cancellationToken).ConfigureAwait(false);
+            return await ServiceCache.ReadAsync<IEnumerable<BlogPost>>(
+                cacheService,
+                ServiceCache.AsyncVariant(ServiceCache.PublishedPostsKey(pageSize, offset)),
+                CacheTags.Content,
+                () => postRepo.GetPublishedPostsAsync(pageSize, offset, cancellationToken)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -1014,7 +1164,11 @@ public class BlogSvc
     {
         try
         {
-            return await postRepo.GetFeaturedPostAsync(cancellationToken).ConfigureAwait(false);
+            return await ServiceCache.ReadAsync(
+                cacheService,
+                ServiceCache.AsyncVariant(ServiceCache.FeaturedPostKey),
+                CacheTags.Content,
+                () => postRepo.GetFeaturedPostAsync(cancellationToken)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -1038,7 +1192,11 @@ public class BlogSvc
     {
         try
         {
-            return await postRepo.GetPublishedPostCountAsync(cancellationToken).ConfigureAwait(false);
+            return await ServiceCache.ReadAsync(
+                cacheService,
+                ServiceCache.AsyncVariant(ServiceCache.PublishedPostCountKey),
+                CacheTags.Content,
+                () => postRepo.GetPublishedPostCountAsync(cancellationToken)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -1065,7 +1223,11 @@ public class BlogSvc
     {
         try
         {
-            return await postRepo.GetPostsByCategoryAsync(categoryId, pageSize, offset, cancellationToken).ConfigureAwait(false);
+            return await ServiceCache.ReadAsync<IEnumerable<BlogPost>>(
+                cacheService,
+                ServiceCache.AsyncVariant(ServiceCache.PostsByCategoryKey(categoryId, pageSize, offset)),
+                CacheTags.Content,
+                () => postRepo.GetPostsByCategoryAsync(categoryId, pageSize, offset, cancellationToken)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -1090,7 +1252,11 @@ public class BlogSvc
     {
         try
         {
-            return await postRepo.GetPostCountByCategoryAsync(categoryId, cancellationToken).ConfigureAwait(false);
+            return await ServiceCache.ReadAsync(
+                cacheService,
+                ServiceCache.AsyncVariant(ServiceCache.PostCountByCategoryKey(categoryId)),
+                CacheTags.Content,
+                () => postRepo.GetPostCountByCategoryAsync(categoryId, cancellationToken)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -1126,23 +1292,11 @@ public class BlogSvc
         if (string.IsNullOrWhiteSpace(post.PostContent))
             return Result<BlogPost>.Failure("Content is required");
 
-        if (string.IsNullOrWhiteSpace(post.Slug))
-        {
-            post.Slug = SlugGenerator.GenerateSlug(post.Title);
-        }
-
-        if (await postRepo.SlugExistsAsync(post.Slug, 0, cancellationToken).ConfigureAwait(false))
-        {
-            post.Slug = SlugGenerator.GenerateUniqueSlug(post.Slug, 1);
-            int counter = 2;
-            while (await postRepo.SlugExistsAsync(post.Slug, 0, cancellationToken).ConfigureAwait(false)
-                   && counter < 100)
-            {
-                post.Slug = SlugGenerator.GenerateUniqueSlug(
-                    SlugGenerator.GenerateSlug(post.Title), counter);
-                counter++;
-            }
-        }
+        // Derive a guaranteed non-empty base slug, then suffix it until it is free (REQ-FN-054).
+        post.Slug = SlugGenerator.EnsureSlug(post.Slug, post.Title, SlugPrefix);
+        post.Slug = await SlugGenerator.ResolveUniqueSlugAsync(
+            post.Slug,
+            candidate => postRepo.SlugExistsAsync(candidate, 0, cancellationToken)).ConfigureAwait(false);
 
         post.CreatedOn = DateTime.UtcNow;
         post.IsDeleted = false;
@@ -1150,6 +1304,7 @@ public class BlogSvc
         try
         {
             var postId = await postRepo.InsertToGetIdAsync(post, cancellationToken).ConfigureAwait(false);
+            ServiceCache.InvalidateContent(cacheService);
             post.PostID = postId;
             logger.LogInformation("Created post '{Title}' with ID {PostId}", post.Title, postId);
             return Result<BlogPost>.Success(post);
@@ -1157,7 +1312,7 @@ public class BlogSvc
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to create post: {Title}", post.Title);
-            return Result<BlogPost>.Failure($"Failed to create post: {ex.Message}");
+            return Result<BlogPost>.Failure(CreateFailureMessage);
         }
     }
 
@@ -1193,36 +1348,30 @@ public class BlogSvc
         if (existing == null)
             return Result<BlogPost>.Failure("Post not found");
 
-        if (string.IsNullOrWhiteSpace(post.Slug))
-        {
-            post.Slug = SlugGenerator.GenerateSlug(post.Title);
-        }
+        // REQ-FN-055: identical guard to the synchronous twin — a soft-deleted row may not be
+        // transitioned back into the Published state by any route.
+        if (existing.IsDeleted && post.Published)
+            return Result<BlogPost>.Failure(DeletedPostPublishMessage);
 
-        if (await postRepo.SlugExistsAsync(post.Slug, post.PostID, cancellationToken).ConfigureAwait(false))
-        {
-            post.Slug = SlugGenerator.GenerateUniqueSlug(post.Slug, 1);
-            int counter = 2;
-            while (await postRepo.SlugExistsAsync(post.Slug, post.PostID, cancellationToken).ConfigureAwait(false)
-                   && counter < 100)
-            {
-                post.Slug = SlugGenerator.GenerateUniqueSlug(
-                    SlugGenerator.GenerateSlug(post.Title), counter);
-                counter++;
-            }
-        }
+        // Derive a guaranteed non-empty base slug, then suffix it until it is free (REQ-FN-054).
+        post.Slug = SlugGenerator.EnsureSlug(post.Slug, post.Title, SlugPrefix, post.PostID);
+        post.Slug = await SlugGenerator.ResolveUniqueSlugAsync(
+            post.Slug,
+            candidate => postRepo.SlugExistsAsync(candidate, post.PostID, cancellationToken)).ConfigureAwait(false);
 
         post.UpdatedOn = DateTime.UtcNow;
 
         try
         {
             await postRepo.UpdateAsync(post, cancellationToken).ConfigureAwait(false);
+            ServiceCache.InvalidateContent(cacheService);
             logger.LogInformation("Updated post '{Title}' with ID {PostId}", post.Title, post.PostID);
             return Result<BlogPost>.Success(post);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to update post ID {PostId}: {Title}", post.PostID, post.Title);
-            return Result<BlogPost>.Failure($"Failed to update post: {ex.Message}");
+            return Result<BlogPost>.Failure(UpdateFailureMessage);
         }
     }
 
@@ -1276,13 +1425,14 @@ public class BlogSvc
         try
         {
             await postRepo.SoftDeleteAsync(postId, cancellationToken).ConfigureAwait(false);
+            ServiceCache.InvalidateContent(cacheService);
             logger.LogInformation("Deleted post ID {PostId}", postId);
             return Result.Success();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to delete post ID {PostId}", postId);
-            return Result.Failure($"Failed to delete post: {ex.Message}");
+            return Result.Failure(DeleteFailureMessage);
         }
     }
 
@@ -1329,6 +1479,10 @@ public class BlogSvc
         if (post == null)
             return Task.FromResult(Result<BlogPost>.Failure("Post cannot be null"));
 
+        // REQ-FN-055: identical guard to the synchronous twin.
+        if (post.IsDeleted)
+            return Task.FromResult(Result<BlogPost>.Failure(DeletedPostPublishMessage));
+
         post.Published = true;
         post.UpdatedOn = DateTime.UtcNow;
 
@@ -1362,6 +1516,10 @@ public class BlogSvc
         if (post == null)
             return Result.Failure("Post not found");
 
+        // REQ-FN-055: identical guard and ordering to the synchronous twin.
+        if (post.IsDeleted)
+            return Result.Failure(DeletedPostMessage);
+
         if (!post.Published)
             return Result.Failure("Post is already unpublished");
 
@@ -1371,12 +1529,13 @@ public class BlogSvc
         try
         {
             await postRepo.UpdateAsync(post, cancellationToken).ConfigureAwait(false);
+            ServiceCache.InvalidateContent(cacheService);
             return Result.Success();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to unpublish post ID {PostId}", postId);
-            return Result.Failure($"Failed to unpublish post: {ex.Message}");
+            return Result.Failure(UnpublishFailureMessage);
         }
     }
 
@@ -1403,6 +1562,10 @@ public class BlogSvc
         if (post == null)
             return Result.Failure("Post not found");
 
+        // REQ-FN-055: identical guard and ordering to the synchronous twin.
+        if (post.IsDeleted)
+            return Result.Failure(DeletedPostPublishMessage);
+
         if (post.Published)
             return Result.Failure("Post is already published");
 
@@ -1417,12 +1580,13 @@ public class BlogSvc
         try
         {
             await postRepo.UpdateAsync(post, cancellationToken).ConfigureAwait(false);
+            ServiceCache.InvalidateContent(cacheService);
             return Result.Success();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to publish post ID {PostId}", postId);
-            return Result.Failure($"Failed to publish post: {ex.Message}");
+            return Result.Failure(PublishFailureMessage);
         }
     }
 
@@ -1529,6 +1693,10 @@ public class BlogSvc
         if (post == null)
             return Result.Failure("Post not found");
 
+        // REQ-FN-055: identical guard and ordering to the synchronous twin.
+        if (post.IsDeleted)
+            return Result.Failure(DeletedPostMessage);
+
         if (!post.ScheduledPublishOn.HasValue)
             return Result.Failure("Post is not scheduled");
 
@@ -1538,12 +1706,13 @@ public class BlogSvc
         try
         {
             await postRepo.UpdateAsync(post, cancellationToken).ConfigureAwait(false);
+            ServiceCache.InvalidateContent(cacheService);
             return Result.Success();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to cancel schedule for post ID {PostId}", postId);
-            return Result.Failure($"Failed to cancel schedule: {ex.Message}");
+            return Result.Failure(CancelScheduleFailureMessage);
         }
     }
 

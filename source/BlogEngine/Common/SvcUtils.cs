@@ -2,7 +2,7 @@ using BlogModels;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
-namespace BlogSvc;
+namespace BlogEngine.Common;
 
 /// <summary>
 /// Reads claims out of an already-issued access token. <b>It decodes; it does not validate.</b>
@@ -49,10 +49,12 @@ namespace BlogSvc;
 /// <para><b>Usage:</b> Static helper called only from <c>AuthSvc</c>. Never call it on a token
 /// that has not been, or will not immediately be, matched against <c>UserLogin</c>.</para>
 ///
-/// <para><b>Namespace note:</b> this type lives in <c>BlogSvc</c> rather than
-/// <c>BlogEngine.Common</c> like the rest of the folder — a legacy of the original service
-/// assembly. Correcting it would ripple into every consumer's <c>using</c> list, so it is recorded
-/// here rather than changed under a documentation pass.</para>
+/// <para><b>Namespace note (REQ-NFR-032, closed 2026-08-10):</b> this type used to declare
+/// <c>namespace BlogSvc</c> — a legacy of the original service assembly — which <b>shadowed the
+/// <c>BlogEngine.Services.BlogSvc</c> type</b>: any file that imported both saw the simple name
+/// <c>BlogSvc</c> bind to the namespace, so the post service had to be written fully qualified.
+/// It now lives in <c>BlogEngine.Common</c> with the rest of the folder and the collision is gone.
+/// Do not reintroduce a namespace whose name matches a type in this assembly.</para>
 /// </remarks>
 public static class SvcUtils
 {

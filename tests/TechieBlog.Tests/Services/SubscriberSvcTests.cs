@@ -141,8 +141,16 @@ public class SubscriberSvcTests
 
     /// <summary>
     /// Re-subscribing an address that had previously unsubscribed reactivates the
-    /// existing row instead of inserting a new one.
+    /// existing row instead of inserting a new one, recording the re-consent and
+    /// issuing a fresh unsubscribe token.
     /// </summary>
+    /// <remarks>
+    /// [REQ-FN-059] This assertion used to demand a bare <c>UpdateStatus(id, true)</c>, which is
+    /// what the blocking overload did while <c>SubscribeAsync</c> already went through
+    /// <c>RecordConsentAsync</c>. The two overloads therefore wrote different consent records for
+    /// the same reactivation, and the blocking one left the subscriber holding the burned token
+    /// that had removed them. The async behaviour is the correct one and both now share it.
+    /// </remarks>
     [Fact]
     public void SubscribeReactivatesLapsedSubscriber()
     {
@@ -152,10 +160,16 @@ public class SubscriberSvcTests
             .Returns(new Subscriber { SubscriberId = 9, Email = "back@example.com", IsActive = false });
 
         // Act
-        service.Subscribe("back@example.com");
+        var result = service.Subscribe("back@example.com");
 
         // Assert
-        subscriberRepo.Received(1).UpdateStatus(9L, true);
+        subscriberRepo.Received(1).RecordConsent(9L, Arg.Is<string>(token => token.Length == 64));
+        subscriberRepo.DidNotReceive().UpdateStatus(9L, true);
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Data.IsConfirmed);
+        Assert.NotNull(result.Data.ConfirmedOn);
+        Assert.Null(result.Data.UnsubscribeTokenUsedOn);
+        Assert.Equal(64, result.Data.UnsubscribeToken.Length);
     }
 
     /// <summary>

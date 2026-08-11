@@ -57,6 +57,7 @@ public class EmailVerificationSvc : IEmailVerificationService
     private readonly IConfiguration configuration;
     private readonly ISiteSettingsService siteSettingsService;
     private readonly ILogger<EmailVerificationSvc> logger;
+    private readonly ICacheService? cacheService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EmailVerificationSvc"/> class.
@@ -70,6 +71,11 @@ public class EmailVerificationSvc : IEmailVerificationService
     /// <param name="configuration">Supplies the public base URL.</param>
     /// <param name="siteSettingsService">Supplies the comment-moderation site setting [BRD-38].</param>
     /// <param name="logger">Logger for security events.</param>
+    /// <param name="cacheService">
+    /// Content cache (REQ-NFR-018). Confirming a rating changes the public rating aggregates, which
+    /// count verified rows only, so this class owns that invalidation. Optional — omitting it simply
+    /// leaves nothing to invalidate.
+    /// </param>
     public EmailVerificationSvc(
         IEmailVerificationTokenRepo tokenRepo,
         IVerifiedEmailRepo verifiedEmailRepo,
@@ -79,7 +85,8 @@ public class EmailVerificationSvc : IEmailVerificationService
         IVerificationEmailSender emailSender,
         IConfiguration configuration,
         ISiteSettingsService siteSettingsService,
-        ILogger<EmailVerificationSvc> logger)
+        ILogger<EmailVerificationSvc> logger,
+        ICacheService? cacheService = null)
     {
         this.tokenRepo = tokenRepo;
         this.verifiedEmailRepo = verifiedEmailRepo;
@@ -90,6 +97,7 @@ public class EmailVerificationSvc : IEmailVerificationService
         this.configuration = configuration;
         this.siteSettingsService = siteSettingsService;
         this.logger = logger;
+        this.cacheService = cacheService;
     }
 
     /// <summary>
@@ -293,6 +301,12 @@ public class EmailVerificationSvc : IEmailVerificationService
         if (string.Equals(consumed.Purpose, EmailVerificationPurpose.Rating, StringComparison.OrdinalIgnoreCase))
         {
             await postRatingRepo.MarkEmailVerifiedAsync(targetId).ConfigureAwait(false);
+
+            // REQ-NFR-018: the public average and count are computed over verified ratings only, so
+            // this promotion changes them. The token carries the rating id, not the post id, so the
+            // per-post keys cannot be dropped by name here — the content tag is evicted instead.
+            // Coarse, but a rating is confirmed a handful of times a day at most.
+            cacheService?.EvictTag(CacheTags.Content);
             return;
         }
 

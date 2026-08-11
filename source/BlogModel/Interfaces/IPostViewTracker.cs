@@ -46,12 +46,25 @@ public interface IPostViewTracker
     /// outcome and analytics must never break a page.</para>
     /// <para><b>Flow:</b> resolve the ambient request → no request means nothing to count → read the
     /// address and user-agent → delegate to <see cref="TrackViewAsync"/>.</para>
-    /// <para><b>Side Effects:</b> May write one row to <c>PostViews</c>. Never throws.</para>
+    /// <para><b>[REQ-NFR-034] This call performs no I/O and does not wait for the write.</b> It
+    /// captures the visitor from the ambient request — which is the only moment that information
+    /// exists — and hands the view to a background writer. A page render therefore never blocks on
+    /// an analytics INSERT. Two things follow for a caller:</para>
+    /// <list type="bullet">
+    ///   <item>The returned flag means "accepted for recording", not "written". The row appears
+    ///     shortly afterwards; whether it was a new view or a de-duplicated one is decided by the
+    ///     writer and reported only to the log.</item>
+    ///   <item>View counts read immediately after this call do not include this visit. A byline
+    ///     showing the figure as it stood when the reader arrived is the intended behaviour.</item>
+    /// </list>
+    /// <para>Use <see cref="TrackViewAsync"/> instead when the caller genuinely needs to know the
+    /// outcome and already holds the visitor's details.</para>
+    /// <para><b>Side Effects:</b> Queues at most one view for writing. Never throws.</para>
     /// </remarks>
     /// <param name="postId">The post being viewed; must be greater than zero.</param>
-    /// <returns>Success carrying true when a new view row was written, false when de-duplicated or
-    /// when there was no ambient request to attribute the view to; failure when the write could not
-    /// be attempted.</returns>
+    /// <returns>Success carrying true when the view was accepted for recording, false when there was
+    /// no ambient request to attribute it to or the queue was saturated; failure when the post id is
+    /// invalid.</returns>
     Task<Result<bool>> TrackCurrentVisitAsync(long postId);
 
     /// <summary>

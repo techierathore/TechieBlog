@@ -37,7 +37,7 @@ partial class ManageCategory : ComponentBase
         if (PageId > 0)
         {
             PageHeader = "Edit Category";
-            PageObj = CategoryService.GetCategory(PageId);
+            PageObj = await CategoryService.GetCategoryAsync(PageId);
             if (PageObj == null)
             {
                 StatusMessage = "Category not found.";
@@ -62,7 +62,8 @@ partial class ManageCategory : ComponentBase
     }
 
     /// <summary>Validates and persists the category, then returns to the category list.</summary>
-    public void SaveData()
+    /// <returns>A task that completes when the category has been saved.</returns>
+    public async Task SaveDataAsync()
     {
         if (PageObj == null) return;
 
@@ -73,7 +74,7 @@ partial class ManageCategory : ComponentBase
             return;
         }
 
-        var result = CategoryService.SaveCategory(PageObj);
+        var result = await CategoryService.SaveCategoryAsync(PageObj);
 
         if (result.IsSuccess)
         {

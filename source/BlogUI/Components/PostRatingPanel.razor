@@ -171,7 +171,8 @@
     /// <para><b>Flow:</b> compare the post id, reload, reset the visitor's own state.</para>
     /// <para><b>Side Effects:</b> Replaces the cached statistics.</para>
     /// </remarks>
-    protected override void OnParametersSet()
+    /// <returns>A task that completes when the figures for the new post have been read.</returns>
+    protected override async Task OnParametersSetAsync()
     {
         if (PostId <= 0 || PostId == loadedPostId)
             return;
@@ -180,7 +181,7 @@
         selectedRating = 0;
         isIdentifyStepVisible = false;
         statusMessage = null;
-        LoadStats();
+        await LoadStatsAsync();
     }
 
     /// <summary>
@@ -193,11 +194,15 @@
     /// star always raises <c>ValueChanged</c> and always reveals the identify step. The service
     /// already swallows data-access errors into zeroed figures, because a broken rating widget
     /// must never take the article down with it.</para>
+    /// <para><b>[REQ-NFR-026] stage 3:</b> the async twin is awaited rather than the blocking
+    /// member being called. This panel sits on the public article route, and the twin reads
+    /// through the same <c>CacheTags.Content</c> entry family its synchronous original does.</para>
     /// <para><b>Side Effects:</b> Replaces <c>stats</c>.</para>
     /// </remarks>
-    private void LoadStats()
+    /// <returns>A task that completes when the figures have been read.</returns>
+    private async Task LoadStatsAsync()
     {
-        stats = RatingService.GetPostRatingStats(PostId) ?? new BlogModels.PostRatingStats();
+        stats = await RatingService.GetPostRatingStatsAsync(PostId) ?? new BlogModels.PostRatingStats();
     }
 
     /// <summary>
@@ -249,7 +254,7 @@
             return;
         }
 
-        ShowSuccess(result.Data?.Message);
+        await ShowSuccessAsync(result.Data?.Message);
     }
 
     /// <summary>
@@ -310,7 +315,8 @@
     /// <para><b>Side Effects:</b> Reloads the statistics, issues a new captcha challenge.</para>
     /// </remarks>
     /// <param name="message">The outcome message from the service.</param>
-    private void ShowSuccess(string message)
+    /// <returns>A task that completes when the refreshed figures have been read.</returns>
+    private async Task ShowSuccessAsync(string message)
     {
         isStatusError = false;
         statusMessage = string.IsNullOrWhiteSpace(message) ? "Thank you for rating this post." : message;
@@ -318,7 +324,7 @@
         // Back to empty stars, so a visitor who changes their mind can pick the SAME score
         // again and still raise ValueChanged.
         selectedRating = 0;
-        LoadStats();
+        await LoadStatsAsync();
     }
 
     /// <summary>

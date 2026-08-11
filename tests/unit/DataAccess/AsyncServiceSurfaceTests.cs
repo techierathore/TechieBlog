@@ -114,6 +114,25 @@ public class AsyncServiceSurfaceTests
 
         Add(typeof(SitemapSvc), "GenerateSitemapAsync");
 
+        // The last seven blocking Blazor call sites, closed on 2026-08-10. CommentSvc and RatingSvc
+        // are NOT listed in ConvertedServices below: their pre-existing async members
+        // (SubmitRatingAsync, RejectCommentAsync, the bulk moderation members …) predate this
+        // requirement and take no CancellationToken, so the whole-surface gate would fail on members
+        // this stage did not touch. The twins added here do carry one, which
+        // EveryNewTwinFlowsACancellationToken asserts directly.
+        Add(
+            typeof(CommentSvc),
+            "GetCommentsByPostIdAsync",
+            "GetAllCommentsAsync",
+            "ApproveCommentAsync",
+            "DeleteCommentAsync");
+
+        Add(
+            typeof(RatingSvc),
+            "GetPostRatingStatsAsync",
+            "GetAverageRatingAsync",
+            "GetRatingCountAsync");
+
         return data;
     }
 
@@ -180,6 +199,67 @@ public class AsyncServiceSurfaceTests
         Assert.True(
             offenders.Count == 0,
             $"{serviceType.Name} async members without a trailing CancellationToken: {string.Join(", ", offenders)}");
+    }
+
+    /// <summary>
+    /// The twins added on 2026-08-10 to close the last seven blocking Blazor call sites, paired
+    /// with the service that must expose each with a trailing cancellation token.
+    /// </summary>
+    public static TheoryData<Type, string> NewlyAddedTwins()
+    {
+        var data = new TheoryData<Type, string>();
+
+        foreach (var memberName in new[]
+                 {
+                     "GetCommentsByPostIdAsync", "GetAllCommentsAsync",
+                     "ApproveCommentAsync", "DeleteCommentAsync"
+                 })
+        {
+            data.Add(typeof(CommentSvc), memberName);
+        }
+
+        foreach (var memberName in new[]
+                 {
+                     "GetPostRatingStatsAsync", "GetAverageRatingAsync", "GetRatingCountAsync"
+                 })
+        {
+            data.Add(typeof(RatingSvc), memberName);
+        }
+
+        return data;
+    }
+
+    /// <summary>
+    /// Every twin added in this pass takes a cancellation token last.
+    /// </summary>
+    /// <remarks>
+    /// <c>CommentSvc</c> and <c>RatingSvc</c> cannot go through
+    /// <see cref="EveryAsyncMemberFlowsACancellationToken"/> yet, because both carry older async
+    /// members that predate the requirement and take no token — gating the whole surface would fail
+    /// on code this stage was told not to touch. Gating the new members individually keeps the
+    /// contract enforceable without pretending the rest of the surface is converted.
+    /// </remarks>
+    /// <param name="serviceType">The service under test.</param>
+    /// <param name="memberName">The twin that must flow a token.</param>
+    [Theory]
+    [MemberData(nameof(NewlyAddedTwins))]
+    public void EveryNewTwinFlowsACancellationToken(Type serviceType, string memberName)
+    {
+        var method = serviceType
+            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .SingleOrDefault(candidate => candidate.Name == memberName);
+
+        Assert.True(method is not null, $"{serviceType.Name} is missing the async member {memberName}");
+
+        var parameters = method!.GetParameters();
+
+        Assert.True(
+            parameters.Length > 0 && parameters[^1].ParameterType == typeof(CancellationToken),
+            $"{serviceType.Name}.{memberName} does not take a CancellationToken as its last parameter, so cancellation stops at the service boundary — the exact gap this stage exists to close.");
+
+        Assert.True(
+            parameters[^1].HasDefaultValue,
+            $"{serviceType.Name}.{memberName} requires an explicit CancellationToken, which every Blazor call site would have to invent. Give it a default.");
     }
 
     /// <summary>

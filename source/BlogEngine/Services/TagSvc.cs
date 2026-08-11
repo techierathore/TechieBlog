@@ -1,5 +1,6 @@
 using BlogEngine.Common;
 using BlogModels;
+using BlogModels.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace BlogEngine.Services;
@@ -37,8 +38,14 @@ namespace BlogEngine.Services;
 ///
 /// <para><b>Error contract:</b> reads swallow and log, returning an empty sequence or null, because
 /// a taxonomy failure must degrade a sidebar rather than break a post page. Mutations return
-/// <c>Result</c>; note that they surface <c>ex.Message</c> in the failure text, which is acceptable
-/// for an admin-only screen but should not be echoed to an anonymous visitor.</para>
+/// <c>Result</c> carrying one of the curated constants below.</para>
+///
+/// <para><b>Exception text never reaches the caller (REQ-NFR-031).</b> These messages used to
+/// interpolate <c>ex.Message</c>, which was defended as acceptable for an admin-only screen — but
+/// nothing in this class enforces that gating, so the disclosure would have gone live the moment a
+/// mutation was reached from an anonymous surface. The exception now stays in the log, where the
+/// host's <c>CorrelationIdMiddleware</c> has already attached the request's correlation id to every
+/// event (REQ-NFR-015), and the caller sees only the curated sentence.</para>
 ///
 /// <para><b>Dependencies:</b> <see cref="IBlogTagRepo"/> for data access, <c>SlugGenerator</c> for
 /// URL slugs, <see cref="ILogger{TCategoryName}"/> for diagnostics.</para>
@@ -49,11 +56,18 @@ namespace BlogEngine.Services;
 /// <see cref="GetOrCreateTag"/> and <see cref="SetTagsForPost"/>). This class enforces <b>no</b>
 /// policy itself — the calling page owns that check.</para>
 ///
-/// <para><b>Caching note:</b> the taxonomy is a declared cache group
-/// (<c>CacheTags.Taxonomy</c>), but no mutation here evicts it, because nothing currently caches
-/// through <c>ICacheService</c> on this path. If a caller starts caching tag reads, the eviction
-/// call belongs in <see cref="CreateTag"/>, <see cref="UpdateTag"/> and
-/// <see cref="DeleteTag"/>.</para>
+/// <para><b>Caching (REQ-NFR-018).</b> The tag-cloud reads — <see cref="GetAllTags"/>,
+/// <see cref="GetAllWithCounts"/> and <see cref="GetTagBySlug"/>, with their asynchronous twins — go
+/// through <see cref="ICacheService"/> under <c>CacheTags.Taxonomy</c>, because the sidebar asks for
+/// them on virtually every public render while the vocabulary changes a few times a month. Every
+/// mutation evicts that tag: <see cref="CreateTag"/>, <see cref="UpdateTag"/>,
+/// <see cref="DeleteTag"/> and <see cref="GetOrCreateTag"/> (which inserts) call
+/// <see cref="ServiceCache.InvalidateTaxonomy"/>, while <see cref="SetTagsForPost"/> calls
+/// <see cref="ServiceCache.InvalidateContent"/> — re-tagging a post changes which posts a tag lists
+/// as well as every tag's count, so it is a content change, not merely a taxonomy one. <b>Each of
+/// those has an asynchronous twin that must evict identically</b>, or the two paths will disagree.
+/// <see cref="SearchTags"/> is deliberately <i>not</i> cached: its key space is whatever the author
+/// types.</para>
 ///
 /// <para><b>Async conversion (REQ-NFR-026, stage 3):</b> every public member now exists twice — the
 /// original blocking member and an <c>…Async</c> twin carrying a <see cref="CancellationToken"/>,
@@ -68,18 +82,46 @@ namespace BlogEngine.Services;
 /// </remarks>
 public class TagSvc
 {
+    /// <summary>
+    /// Prefix used to build an identifier-based slug when a tag name yields no slug at all.
+    /// </summary>
+    /// <remarks>
+    /// Feeds <c>SlugGenerator.EnsureSlug</c>, which turns it into <c>tag-9</c> for a tag that already
+    /// has an id, or the deterministic <c>tag-{name digest}</c> for one being inserted. Determinism
+    /// matters most here: <see cref="GetOrCreateTag"/> matches on the slug, so a non-Latin tag name
+    /// has to resolve to the same address every time or the editor would mint a duplicate row on
+    /// every save (REQ-FN-054).
+    /// </remarks>
+    private const string SlugPrefix = "tag";
+
+    /// <summary>Curated message for an insert that could not be persisted (REQ-NFR-031).</summary>
+    private const string CreateFailureMessage = "Failed to create tag. Please try again later.";
+
+    /// <summary>Curated message for an update that could not be persisted (REQ-NFR-031).</summary>
+    private const string UpdateFailureMessage = "Failed to update tag. Please try again later.";
+
+    /// <summary>Curated message for a delete that could not be persisted (REQ-NFR-031).</summary>
+    private const string DeleteFailureMessage = "Failed to delete tag. Please try again later.";
+
     private readonly IBlogTagRepo tagRepo;
     private readonly ILogger<TagSvc> logger;
+    private readonly ICacheService? cacheService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TagSvc"/> class.
     /// </summary>
     /// <param name="tagRepo">Tag data access.</param>
     /// <param name="logger">Logger for taxonomy changes and read failures.</param>
-    public TagSvc(IBlogTagRepo tagRepo, ILogger<TagSvc> logger)
+    /// <param name="cacheService">
+    /// Taxonomy cache (REQ-NFR-018). Optional: omitting it makes every read go to the database, which
+    /// is what a unit test that is not exercising caching wants. The host always supplies it — it is
+    /// a registered singleton — so the uncached path never runs in the application.
+    /// </param>
+    public TagSvc(IBlogTagRepo tagRepo, ILogger<TagSvc> logger, ICacheService? cacheService = null)
     {
         this.tagRepo = tagRepo;
         this.logger = logger;
+        this.cacheService = cacheService;
     }
 
     /// <summary>
@@ -96,7 +138,11 @@ public class TagSvc
     {
         try
         {
-            return tagRepo.GetAll();
+            return ServiceCache.Read<IEnumerable<BlogTag>>(
+                cacheService,
+                ServiceCache.TagsAllKey,
+                CacheTags.Taxonomy,
+                () => tagRepo.GetAll());
         }
         catch (Exception ex)
         {
@@ -123,7 +169,11 @@ public class TagSvc
     {
         try
         {
-            return await tagRepo.GetAllAsync(cancellationToken).ConfigureAwait(false);
+            return await ServiceCache.ReadAsync<IEnumerable<BlogTag>>(
+                cacheService,
+                ServiceCache.AsyncVariant(ServiceCache.TagsAllKey),
+                CacheTags.Taxonomy,
+                () => tagRepo.GetAllAsync(cancellationToken)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -147,7 +197,11 @@ public class TagSvc
     {
         try
         {
-            return tagRepo.GetAllWithCounts();
+            return ServiceCache.Read<IEnumerable<BlogTag>>(
+                cacheService,
+                ServiceCache.TagsWithCountsKey,
+                CacheTags.Taxonomy,
+                () => tagRepo.GetAllWithCounts());
         }
         catch (Exception ex)
         {
@@ -174,7 +228,11 @@ public class TagSvc
     {
         try
         {
-            return await tagRepo.GetAllWithCountsAsync(cancellationToken).ConfigureAwait(false);
+            return await ServiceCache.ReadAsync<IEnumerable<BlogTag>>(
+                cacheService,
+                ServiceCache.AsyncVariant(ServiceCache.TagsWithCountsKey),
+                CacheTags.Taxonomy,
+                () => tagRepo.GetAllWithCountsAsync(cancellationToken)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -252,7 +310,12 @@ public class TagSvc
         {
             if (string.IsNullOrWhiteSpace(slug))
                 return null;
-            return tagRepo.GetBySlug(slug);
+
+            return ServiceCache.Read(
+                cacheService,
+                ServiceCache.TagBySlugKey(slug),
+                CacheTags.Taxonomy,
+                () => tagRepo.GetBySlug(slug));
         }
         catch (Exception ex)
         {
@@ -285,7 +348,11 @@ public class TagSvc
             if (string.IsNullOrWhiteSpace(slug))
                 return null;
 
-            return await tagRepo.GetBySlugAsync(slug, cancellationToken).ConfigureAwait(false);
+            return await ServiceCache.ReadAsync(
+                cacheService,
+                ServiceCache.AsyncVariant(ServiceCache.TagBySlugKey(slug)),
+                CacheTags.Taxonomy,
+                () => tagRepo.GetBySlugAsync(slug, cancellationToken)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -384,7 +451,10 @@ public class TagSvc
         if (string.IsNullOrWhiteSpace(tagName))
             return null;
 
-        var slug = SlugGenerator.GenerateSlug(tagName.Trim());
+        // REQ-FN-054: EnsureSlug never returns an empty string, so a tag whose name is written in a
+        // non-Latin script gets a deterministic tag-{digest} address instead of being inserted with no
+        // slug at all — and, being deterministic, the same name still matches the same existing row.
+        var slug = SlugGenerator.EnsureSlug(null, tagName.Trim(), SlugPrefix);
         var existing = tagRepo.GetBySlug(slug);
         if (existing != null)
             return existing;
@@ -395,6 +465,7 @@ public class TagSvc
             Slug = slug
         };
         tag.TagId = tagRepo.InsertToGetId(tag);
+        ServiceCache.InvalidateTaxonomy(cacheService);
         return tag;
     }
 
@@ -431,7 +502,8 @@ public class TagSvc
         if (string.IsNullOrWhiteSpace(tagName))
             return null;
 
-        var slug = SlugGenerator.GenerateSlug(tagName.Trim());
+        // REQ-FN-054: see the synchronous twin — a deterministic, never-empty slug.
+        var slug = SlugGenerator.EnsureSlug(null, tagName.Trim(), SlugPrefix);
         var existing = await tagRepo.GetBySlugAsync(slug, cancellationToken).ConfigureAwait(false);
         if (existing != null)
             return existing;
@@ -442,6 +514,7 @@ public class TagSvc
             Slug = slug
         };
         tag.TagId = await tagRepo.InsertToGetIdAsync(tag, cancellationToken).ConfigureAwait(false);
+        ServiceCache.InvalidateTaxonomy(cacheService);
         return tag;
     }
 
@@ -469,28 +542,14 @@ public class TagSvc
         if (string.IsNullOrWhiteSpace(tag.TagName))
             return Result<BlogTag>.Failure("Tag name is required");
 
-        // Generate slug if not provided
-        if (string.IsNullOrWhiteSpace(tag.Slug))
-        {
-            tag.Slug = SlugGenerator.GenerateSlug(tag.TagName);
-        }
-
-        // Check for duplicate slug
-        if (tagRepo.SlugExists(tag.Slug))
-        {
-            tag.Slug = SlugGenerator.GenerateUniqueSlug(tag.Slug, 1);
-            int counter = 2;
-            while (tagRepo.SlugExists(tag.Slug) && counter < 100)
-            {
-                tag.Slug = SlugGenerator.GenerateUniqueSlug(
-                    SlugGenerator.GenerateSlug(tag.TagName), counter);
-                counter++;
-            }
-        }
+        // Derive a guaranteed non-empty base slug, then suffix it until it is free (REQ-FN-054).
+        tag.Slug = SlugGenerator.EnsureSlug(tag.Slug, tag.TagName, SlugPrefix);
+        tag.Slug = SlugGenerator.ResolveUniqueSlug(tag.Slug, candidate => tagRepo.SlugExists(candidate));
 
         try
         {
             var tagId = tagRepo.InsertToGetId(tag);
+            ServiceCache.InvalidateTaxonomy(cacheService);
             tag.TagId = tagId;
             logger.LogInformation("Created tag '{TagName}' with ID {TagId}", tag.TagName, tagId);
             return Result<BlogTag>.Success(tag);
@@ -498,7 +557,7 @@ public class TagSvc
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to create tag: {TagName}", tag.TagName);
-            return Result<BlogTag>.Failure($"Failed to create tag: {ex.Message}");
+            return Result<BlogTag>.Failure(CreateFailureMessage);
         }
     }
 
@@ -535,37 +594,24 @@ public class TagSvc
         if (string.IsNullOrWhiteSpace(tag.TagName))
             return Result<BlogTag>.Failure("Tag name is required");
 
-        // Generate slug if not provided
-        if (string.IsNullOrWhiteSpace(tag.Slug))
-        {
-            tag.Slug = SlugGenerator.GenerateSlug(tag.TagName);
-        }
-
-        // Check for duplicate slug
-        if (await tagRepo.SlugExistsAsync(tag.Slug, 0, cancellationToken).ConfigureAwait(false))
-        {
-            tag.Slug = SlugGenerator.GenerateUniqueSlug(tag.Slug, 1);
-            int counter = 2;
-            while (await tagRepo.SlugExistsAsync(tag.Slug, 0, cancellationToken).ConfigureAwait(false)
-                   && counter < 100)
-            {
-                tag.Slug = SlugGenerator.GenerateUniqueSlug(
-                    SlugGenerator.GenerateSlug(tag.TagName), counter);
-                counter++;
-            }
-        }
+        // Derive a guaranteed non-empty base slug, then suffix it until it is free (REQ-FN-054).
+        tag.Slug = SlugGenerator.EnsureSlug(tag.Slug, tag.TagName, SlugPrefix);
+        tag.Slug = await SlugGenerator.ResolveUniqueSlugAsync(
+            tag.Slug,
+            candidate => tagRepo.SlugExistsAsync(candidate, 0, cancellationToken)).ConfigureAwait(false);
 
         try
         {
             var tagId = await tagRepo.InsertToGetIdAsync(tag, cancellationToken).ConfigureAwait(false);
             tag.TagId = tagId;
+            ServiceCache.InvalidateTaxonomy(cacheService);
             logger.LogInformation("Created tag '{TagName}' with ID {TagId}", tag.TagName, tagId);
             return Result<BlogTag>.Success(tag);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to create tag: {TagName}", tag.TagName);
-            return Result<BlogTag>.Failure($"Failed to create tag: {ex.Message}");
+            return Result<BlogTag>.Failure(CreateFailureMessage);
         }
     }
 
@@ -602,35 +648,23 @@ public class TagSvc
         if (existing == null)
             return Result<BlogTag>.Failure("Tag not found");
 
-        // Generate slug if not provided
-        if (string.IsNullOrWhiteSpace(tag.Slug))
-        {
-            tag.Slug = SlugGenerator.GenerateSlug(tag.TagName);
-        }
-
-        // Check for duplicate slug (exclude current tag)
-        if (tagRepo.SlugExists(tag.Slug, tag.TagId))
-        {
-            tag.Slug = SlugGenerator.GenerateUniqueSlug(tag.Slug, 1);
-            int counter = 2;
-            while (tagRepo.SlugExists(tag.Slug, tag.TagId) && counter < 100)
-            {
-                tag.Slug = SlugGenerator.GenerateUniqueSlug(
-                    SlugGenerator.GenerateSlug(tag.TagName), counter);
-                counter++;
-            }
-        }
+        // Derive a guaranteed non-empty base slug, then suffix it until it is free (REQ-FN-054).
+        tag.Slug = SlugGenerator.EnsureSlug(tag.Slug, tag.TagName, SlugPrefix, tag.TagId);
+        tag.Slug = SlugGenerator.ResolveUniqueSlug(
+            tag.Slug,
+            candidate => tagRepo.SlugExists(candidate, tag.TagId));
 
         try
         {
             tagRepo.Update(tag);
+            ServiceCache.InvalidateTaxonomy(cacheService);
             logger.LogInformation("Updated tag '{TagName}' with ID {TagId}", tag.TagName, tag.TagId);
             return Result<BlogTag>.Success(tag);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to update tag ID {TagId}: {TagName}", tag.TagId, tag.TagName);
-            return Result<BlogTag>.Failure($"Failed to update tag: {ex.Message}");
+            return Result<BlogTag>.Failure(UpdateFailureMessage);
         }
     }
 
@@ -671,36 +705,23 @@ public class TagSvc
         if (existing == null)
             return Result<BlogTag>.Failure("Tag not found");
 
-        // Generate slug if not provided
-        if (string.IsNullOrWhiteSpace(tag.Slug))
-        {
-            tag.Slug = SlugGenerator.GenerateSlug(tag.TagName);
-        }
-
-        // Check for duplicate slug (exclude current tag)
-        if (await tagRepo.SlugExistsAsync(tag.Slug, tag.TagId, cancellationToken).ConfigureAwait(false))
-        {
-            tag.Slug = SlugGenerator.GenerateUniqueSlug(tag.Slug, 1);
-            int counter = 2;
-            while (await tagRepo.SlugExistsAsync(tag.Slug, tag.TagId, cancellationToken).ConfigureAwait(false)
-                   && counter < 100)
-            {
-                tag.Slug = SlugGenerator.GenerateUniqueSlug(
-                    SlugGenerator.GenerateSlug(tag.TagName), counter);
-                counter++;
-            }
-        }
+        // Derive a guaranteed non-empty base slug, then suffix it until it is free (REQ-FN-054).
+        tag.Slug = SlugGenerator.EnsureSlug(tag.Slug, tag.TagName, SlugPrefix, tag.TagId);
+        tag.Slug = await SlugGenerator.ResolveUniqueSlugAsync(
+            tag.Slug,
+            candidate => tagRepo.SlugExistsAsync(candidate, tag.TagId, cancellationToken)).ConfigureAwait(false);
 
         try
         {
             await tagRepo.UpdateAsync(tag, cancellationToken).ConfigureAwait(false);
+            ServiceCache.InvalidateTaxonomy(cacheService);
             logger.LogInformation("Updated tag '{TagName}' with ID {TagId}", tag.TagName, tag.TagId);
             return Result<BlogTag>.Success(tag);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to update tag ID {TagId}: {TagName}", tag.TagId, tag.TagName);
-            return Result<BlogTag>.Failure($"Failed to update tag: {ex.Message}");
+            return Result<BlogTag>.Failure(UpdateFailureMessage);
         }
     }
 
@@ -787,13 +808,14 @@ public class TagSvc
         try
         {
             tagRepo.Delete(tagId);
+            ServiceCache.InvalidateTaxonomy(cacheService);
             logger.LogInformation("Deleted tag ID {TagId}", tagId);
             return Result.Success();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to delete tag ID {TagId}", tagId);
-            return Result.Failure($"Failed to delete tag: {ex.Message}");
+            return Result.Failure(DeleteFailureMessage);
         }
     }
 
@@ -828,13 +850,14 @@ public class TagSvc
         try
         {
             await tagRepo.DeleteAsync(tagId, cancellationToken).ConfigureAwait(false);
+            ServiceCache.InvalidateTaxonomy(cacheService);
             logger.LogInformation("Deleted tag ID {TagId}", tagId);
             return Result.Success();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to delete tag ID {TagId}", tagId);
-            return Result.Failure($"Failed to delete tag: {ex.Message}");
+            return Result.Failure(DeleteFailureMessage);
         }
     }
 
@@ -911,6 +934,7 @@ public class TagSvc
         try
         {
             tagRepo.SetTagsForPost(postId, tagIds);
+            ServiceCache.InvalidateContent(cacheService);
         }
         catch (Exception ex)
         {
@@ -946,6 +970,7 @@ public class TagSvc
         try
         {
             await tagRepo.SetTagsForPostAsync(postId, tagIds, cancellationToken).ConfigureAwait(false);
+            ServiceCache.InvalidateContent(cacheService);
         }
         catch (Exception ex)
         {

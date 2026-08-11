@@ -46,7 +46,7 @@ partial class ManageSeries : ComponentBase
         if (PageId > 0)
         {
             PageHeader = "Edit Series";
-            PageObj = SeriesService.GetSeries(PageId);
+            PageObj = await SeriesService.GetSeriesAsync(PageId);
             if (PageObj == null)
             {
                 StatusMessage = "Series not found.";
@@ -56,7 +56,7 @@ partial class ManageSeries : ComponentBase
             else
             {
                 // Load posts in this series
-                SeriesPosts = SeriesService.GetPostsInSeries(PageId).ToList();
+                SeriesPosts = (await SeriesService.GetPostsInSeriesAsync(PageId)).ToList();
             }
         }
         else
@@ -84,7 +84,8 @@ partial class ManageSeries : ComponentBase
     }
 
     /// <summary>Validates and persists the series, then returns to the series list.</summary>
-    public void SaveData()
+    /// <returns>A task that completes when the series has been saved.</returns>
+    public async Task SaveDataAsync()
     {
         if (PageObj == null) return;
 
@@ -95,7 +96,7 @@ partial class ManageSeries : ComponentBase
             return;
         }
 
-        var result = SeriesService.SaveSeries(PageObj);
+        var result = await SeriesService.SaveSeriesAsync(PageObj);
 
         if (result.IsSuccess)
         {

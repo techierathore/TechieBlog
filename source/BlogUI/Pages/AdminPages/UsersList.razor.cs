@@ -10,6 +10,30 @@ namespace BlogUI.Pages.AdminPages;
 /// </summary>
 public partial class UsersList
 {
+
+    /// <summary>
+    /// Curated messages shown when an unexpected failure is caught on this page (REQ-NFR-033).
+    /// </summary>
+    /// <remarks>
+    /// <para>These assignments previously interpolated <c>ex.Message</c>. The page is gated by
+    /// <c>AppPolicies.AdminOnly</c>, which was the defence offered for the disclosure, but an
+    /// exception's text is not written for an audience and routinely carries a SQL fragment, a
+    /// table name or a file-system path — none of which an administrator can act on and all of
+    /// which end up in a screenshot pasted into a ticket.</para>
+    /// <para>The engine service beneath every one of these calls already logs the exception with
+    /// its own context through <c>ILogger&lt;T&gt;</c>, where the host's
+    /// <c>CorrelationIdMiddleware</c> has stamped the request's correlation id onto the event
+    /// (REQ-NFR-015), so nothing is lost by curating here. This page injects no logger of its own;
+    /// adding one is tracked as a follow-up.</para>
+    /// </remarks>
+    private const string LoadFailureMessage =
+        "Could not load users. Please try again later.";
+
+    private const string RoleFailureMessage =
+        "Could not update the role. Please try again later.";
+
+    private const string StatusFailureMessage =
+        "Could not update the user status. Please try again later.";
     /// <summary>User repository backing the list and the update operations.</summary>
     [Inject]
     public IBlogUserRepo BlogUserRepo { get; set; } = default!;
@@ -70,19 +94,18 @@ public partial class UsersList
         await LoadUsers();
     }
 
-    private Task LoadUsers()
+    private async Task LoadUsers()
     {
         try
         {
-            ObjectList = BlogUserRepo.GetAll()?.ToList() ?? new List<AppUser>();
+            ObjectList = (await BlogUserRepo.GetAllAsync())?.ToList() ?? new List<AppUser>();
             ApplyFilter();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error loading users: {ex.Message}";
+            StatusMessage = LoadFailureMessage;
             IsError = true;
         }
-        return Task.CompletedTask;
     }
 
     /// <summary>Switches the active role tab.</summary>
@@ -193,14 +216,14 @@ public partial class UsersList
         {
             IsProcessing = true;
             UserToEdit.UserRole = SelectedRole;
-            BlogUserRepo.Update(UserToEdit);
+            await BlogUserRepo.UpdateAsync(UserToEdit);
             StatusMessage = $"Role updated for {UserToEdit.FirstName} {UserToEdit.LastName}";
             IsError = false;
             await LoadUsers();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error updating role: {ex.Message}";
+            StatusMessage = RoleFailureMessage;
             IsError = true;
         }
         finally
@@ -219,16 +242,16 @@ public partial class UsersList
         {
             IsProcessing = true;
             user.IsConfirmed = !user.IsConfirmed;
-            BlogUserRepo.Update(user);
+            await BlogUserRepo.UpdateAsync(user);
             StatusMessage = user.IsConfirmed
                 ? $"{user.FirstName} {user.LastName} has been activated"
                 : $"{user.FirstName} {user.LastName} has been deactivated";
             IsError = false;
             await LoadUsers();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error updating user status: {ex.Message}";
+            StatusMessage = StatusFailureMessage;
             IsError = true;
         }
         finally

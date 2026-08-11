@@ -62,5 +62,11 @@
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
 
-# TechieFlow telemetry — append-only logs; keep BOTH sides on merge (managed by scaffold/update-framework.sh)
-docs/metrics/*.jsonl merge=union
+
+# TechieFlow — LF working tree on every platform (CRLF only where Windows demands it),
+# and append-only telemetry logs that keep BOTH sides on merge.
+# Managed by scaffold/update-framework.sh.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+docs/metrics/*.jsonl text eol=lf merge=union

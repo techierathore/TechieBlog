@@ -226,9 +226,11 @@
             await Task.Delay(1500);
             Navigation.NavigateTo("/users");
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error creating user: {ex.Message}";
+            // REQ-NFR-033: the exception text never reaches the screen. AuthSvc has already
+            // logged it with context; the operator matches it on the response correlation id.
+            StatusMessage = "Could not create the user. Please try again later.";
             IsError = true;
         }
         finally

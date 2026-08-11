@@ -200,7 +200,7 @@
                             {
                                 <Button Size="ButtonSize.IconSmall"
                                         Variant="ButtonVariant.Ghost"
-                                        OnClick="@(() => QuickPublish(row))"
+                                        OnClick="@(() => QuickPublishAsync(row))"
                                         Disabled="@IsProcessing"
                                         AriaLabel="Publish now"
                                         data-testid="post-publish">
@@ -208,7 +208,7 @@
                                 </Button>
                                 <Button Size="ButtonSize.IconSmall"
                                         Variant="ButtonVariant.Ghost"
-                                        OnClick="@(() => CancelSchedule(row))"
+                                        OnClick="@(() => CancelScheduleAsync(row))"
                                         Disabled="@IsProcessing"
                                         AriaLabel="Cancel schedule"
                                         data-testid="post-cancel-schedule">
@@ -219,7 +219,7 @@
                             {
                                 <Button Size="ButtonSize.IconSmall"
                                         Variant="ButtonVariant.Ghost"
-                                        OnClick="@(() => QuickPublish(row))"
+                                        OnClick="@(() => QuickPublishAsync(row))"
                                         Disabled="@IsProcessing"
                                         AriaLabel="Publish post"
                                         data-testid="post-publish">
@@ -230,7 +230,7 @@
                             {
                                 <Button Size="ButtonSize.IconSmall"
                                         Variant="ButtonVariant.Ghost"
-                                        OnClick="@(() => QuickUnpublish(row))"
+                                        OnClick="@(() => QuickUnpublishAsync(row))"
                                         Disabled="@IsProcessing"
                                         AriaLabel="Unpublish post"
                                         data-testid="post-unpublish">
@@ -275,7 +275,7 @@
                 </Select>
 
                 <Button Variant="ButtonVariant.Outline"
-                        OnClick="ApplyBulkAction"
+                        OnClick="ApplyBulkActionAsync"
                         Disabled="@(string.IsNullOrEmpty(BulkAction) || !HasSelectedPosts)"
                         data-testid="posts-bulk-apply">
                     Apply
@@ -303,7 +303,7 @@
             <Button Variant="ButtonVariant.Outline" OnClick="@CancelDelete" data-testid="post-delete-cancel">
                 Cancel
             </Button>
-            <Button Variant="ButtonVariant.Destructive" OnClick="@ConfirmDelete" data-testid="post-delete-confirm">
+            <Button Variant="ButtonVariant.Destructive" OnClick="@ConfirmDeleteAsync" data-testid="post-delete-confirm">
                 Delete
             </Button>
         </DialogFooter>

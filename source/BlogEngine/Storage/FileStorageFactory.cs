@@ -1,6 +1,7 @@
 using BlogModels.Interfaces;
 using BlogModels.Models;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace BlogEngine.Storage;
@@ -31,10 +32,11 @@ namespace BlogEngine.Storage;
 ///   </listheader>
 ///   <item>
 ///     <term><c>Local</c> (the default, ADR-009)</term>
-///     <description>Root is <c>StorageLocalRootPath</c>, or the host's web root when that setting
-///     is empty — the zero-configuration "clone and run" case, where files land under
-///     <c>wwwroot</c> and the static file handler serves them. A relative path is a filesystem
-///     path beneath that root. Public URL is <c>StoragePublicBaseUrl</c> + the path, or
+///     <description>Root is <c>StorageLocalRootPath</c>, or <see cref="UploadsLocation"/>'s storage
+///     root when that setting is empty — the deployment's <c>Uploads:Path</c> if it has one, and
+///     otherwise the host's web root, which is the zero-configuration "clone and run" case where
+///     files land under <c>wwwroot</c> and the static file handler serves them. A relative path is a
+///     filesystem path beneath that root. Public URL is <c>StoragePublicBaseUrl</c> + the path, or
 ///     <c>/</c> + the path when no prefix is set.</description>
 ///   </item>
 ///   <item>
@@ -85,24 +87,30 @@ public class FileStorageFactory : IFileStorageFactory
     private readonly IWebHostEnvironment environment;
     private readonly IHttpClientFactory httpClientFactory;
     private readonly ILoggerFactory loggerFactory;
+    private readonly IConfiguration configuration;
 
     /// <summary>
     /// Creates the factory over the services needed to build every provider.
     /// </summary>
     /// <param name="siteSettingsService">Source of the current storage configuration.</param>
-    /// <param name="environment">Host environment supplying the default web root.</param>
+    /// <param name="environment">Host environment supplying the content and web roots.</param>
     /// <param name="httpClientFactory">Client source for the cloud provider.</param>
     /// <param name="loggerFactory">Creates the typed logger each provider needs.</param>
+    /// <param name="configuration">Supplies <c>Uploads:Path</c> for the local provider's default
+    /// root, so a containerised deployment writes to its mounted volume rather than into the image
+    /// (REQ-FN-025).</param>
     public FileStorageFactory(
         ISiteSettingsService siteSettingsService,
         IWebHostEnvironment environment,
         IHttpClientFactory httpClientFactory,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        IConfiguration configuration)
     {
         this.siteSettingsService = siteSettingsService ?? throw new ArgumentNullException(nameof(siteSettingsService));
         this.environment = environment ?? throw new ArgumentNullException(nameof(environment));
         this.httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
         this.loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
+        this.configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
     }
 
     /// <inheritdoc />
@@ -150,8 +158,10 @@ public class FileStorageFactory : IFileStorageFactory
     /// Builds local disk storage rooted at the configured path or the host web root.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> An empty <c>LocalRootPath</c> means "use the web root", which
-    /// is the zero-configuration behaviour the template shipped with (ADR-009).</para>
+    /// <para><b>Business Logic:</b> An empty <c>LocalRootPath</c> means "use the deployment's
+    /// default root", which is <c>Uploads:Path</c>'s parent when configured and the host web root
+    /// otherwise — the zero-configuration behaviour the template shipped with (ADR-009). An
+    /// administrator who typed a root on the Settings screen still outranks both.</para>
     /// <para><b>Side Effects:</b> None.</para>
     /// </remarks>
     /// <param name="settings">The current storage configuration.</param>
@@ -159,7 +169,7 @@ public class FileStorageFactory : IFileStorageFactory
     private IFileStorage BuildLocal(StorageSettings settings)
     {
         var root = string.IsNullOrWhiteSpace(settings.LocalRootPath)
-            ? ResolveWebRoot()
+            ? ResolveDefaultRoot()
             : settings.LocalRootPath;
         return new LocalFileStorage(root, settings.PublicBaseUrl, loggerFactory.CreateLogger<LocalFileStorage>());
     }
@@ -213,19 +223,24 @@ public class FileStorageFactory : IFileStorageFactory
     }
 
     /// <summary>
-    /// Resolves the host's web root, tolerating a host that has not set one.
+    /// Resolves the default local root: the deployment's uploads volume, or the host web root.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> A console or test host leaves <c>WebRootPath</c> null, so the
-    /// conventional <c>wwwroot</c> under the content root is used instead.</para>
+    /// <para><b>Business Logic:</b> Delegates to <see cref="UploadsLocation"/> so the directory
+    /// uploads are WRITTEN to is computed by the same code that decides which directory the host
+    /// SERVES at <c>/uploads</c>. Two independent answers to that question is precisely how a
+    /// containerised deployment ends up writing images into a layer a redeploy throws away. A
+    /// console or test host leaves <c>WebRootPath</c> null, which that resolver handles by falling
+    /// back to <c>wwwroot</c> under the content root.</para>
     /// <para><b>Side Effects:</b> None.</para>
     /// </remarks>
     /// <returns>An absolute directory path.</returns>
-    private string ResolveWebRoot()
+    private string ResolveDefaultRoot()
     {
-        return string.IsNullOrWhiteSpace(environment.WebRootPath)
-            ? Path.Combine(environment.ContentRootPath ?? AppContext.BaseDirectory, "wwwroot")
-            : environment.WebRootPath;
+        return UploadsLocation.Resolve(
+            configuration,
+            environment.WebRootPath,
+            environment.ContentRootPath ?? AppContext.BaseDirectory).StorageRootPath;
     }
 
     /// <summary>

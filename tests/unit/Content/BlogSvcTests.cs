@@ -2,6 +2,7 @@ using BlogEngine.Services;
 using BlogModels;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using TechieBlog.Tests.Dashboard;
 using Xunit;
 
 namespace TechieBlog.Tests.Content;
@@ -27,9 +28,9 @@ public class BlogSvcTests
     /// </summary>
     /// <param name="repo">The substituted repository the service should use.</param>
     /// <returns>A service wired to <paramref name="repo"/>.</returns>
-    private static BlogEngine.Services.BlogSvc BuildService(IBlogPostRepo repo)
+    private static BlogEngine.Services.BlogSvc BuildService(IBlogPostRepo repo, ILogger<BlogEngine.Services.BlogSvc>? logger = null)
     {
-        return new BlogEngine.Services.BlogSvc(repo, Substitute.For<ILogger<BlogEngine.Services.BlogSvc>>());
+        return new BlogEngine.Services.BlogSvc(repo, logger ?? Substitute.For<ILogger<BlogEngine.Services.BlogSvc>>());
     }
 
     /// <summary>
@@ -789,23 +790,30 @@ public class BlogSvcTests
     }
 
     /// <summary>
-    /// An unexpected persistence error is converted into a failed result carrying the reason rather
-    /// than escaping to the page.
+    /// An unexpected persistence error is converted into a failed result rather than escaping to the
+    /// page.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public void CreatePostReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogPostRepo>();
+        var logger = new RecordingLogger<BlogEngine.Services.BlogSvc>();
         repo.When(r => r.InsertToGetId(Arg.Any<BlogPost>()))
             .Do(_ => throw new InvalidOperationException("duplicate key"));
 
         // Act
-        var result = BuildService(repo).CreatePost(ValidPost());
+        var result = BuildService(repo, logger).CreatePost(ValidPost());
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to create post: duplicate key", result.ErrorMessage);
+        Assert.Equal("Failed to create post. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("duplicate key", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "duplicate key");
     }
 
     // =============================================================================================
@@ -1015,21 +1023,28 @@ public class BlogSvcTests
 
     /// <summary>
     /// An unexpected persistence error on the update is converted into a failed result.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public void UpdatePostReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogPostRepo>();
+        var logger = new RecordingLogger<BlogEngine.Services.BlogSvc>();
         repo.GetSingle(5).Returns(ValidPost(5));
         repo.When(r => r.Update(Arg.Any<BlogPost>())).Do(_ => throw new InvalidOperationException("deadlock"));
 
         // Act
-        var result = BuildService(repo).UpdatePost(ValidPost(5));
+        var result = BuildService(repo, logger).UpdatePost(ValidPost(5));
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to update post: deadlock", result.ErrorMessage);
+        Assert.Equal("Failed to update post. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("deadlock", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "deadlock");
     }
 
     // =============================================================================================
@@ -1278,21 +1293,28 @@ public class BlogSvcTests
 
     /// <summary>
     /// An unexpected persistence error on the delete is converted into a failed result.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public void DeletePostReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogPostRepo>();
+        var logger = new RecordingLogger<BlogEngine.Services.BlogSvc>();
         repo.GetSingle(5).Returns(ValidPost(5));
         repo.When(r => r.SoftDelete(5)).Do(_ => throw new InvalidOperationException("timeout"));
 
         // Act
-        var result = BuildService(repo).DeletePost(5);
+        var result = BuildService(repo, logger).DeletePost(5);
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to delete post: timeout", result.ErrorMessage);
+        Assert.Equal("Failed to delete post. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("timeout", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "timeout");
     }
 
     /// <summary>
@@ -1376,24 +1398,31 @@ public class BlogSvcTests
     }
 
     /// <summary>
-    /// An unexpected persistence error is converted into a failed result carrying the reason.
+    /// An unexpected persistence error is converted into a failed result.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public void UnpublishPostReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogPostRepo>();
+        var logger = new RecordingLogger<BlogEngine.Services.BlogSvc>();
         var existing = ValidPost(5);
         existing.Published = true;
         repo.GetSingle(5).Returns(existing);
         repo.When(r => r.Update(Arg.Any<BlogPost>())).Do(_ => throw new InvalidOperationException("timeout"));
 
         // Act
-        var result = BuildService(repo).UnpublishPost(5);
+        var result = BuildService(repo, logger).UnpublishPost(5);
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to unpublish post: timeout", result.ErrorMessage);
+        Assert.Equal("Failed to unpublish post. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("timeout", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "timeout");
     }
 
     /// <summary>
@@ -1496,22 +1525,29 @@ public class BlogSvcTests
     }
 
     /// <summary>
-    /// An unexpected persistence error is converted into a failed result carrying the reason.
+    /// An unexpected persistence error is converted into a failed result.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public void QuickPublishReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogPostRepo>();
+        var logger = new RecordingLogger<BlogEngine.Services.BlogSvc>();
         repo.GetSingle(5).Returns(ValidPost(5));
         repo.When(r => r.Update(Arg.Any<BlogPost>())).Do(_ => throw new InvalidOperationException("timeout"));
 
         // Act
-        var result = BuildService(repo).QuickPublish(5);
+        var result = BuildService(repo, logger).QuickPublish(5);
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to publish post: timeout", result.ErrorMessage);
+        Assert.Equal("Failed to publish post. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("timeout", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "timeout");
     }
 
     /// <summary>
@@ -1651,24 +1687,31 @@ public class BlogSvcTests
     }
 
     /// <summary>
-    /// An unexpected persistence error is converted into a failed result carrying the reason.
+    /// An unexpected persistence error is converted into a failed result.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public void CancelScheduleReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogPostRepo>();
+        var logger = new RecordingLogger<BlogEngine.Services.BlogSvc>();
         var existing = ValidPost(5);
         existing.ScheduledPublishOn = DateTime.UtcNow.AddDays(1);
         repo.GetSingle(5).Returns(existing);
         repo.When(r => r.Update(Arg.Any<BlogPost>())).Do(_ => throw new InvalidOperationException("timeout"));
 
         // Act
-        var result = BuildService(repo).CancelSchedule(5);
+        var result = BuildService(repo, logger).CancelSchedule(5);
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to cancel schedule: timeout", result.ErrorMessage);
+        Assert.Equal("Failed to cancel schedule. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("timeout", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "timeout");
     }
 
     // =============================================================================================
@@ -2091,21 +2134,28 @@ public class BlogSvcTests
     /// <summary>
     /// An unexpected persistence error on the async insert becomes a failed result rather than a
     /// faulted task.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public async Task CreatePostAsyncReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogPostRepo>();
+        var logger = new RecordingLogger<BlogEngine.Services.BlogSvc>();
         repo.When(r => r.InsertToGetIdAsync(Arg.Any<BlogPost>(), Arg.Any<CancellationToken>()))
             .Do(_ => throw new InvalidOperationException("duplicate key"));
 
         // Act
-        var result = await BuildService(repo).CreatePostAsync(ValidPost(), TestContext.Current.CancellationToken);
+        var result = await BuildService(repo, logger).CreatePostAsync(ValidPost(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to create post: duplicate key", result.ErrorMessage);
+        Assert.Equal("Failed to create post. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("duplicate key", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "duplicate key");
     }
 
     /// <summary>
@@ -2162,22 +2212,29 @@ public class BlogSvcTests
 
     /// <summary>
     /// An unexpected persistence error on the async update becomes a failed result.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public async Task UpdatePostAsyncReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogPostRepo>();
+        var logger = new RecordingLogger<BlogEngine.Services.BlogSvc>();
         repo.GetSingleAsync(5, Arg.Any<CancellationToken>()).Returns(ValidPost(5));
         repo.When(r => r.UpdateAsync(Arg.Any<BlogPost>(), Arg.Any<CancellationToken>()))
             .Do(_ => throw new InvalidOperationException("deadlock"));
 
         // Act
-        var result = await BuildService(repo).UpdatePostAsync(ValidPost(5), TestContext.Current.CancellationToken);
+        var result = await BuildService(repo, logger).UpdatePostAsync(ValidPost(5), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to update post: deadlock", result.ErrorMessage);
+        Assert.Equal("Failed to update post. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("deadlock", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "deadlock");
     }
 
     /// <summary>
@@ -2236,22 +2293,29 @@ public class BlogSvcTests
 
     /// <summary>
     /// An unexpected persistence error on the async soft delete becomes a failed result.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public async Task DeletePostAsyncReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogPostRepo>();
+        var logger = new RecordingLogger<BlogEngine.Services.BlogSvc>();
         repo.GetSingleAsync(7, Arg.Any<CancellationToken>()).Returns(ValidPost(7));
         repo.When(r => r.SoftDeleteAsync(7, Arg.Any<CancellationToken>()))
             .Do(_ => throw new InvalidOperationException("timeout"));
 
         // Act
-        var result = await BuildService(repo).DeletePostAsync(7, TestContext.Current.CancellationToken);
+        var result = await BuildService(repo, logger).DeletePostAsync(7, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to delete post: timeout", result.ErrorMessage);
+        Assert.Equal("Failed to delete post. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("timeout", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "timeout");
     }
 
     /// <summary>
@@ -2343,12 +2407,17 @@ public class BlogSvcTests
 
     /// <summary>
     /// An unexpected persistence error on the async unpublish becomes a failed result.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public async Task UnpublishPostAsyncReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogPostRepo>();
+        var logger = new RecordingLogger<BlogEngine.Services.BlogSvc>();
         var live = ValidPost(7);
         live.Published = true;
         repo.GetSingleAsync(7, Arg.Any<CancellationToken>()).Returns(live);
@@ -2356,11 +2425,13 @@ public class BlogSvcTests
             .Do(_ => throw new InvalidOperationException("timeout"));
 
         // Act
-        var result = await BuildService(repo).UnpublishPostAsync(7, TestContext.Current.CancellationToken);
+        var result = await BuildService(repo, logger).UnpublishPostAsync(7, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to unpublish post: timeout", result.ErrorMessage);
+        Assert.Equal("Failed to unpublish post. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("timeout", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "timeout");
     }
 
     /// <summary>
@@ -2398,22 +2469,29 @@ public class BlogSvcTests
 
     /// <summary>
     /// An unexpected persistence error on the async quick publish becomes a failed result.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public async Task QuickPublishAsyncReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogPostRepo>();
+        var logger = new RecordingLogger<BlogEngine.Services.BlogSvc>();
         repo.GetSingleAsync(7, Arg.Any<CancellationToken>()).Returns(ValidPost(7));
         repo.When(r => r.UpdateAsync(Arg.Any<BlogPost>(), Arg.Any<CancellationToken>()))
             .Do(_ => throw new InvalidOperationException("timeout"));
 
         // Act
-        var result = await BuildService(repo).QuickPublishAsync(7, TestContext.Current.CancellationToken);
+        var result = await BuildService(repo, logger).QuickPublishAsync(7, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to publish post: timeout", result.ErrorMessage);
+        Assert.Equal("Failed to publish post. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("timeout", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "timeout");
     }
 
     /// <summary>
@@ -2477,12 +2555,17 @@ public class BlogSvcTests
 
     /// <summary>
     /// An unexpected persistence error on the async cancellation becomes a failed result.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public async Task CancelScheduleAsyncReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogPostRepo>();
+        var logger = new RecordingLogger<BlogEngine.Services.BlogSvc>();
         var scheduled = ValidPost(7);
         scheduled.ScheduledPublishOn = DateTime.UtcNow.AddDays(1);
         repo.GetSingleAsync(7, Arg.Any<CancellationToken>()).Returns(scheduled);
@@ -2490,10 +2573,12 @@ public class BlogSvcTests
             .Do(_ => throw new InvalidOperationException("timeout"));
 
         // Act
-        var result = await BuildService(repo).CancelScheduleAsync(7, TestContext.Current.CancellationToken);
+        var result = await BuildService(repo, logger).CancelScheduleAsync(7, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to cancel schedule: timeout", result.ErrorMessage);
+        Assert.Equal("Failed to cancel schedule. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("timeout", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "timeout");
     }
 }

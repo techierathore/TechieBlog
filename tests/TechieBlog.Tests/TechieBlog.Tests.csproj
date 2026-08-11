@@ -43,13 +43,26 @@
     tests/unit/Settings, tests/unit/Storage, tests/unit/Security, tests/unit/Ops —
     and any folder added later — are compiled into this assembly automatically,
     with no csproj edit required. Zero matches today is expected and harmless.
+
+    ..\.artifacts\** IS EXCLUDED, AND REMOVING THAT EXCLUSION KILLS THE WHOLE SUITE.
+    tests/.artifacts/ is the gitignored scratch area for throwaway smoke harnesses, and
+    those harnesses are frequently standalone console projects. A console project uses
+    TOP-LEVEL STATEMENTS, which the compiler turns into a Program.Main — and that Main
+    then wins the entry-point race against the one xunit v3 generates for this assembly.
+    The result is not a compile error, which is what makes it so expensive: the test
+    executable builds clean, then runs the scratch harness instead of the tests and exits
+    0, while `dotnet test` fails with "Test process did not return valid JSON" because
+    the harness's Console.WriteLine output lands where the runner protocol expected its
+    handshake. Measured 2026-08-11 (cluster F, REQ-UI-060): tests/.artifacts/harness/
+    logbound/Program.cs had taken over the entry point and EVERY test in the repository
+    was silently not running. Scratch files must never be compiled into a real assembly.
   -->
   <ItemGroup>
     <Compile Include="..\**\*.cs"
-             Exclude="..\TechieBlog.Tests\**\*.cs;..\**\bin\**\*.cs;..\**\obj\**\*.cs"
+             Exclude="..\TechieBlog.Tests\**\*.cs;..\.artifacts\**\*.cs;..\**\bin\**\*.cs;..\**\obj\**\*.cs"
              LinkBase="SiblingSuites" />
     <Content Include="..\**\*.razor"
-             Exclude="..\TechieBlog.Tests\**\*.razor;..\**\bin\**\*.razor;..\**\obj\**\*.razor"
+             Exclude="..\TechieBlog.Tests\**\*.razor;..\.artifacts\**\*.razor;..\**\bin\**\*.razor;..\**\obj\**\*.razor"
              LinkBase="SiblingSuites" />
   </ItemGroup>
 
@@ -97,6 +110,27 @@
     -->
     <Compile Include="..\..\source\TechieBlog\Middleware\ForwardedHeadersSetup.cs"
              Link="LinkedSource\ForwardedHeadersSetup.cs" />
+    <!--
+      REQ-NFR-030: the deployment-settings gate decides whether the host starts at all, so its rules
+      are asserted against the real production type. Same linked-source reasoning as above - a
+      ProjectReference to source/TechieBlog would pull the whole host graph into the test assembly.
+    -->
+    <Compile Include="..\..\source\TechieBlog\Configuration\DeploymentConfiguration.cs"
+             Link="LinkedSource\DeploymentConfiguration.cs" />
+    <!--
+      REQ-NFR-029 / REQ-NFR-013 / REQ-FN-025 (cluster H): the deployment contract itself. The
+      PascalCase environment-variable map IS the list a compose file is written against, the log
+      path decides whether one application writes to one folder or two, and the Seq switch decides
+      whether a developer machine needs a Seq server. All three are pure and configuration-only, so
+      they are linked in for the same reason as the three types above — a ProjectReference to
+      source/TechieBlog would drag the whole host graph into the test assembly.
+    -->
+    <Compile Include="..\..\source\TechieBlog\Configuration\AppEnvironmentVariables.cs"
+             Link="LinkedSource\AppEnvironmentVariables.cs" />
+    <Compile Include="..\..\source\TechieBlog\Configuration\LogFileSettings.cs"
+             Link="LinkedSource\LogFileSettings.cs" />
+    <Compile Include="..\..\source\TechieBlog\Configuration\SeqSettings.cs"
+             Link="LinkedSource\SeqSettings.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -247,7 +247,7 @@ public partial class VerifyEmail
             if (row.IsUsed)
             {
                 state = VerifyState.AlreadyVerified;
-                returnUrl = ResolveReturnUrl(row);
+                returnUrl = await ResolveReturnUrlAsync(row);
                 return;
             }
 
@@ -287,14 +287,14 @@ public partial class VerifyEmail
         {
             Logger.LogInformation("A confirmation token was refused: {Reason}", result.ErrorMessage);
             state = VerifyState.AlreadyVerified;
-            returnUrl = ResolveReturnUrl(row);
+            returnUrl = await ResolveReturnUrlAsync(row);
             return;
         }
 
         var consumed = result.Data;
         purpose = consumed.Purpose;
         confirmedEmail = consumed.Email;
-        returnUrl = ResolveReturnUrl(consumed);
+        returnUrl = await ResolveReturnUrlAsync(consumed);
 
         // The subscriber row is flipped by EmailVerificationSvc.PromoteTargetAsync, alongside the
         // comment and rating promotions. The page only decides which wording to show.
@@ -364,18 +364,18 @@ public partial class VerifyEmail
     /// </remarks>
     /// <param name="token">The token whose target is being traced.</param>
     /// <returns>The post URL, or null when there is no article to return to.</returns>
-    private string? ResolveReturnUrl(EmailVerificationToken token)
+    private async Task<string?> ResolveReturnUrlAsync(EmailVerificationToken token)
     {
         if (token?.TargetId is not > 0)
             return null;
 
         try
         {
-            var postId = ResolvePostId(token);
+            var postId = await ResolvePostIdAsync(token);
             if (postId <= 0)
                 return null;
 
-            var post = BlogPostRepo.GetSingle(postId);
+            var post = await BlogPostRepo.GetSingleAsync(postId);
             return string.IsNullOrWhiteSpace(post?.Slug) ? null : $"/post/{post.Slug}";
         }
         catch (Exception ex)
@@ -396,15 +396,15 @@ public partial class VerifyEmail
     /// </remarks>
     /// <param name="token">The token whose target is being traced.</param>
     /// <returns>The post id, or zero when there is none.</returns>
-    private long ResolvePostId(EmailVerificationToken token)
+    private async Task<long> ResolvePostIdAsync(EmailVerificationToken token)
     {
         var targetId = token.TargetId ?? 0;
 
         if (IsPurpose(EmailVerificationPurpose.Comment))
-            return BlogCommentRepo.GetSingle(targetId)?.PostID ?? 0;
+            return (await BlogCommentRepo.GetSingleAsync(targetId))?.PostID ?? 0;
 
         if (IsPurpose(EmailVerificationPurpose.Rating))
-            return PostRatingRepo.GetSingle(targetId)?.PostId ?? 0;
+            return (await PostRatingRepo.GetSingleAsync(targetId))?.PostId ?? 0;
 
         return 0;
     }

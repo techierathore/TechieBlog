@@ -16,6 +16,27 @@ namespace BlogUI.Pages.AdminPages;
 /// </summary>
 public partial class ManageImages : ComponentBase
 {
+
+    /// <summary>
+    /// Curated messages shown when an unexpected failure is caught on this page (REQ-NFR-033).
+    /// </summary>
+    /// <remarks>
+    /// <para>These assignments previously interpolated <c>ex.Message</c>. The page is gated by
+    /// <c>AppPolicies.AdminOnly</c>, which was the defence offered for the disclosure, but an
+    /// exception's text is not written for an audience and routinely carries a SQL fragment, a
+    /// table name or a file-system path — none of which an administrator can act on and all of
+    /// which end up in a screenshot pasted into a ticket.</para>
+    /// <para>The engine service beneath every one of these calls already logs the exception with
+    /// its own context through <c>ILogger&lt;T&gt;</c>, where the host's
+    /// <c>CorrelationIdMiddleware</c> has stamped the request's correlation id onto the event
+    /// (REQ-NFR-015), so nothing is lost by curating here. This page injects no logger of its own;
+    /// adding one is tracked as a follow-up.</para>
+    /// </remarks>
+    private const string LoadFailureMessage =
+        "Could not load the media library. Please try again later.";
+
+    private const string DeleteFailureMessage =
+        "Could not delete the image. Please try again later.";
     [Inject]
     public IBlogImageService ImageService { get; set; } = default!;
 
@@ -133,11 +154,11 @@ public partial class ManageImages : ComponentBase
         await LoadImages();
     }
 
-    private Task LoadUserList()
+    private async Task LoadUserList()
     {
         try
         {
-            var users = UserRepo.GetAll();
+            var users = await UserRepo.GetAllAsync();
             UserList = users?.ToDictionary(
                 u => u.UserId,
                 u => !string.IsNullOrWhiteSpace(u.FullName) ? u.FullName : u.EmailId ?? $"User {u.UserId}"
@@ -147,7 +168,6 @@ public partial class ManageImages : ComponentBase
         {
             UserList = new Dictionary<long, string>();
         }
-        return Task.CompletedTask;
     }
 
     public async Task LoadImages()
@@ -163,9 +183,9 @@ public partial class ManageImages : ComponentBase
             AllImages = await ImageService.GetImagesByCategoryAsync(SelectedCategory, userFilter);
             CurrentPage = 1; // Reset to first page on reload
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Failed to load images: {ex.Message}";
+            StatusMessage = LoadFailureMessage;
             IsError = true;
             AllImages = Enumerable.Empty<BlogImage>();
         }
@@ -323,9 +343,15 @@ public partial class ManageImages : ComponentBase
                 await LoadImages();
             }
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException curated)
         {
-            UploadError = ex.Message;
+            // The variable is named `curated`, not `ex`, deliberately: BlogImageService authors this
+            // message and it is always one of its own constants — a category validation rule, or the
+            // REQ-NFR-040 storage-failure sentence that distinguishes "the server cannot write here"
+            // from a retry-able failure. It carries no exception text and no server path, which is
+            // what makes surfacing it compatible with REQ-NFR-033. Every other exception falls to
+            // the generic branch below.
+            UploadError = curated.Message;
         }
         catch (Exception)
         {
@@ -412,9 +438,9 @@ public partial class ManageImages : ComponentBase
                 IsError = true;
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error deleting image: {ex.Message}";
+            StatusMessage = DeleteFailureMessage;
             IsError = true;
         }
         finally

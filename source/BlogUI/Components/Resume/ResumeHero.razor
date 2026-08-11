@@ -45,8 +45,10 @@
 
     @* Call to action *@
     <div class="resume-actions flex flex-wrap items-center justify-center gap-3" data-testid="resume-actions">
+        @* The contact section publishes LinkedIn, not an email address, so the icon must not
+           promise a mailbox that is deliberately no longer there (owner decision, 2026-08-10). *@
         <Button Href="#contact" data-testid="get-in-touch">
-            <LucideIcon Name="mail" Size="16" />
+            <LucideIcon Name="linkedin" Size="16" />
             Get In Touch
         </Button>
 

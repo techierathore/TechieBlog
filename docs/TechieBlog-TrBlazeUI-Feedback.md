@@ -1027,5 +1027,60 @@ Three findings from taking the admin area's last 48 axe nodes to 0. All three ar
   affected admin routes, light **and** dark, same spec before and after
   (`tests/verify/cluster-m-tr054-tabs.spec.ts`): **48 -> 0**.
 
+- **TR-065 — `DataTable` does not repaint a `CellTemplate` when a bound item's property is mutated
+  in place.** The row keeps rendering the value it was first painted with, so a grid that edits its
+  own view models shows a stale cell until the whole data set is replaced.
+  *Severity:* **Medium** — the write succeeds and the status banner is correct, so nothing is lost;
+  the grid simply contradicts the action the administrator just took, which reads as a failed
+  operation.
+  *Repro:* `/CommentsList` as Admin. Approve a comment from its row action. `CommentsList.razor`
+  sets `comment.Status = "Approved"` on the `CommentViewModel` the `DataTable` is bound to.
+  *Actual (measured 2026-08-10 on `/CommentsList`, `cluster-e-async-tail.spec.ts`):* the success
+  banner "Comment approved." appears, PostgreSQL shows `moderationstatus = 'Approved'` and
+  `published = true` — and the row's Status badge still reads **Pending**. Navigating away and back
+  renders **Approved** correctly, so the data and the template are both right; only the in-place
+  update is missed.
+  *Not caused by the async conversion:* the handler was `void` before REQ-NFR-026 stage 3 and is
+  `async Task` after, and an async handler triggers *more* re-renders (once at the first await,
+  once on completion), not fewer. The behaviour is identical on both.
+  *Workaround applied:* none in the page — the smoke re-reads the grid instead of asserting on the
+  mutated row, and the banner plus the database row carry the evidence. A page-side
+  `StateHasChanged()` does not help, which is what points at the component.
+  *Suggested fix:* have `DataTable` re-render its rows when the bound collection's items change, or
+  document that `Data` must be reassigned (not mutated) and expose a `Refresh()` the consumer can
+  call.
+
+- **TR-066 — `CardTitle` hardcodes `<h3>` and offers no way to change the heading level, so any page
+  whose PRIMARY heading is a card title can never produce a valid document outline.** The public
+  surface is `ChildContent` / `Class` / `AdditionalAttributes` only; `AdditionalAttributes` can add
+  `aria-*` but cannot change the element, and `Class` cannot either. A card-shaped page — a status
+  screen, an auth screen, an empty state — therefore renders `h3` as its first and only heading, with
+  no `h1` above it.
+  *Severity:* **Medium** — WCAG 2.4.6 / 1.3.1. Invisible to automated tooling, which is what makes it
+  durable: axe's `page-has-heading-one` is a **best-practice** rule, off by default in the standard
+  WCAG-tag rule set, and `heading-order` only compares headings that are actually present — one lone
+  `h3` violates neither. So a page can measure 0 violations and still have no document heading.
+  *Repro:* `<Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader></Card>` as the whole
+  page body. Read the heading outline.
+  *Expected:* a heading-level parameter — `<CardTitle As="h1">` or `<CardTitle Level="1">` — so the
+  card's visual weight and its semantic level can be chosen independently, the way `DialogTitle`
+  needs too (`AlertDialogTitle` / `SheetTitle` / `DrawerTitle` share the same limitation).
+  *Actual (measured 2026-08-11 on `/access-denied`):* the rendered outline was exactly `["h3: Access
+  Denied"]` — no `h1` anywhere in the document. Confirmed against the shipped assembly: the XML doc
+  for `T:TrBlazeUI.Components.Card.CardTitle` states "using semantic HTML (h3)" and the type declares
+  no level parameter.
+  *Second-order damage, which is the part worth flagging:* this application's `Routes.razor` runs
+  `<FocusOnNavigate RouteData="@routeData" Selector="h1" />`. On every card-titled page that selector
+  matches nothing, so post-navigation focus management silently does nothing — a heading-level
+  default quietly disabled a framework accessibility feature app-wide.
+  *Workaround applied:* the page emits a raw
+  `<h1 class="m-0 text-2xl font-semibold leading-none tracking-tight">` in place of `<CardTitle>`,
+  reproducing CardTitle's own classes so the card is visually identical. Same pattern the project
+  already uses in `VerifyEmail.razor` / `Unsubscribe.razor` / `_404Page.razor`.
+  *Suggested fix:* add `As` (or `Level`) to `CardTitle` and the other `*Title` sub-components,
+  defaulting to today's element so nothing breaks.
+
 TR-063 / TR-064 recorded 2026-08-09 by *build-phase (Cluster M fix pass — REQ-NFR-007).
-**Next free ID: TR-065.**
+TR-065 recorded 2026-08-10 by *build-phase (Cluster E — REQ-NFR-026 stage 3 tail).
+TR-066 recorded 2026-08-11 by *build-phase (Cluster F — REQ-UI-060).
+**Next free ID: TR-067.**

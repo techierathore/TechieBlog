@@ -25,72 +25,91 @@ namespace BlogEngine.DbAccess;
 /// <see cref="DbTimestamp.AsTimestamp(DateTime)"/>: the columns are <c>TIMESTAMP</c> without time
 /// zone, and the <c>Kind = Utc</c> values <c>SeriesSvc</c> supplies would otherwise be sent as
 /// <c>timestamptz</c> and re-interpreted through the session time zone.</para>
+///
+/// <para><b>Every read carries <c>PostCount</c> (REQ-FN-057, 2026-08-10).</b> The count is a computed
+/// LEFT JOIN, not a stored column, so a read that omits it silently reports <c>0</c> parts rather than
+/// "not loaded". Four of the six reads here omitted it until REQ-FN-057 — the same shape as the
+/// REQ-FN-019 defect that made <c>/series/{slug}</c> render "0 Parts" for every series. All six are now
+/// composed from <see cref="SeriesColumnsWithCount"/> and <see cref="SeriesCountGroupBy"/> so the count
+/// cannot be added to one and forgotten on another.</para>
 /// </remarks>
 public class BlogSeriesRepo : GenericRepository<BlogSeries>, IBlogSeriesRepo
 {
-    private const string SelectAllSql = @"
-            SELECT s.SeriesId, s.Name, s.Slug, s.Description, s.Status,
-                   s.AuthorId, s.CreatedOn, s.UpdatedOn,
-                   CONCAT(u.FirstName, ' ', u.LastName) as AuthorName
-            FROM BlogSeries s
-            LEFT JOIN BlogUser u ON s.AuthorId = u.UserId
-            ORDER BY s.Name";
+    // ==============================================================================================
+    // REQ-FN-057 (2026-08-10): EVERY series read here computes PostCount, and that uniformity is the
+    // whole point of composing them from shared fragments.
+    //
+    // PostCount is not a stored column — it is a LEFT JOIN onto published, non-deleted posts — so a
+    // read that omits the join does not return "unknown", it returns 0, and the surface renders
+    // "0 Parts" with nothing to indicate the number was never asked for. That is exactly the REQ-FN-019
+    // defect, which shipped on /series/{slug} because SelectBySlugSql alone had been written without
+    // the join. SelectAllSql, SelectByAuthorSql, SelectByIdSql and SelectPagedSql were all still one
+    // binding away from repeating it, and the admin series grid and the author's series list are the
+    // obvious next places to want a part count.
+    //
+    // Composing every statement from the same fragments means no future edit can widen the count on
+    // one read and leave a sibling behind: the projection, the join and the published filter exist
+    // once. Pinned statement-by-statement by
+    // ProjectionCompletenessTests.EverySeriesReadComputesThePartCount, so a rewrite that inlines one of
+    // these and drops the count fails the suite rather than the page.
+    // ==============================================================================================
 
-    private const string SelectAllWithCountsSql = @"
-            SELECT s.SeriesId, s.Name, s.Slug, s.Description, s.Status,
-                   s.AuthorId, s.CreatedOn, s.UpdatedOn,
-                   CONCAT(u.FirstName, ' ', u.LastName) as AuthorName,
-                   COUNT(p.PostID) as PostCount
+    /// <summary>
+    /// The projection, joins and published-post filter shared by every series read: the series row,
+    /// the author's display name and the computed count of published, non-deleted parts.
+    /// </summary>
+    private const string SeriesColumnsWithCount = @"
+            s.SeriesId, s.Name, s.Slug, s.Description, s.Status,
+            s.AuthorId, s.CreatedOn, s.UpdatedOn,
+            CONCAT(u.FirstName, ' ', u.LastName) as AuthorName,
+            COUNT(p.PostID) as PostCount
             FROM BlogSeries s
             LEFT JOIN BlogUser u ON s.AuthorId = u.UserId
             LEFT JOIN BlogPost p ON s.SeriesId = p.SeriesId
                 AND p.Published = TRUE
-                AND (p.IsDeleted = FALSE OR p.IsDeleted IS NULL)
-            GROUP BY s.SeriesId, s.Name, s.Slug, s.Description, s.Status,
-                     s.AuthorId, s.CreatedOn, s.UpdatedOn, u.FirstName, u.LastName
-            ORDER BY s.Name";
+                AND (p.IsDeleted = FALSE OR p.IsDeleted IS NULL)";
 
-    private const string SelectByAuthorSql = @"
-            SELECT s.SeriesId, s.Name, s.Slug, s.Description, s.Status,
-                   s.AuthorId, s.CreatedOn, s.UpdatedOn,
-                   CONCAT(u.FirstName, ' ', u.LastName) as AuthorName
-            FROM BlogSeries s
-            LEFT JOIN BlogUser u ON s.AuthorId = u.UserId
-            WHERE s.AuthorId = @AuthorId
-            ORDER BY s.Name";
-
-    private const string SelectByIdSql = @"
-            SELECT s.SeriesId, s.Name, s.Slug, s.Description, s.Status,
-                   s.AuthorId, s.CreatedOn, s.UpdatedOn,
-                   CONCAT(u.FirstName, ' ', u.LastName) as AuthorName
-            FROM BlogSeries s
-            LEFT JOIN BlogUser u ON s.AuthorId = u.UserId
-            WHERE s.SeriesId = @SeriesId";
-
-    private const string SelectBySlugSql = @"
-            SELECT s.SeriesId, s.Name, s.Slug, s.Description, s.Status,
-                   s.AuthorId, s.CreatedOn, s.UpdatedOn,
-                   CONCAT(u.FirstName, ' ', u.LastName) as AuthorName,
-                   COUNT(p.PostID) as PostCount
-            FROM BlogSeries s
-            LEFT JOIN BlogUser u ON s.AuthorId = u.UserId
-            LEFT JOIN BlogPost p ON s.SeriesId = p.SeriesId
-                AND p.Published = TRUE
-                AND (p.IsDeleted = FALSE OR p.IsDeleted IS NULL)
-            WHERE s.Slug = @Slug
+    /// <summary>
+    /// The grouping the computed <c>PostCount</c> requires, shared so the aggregate and its grouping
+    /// can never be edited apart.
+    /// </summary>
+    private const string SeriesCountGroupBy = @"
             GROUP BY s.SeriesId, s.Name, s.Slug, s.Description, s.Status,
                      s.AuthorId, s.CreatedOn, s.UpdatedOn, u.FirstName, u.LastName";
+
+    private const string SelectAllSql = $@"
+            SELECT {SeriesColumnsWithCount}
+            {SeriesCountGroupBy}
+            ORDER BY s.Name";
+
+    // Retained as a distinct member of IBlogSeriesRepo because callers ask for it by name, but it is
+    // now literally the same statement as SelectAllSql — REQ-FN-057 gave the plain listing the count
+    // too, and two spellings of one query are how projections drift apart in the first place.
+    private const string SelectAllWithCountsSql = SelectAllSql;
+
+    private const string SelectByAuthorSql = $@"
+            SELECT {SeriesColumnsWithCount}
+            WHERE s.AuthorId = @AuthorId
+            {SeriesCountGroupBy}
+            ORDER BY s.Name";
+
+    private const string SelectByIdSql = $@"
+            SELECT {SeriesColumnsWithCount}
+            WHERE s.SeriesId = @SeriesId
+            {SeriesCountGroupBy}";
+
+    private const string SelectBySlugSql = $@"
+            SELECT {SeriesColumnsWithCount}
+            WHERE s.Slug = @Slug
+            {SeriesCountGroupBy}";
 
     private const string CountBySlugSql = @"
             SELECT COUNT(1) FROM BlogSeries
             WHERE Slug = @Slug AND SeriesId != @ExcludeSeriesId";
 
-    private const string SelectPagedSql = @"
-            SELECT s.SeriesId, s.Name, s.Slug, s.Description, s.Status,
-                   s.AuthorId, s.CreatedOn, s.UpdatedOn,
-                   CONCAT(u.FirstName, ' ', u.LastName) as AuthorName
-            FROM BlogSeries s
-            LEFT JOIN BlogUser u ON s.AuthorId = u.UserId
+    private const string SelectPagedSql = $@"
+            SELECT {SeriesColumnsWithCount}
+            {SeriesCountGroupBy}
             ORDER BY s.Name
             LIMIT @PageSize OFFSET @Offset";
 
@@ -144,7 +163,9 @@ public class BlogSeriesRepo : GenericRepository<BlogSeries>, IBlogSeriesRepo
     /// <remarks>
     /// <para><b>Business Logic:</b> The count covers published, non-deleted posts only, so the "N
     /// parts" a reader sees equals the parts they can actually open. The LEFT JOIN keeps an empty
-    /// series visible, with a count of zero.</para>
+    /// series visible, with a count of zero. REQ-FN-057: this now executes the same statement as
+    /// <see cref="GetAllAsync"/>, which also carries the count. The member is kept because callers ask
+    /// for it by name and the name states the guarantee.</para>
     /// <para><b>Flow:</b> helper opens the connection asynchronously → grouped left join → materialised list.</para>
     /// <para><b>Side Effects:</b> None — read-only query.</para>
     /// </remarks>
@@ -178,8 +199,11 @@ public class BlogSeriesRepo : GenericRepository<BlogSeries>, IBlogSeriesRepo
     /// </summary>
     /// <remarks>
     /// <para><b>Business Logic:</b> An unknown identifier is a normal answer and yields <c>null</c>.
-    /// <c>PostCount</c> is deliberately not computed here — the editor that uses this lookup fetches
-    /// the parts themselves, so counting them again would be a wasted aggregate.</para>
+    /// REQ-FN-057: <c>PostCount</c> is computed here, as it is on every other series read. It used to
+    /// be omitted on the argument that the editor fetches the parts itself, but an omitted computed
+    /// aggregate does not arrive as "not asked for" — it arrives as <c>0</c>, and the first surface to
+    /// render a part count from a series loaded by ID would have shown "0 Parts" exactly as
+    /// <c>/series/{slug}</c> once did (REQ-FN-019).</para>
     /// <para><b>Flow:</b> helper opens the connection asynchronously → query by key → first row or <c>null</c>.</para>
     /// <para><b>Side Effects:</b> None — read-only query.</para>
     /// </remarks>

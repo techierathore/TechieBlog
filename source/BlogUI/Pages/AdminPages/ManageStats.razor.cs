@@ -167,7 +167,7 @@ public partial class ManageStats : ComponentBase
     protected override async Task OnInitializedAsync()
     {
         await LoadCurrentUserAsync();
-        LoadStats();
+        await LoadStatsAsync();
     }
 
     /// <summary>
@@ -195,7 +195,7 @@ public partial class ManageStats : ComponentBase
         IsAdmin = string.Equals(roleClaim?.Value, AdminRoleName, StringComparison.OrdinalIgnoreCase);
         if (IsAdmin)
         {
-            AllUsers = UserRepo.GetAll()?.ToList() ?? new List<AppUser>();
+            AllUsers = (await UserRepo.GetAllAsync())?.ToList() ?? new List<AppUser>();
         }
     }
 
@@ -207,10 +207,11 @@ public partial class ManageStats : ComponentBase
     /// this method only has to clear the loading flag.</para>
     /// <para><b>Side Effects:</b> Replaces <see cref="AllStats"/>.</para>
     /// </remarks>
-    private void LoadStats()
+    /// <returns>A task that completes when the statistics have been read.</returns>
+    private async Task LoadStatsAsync()
     {
         IsLoading = true;
-        AllStats = StatsSvc.GetStatsForUser(SelectedUserId).ToList();
+        AllStats = (await StatsSvc.GetStatsForUserAsync(SelectedUserId)).ToList();
         IsLoading = false;
     }
 
@@ -221,7 +222,7 @@ public partial class ManageStats : ComponentBase
     /// <para><b>Side Effects:</b> Changes <see cref="SelectedUserId"/> and reloads the list.</para>
     /// </remarks>
     /// <param name="value">The selected user identifier as text.</param>
-    public void OnSelectedUserChanged(string value)
+    public async Task OnSelectedUserChangedAsync(string value)
     {
         if (!long.TryParse(value, out var userId))
         {
@@ -230,7 +231,7 @@ public partial class ManageStats : ComponentBase
 
         SelectedUserId = userId;
         StatusMessage = null;
-        LoadStats();
+        await LoadStatsAsync();
     }
 
     /// <summary>
@@ -295,10 +296,11 @@ public partial class ManageStats : ComponentBase
     /// <para><b>Flow:</b> Build the entity, call <c>SaveStat</c>, report, reload.</para>
     /// <para><b>Side Effects:</b> Writes one <c>UserStats</c> row.</para>
     /// </remarks>
-    public void SaveStat()
+    /// <returns>A task that completes when the statistic has been saved.</returns>
+    public async Task SaveStatAsync()
     {
         var stat = BuildStatFromForm();
-        var result = StatsSvc.SaveStat(stat);
+        var result = await StatsSvc.SaveStatAsync(stat);
 
         if (result.IsFailure)
         {
@@ -313,7 +315,7 @@ public partial class ManageStats : ComponentBase
         IsError = false;
 
         CancelStatDialog();
-        LoadStats();
+        await LoadStatsAsync();
     }
 
     /// <summary>
@@ -358,7 +360,8 @@ public partial class ManageStats : ComponentBase
     /// silently ignored, so two admins editing at once see what happened.</para>
     /// <para><b>Side Effects:</b> Removes one <c>UserStats</c> row and reloads the list.</para>
     /// </remarks>
-    public void DeleteStat()
+    /// <returns>A task that completes when the statistic has been deleted.</returns>
+    public async Task DeleteStatAsync()
     {
         if (StatToDelete is null)
         {
@@ -366,7 +369,7 @@ public partial class ManageStats : ComponentBase
         }
 
         var label = StatToDelete.StatLabel;
-        var result = StatsSvc.DeleteStat(StatToDelete.StatId);
+        var result = await StatsSvc.DeleteStatAsync(StatToDelete.StatId);
 
         StatusMessage = result.IsSuccess
             ? $"Statistic '{label}' deleted successfully."
@@ -374,7 +377,7 @@ public partial class ManageStats : ComponentBase
         IsError = result.IsFailure;
 
         CancelDelete();
-        LoadStats();
+        await LoadStatsAsync();
     }
 
     /// <summary>
@@ -398,14 +401,14 @@ public partial class ManageStats : ComponentBase
     /// </summary>
     /// <remarks><para><b>Side Effects:</b> Rewrites display order for the whole list.</para></remarks>
     /// <param name="stat">The statistic to move.</param>
-    public void MoveStatUp(UserStat stat) => MoveStat(stat, -1);
+    public Task MoveStatUpAsync(UserStat stat) => MoveStatAsync(stat, -1);
 
     /// <summary>
     /// Moves a statistic one position later in display order.
     /// </summary>
     /// <remarks><para><b>Side Effects:</b> Rewrites display order for the whole list.</para></remarks>
     /// <param name="stat">The statistic to move.</param>
-    public void MoveStatDown(UserStat stat) => MoveStat(stat, 1);
+    public Task MoveStatDownAsync(UserStat stat) => MoveStatAsync(stat, 1);
 
     /// <summary>
     /// Reorders the list by moving one statistic by the given offset.
@@ -419,7 +422,7 @@ public partial class ManageStats : ComponentBase
     /// </remarks>
     /// <param name="stat">The statistic to move.</param>
     /// <param name="offset">-1 to move earlier, +1 to move later.</param>
-    private void MoveStat(UserStat stat, int offset)
+    private async Task MoveStatAsync(UserStat stat, int offset)
     {
         var ordered = OrderedStats.ToList();
         var currentIndex = ordered.FindIndex(s => s.StatId == stat.StatId);
@@ -433,14 +436,14 @@ public partial class ManageStats : ComponentBase
         ordered.RemoveAt(currentIndex);
         ordered.Insert(targetIndex, stat);
 
-        var result = StatsSvc.ReorderStats(SelectedUserId, ordered.Select(s => s.StatId).ToList());
+        var result = await StatsSvc.ReorderStatsAsync(SelectedUserId, ordered.Select(s => s.StatId).ToList());
         if (result.IsFailure)
         {
             StatusMessage = result.ErrorMessage;
             IsError = true;
         }
 
-        LoadStats();
+        await LoadStatsAsync();
     }
 
     /// <summary>

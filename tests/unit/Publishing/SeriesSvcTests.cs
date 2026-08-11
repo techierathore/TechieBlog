@@ -784,7 +784,7 @@ public class SeriesSvcTests
     /// because every caller of this method is an admin screen.
     /// </summary>
     [Fact]
-    public void CreateSeriesFailsWithTheUnderlyingMessageWhenTheInsertFails()
+    public void CreateSeriesReportsACuratedMessageWhenTheInsertFails()
     {
         // Arrange
         seriesRepo.InsertToGetId(Arg.Any<BlogSeries>()).Throws(new InvalidOperationException("duplicate key"));
@@ -794,8 +794,9 @@ public class SeriesSvcTests
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to create series: duplicate key", result.ErrorMessage);
-        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error);
+        Assert.Equal("Failed to create series. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("duplicate key", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "duplicate key");
     }
 
     /// <summary>
@@ -892,7 +893,7 @@ public class SeriesSvcTests
     /// twin.
     /// </summary>
     [Fact]
-    public async Task CreateSeriesAsyncFailsWithTheUnderlyingMessageWhenTheInsertFails()
+    public async Task CreateSeriesAsyncReportsACuratedMessageWhenTheInsertFails()
     {
         // Arrange
         seriesRepo.InsertToGetIdAsync(Arg.Any<BlogSeries>(), Arg.Any<CancellationToken>())
@@ -904,7 +905,9 @@ public class SeriesSvcTests
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to create series: duplicate key", result.ErrorMessage);
+        Assert.Equal("Failed to create series. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("duplicate key", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "duplicate key");
     }
 
     // ===========================================================================================
@@ -1100,7 +1103,7 @@ public class SeriesSvcTests
     /// A failed update becomes a failed result naming the underlying problem, and logs.
     /// </summary>
     [Fact]
-    public void UpdateSeriesFailsWithTheUnderlyingMessageWhenThePersistFails()
+    public void UpdateSeriesReportsACuratedMessageWhenThePersistFails()
     {
         // Arrange
         ArrangeExistingSeries();
@@ -1112,8 +1115,9 @@ public class SeriesSvcTests
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to update series: row locked", result.ErrorMessage);
-        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error);
+        Assert.Equal("Failed to update series. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("row locked", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "row locked");
     }
 
     /// <summary>
@@ -1226,7 +1230,7 @@ public class SeriesSvcTests
     /// A failed async update becomes a failed result with the same message shape.
     /// </summary>
     [Fact]
-    public async Task UpdateSeriesAsyncFailsWithTheUnderlyingMessageWhenThePersistFails()
+    public async Task UpdateSeriesAsyncReportsACuratedMessageWhenThePersistFails()
     {
         // Arrange
         ArrangeExistingSeriesAsync();
@@ -1239,7 +1243,9 @@ public class SeriesSvcTests
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to update series: row locked", result.ErrorMessage);
+        Assert.Equal("Failed to update series. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("row locked", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "row locked");
     }
 
     // ===========================================================================================
@@ -1451,7 +1457,9 @@ public class SeriesSvcTests
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to delete series: detach exploded", result.ErrorMessage);
+        Assert.Equal("Failed to delete series. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("detach exploded", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "detach exploded");
         seriesRepo.DidNotReceive().Delete(Arg.Any<long>());
     }
 
@@ -1460,7 +1468,7 @@ public class SeriesSvcTests
     /// recoverable state the ordering was chosen to produce.
     /// </summary>
     [Fact]
-    public void DeleteSeriesFailsWithTheUnderlyingMessageWhenTheRowDeleteFails()
+    public void DeleteSeriesReportsACuratedMessageWhenTheRowDeleteFails()
     {
         // Arrange
         ArrangeExistingSeries();
@@ -1472,7 +1480,9 @@ public class SeriesSvcTests
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to delete series: constraint violated", result.ErrorMessage);
+        Assert.Equal("Failed to delete series. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("constraint violated", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "constraint violated");
         postRepo.Received(1).ClearSeriesFromPosts(SeriesId);
         Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error);
     }
@@ -1531,10 +1541,11 @@ public class SeriesSvcTests
     }
 
     /// <summary>
-    /// A failed async delete is reported with the underlying message.
+    /// A failed async delete is reported with the curated message, with the exception text confined to
+    /// the log (REQ-NFR-031).
     /// </summary>
     [Fact]
-    public async Task DeleteSeriesAsyncFailsWithTheUnderlyingMessageWhenTheRowDeleteFails()
+    public async Task DeleteSeriesAsyncReportsACuratedMessageWhenTheRowDeleteFails()
     {
         // Arrange
         ArrangeExistingSeriesAsync();
@@ -1546,7 +1557,9 @@ public class SeriesSvcTests
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to delete series: constraint violated", result.ErrorMessage);
+        Assert.Equal("Failed to delete series. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("constraint violated", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "constraint violated");
     }
 
     // ===========================================================================================

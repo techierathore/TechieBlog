@@ -107,9 +107,10 @@
         !string.IsNullOrWhiteSpace(User?.ProfileDescription) || headlineStats.Count > 0;
 
     /// <inheritdoc />
-    protected override void OnParametersSet()
+    /// <returns>A task that completes when the statistics have been read.</returns>
+    protected override async Task OnParametersSetAsync()
     {
-        var all = StatsSvc.GetStatsForUser(UserId).ToList();
+        var all = (await StatsSvc.GetStatsForUserAsync(UserId)).ToList();
 
         communityStats = all
             .Where(s => string.Equals(s.StatCategory, CommunityCategory, StringComparison.OrdinalIgnoreCase))

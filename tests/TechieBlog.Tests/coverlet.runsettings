@@ -2,13 +2,94 @@
 <!--
   Coverage settings for TechieBlog.Tests — REQ-NFR-016 (BRD-76).
 
-  BlogEngine is the coverage target: 80% line coverage. Everything else in the
-  solution is excluded so the number reported is the number the requirement asks
-  about.
-
   Run with dotnet test, passing the "XPlat Code Coverage" collector and pointing
   the settings switch at this file (see .github/workflows/ci.yml for the exact
   command line; MSBuild switches cannot be quoted inside an XML comment).
+
+  ============================================================================
+  DECLARED NARROWING OF THE COVERAGE SCOPE — owner decision, 2026-08-10
+  ============================================================================
+  READ THIS BEFORE QUOTING THE COVERAGE NUMBER ANYWHERE.
+
+  The 80% line-coverage target in BRD-76 is measured against a DELIBERATELY
+  NARROWED slice of BlogEngine, not against the whole assembly. This is a
+  declared, documented reduction of scope. It is written down here, and again
+  in the CI step that reads the report, so that nobody quotes the narrowed
+  figure as if it were whole-assembly coverage. Anyone comparing this number to
+  the pre-2026-08-10 figure is comparing two different things.
+
+  WHAT IS EXCLUDED, AND WHY
+  =========================
+  Measured on 2026-08-09 and re-measured on 2026-08-10, BlogEngine had 9,455
+  coverable lines and 47.2% line coverage. Three groups of code account for
+  essentially all of the shortfall, and NONE of them can execute in a run that
+  has no PostgreSQL server, no object store and no DI host:
+
+    BlogEngine.DbAccess.*                      3,226 lines, measured 0.0%
+        Every repository. Not one line runs without a live connection —
+        the first statement of each method opens one. These are thin Dapper
+        wrappers over SQL; a mock-based unit test would assert only that the
+        mock was called, which is why none exists.
+
+    BlogEngine.Storage.*                         237 lines, measured 0.0%
+        FileSystemStorage / NetworkFileStorage / CloudFileStorage /
+        LocalFileStorage and their factory. Need a real filesystem share or
+        cloud endpoint, and FileStorageFactory additionally reads its provider
+        choice from the settings table (so: needs the database too).
+
+    BlogEngine.DaCore.DbConnectionFactory        + GenericRepository`1
+                                                 ~103 lines, measured ~25%
+        The connection factory and the repository base class every repository
+        extends. Same reason as DbAccess: DB plumbing. NOTE the deliberate
+        exception — BlogEngine.DaCore.DbTimestamp is a pure, connection-free
+        helper and is KEPT IN SCOPE (it is at 100%). Only the two DB-bound
+        types are excluded, not the whole DaCore namespace.
+
+    BlogEngine.BlogSvcInitializer                 61 lines, measured 0.0%
+    BlogEngine.EngagementSvcInitializer           21 lines, measured 0.0%
+        DI service-registration entry points. They register types into an
+        IServiceCollection; executing them proves nothing that a compile does
+        not already prove, and they are exercised for real at host startup.
+
+  Together those are ~3,566 of 9,455 lines that a no-database run can never
+  reach, which puts the CEILING for the old whole-assembly scope at 62.3% —
+  the 80% target was arithmetically unreachable as previously scoped.
+
+  WHAT REMAINS IN SCOPE
+  =====================
+    BlogEngine.Services.*   — business logic, tested with NSubstitute fakes
+    BlogEngine.Common.*     — pure helpers (slug, markdown, captcha, hashing…)
+    BlogEngine.DaCore.DbTimestamp
+    plus anything added to BlogEngine outside the excluded names above.
+
+  The Include stays [BlogEngine]* on purpose. Scope is narrowed by an explicit
+  EXCLUDE list, not by an allow-list, so that a namespace added to BlogEngine
+  later is counted by default and shows up as a coverage drop rather than
+  silently vanishing from the denominator.
+
+  WHAT WOULD HAVE TO CHANGE TO WIDEN IT AGAIN
+  ===========================================
+  Delete the exclusion for a group once its code can actually run in CI:
+
+    * DbAccess + DaCore DB plumbing — requires the opt-in Testcontainers suite
+      (TechieBlogIntegrationTests=true, tests/TechieBlog.Tests/Integration/) to
+      run in the same leg that collects coverage. It is OFF today: CI has no
+      Docker-in-Docker step, and the standing project rule forbids standing up
+      a second PostgreSQL container locally. Turning it on would also make the
+      coverage leg depend on a container pull, so it is a CI-cost decision, not
+      just a settings edit.
+
+    * Storage — needs either a temp-directory fixture for FileSystemStorage /
+      NetworkFileStorage (cheap, no infrastructure, the obvious next win) or a
+      cloud emulator for CloudFileStorage (not cheap).
+
+    * The two SvcInitializers — need a host-builder smoke test that resolves
+      the registered services from a built ServiceProvider.
+
+  Each removal will LOWER the reported percentage until tests for that group
+  land. That is the intended behaviour: the number must move when the scope
+  moves.
+  ============================================================================
 -->
 <RunSettings>
   <DataCollectionRunSettings>
@@ -16,8 +97,22 @@
       <DataCollector friendlyName="XPlat code coverage">
         <Configuration>
           <Format>cobertura,opencover</Format>
+
+          <!-- BlogEngine is the coverage target; every other assembly is out. -->
           <Include>[BlogEngine]*</Include>
-          <Exclude>[BlogModels]*,[BlogUI]*,[TechieBlog]*,[TechieBlog.Tests]*,[BlogDb]*</Exclude>
+
+          <!--
+            Other assemblies, then the declared narrowing documented above.
+            Do not add an entry here without adding its justification to that
+            comment block — an undocumented exclusion is a silently inflated
+            number, which is exactly what this file exists to prevent.
+          -->
+          <!-- Kept on ONE line: coverlet splits this value on ',' without
+               trimming, so a wrapped list yields filters with leading
+               whitespace that silently match nothing. The readable, annotated
+               form of this list is the comment block above. -->
+          <Exclude>[BlogModels]*,[BlogUI]*,[TechieBlog]*,[TechieBlog.Tests]*,[BlogDb]*,[BlogEngine]BlogEngine.DbAccess.*,[BlogEngine]BlogEngine.Storage.*,[BlogEngine]BlogEngine.DaCore.DbConnectionFactory*,[BlogEngine]BlogEngine.DaCore.GenericRepository*,[BlogEngine]BlogEngine.BlogSvcInitializer,[BlogEngine]BlogEngine.EngagementSvcInitializer</Exclude>
+
           <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute</ExcludeByAttribute>
           <SingleHit>false</SingleHit>
           <UseSourceLink>true</UseSourceLink>

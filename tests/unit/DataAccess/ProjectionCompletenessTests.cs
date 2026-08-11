@@ -26,7 +26,26 @@ namespace TechieBlog.Tests.DataAccess;
 ///     visitors (REQ-FN-015).</item>
 ///   <item><c>BlogSeriesRepo.SelectBySlugSql</c> omitted <c>PostCount</c>, so every series page
 ///     rendered "0 Parts" (REQ-FN-019).</item>
+///   <item>The four public post reads — <c>SelectPublishedSql</c>, <c>SelectFeaturedSql</c>,
+///     <c>SelectByCategorySql</c>, <c>SearchSql</c> — omitted <c>PublishedOn</c>, so the RSS
+///     <c>pubDate</c>, the sitemap <c>lastmod</c> and every listing card dated posts by when they were
+///     drafted rather than by when they went live (REQ-FN-057).</item>
+///   <item><c>BlogPostRepo.SelectPagedSql</c> had no author join and none of the publish, schedule,
+///     soft-delete or series columns, so any read-modify-write through it would have NULLed a post's
+///     publication date. It had no caller, which is the only reason it never did (REQ-FN-057).</item>
+///   <item><c>BlogSeriesRepo</c>'s other four reads omitted the computed <c>PostCount</c> that
+///     <c>SelectBySlugSql</c> provides — REQ-FN-019 waiting to happen again on the admin series grid
+///     (REQ-FN-057).</item>
 /// </list>
+///
+/// <para><b>REQ-FN-057 (2026-08-10):</b> all three of the above were FIXED rather than declared, and
+/// each is pinned by a named assertion here — <see cref="PublicPostReadsProjectPublishedOn"/>,
+/// <see cref="PagedPostReadMatchesTheUnpagedAdminRead"/> with
+/// <see cref="PagedPostReadStaysAnAdminRead"/>, and
+/// <see cref="EverySeriesReadComputesThePartCount"/>. The one narrowing deliberately kept —
+/// <c>SelectPagedSql</c> stays an admin read with no <c>Published</c> filter, because bolting one on
+/// would empty the admin grid the day somebody pages it — is registered as a decision the gate
+/// enforces in both directions rather than as an omission the gate ignores.</para>
 ///
 /// <para><b>Why a gate and not more assertions:</b> REQ-FN-053's own write-up recommended a
 /// projection-completeness gate and none existed. Per-statement assertions only cover the statements
@@ -94,41 +113,36 @@ public class ProjectionCompletenessTests
             ["NewsletterRepo.SelectSubscriberByTokenSql"] =
                 "Reads Subscriber by unsubscribe token, not Newsletter.",
 
-            // --- BlogSeriesRepo: PostCount is a computed aggregate, present only on the reads that
-            // join BlogPost for it. Declared rather than fixed, but see the LATENT note below.
-            ["BlogSeriesRepo.SelectAllSql"] =
-                "Bare series rows without the computed PostCount; callers that need the count use SelectAllWithCountsSql.",
-            ["BlogSeriesRepo.SelectByAuthorSql"] =
-                "Author's series list; PostCount is not rendered on that surface.",
-            ["BlogSeriesRepo.SelectPagedSql"] =
-                "Admin paging read; PostCount is not rendered in the grid.",
-            ["BlogSeriesRepo.SelectByIdSql"] =
-                "LATENT (2026-08-09, REQ-NFR-016): omits the computed PostCount that SelectBySlugSql projects. "
-                + "This is the same shape as REQ-FN-019, where /series/{slug} rendered '0 Parts' because GetBySlug "
-                + "had no PostCount. Harmless only for as long as no surface loading a series BY ID renders a part "
-                + "count — the admin series editor is one edit away from doing so. Not a data-loss risk: "
-                + "BlogSeriesRepo.UpdateSql does not write PostCount.",
+            // --- BlogSeriesRepo has NO declared narrowings. It had four until REQ-FN-057 (2026-08-10):
+            // SelectAllSql, SelectByAuthorSql, SelectPagedSql and SelectByIdSql all omitted the
+            // computed PostCount that SelectBySlugSql projects — the exact shape of REQ-FN-019, where
+            // /series/{slug} rendered "0 Parts" for every series. All six reads are now composed from
+            // one shared fragment on the repository, so they project the same columns by construction
+            // and EverySeriesReadComputesThePartCount fails if any of them stops.
 
-            // --- BlogPostRepo: four deliberate read shapes, documented at length on the repository
+            // --- BlogPostRepo: deliberate read shapes, documented at length on the repository
             // itself. Each entry repeats the consequence, because the consequence is the point.
             ["BlogPostRepo.SelectAllSql"] =
                 "Admin list read: full entity plus BlogWriter, without the SeriesName/SeriesSlug join. Safe to write back.",
             ["BlogPostRepo.SelectAllByUserSql"] =
                 "Same shape as SelectAllSql, scoped to one author. Safe to write back.",
             ["BlogPostRepo.SelectPagedSql"] =
-                "LATENT (documented on BlogPostRepo, re-recorded 2026-08-09 under REQ-NFR-016): the narrowest read in "
-                + "the repository — no join, so no BlogWriter, and no PublishedOn, ScheduledPublishOn, DeletedOn, "
-                + "SeriesId or SeriesPartNumber. A post read here reports Author 'Unknown' and Status 'Draft' whatever "
-                + "the row says, and writing one back through UpdateAsync would NULL its publication date and pending "
-                + "schedule. MUST NOT be used to load an entity for editing.",
+                "FIXED 2026-08-10 under REQ-FN-057, still declared for the series self-join alone: this is now the "
+                + "paged twin of SelectAllSql, column for column, so it carries BlogWriter, PublishedOn, "
+                + "ScheduledPublishOn, DeletedOn, SeriesId and SeriesPartNumber. It remains narrower than the widest "
+                + "read only in lacking SeriesName/SeriesSlug, exactly as SelectAllSql does. The twinning is asserted "
+                + "by PagedPostReadMatchesTheUnpagedAdminRead, so it cannot silently narrow again. It was previously "
+                + "the narrowest read here — a post read through it reported Author 'Unknown' and Status 'Draft' "
+                + "whatever the row said, and writing one back through UpdateAsync would have NULLed its publication "
+                + "date and pending schedule. Nothing called it, which is the only reason that never cost data.",
             ["BlogPostRepo.SelectPublishedSql"] =
-                "LATENT (documented on BlogPostRepo, re-recorded 2026-08-09 under REQ-NFR-016): public listing read "
-                + "with BlogWriter but WITHOUT PublishedOn, so any page built on it must date posts by CreatedOn, not "
-                + "by when they actually went live. Read-only path.",
+                "Public listing read: the entity, BlogWriter and PublishedOn, without the soft-delete, schedule or "
+                + "series columns. Read-only path — never written back. REQ-FN-057 added PublishedOn on 2026-08-10; "
+                + "PublicPostReadsProjectPublishedOn keeps it there.",
             ["BlogPostRepo.SelectFeaturedSql"] =
-                "Same narrow public shape as SelectPublishedSql, single row. Read-only path.",
+                "Same public shape as SelectPublishedSql, single row. Read-only path.",
             ["BlogPostRepo.SelectByCategorySql"] =
-                "Same narrow public shape as SelectPublishedSql, filtered by category. Read-only path.",
+                "Same public shape as SelectPublishedSql, filtered by category. Read-only path.",
             ["BlogPostRepo.SelectScheduledSql"] =
                 "Scheduling read: carries ScheduledPublishOn and PublishedOn, omits the series join. Read-only path.",
             ["BlogPostRepo.SelectDueScheduledSql"] =
@@ -403,6 +417,282 @@ public class ProjectionCompletenessTests
             $"Sibling reads of the same entity have drifted apart:{Environment.NewLine}{failures}"
             + "Every omitted column arrives at the caller as its default — part number 0, author \"Unknown\", status \"Draft\", a null date — with nothing to indicate the value was never read. "
             + "Restore the column, or register the statement in ProjectionCompletenessTests.DeclaredNarrowProjections with the reason the narrowing is intended and the note that its rows must never be written back.");
+    }
+
+    /// <summary>
+    /// Every statement in <c>BlogPostRepo</c> that feeds a surface an anonymous visitor can reach.
+    /// These four share one read shape and one job, so they are asserted as a family.
+    /// </summary>
+    public static TheoryData<string> PublicPostReadNames() =>
+    [
+        "SelectPublishedSql",
+        "SelectFeaturedSql",
+        "SelectByCategorySql",
+        "SearchSql"
+    ];
+
+    /// <summary>
+    /// Every statement in <c>BlogSeriesRepo</c> that reads whole series rows.
+    /// </summary>
+    public static TheoryData<string> SeriesReadNames() =>
+    [
+        "SelectAllSql",
+        "SelectAllWithCountsSql",
+        "SelectByAuthorSql",
+        "SelectByIdSql",
+        "SelectBySlugSql",
+        "SelectPagedSql"
+    ];
+
+    /// <summary>
+    /// Every public post listing projects <c>PublishedOn</c>, so the date the site shows for a post is
+    /// the date it went live rather than the date somebody started drafting it.
+    /// </summary>
+    /// <remarks>
+    /// REQ-FN-057. These four reads omitted the column, and the omission was invisible precisely
+    /// because every consumer resolves the date defensively as <c>PublishedOn ?? CreatedOn</c>:
+    /// <c>RssFeedSvc.BuildItem</c> for the feed's <c>pubDate</c>, <c>SitemapSvc.AddPublishedPosts</c>
+    /// and its async twin for <c>lastmod</c>. A column that is never selected does not make that
+    /// fallback fire "when appropriate" — it makes it fire always, on every row, so the whole public
+    /// site silently dated itself by <c>CreatedOn</c> and no test could tell.
+    /// </remarks>
+    /// <param name="statementName">Name of the SQL constant under test.</param>
+    [Theory]
+    [MemberData(nameof(PublicPostReadNames))]
+    public void PublicPostReadsProjectPublishedOn(string statementName)
+    {
+        // Arrange
+        var columns = ProjectionOf("BlogPostRepo", statementName);
+
+        // Act
+        var projected = columns.Contains("PUBLISHEDON");
+
+        // Assert
+        Assert.True(
+            projected,
+            $"BlogPostRepo.{statementName} no longer projects PublishedOn. Every consumer dates a post as 'PublishedOn ?? CreatedOn', so the column arriving null does not surface as an error — it silently re-dates the post to when it was drafted, in the RSS pubDate, in the sitemap lastmod and on every listing card.");
+    }
+
+    /// <summary>
+    /// The four public post reads project exactly the same columns, so a column added for one public
+    /// surface cannot be missing on the next one. They are one read shape serving one audience, and
+    /// the drift between them is what REQ-FN-057 had to go and find by hand.
+    /// </summary>
+    [Fact]
+    public void PublicPostReadsShareOneProjection()
+    {
+        // Arrange
+        var names = new[] { "SelectPublishedSql", "SelectFeaturedSql", "SelectByCategorySql", "SearchSql" };
+        var reference = ProjectionOf("BlogPostRepo", names[0]);
+        var failures = new StringBuilder();
+
+        // Act
+        foreach (var name in names.Skip(1))
+        {
+            var columns = ProjectionOf("BlogPostRepo", name);
+
+            var missing = reference.Except(columns, StringComparer.Ordinal).ToList();
+            var extra = columns.Except(reference, StringComparer.Ordinal).ToList();
+
+            if (missing.Count == 0 && extra.Count == 0)
+                continue;
+
+            failures.AppendLine(
+                $"  {name} differs from {names[0]}: missing [{string.Join(", ", missing.Order(StringComparer.Ordinal))}], extra [{string.Join(", ", extra.Order(StringComparer.Ordinal))}].");
+        }
+
+        // Assert
+        Assert.True(
+            failures.Length == 0,
+            $"The public post reads have drifted apart:{Environment.NewLine}{failures}"
+            + "They feed the home listing, the featured card, the category archive and search — one audience, one row shape. "
+            + "If one of them genuinely needs a different shape, split it out with a name that says so rather than letting the family diverge.");
+    }
+
+    /// <summary>
+    /// <c>SelectPagedSql</c> projects exactly what its unpaged twin <c>SelectAllSql</c> projects, so
+    /// the only difference between the two admin reads is <c>LIMIT</c>/<c>OFFSET</c>.
+    /// </summary>
+    /// <remarks>
+    /// REQ-FN-057(b). The paged read had no join and thirteen columns: no <c>BlogWriter</c>, no
+    /// <c>PublishedOn</c>, no <c>ScheduledPublishOn</c>. It has no caller today, which is the only
+    /// reason that never destroyed data — <c>UpdateSql</c> writes <c>PublishedOn</c> and
+    /// <c>ScheduledPublishOn</c> unconditionally, so the first read-modify-write through this path
+    /// would have erased both. It is an <c>override</c> of an abstract member and therefore cannot be
+    /// deleted, so "no caller today" is a property of the calendar, not of the code. It was widened
+    /// rather than declared, and this assertion is what stops it narrowing back.
+    /// </remarks>
+    [Fact]
+    public void PagedPostReadMatchesTheUnpagedAdminRead()
+    {
+        // Arrange
+        var paged = ProjectionOf("BlogPostRepo", "SelectPagedSql");
+        var unpaged = ProjectionOf("BlogPostRepo", "SelectAllSql");
+
+        // Act
+        var missing = unpaged.Except(paged, StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+
+        // Assert
+        Assert.True(
+            missing.Count == 0,
+            $"BlogPostRepo.SelectPagedSql omits [{string.Join(", ", missing)}] that its unpaged twin SelectAllSql projects. "
+            + "A post read through the paged path would report those columns as their defaults — Author 'Unknown', a null publication date — and UpdateAsync writes PublishedOn and ScheduledPublishOn unconditionally, so writing one back stores NULL over a real date.");
+    }
+
+    /// <summary>
+    /// <c>SelectPagedSql</c> stays an ADMIN read: no <c>Published</c> filter, matching its unpaged twin
+    /// <c>SelectAllSql</c> and the dashboard count <c>SelectCountsSql</c>.
+    /// </summary>
+    /// <remarks>
+    /// REQ-FN-057(b), the declared half. The requirement noted this statement "would leak drafts if
+    /// ever wired to a public page". The resolution is not to bolt a published filter onto it — that
+    /// would silently empty the admin grid the day somebody pages it, the mirror image of the
+    /// REQ-FN-015 mistake — but to fix the projection and pin the filter as a deliberate decision. The
+    /// three admin statements over <c>BlogPost</c> must agree on what a row is; if a public surface
+    /// needs paging it gets <c>SelectPublishedSql</c>, which already filters and already pairs with
+    /// <c>CountPublishedSql</c>.
+    /// </remarks>
+    [Fact]
+    public void PagedPostReadStaysAnAdminRead()
+    {
+        // Arrange
+        var statements = SqlStatementInventory.Statements(Repository("BlogPostRepo"));
+
+        // Act
+        var pagedFilters = SqlStatementInventory.FiltersOnPublished(statements["SelectPagedSql"]);
+        var unpagedFilters = SqlStatementInventory.FiltersOnPublished(statements["SelectAllSql"]);
+        var countFilters = SqlStatementInventory.FiltersOnPublished(statements["SelectCountsSql"]);
+
+        // Assert
+        Assert.False(
+            pagedFilters,
+            "BlogPostRepo.SelectPagedSql has acquired a Published filter. It is the paged twin of the ADMIN read SelectAllSql and is counted by SelectCountsSql, neither of which filters; adding one here empties the admin grid of drafts while the count still counts them. A public paged listing already exists — SelectPublishedSql, paired with CountPublishedSql.");
+
+        Assert.Equal(unpagedFilters, pagedFilters);
+        Assert.Equal(countFilters, pagedFilters);
+    }
+
+    /// <summary>
+    /// Every read in <c>BlogSeriesRepo</c> computes <c>PostCount</c>, so no surface can render a series
+    /// as having "0 Parts" merely because the read it used never asked for the number.
+    /// </summary>
+    /// <remarks>
+    /// REQ-FN-057(c). <c>PostCount</c> is a computed <c>LEFT JOIN</c> aggregate, not a stored column,
+    /// so omitting it does not produce null — it produces <c>0</c>, which renders as a confident,
+    /// wrong answer. Four of these six reads omitted it, which is the identical shape of REQ-FN-019,
+    /// where <c>/series/{slug}</c> shipped rendering "0 Parts" for every series.
+    /// </remarks>
+    /// <param name="statementName">Name of the SQL constant under test.</param>
+    [Theory]
+    [MemberData(nameof(SeriesReadNames))]
+    public void EverySeriesReadComputesThePartCount(string statementName)
+    {
+        // Arrange
+        var columns = ProjectionOf("BlogSeriesRepo", statementName);
+        var sql = SqlStatementInventory.Normalise(
+            SqlStatementInventory.Statements(Repository("BlogSeriesRepo"))[statementName]);
+
+        // Act
+        var projectsCount = columns.Contains("POSTCOUNT");
+        var countsPublishedOnly = sql.Contains("P.PUBLISHED = TRUE", StringComparison.Ordinal);
+
+        // Assert
+        Assert.True(
+            projectsCount,
+            $"BlogSeriesRepo.{statementName} no longer computes PostCount. The count is a joined aggregate, not a column, so a series read through this statement reports 0 parts rather than 'unknown' — the REQ-FN-019 '0 Parts' defect, reopened on whichever surface uses this read.");
+
+        Assert.True(
+            countsPublishedOnly,
+            $"BlogSeriesRepo.{statementName} counts unpublished parts, so its badge promises parts a reader cannot open.");
+    }
+
+    /// <summary>
+    /// Every declared narrowing still describes a statement that exists and is still genuinely
+    /// narrower than its repository's widest read, so the registry cannot fill up with exemptions for
+    /// defects that were fixed years ago or for statements that no longer exist.
+    /// </summary>
+    /// <remarks>
+    /// A declaration is a standing permission to omit a column. A stale one is worse than no gate at
+    /// all: it silently pre-authorises the next narrowing of a statement that had been made whole. This
+    /// assertion is what makes "registered as a declared narrowing" mean something — the registry has
+    /// to keep matching reality in both directions.
+    /// </remarks>
+    [Fact]
+    public void DeclaredNarrowingsStillDescribeRealNarrowings()
+    {
+        // Arrange
+        var failures = new StringBuilder();
+
+        // Act
+        foreach (var declaration in DeclaredNarrowProjections.Keys.Order(StringComparer.Ordinal))
+        {
+            var separator = declaration.IndexOf('.', StringComparison.Ordinal);
+            var repositoryName = declaration[..separator];
+            var statementName = declaration[(separator + 1)..];
+
+            var repositoryType = SqlStatementInventory.RepositoryTypes()
+                .FirstOrDefault(candidate => candidate.Name == repositoryName);
+
+            if (repositoryType is null)
+            {
+                failures.AppendLine($"  {declaration} names a repository that no longer exists.");
+                continue;
+            }
+
+            var statements = SqlStatementInventory.Statements(repositoryType);
+            if (!statements.ContainsKey(statementName))
+            {
+                failures.AppendLine($"  {declaration} names a statement {repositoryName} no longer declares.");
+                continue;
+            }
+
+            var reads = EntityReads(statements);
+            if (!reads.TryGetValue(statementName, out var columns) || reads.Count < 2)
+                continue;
+
+            var widest = reads.MaxBy(read => read.Value.Count)!;
+            if (statementName == widest.Key)
+            {
+                failures.AppendLine($"  {declaration} is now the WIDEST read in {repositoryName}; the declaration is dead.");
+                continue;
+            }
+
+            if (widest.Value.Except(columns, StringComparer.Ordinal).Any())
+                continue;
+
+            failures.AppendLine(
+                $"  {declaration} omits nothing {widest.Key} projects; the narrowing it exempts no longer exists.");
+        }
+
+        // Assert
+        Assert.True(
+            failures.Length == 0,
+            $"The declared-narrowing registry no longer matches the code:{Environment.NewLine}{failures}"
+            + "Delete the stale entries. Each one is a standing permission to drop a column from that statement, so leaving it behind after the statement was made whole silently pre-authorises the next regression.");
+    }
+
+    /// <summary>
+    /// The projected column set of one repository statement, upper-cased by the inventory's own
+    /// normalisation, with a failure that names the statement when it has been renamed away.
+    /// </summary>
+    /// <param name="repositoryName">Simple repository type name.</param>
+    /// <param name="statementName">Name of the SQL constant.</param>
+    /// <returns>The projected output names.</returns>
+    private static ISet<string> ProjectionOf(string repositoryName, string statementName)
+    {
+        var statements = SqlStatementInventory.Statements(Repository(repositoryName));
+
+        Assert.True(
+            statements.ContainsKey(statementName),
+            $"{repositoryName} no longer declares '{statementName}'. If the statement was renamed, rename it here too — do not delete the guard.");
+
+        var columns = SqlStatementInventory.ProjectedColumns(statements[statementName]);
+
+        Assert.True(
+            columns is not null,
+            $"{repositoryName}.{statementName} projects '*', so nothing can be asserted about its column list.");
+
+        return columns!;
     }
 
     /// <summary>

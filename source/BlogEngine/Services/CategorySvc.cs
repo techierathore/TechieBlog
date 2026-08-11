@@ -1,5 +1,6 @@
 using BlogEngine.Common;
 using BlogModels;
+using BlogModels.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace BlogEngine.Services;
@@ -31,27 +32,72 @@ namespace BlogEngine.Services;
 /// The <c>try/catch</c> that turns an unexpected exception into a failed <c>Result</c> keeps working
 /// verbatim, because an <c>await</c>ed call throws at the <c>await</c> just as a blocking call throws
 /// at the call.</para>
+///
+/// <para><b>Exception text never reaches the caller (REQ-NFR-031).</b> Every <c>catch</c> logs the
+/// exception through <see cref="ILogger{TCategoryName}"/> and then returns one of the curated
+/// constants below. The detail stays in the log, where the host's <c>CorrelationIdMiddleware</c> has
+/// already attached the request's correlation id to every event (REQ-NFR-015), so an operator can tie
+/// a user's report to the exact stack trace without the message disclosing a SQL fragment or a table
+/// name. <c>Result.Failure</c>'s own documentation requires this; do not reintroduce
+/// <c>ex.Message</c>.</para>
+///
+/// <para><b>Caching (REQ-NFR-018).</b> The three taxonomy-wide reads — <see cref="GetAllCategories"/>,
+/// <see cref="GetAllWithCounts"/> and <see cref="GetCategoryBySlug"/>, with their asynchronous twins —
+/// go through <see cref="ICacheService"/> under <c>CacheTags.Taxonomy</c>. Categories are read by the
+/// sidebar on virtually every public render and change a handful of times a year, which is the
+/// textbook case for a cache. <b>Every mutation here evicts the tag</b> via
+/// <see cref="ServiceCache.InvalidateTaxonomy"/>, so a renamed category is visible on the next render
+/// rather than when the ten-minute expiry lapses. A new write path added to this class must call it
+/// too — that is the whole contract, and a cache without it is worse than no cache.</para>
 /// </remarks>
 public class CategorySvc
 {
+    /// <summary>
+    /// Prefix used to build an identifier-based slug when a name yields no slug at all.
+    /// </summary>
+    /// <remarks>
+    /// Feeds <c>SlugGenerator.EnsureSlug</c>, which turns it into <c>category-7</c> for a category
+    /// that already has an id, or <c>category-{name digest}</c> for one being inserted (REQ-FN-054).
+    /// </remarks>
+    private const string SlugPrefix = "category";
+
+    /// <summary>Curated message for an insert that could not be persisted (REQ-NFR-031).</summary>
+    private const string CreateFailureMessage = "Failed to create category. Please try again later.";
+
+    /// <summary>Curated message for an update that could not be persisted (REQ-NFR-031).</summary>
+    private const string UpdateFailureMessage = "Failed to update category. Please try again later.";
+
+    /// <summary>Curated message for a delete that could not be persisted (REQ-NFR-031).</summary>
+    private const string DeleteFailureMessage = "Failed to delete category. Please try again later.";
+
     private readonly ICategoryRepo categoryRepo;
     private readonly ILogger<CategorySvc> logger;
+    private readonly ICacheService? cacheService;
 
     /// <summary>
     /// Initialises the category service.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Pure wiring — the service holds no state beyond these two
+    /// <para><b>Business Logic:</b> Pure wiring — the service holds no state beyond these
     /// dependencies.</para>
     /// <para><b>Flow:</b> assign and return.</para>
     /// <para><b>Side Effects:</b> None.</para>
     /// </remarks>
     /// <param name="categoryRepo">Category data access.</param>
     /// <param name="logger">Logger for query and persistence failures.</param>
-    public CategorySvc(ICategoryRepo categoryRepo, ILogger<CategorySvc> logger)
+    /// <param name="cacheService">
+    /// Taxonomy cache (REQ-NFR-018). Optional: omitting it makes every read go to the database, which
+    /// is what a unit test that is not exercising caching wants. The host always supplies it — it is
+    /// a registered singleton — so the uncached path never runs in the application.
+    /// </param>
+    public CategorySvc(
+        ICategoryRepo categoryRepo,
+        ILogger<CategorySvc> logger,
+        ICacheService? cacheService = null)
     {
         this.categoryRepo = categoryRepo;
         this.logger = logger;
+        this.cacheService = cacheService;
     }
 
     /// <summary>
@@ -61,15 +107,27 @@ public class CategorySvc
     /// <para><b>Business Logic:</b> A taxonomy read that fails should not take a page down with it,
     /// so the failure is logged and an empty sequence returned — the sidebar renders without
     /// categories rather than throwing.</para>
-    /// <para><b>Flow:</b> read → log and degrade on failure.</para>
-    /// <para><b>Side Effects:</b> Writes an error log entry on failure.</para>
+    /// <para><b>Flow:</b> cached read (REQ-NFR-018) → on a miss read the repository → log and degrade
+    /// on failure.</para>
+    /// <para><b>Side Effects:</b> Populates the taxonomy cache on a miss; writes an error log entry
+    /// on failure. The repository buffers its own result before the connection is disposed, so what
+    /// is cached is a materialised list and not a query that would re-execute — or fail — on a later
+    /// enumeration.</para>
+    /// <para><b>Staleness:</b> up to ten minutes only if an eviction is missed — every write on this
+    /// class evicts the taxonomy tag, so in practice a change is visible on the next render. A failure
+    /// is <b>not</b> cached: the empty sequence is returned without being stored, so a transient
+    /// database fault does not blank the sidebar for the next ten minutes.</para>
     /// </remarks>
     /// <returns>All categories, or an empty sequence on failure.</returns>
     public IEnumerable<Category> GetAllCategories()
     {
         try
         {
-            return categoryRepo.GetAll();
+            return ServiceCache.Read<IEnumerable<Category>>(
+                cacheService,
+                ServiceCache.CategoriesAllKey,
+                CacheTags.Taxonomy,
+                () => categoryRepo.GetAll());
         }
         catch (Exception ex)
         {
@@ -85,15 +143,24 @@ public class CategorySvc
     /// <para><b>Business Logic:</b> The count is computed in SQL alongside the category, so the
     /// caller gets both in one round trip instead of a query per category. Same degrade-to-empty
     /// policy as <see cref="GetAllCategories"/>.</para>
-    /// <para><b>Flow:</b> read → log and degrade on failure.</para>
-    /// <para><b>Side Effects:</b> Writes an error log entry on failure.</para>
+    /// <para><b>Flow:</b> cached read (REQ-NFR-018) → on a miss read the repository → log and degrade
+    /// on failure.</para>
+    /// <para><b>Side Effects:</b> Populates the taxonomy cache on a miss; writes an error log entry
+    /// on failure.</para>
+    /// <para><b>The counts move when posts move, not when categories do</b>, so this entry is evicted
+    /// by <c>BlogSvc</c>'s write paths as well as by this class's — <see cref="ServiceCache.InvalidateContent"/>
+    /// drops the taxonomy tag for exactly this reason.</para>
     /// </remarks>
     /// <returns>Categories with <c>PostCount</c> populated, or an empty sequence on failure.</returns>
     public IEnumerable<Category> GetAllWithCounts()
     {
         try
         {
-            return categoryRepo.GetAllWithCounts();
+            return ServiceCache.Read<IEnumerable<Category>>(
+                cacheService,
+                ServiceCache.CategoriesWithCountsKey,
+                CacheTags.Taxonomy,
+                () => categoryRepo.GetAllWithCounts());
         }
         catch (Exception ex)
         {
@@ -132,8 +199,13 @@ public class CategorySvc
     /// <remarks>
     /// <para><b>Business Logic:</b> A blank slug never reaches the database — it can only come from
     /// a malformed route, and the answer is the same <c>null</c> an unknown slug produces.</para>
-    /// <para><b>Flow:</b> guard the slug → read → log and return <c>null</c> on failure.</para>
-    /// <para><b>Side Effects:</b> Writes an error log entry on failure.</para>
+    /// <para><b>Flow:</b> guard the slug → cached read (REQ-NFR-018) → on a miss read the repository
+    /// → log and return <c>null</c> on failure.</para>
+    /// <para><b>Side Effects:</b> Populates the taxonomy cache on a miss; writes an error log entry
+    /// on failure.</para>
+    /// <para><b>An unknown slug is never cached</b> — the cache stores no null — so a request for a
+    /// category that does not exist costs a round trip every time. That is deliberate: caching the
+    /// absence would let anyone mint unbounded cache entries by requesting random slugs.</para>
     /// </remarks>
     /// <param name="slug">URL-friendly slug.</param>
     /// <returns>The category if found, <c>null</c> otherwise.</returns>
@@ -143,7 +215,12 @@ public class CategorySvc
         {
             if (string.IsNullOrWhiteSpace(slug))
                 return null;
-            return categoryRepo.GetBySlug(slug);
+
+            return ServiceCache.Read(
+                cacheService,
+                ServiceCache.CategoryBySlugKey(slug),
+                CacheTags.Taxonomy,
+                () => categoryRepo.GetBySlug(slug));
         }
         catch (Exception ex)
         {
@@ -182,36 +259,24 @@ public class CategorySvc
         if (string.IsNullOrWhiteSpace(category.CategoryName))
             return Result<Category>.Failure("Category name is required");
 
-        // Generate slug if not provided
-        if (string.IsNullOrWhiteSpace(category.Slug))
-        {
-            category.Slug = SlugGenerator.GenerateSlug(category.CategoryName);
-        }
-
-        // Check for duplicate slug
-        if (categoryRepo.SlugExists(category.Slug))
-        {
-            category.Slug = SlugGenerator.GenerateUniqueSlug(category.Slug, 1);
-            int counter = 2;
-            while (categoryRepo.SlugExists(category.Slug) && counter < 100)
-            {
-                category.Slug = SlugGenerator.GenerateUniqueSlug(
-                    SlugGenerator.GenerateSlug(category.CategoryName), counter);
-                counter++;
-            }
-        }
+        // Derive a guaranteed non-empty base slug, then suffix it until it is free (REQ-FN-054).
+        category.Slug = SlugGenerator.EnsureSlug(category.Slug, category.CategoryName, SlugPrefix);
+        category.Slug = SlugGenerator.ResolveUniqueSlug(
+            category.Slug,
+            candidate => categoryRepo.SlugExists(candidate));
 
         try
         {
             var categoryId = categoryRepo.InsertToGetId(category);
             category.CategoryId = categoryId;
+            ServiceCache.InvalidateTaxonomy(cacheService);
             logger.LogInformation("Created category '{Name}' with ID {CategoryId}", category.CategoryName, categoryId);
             return Result<Category>.Success(category);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to create category: {Name}", category.CategoryName);
-            return Result<Category>.Failure($"Failed to create category: {ex.Message}");
+            return Result<Category>.Failure(CreateFailureMessage);
         }
     }
 
@@ -248,35 +313,23 @@ public class CategorySvc
         if (existing == null)
             return Result<Category>.Failure("Category not found");
 
-        // Generate slug if not provided
-        if (string.IsNullOrWhiteSpace(category.Slug))
-        {
-            category.Slug = SlugGenerator.GenerateSlug(category.CategoryName);
-        }
-
-        // Check for duplicate slug (exclude current category)
-        if (categoryRepo.SlugExists(category.Slug, category.CategoryId))
-        {
-            category.Slug = SlugGenerator.GenerateUniqueSlug(category.Slug, 1);
-            int counter = 2;
-            while (categoryRepo.SlugExists(category.Slug, category.CategoryId) && counter < 100)
-            {
-                category.Slug = SlugGenerator.GenerateUniqueSlug(
-                    SlugGenerator.GenerateSlug(category.CategoryName), counter);
-                counter++;
-            }
-        }
+        // Derive a guaranteed non-empty base slug, then suffix it until it is free (REQ-FN-054).
+        category.Slug = SlugGenerator.EnsureSlug(category.Slug, category.CategoryName, SlugPrefix, category.CategoryId);
+        category.Slug = SlugGenerator.ResolveUniqueSlug(
+            category.Slug,
+            candidate => categoryRepo.SlugExists(candidate, category.CategoryId));
 
         try
         {
             categoryRepo.Update(category);
+            ServiceCache.InvalidateTaxonomy(cacheService);
             logger.LogInformation("Updated category '{Name}' with ID {CategoryId}", category.CategoryName, category.CategoryId);
             return Result<Category>.Success(category);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to update category ID {CategoryId}: {Name}", category.CategoryId, category.CategoryName);
-            return Result<Category>.Failure($"Failed to update category: {ex.Message}");
+            return Result<Category>.Failure(UpdateFailureMessage);
         }
     }
 
@@ -336,13 +389,14 @@ public class CategorySvc
         try
         {
             categoryRepo.Delete(categoryId);
+            ServiceCache.InvalidateTaxonomy(cacheService);
             logger.LogInformation("Deleted category ID {CategoryId}", categoryId);
             return Result.Success();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to delete category ID {CategoryId}", categoryId);
-            return Result.Failure($"Failed to delete category: {ex.Message}");
+            return Result.Failure(DeleteFailureMessage);
         }
     }
 
@@ -366,7 +420,11 @@ public class CategorySvc
     {
         try
         {
-            return await categoryRepo.GetAllAsync(cancellationToken).ConfigureAwait(false);
+            return await ServiceCache.ReadAsync<IEnumerable<Category>>(
+                cacheService,
+                ServiceCache.AsyncVariant(ServiceCache.CategoriesAllKey),
+                CacheTags.Taxonomy,
+                () => categoryRepo.GetAllAsync(cancellationToken)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -390,7 +448,11 @@ public class CategorySvc
     {
         try
         {
-            return await categoryRepo.GetAllWithCountsAsync(cancellationToken).ConfigureAwait(false);
+            return await ServiceCache.ReadAsync<IEnumerable<Category>>(
+                cacheService,
+                ServiceCache.AsyncVariant(ServiceCache.CategoriesWithCountsKey),
+                CacheTags.Taxonomy,
+                () => categoryRepo.GetAllWithCountsAsync(cancellationToken)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -443,7 +505,11 @@ public class CategorySvc
             if (string.IsNullOrWhiteSpace(slug))
                 return null;
 
-            return await categoryRepo.GetBySlugAsync(slug, cancellationToken).ConfigureAwait(false);
+            return await ServiceCache.ReadAsync(
+                cacheService,
+                ServiceCache.AsyncVariant(ServiceCache.CategoryBySlugKey(slug)),
+                CacheTags.Taxonomy,
+                () => categoryRepo.GetBySlugAsync(slug, cancellationToken)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -474,35 +540,24 @@ public class CategorySvc
         if (string.IsNullOrWhiteSpace(category.CategoryName))
             return Result<Category>.Failure("Category name is required");
 
-        if (string.IsNullOrWhiteSpace(category.Slug))
-        {
-            category.Slug = SlugGenerator.GenerateSlug(category.CategoryName);
-        }
-
-        if (await categoryRepo.SlugExistsAsync(category.Slug, 0, cancellationToken).ConfigureAwait(false))
-        {
-            category.Slug = SlugGenerator.GenerateUniqueSlug(category.Slug, 1);
-            int counter = 2;
-            while (await categoryRepo.SlugExistsAsync(category.Slug, 0, cancellationToken).ConfigureAwait(false)
-                   && counter < 100)
-            {
-                category.Slug = SlugGenerator.GenerateUniqueSlug(
-                    SlugGenerator.GenerateSlug(category.CategoryName), counter);
-                counter++;
-            }
-        }
+        // Derive a guaranteed non-empty base slug, then suffix it until it is free (REQ-FN-054).
+        category.Slug = SlugGenerator.EnsureSlug(category.Slug, category.CategoryName, SlugPrefix);
+        category.Slug = await SlugGenerator.ResolveUniqueSlugAsync(
+            category.Slug,
+            candidate => categoryRepo.SlugExistsAsync(candidate, 0, cancellationToken)).ConfigureAwait(false);
 
         try
         {
             var categoryId = await categoryRepo.InsertToGetIdAsync(category, cancellationToken).ConfigureAwait(false);
             category.CategoryId = categoryId;
+            ServiceCache.InvalidateTaxonomy(cacheService);
             logger.LogInformation("Created category '{Name}' with ID {CategoryId}", category.CategoryName, categoryId);
             return Result<Category>.Success(category);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to create category: {Name}", category.CategoryName);
-            return Result<Category>.Failure($"Failed to create category: {ex.Message}");
+            return Result<Category>.Failure(CreateFailureMessage);
         }
     }
 
@@ -534,34 +589,23 @@ public class CategorySvc
         if (existing == null)
             return Result<Category>.Failure("Category not found");
 
-        if (string.IsNullOrWhiteSpace(category.Slug))
-        {
-            category.Slug = SlugGenerator.GenerateSlug(category.CategoryName);
-        }
-
-        if (await categoryRepo.SlugExistsAsync(category.Slug, category.CategoryId, cancellationToken).ConfigureAwait(false))
-        {
-            category.Slug = SlugGenerator.GenerateUniqueSlug(category.Slug, 1);
-            int counter = 2;
-            while (await categoryRepo.SlugExistsAsync(category.Slug, category.CategoryId, cancellationToken).ConfigureAwait(false)
-                   && counter < 100)
-            {
-                category.Slug = SlugGenerator.GenerateUniqueSlug(
-                    SlugGenerator.GenerateSlug(category.CategoryName), counter);
-                counter++;
-            }
-        }
+        // Derive a guaranteed non-empty base slug, then suffix it until it is free (REQ-FN-054).
+        category.Slug = SlugGenerator.EnsureSlug(category.Slug, category.CategoryName, SlugPrefix, category.CategoryId);
+        category.Slug = await SlugGenerator.ResolveUniqueSlugAsync(
+            category.Slug,
+            candidate => categoryRepo.SlugExistsAsync(candidate, category.CategoryId, cancellationToken)).ConfigureAwait(false);
 
         try
         {
             await categoryRepo.UpdateAsync(category, cancellationToken).ConfigureAwait(false);
+            ServiceCache.InvalidateTaxonomy(cacheService);
             logger.LogInformation("Updated category '{Name}' with ID {CategoryId}", category.CategoryName, category.CategoryId);
             return Result<Category>.Success(category);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to update category ID {CategoryId}: {Name}", category.CategoryId, category.CategoryName);
-            return Result<Category>.Failure($"Failed to update category: {ex.Message}");
+            return Result<Category>.Failure(UpdateFailureMessage);
         }
     }
 
@@ -611,13 +655,14 @@ public class CategorySvc
         try
         {
             await categoryRepo.DeleteAsync(categoryId, cancellationToken).ConfigureAwait(false);
+            ServiceCache.InvalidateTaxonomy(cacheService);
             logger.LogInformation("Deleted category ID {CategoryId}", categoryId);
             return Result.Success();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to delete category ID {CategoryId}", categoryId);
-            return Result.Failure($"Failed to delete category: {ex.Message}");
+            return Result.Failure(DeleteFailureMessage);
         }
     }
 }

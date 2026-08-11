@@ -62,12 +62,16 @@
         <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="home-articles-grid">
             @foreach (var post in Posts)
             {
+                @* [REQ-FN-057] Date is the PUBLICATION date, not the creation date — PostCard's
+                   other two callers (CategoryArchive, SearchResults) must agree with this one.
+                   A Razor comment may not sit between a component's attributes: it compiles, then
+                   throws at render as an unmatched parameter name. Keep it out here. *@
                 <PostCard Category="@GetCategory(post.Tags)"
                           Title="@post.Title"
                           Excerpt="@GetExcerpt(post)"
                           PostUrl="@($"/post/{post.Slug}")"
                           AuthorName="@(string.IsNullOrWhiteSpace(post.BlogWriter) ? "Unknown" : post.BlogWriter)"
-                          Date="@post.CreatedOn.ToString("MMM dd, yyyy")"
+                          Date="@((post.PublishedOn ?? post.CreatedOn).ToString("MMM dd, yyyy"))"
                           ReadTime="@GetReadingTime(post.PostContent)"
                           ImageUrl="@post.FeaturedImage"
                           ImagePlaceholder="@post.Title"
@@ -99,9 +103,9 @@
     public bool IsLoading { get; set; }
 
     /// <inheritdoc />
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
-        LoadRatings();
+        await LoadRatingsAsync();
     }
 
     /// <summary>
@@ -109,7 +113,17 @@
     /// no database work. A rating failure leaves the card without stars rather
     /// than breaking the section.
     /// </summary>
-    private void LoadRatings()
+    /// <remarks>
+    /// <para><b>[REQ-NFR-026] stage 3 — these were the last two blocking service calls on the
+    /// home page.</b> This grid asks every card for an average and a count, so a three-card
+    /// section parked a thread-pool thread six times over on the most-requested route in the
+    /// application; that is the blocking-render-path constraint REQ-NFR-001 measured. Both reads
+    /// now go through the async twins, which are cached under <c>CacheTags.Content</c> exactly as
+    /// their synchronous originals are.</para>
+    /// <para><b>Side Effects:</b> Replaces the two rating dictionaries.</para>
+    /// </remarks>
+    /// <returns>A task that completes once every visible card has its figures.</returns>
+    private async Task LoadRatingsAsync()
     {
         ratingAverages.Clear();
         ratingCounts.Clear();
@@ -123,8 +137,8 @@
         {
             try
             {
-                ratingAverages[post.PostID] = (int)Math.Round(RatingService.GetAverageRating(post.PostID));
-                ratingCounts[post.PostID] = RatingService.GetRatingCount(post.PostID);
+                ratingAverages[post.PostID] = (int)Math.Round(await RatingService.GetAverageRatingAsync(post.PostID));
+                ratingCounts[post.PostID] = await RatingService.GetRatingCountAsync(post.PostID);
             }
             catch
             {

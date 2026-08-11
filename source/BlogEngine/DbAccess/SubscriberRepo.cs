@@ -25,6 +25,28 @@ namespace BlogEngine.DbAccess;
 public class SubscriberRepo : GenericRepository<Subscriber>, ISubscriberRepo
 {
     /// <summary>
+    /// The consent-record and unsubscribe-token columns added by REQ-FN-059, shared by every read.
+    /// </summary>
+    /// <remarks>
+    /// <para>Two reasons every read carries these. First, <c>Subscriber.ConsentState</c> is derived
+    /// from <c>ConfirmedOn</c>, <c>UnsubscribedOn</c> and <c>IsConsentUnknown</c>, so a read that
+    /// omitted them would report every row as Pending — the exact conflation this requirement
+    /// removes.</para>
+    /// <para>Second, <c>UnsubscribeToken</c> is projected here even though no read needed it before,
+    /// because <c>RecordConsentSql</c> and <c>RotateUnsubscribeTokenSql</c> WRITE that column. A
+    /// column that a write path touches but the loading read does not project is this project's
+    /// most-repeated defect (REQ-FN-053: eight known instances, two of which shipped) — the entity
+    /// comes back holding a default, and the next save writes the default over the real value. On a
+    /// consent record that would be silent data loss of exactly the kind REQ-FN-059 exists to
+    /// prevent, so the projection is widened rather than the gate narrowed. <c>COALESCE</c> because
+    /// the column is nullable and the model property is not.</para>
+    /// </remarks>
+    private const string ConsentAndTokenColumns = @"
+                   ConfirmedOn, UnsubscribedOn, IsConsentUnknown,
+                   UnsubscribeTokenIssuedOn, UnsubscribeTokenUsedOn,
+                   COALESCE(UnsubscribeToken, '') AS UnsubscribeToken";
+
+    /// <summary>
     /// The projection shared by every subscriber read.
     /// </summary>
     /// <remarks>
@@ -34,7 +56,8 @@ public class SubscriberRepo : GenericRepository<Subscriber>, ISubscriberRepo
     /// </remarks>
     private const string SubscriberColumns = @"
             SELECT SubscriberId, Email, Name, SubscribedOn, IsConfirmed, Preferences,
-                   COALESCE(IsConfirmed, TRUE) as IsActive
+                   COALESCE(IsConfirmed, TRUE) as IsActive,
+" + ConsentAndTokenColumns + @"
             FROM Subscriber";
 
     private const string SelectAllSql = SubscriberColumns + @"
@@ -52,21 +75,24 @@ public class SubscriberRepo : GenericRepository<Subscriber>, ISubscriberRepo
 
     private const string SelectActiveSql = @"
             SELECT SubscriberId, Email, Name, SubscribedOn, IsConfirmed, Preferences,
-                   TRUE as IsActive
+                   TRUE as IsActive,
+" + ConsentAndTokenColumns + @"
             FROM Subscriber
             WHERE IsConfirmed = TRUE
             ORDER BY SubscribedOn DESC";
 
     private const string SelectByStatusSql = @"
             SELECT SubscriberId, Email, Name, SubscribedOn, IsConfirmed, Preferences,
-                   IsConfirmed as IsActive
+                   IsConfirmed as IsActive,
+" + ConsentAndTokenColumns + @"
             FROM Subscriber
             WHERE IsConfirmed = @IsActive
             ORDER BY SubscribedOn DESC";
 
     private const string SearchByEmailSql = @"
             SELECT SubscriberId, Email, Name, SubscribedOn, IsConfirmed, Preferences,
-                   IsConfirmed as IsActive
+                   IsConfirmed as IsActive,
+" + ConsentAndTokenColumns + @"
             FROM Subscriber
             WHERE Email ILIKE @Query
             ORDER BY SubscribedOn DESC
@@ -74,10 +100,120 @@ public class SubscriberRepo : GenericRepository<Subscriber>, ISubscriberRepo
 
     private const string SelectPagedSql = @"
             SELECT SubscriberId, Email, Name, SubscribedOn, IsConfirmed, Preferences,
-                   IsConfirmed as IsActive
+                   IsConfirmed as IsActive,
+" + ConsentAndTokenColumns + @"
             FROM Subscriber
             ORDER BY SubscribedOn DESC
             LIMIT @PageSize OFFSET @Offset";
+
+    /// <summary>
+    /// Resolves the holder of an unsubscribe token. Exact, case-sensitive comparison — a credential
+    /// must not match more values than it was issued as.
+    /// </summary>
+    private const string SelectByUnsubscribeTokenSql = SubscriberColumns + @"
+            WHERE UnsubscribeToken = @UnsubscribeToken";
+
+    /// <summary>
+    /// Records a withdrawal: stops the mail, stamps WHEN consent was withdrawn and burns the token,
+    /// all in one statement. <c>ConfirmedOn</c> is deliberately untouched — that is the proof of
+    /// consent this requirement exists to stop erasing. Guarded on the token still being unburned so
+    /// two concurrent redemptions of the same link cannot both report success.
+    /// </summary>
+    private const string RecordWithdrawalSql = @"
+            UPDATE Subscriber SET
+                IsConfirmed = FALSE,
+                UnsubscribedOn = @UnsubscribedOn,
+                UnsubscribeTokenUsedOn = @UnsubscribedOn
+            WHERE SubscriberId = @SubscriberId
+              AND UnsubscribeTokenUsedOn IS NULL";
+
+    /// <summary>
+    /// Records a re-consent and hands the subscriber a fresh, unburned link in the same statement,
+    /// so a returning subscriber never holds a token this repository has already refused.
+    /// </summary>
+    private const string RecordConsentSql = @"
+            UPDATE Subscriber SET
+                IsConfirmed = TRUE,
+                ConfirmedOn = @ConfirmedOn,
+                UnsubscribeToken = @UnsubscribeToken,
+                UnsubscribeTokenIssuedOn = @ConfirmedOn,
+                UnsubscribeTokenUsedOn = NULL
+            WHERE SubscriberId = @SubscriberId";
+
+    /// <summary>
+    /// Send-time rotation: a new token, a restarted expiry clock and a cleared burn, with the
+    /// consent columns untouched.
+    /// </summary>
+    private const string RotateUnsubscribeTokenSql = @"
+            UPDATE Subscriber SET
+                UnsubscribeToken = @UnsubscribeToken,
+                UnsubscribeTokenIssuedOn = @IssuedOn,
+                UnsubscribeTokenUsedOn = NULL
+            WHERE SubscriberId = @SubscriberId";
+
+    /// <summary>
+    /// Records one per-issue unsubscribe token. [REQ-FN-060]
+    /// </summary>
+    /// <remarks>
+    /// An INSERT, deliberately — never an UPSERT and never an UPDATE of an earlier row. Each send
+    /// adds a credential rather than replacing one, which is exactly what keeps the unsubscribe link
+    /// in an already-delivered issue working after a newer issue goes out.
+    /// </remarks>
+    private const string InsertNewsletterTokenSql = @"
+            INSERT INTO UnsubscribeToken (SubscriberId, NewsletterId, Token, IssuedOn)
+            VALUES (@SubscriberId, @NewsletterId, @Token, @IssuedOn)";
+
+    /// <summary>
+    /// Resolves the holder of a PER-ISSUE unsubscribe token. [REQ-FN-060]
+    /// </summary>
+    /// <remarks>
+    /// <para>The three token columns are projected from the matched <c>UnsubscribeToken</c> row, not
+    /// from <c>Subscriber</c>, and are aliased onto the model's existing token properties. That is
+    /// the whole trick that lets REQ-FN-059's burn and expiry rules — which are written against
+    /// <c>Subscriber.UnsubscribeTokenUsedOn</c> and <c>UnsubscribeTokenIssuedOn</c> — govern a
+    /// per-issue token with no second implementation to keep in step.</para>
+    /// <para>The consent columns are the SUBSCRIBER's own, which is what
+    /// <c>SubscriberSvc</c> compares <c>IssuedOn</c> against to detect a token superseded by a later
+    /// re-consent.</para>
+    /// <para><b>The entity this returns must never be passed to a write path</b> — its
+    /// <c>UnsubscribeToken</c> is the per-issue value, and any update that wrote it back would
+    /// overwrite the subscriber's row-level token.</para>
+    /// </remarks>
+    private const string SelectByNewsletterTokenSql = @"
+            SELECT s.SubscriberId, s.Email, s.Name, s.SubscribedOn, s.IsConfirmed, s.Preferences,
+                   COALESCE(s.IsConfirmed, TRUE) AS IsActive,
+                   s.ConfirmedOn, s.UnsubscribedOn, s.IsConsentUnknown,
+                   t.IssuedOn AS UnsubscribeTokenIssuedOn,
+                   t.UsedOn AS UnsubscribeTokenUsedOn,
+                   t.Token AS UnsubscribeToken
+            FROM UnsubscribeToken t
+            INNER JOIN Subscriber s ON s.SubscriberId = t.SubscriberId
+            WHERE t.Token = @Token";
+
+    /// <summary>
+    /// Burns a per-issue token and records the withdrawal it authorises, in ONE statement.
+    /// [REQ-FN-060]
+    /// </summary>
+    /// <remarks>
+    /// <para>The CTE is what makes it one statement rather than two. Burning the token and taking
+    /// the address off the list have to commit together: a crash between two statements would leave
+    /// either a spent link that removed nobody, or an address off the list with no record of why —
+    /// and the second is precisely the erasure REQ-FN-059 exists to prevent.</para>
+    /// <para><c>WHERE UsedOn IS NULL</c> makes the redemption atomic, so two concurrent opens of the
+    /// same link cannot both report success. <c>ConfirmedOn</c> is untouched — proof of consent
+    /// survives the withdrawal — and the subscriber's OTHER token rows are untouched too, so an
+    /// unopened link from a different issue still resolves and reports "already unsubscribed".</para>
+    /// </remarks>
+    private const string RedeemNewsletterTokenSql = @"
+            WITH Burned AS (
+                UPDATE UnsubscribeToken SET UsedOn = @UnsubscribedOn
+                WHERE Token = @Token AND UsedOn IS NULL
+                RETURNING SubscriberId
+            )
+            UPDATE Subscriber SET
+                IsConfirmed = FALSE,
+                UnsubscribedOn = @UnsubscribedOn
+            WHERE SubscriberId IN (SELECT SubscriberId FROM Burned)";
 
     private const string InsertSql = @"
             INSERT INTO Subscriber (Email, Name, SubscribedOn, IsConfirmed, Preferences)
@@ -191,10 +327,11 @@ public class SubscriberRepo : GenericRepository<Subscriber>, ISubscriberRepo
     /// <b>not</b> trimmed here — a caller that may pass raw form input should trim before calling,
     /// because leading whitespace defeats the comparison.</para>
     /// <para><b>Projection:</b> <c>SubscriberColumns</c> — <c>SubscriberId, Email, Name, SubscribedOn,
-    /// IsConfirmed, Preferences</c> plus <c>COALESCE(IsConfirmed, TRUE) AS IsActive</c>.
-    /// <c>UnsubscribeToken</c> is <b>not</b> selected by any read in this repository, so the returned
-    /// entity always carries an empty token; the newsletter send path reads its subscribers through
-    /// <c>NewsletterRepo</c>, whose projection does include it.</para>
+    /// IsConfirmed, Preferences</c> plus <c>COALESCE(IsConfirmed, TRUE) AS IsActive</c> and, since
+    /// REQ-FN-059, the consent record and the unsubscribe token. The token was previously omitted by
+    /// every read here, so the returned entity always carried an empty one; it is projected now
+    /// because the consent and rotation statements write it, and a write-back column the loading
+    /// read does not project is how this codebase has lost data before.</para>
     /// <para><b>Flow:</b> helper opens the connection asynchronously → query by lowered address →
     /// first row or <c>null</c>.</para>
     /// <para><b>Side Effects:</b> None — read-only query.</para>
@@ -244,7 +381,8 @@ public class SubscriberRepo : GenericRepository<Subscriber>, ISubscriberRepo
     /// worth knowing: a legacy row with a NULL <c>IsConfirmed</c> is <b>excluded</b> here (SQL
     /// three-valued logic), while <see cref="GetAllAsync"/>'s <c>COALESCE(IsConfirmed, TRUE)</c>
     /// reports that same row as active — so the two members can disagree about one legacy row. As
-    /// everywhere in this repository, <c>UnsubscribeToken</c> is not selected.</para>
+    /// everywhere in this repository, the consent columns and the unsubscribe token are
+    /// projected.</para>
     /// <para><b>Flow:</b> helper opens the connection asynchronously → filtered query → materialised
     /// list.</para>
     /// <para><b>Side Effects:</b> None — read-only query.</para>
@@ -266,8 +404,8 @@ public class SubscriberRepo : GenericRepository<Subscriber>, ISubscriberRepo
     /// <c>SubscribedOn DESC</c>.</para>
     /// <para><b>Projection:</b> <c>IsConfirmed AS IsActive</c> with no <c>COALESCE</c>, unlike
     /// <see cref="GetAllAsync"/>. A legacy row with a NULL <c>IsConfirmed</c> matches neither
-    /// <c>true</c> nor <c>false</c> and is therefore absent from both halves of this filter.
-    /// <c>UnsubscribeToken</c> is not selected.</para>
+    /// <c>true</c> nor <c>false</c> and is therefore absent from both halves of this filter. The
+    /// consent columns and the unsubscribe token are projected.</para>
     /// <para><b>Flow:</b> bind the flag → helper opens the connection asynchronously → filtered query
     /// → materialised list.</para>
     /// <para><b>Side Effects:</b> None — read-only query.</para>
@@ -297,8 +435,8 @@ public class SubscriberRepo : GenericRepository<Subscriber>, ISubscriberRepo
     /// containing <c>%</c> or <c>_</c> is treated as a pattern. That is harmless — it is still a bound
     /// parameter and cannot alter the statement — but it means such a query matches more broadly than
     /// the user expects.</para>
-    /// <para><b>Projection:</b> <c>IsConfirmed AS IsActive</c>, no <c>COALESCE</c>;
-    /// <c>UnsubscribeToken</c> is not selected.</para>
+    /// <para><b>Projection:</b> <c>IsConfirmed AS IsActive</c>, no <c>COALESCE</c>; the consent
+    /// columns and the unsubscribe token are projected.</para>
     /// <para><b>Flow:</b> wrap the fragment in wildcards → helper opens the connection asynchronously
     /// → capped query → materialised list.</para>
     /// <para><b>Side Effects:</b> None — read-only query.</para>
@@ -457,6 +595,228 @@ public class SubscriberRepo : GenericRepository<Subscriber>, ISubscriberRepo
     public async Task<int> GetActiveCountAsync(CancellationToken cancellationToken = default)
     {
         return await ExecuteScalarAsync<int>(CountActiveSql, null, cancellationToken).ConfigureAwait(false);
+    }
+
+    // =================================================================================================
+    // Consent record and unsubscribe-token lifecycle — REQ-FN-059.
+    // =================================================================================================
+
+    /// <summary>
+    /// Resolves the subscriber holding an unsubscribe token, without blocking the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The lookup behind the anonymous <c>/unsubscribe/{token}</c> page.
+    /// The comparison is exact and case-SENSITIVE, unlike every email lookup in this repository: the
+    /// token is a bearer credential, and a credential that matches case variants of itself is a
+    /// larger credential than the one that was issued. The projection is the shared one, so the
+    /// consent columns and the token's issuance and burn timestamps come back with the row and the
+    /// caller can decide expiry and replay without a second query.</para>
+    /// <para><b>Flow:</b> bind the token → helper opens the connection asynchronously → query by
+    /// token → first row or <c>null</c>.</para>
+    /// <para><b>Side Effects:</b> None — read-only query.</para>
+    /// </remarks>
+    /// <param name="unsubscribeToken">The opaque token taken from the unsubscribe URL.</param>
+    /// <param name="cancellationToken">Cancels the query.</param>
+    /// <returns>The subscriber carrying that exact token, or <c>null</c> when none does.</returns>
+    public async Task<Subscriber?> GetByUnsubscribeTokenAsync(
+        string unsubscribeToken, CancellationToken cancellationToken = default)
+    {
+        var parameters = new DynamicParameters();
+        parameters.Add("UnsubscribeToken", unsubscribeToken);
+
+        return await QueryFirstOrDefaultAsync<Subscriber>(
+            SelectByUnsubscribeTokenSql, parameters, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Records a withdrawal of consent and burns the token, without blocking the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> One statement does all three things that have to stay in step —
+    /// stop the mail, record WHEN the withdrawal happened, and burn the link that caused it — so
+    /// there is no window in which the address is off the list with no record of why.
+    /// <c>ConfirmedOn</c> is not written, which is precisely what preserves the proof that this
+    /// address once opted in (REQ-FN-059).</para>
+    /// <para><b>Flow:</b> stamp the instant → guarded UPDATE → report whether a row changed.</para>
+    /// <para><b>Side Effects:</b> Updates at most one row. The <c>UnsubscribeTokenUsedOn IS NULL</c>
+    /// guard makes the redemption atomic: if two requests carry the same link, exactly one gets
+    /// <c>true</c>.</para>
+    /// </remarks>
+    /// <param name="subscriberId">The subscriber withdrawing consent.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns><c>true</c> when a row was changed; <c>false</c> when the identifier is unknown or
+    /// the token had already been burned.</returns>
+    public async Task<bool> RecordWithdrawalAsync(long subscriberId, CancellationToken cancellationToken = default)
+    {
+        var parameters = new DynamicParameters();
+        parameters.Add("SubscriberId", subscriberId);
+        parameters.Add("UnsubscribedOn", DbTimestamp.AsTimestamp(DateTime.UtcNow));
+
+        var affected = await ExecuteAsync(RecordWithdrawalSql, parameters, cancellationToken).ConfigureAwait(false);
+        return affected > 0;
+    }
+
+    /// <summary>
+    /// Records that consent was given and re-issues the link, without blocking the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> A returning subscriber must not be left holding the token that
+    /// was burned when they left, so the consent stamp and the fresh token are written together.
+    /// The previous token stops resolving the moment this statement commits.</para>
+    /// <para><b>Flow:</b> stamp the instant → UPDATE the flag, the consent column and all three
+    /// token columns → report whether a row changed.</para>
+    /// <para><b>Side Effects:</b> Updates one row and invalidates the subscriber's previous
+    /// unsubscribe link. <c>UnsubscribedOn</c> is left in place, so the earlier withdrawal is still
+    /// on the record and only the comparison of the two timestamps changes the derived state.</para>
+    /// </remarks>
+    /// <param name="subscriberId">The subscriber giving consent.</param>
+    /// <param name="newUnsubscribeToken">The freshly generated token to install.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns><c>true</c> when a row was changed; <c>false</c> when the identifier is unknown.</returns>
+    public async Task<bool> RecordConsentAsync(
+        long subscriberId, string newUnsubscribeToken, CancellationToken cancellationToken = default)
+    {
+        var parameters = new DynamicParameters();
+        parameters.Add("SubscriberId", subscriberId);
+        parameters.Add("UnsubscribeToken", newUnsubscribeToken);
+        parameters.Add("ConfirmedOn", DbTimestamp.AsTimestamp(DateTime.UtcNow));
+
+        var affected = await ExecuteAsync(RecordConsentSql, parameters, cancellationToken).ConfigureAwait(false);
+        return affected > 0;
+    }
+
+    /// <summary>
+    /// Replaces a subscriber's unsubscribe token, without blocking the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Send-time rotation, and the mechanism that makes an expiry safe:
+    /// every issue can carry a token whose 400-day clock starts when that issue is sent, so a live
+    /// subscriber's link can never age out while they are still being mailed. Consent columns are
+    /// untouched — rotating a link is not a consent decision.</para>
+    /// <para><b>Flow:</b> stamp the issuance → UPDATE the three token columns → report whether a row
+    /// changed.</para>
+    /// <para><b>Side Effects:</b> The subscriber's previous unsubscribe link stops working. A caller
+    /// mailing an issue must therefore use the token it just installed, not one it read earlier.</para>
+    /// </remarks>
+    /// <param name="subscriberId">The subscriber whose link is being re-issued.</param>
+    /// <param name="newUnsubscribeToken">The freshly generated token to install.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns><c>true</c> when the token was installed; <c>false</c> when the identifier is
+    /// unknown.</returns>
+    public async Task<bool> RotateUnsubscribeTokenAsync(
+        long subscriberId, string newUnsubscribeToken, CancellationToken cancellationToken = default)
+    {
+        var parameters = new DynamicParameters();
+        parameters.Add("SubscriberId", subscriberId);
+        parameters.Add("UnsubscribeToken", newUnsubscribeToken);
+        parameters.Add("IssuedOn", DbTimestamp.AsTimestamp(DateTime.UtcNow));
+
+        var affected = await ExecuteAsync(
+            RotateUnsubscribeTokenSql, parameters, cancellationToken).ConfigureAwait(false);
+        return affected > 0;
+    }
+
+    // =================================================================================================
+    // Per-issue unsubscribe tokens — REQ-FN-060.
+    //
+    // These three address the UnsubscribeToken TABLE (migration 027). The three above address the
+    // Subscriber.UnsubscribeToken COLUMN. Both are live at once and neither replaces the other —
+    // see the header block of 027-PerIssueUnsubscribeToken.sql for why the per-send-rows design was
+    // chosen over rotating the single column on every send.
+    // =================================================================================================
+
+    /// <summary>
+    /// Records one unsubscribe token scoped to one newsletter issue, without blocking the thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Called once per recipient per send, immediately before the
+    /// message is composed, so the credential that message carries authorises nothing beyond that
+    /// issue. It INSERTS rather than replacing, so the links in issues already delivered keep
+    /// working — refusing a genuine opt-out clicked from last week's mail would be a worse defect
+    /// than the over-broad credential this narrows.</para>
+    /// <para><b>Flow:</b> normalise the issuance timestamp → bind → INSERT → report the row
+    /// count.</para>
+    /// <para><b>Side Effects:</b> Adds one <c>UnsubscribeToken</c> row. Nothing on
+    /// <c>Subscriber</c> changes, so the row-level token and the consent record are untouched.</para>
+    /// </remarks>
+    /// <param name="subscriberId">The subscriber the issue is addressed to.</param>
+    /// <param name="newsletterId">The issue the token is scoped to.</param>
+    /// <param name="unsubscribeToken">The freshly generated token to record.</param>
+    /// <param name="cancellationToken">Cancels the insert.</param>
+    /// <returns><c>true</c> when the token was recorded.</returns>
+    public async Task<bool> IssueTokenForNewsletterAsync(
+        long subscriberId, long newsletterId, string unsubscribeToken,
+        CancellationToken cancellationToken = default)
+    {
+        var parameters = new DynamicParameters();
+        parameters.Add("SubscriberId", subscriberId);
+        parameters.Add("NewsletterId", newsletterId);
+        parameters.Add("Token", unsubscribeToken);
+        parameters.Add("IssuedOn", DbTimestamp.AsTimestamp(DateTime.UtcNow));
+
+        var affected = await ExecuteAsync(
+            InsertNewsletterTokenSql, parameters, cancellationToken).ConfigureAwait(false);
+        return affected > 0;
+    }
+
+    /// <summary>
+    /// Resolves the holder of a per-issue unsubscribe token, without blocking the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The first lookup the anonymous <c>/unsubscribe/{token}</c> page
+    /// makes; <see cref="GetByUnsubscribeTokenAsync"/> is the fallback for the row-level tokens that
+    /// are still sitting in delivered mail. Exact, case-SENSITIVE comparison, for the same reason
+    /// that one is.</para>
+    /// <para><b>Projection:</b> the three token properties on the returned entity describe the
+    /// matched TOKEN ROW, not the subscriber's row-level token — see
+    /// <c>SelectByNewsletterTokenSql</c>. The consent columns are the subscriber's own. The entity is
+    /// read-only: passing it to an update path would write a per-issue token over the row-level
+    /// one.</para>
+    /// <para><b>Flow:</b> bind the token → join the token table to its subscriber → first row or
+    /// <c>null</c>.</para>
+    /// <para><b>Side Effects:</b> None — read-only query.</para>
+    /// </remarks>
+    /// <param name="unsubscribeToken">The opaque token taken from the unsubscribe URL.</param>
+    /// <param name="cancellationToken">Cancels the query.</param>
+    /// <returns>The subscriber holding that per-issue token, or <c>null</c> when none does.</returns>
+    public async Task<Subscriber?> GetByNewsletterTokenAsync(
+        string unsubscribeToken, CancellationToken cancellationToken = default)
+    {
+        var parameters = new DynamicParameters();
+        parameters.Add("Token", unsubscribeToken);
+
+        return await QueryFirstOrDefaultAsync<Subscriber>(
+            SelectByNewsletterTokenSql, parameters, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Burns a per-issue token and records the withdrawal, without blocking the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> One statement does both, because a spent link that removed
+    /// nobody and an address removed with no record of why are each worse than the operation not
+    /// happening at all. The subscriber's other token rows are deliberately left alone: an unopened
+    /// link from a different issue still resolves, and reports "already unsubscribed" because the
+    /// subscriber is withdrawn by then.</para>
+    /// <para><b>Flow:</b> stamp the instant → CTE burns the token row and cascades into the
+    /// subscriber row → report whether the withdrawal was recorded.</para>
+    /// <para><b>Side Effects:</b> Stamps one token row and updates one subscriber row. The
+    /// <c>UsedOn IS NULL</c> guard makes the redemption atomic under a concurrent double open.</para>
+    /// </remarks>
+    /// <param name="unsubscribeToken">The per-issue token being redeemed.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns><c>true</c> when the withdrawal was recorded; <c>false</c> when the token was
+    /// unknown or already burned.</returns>
+    public async Task<bool> RedeemNewsletterTokenAsync(
+        string unsubscribeToken, CancellationToken cancellationToken = default)
+    {
+        var parameters = new DynamicParameters();
+        parameters.Add("Token", unsubscribeToken);
+        parameters.Add("UnsubscribedOn", DbTimestamp.AsTimestamp(DateTime.UtcNow));
+
+        var affected = await ExecuteAsync(
+            RedeemNewsletterTokenSql, parameters, cancellationToken).ConfigureAwait(false);
+        return affected > 0;
     }
 
     // =================================================================================================
@@ -621,6 +981,33 @@ public class SubscriberRepo : GenericRepository<Subscriber>, ISubscriberRepo
     {
         using var connection = GetOpenConnection();
         connection.Execute(UpdateStatusSql, new { SubscriberId = subscriberId, IsActive = isActive });
+    }
+
+    /// <summary>
+    /// Records that consent was given and re-issues the link.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The blocking twin of <see cref="RecordConsentAsync"/>, executing
+    /// the same <c>RecordConsentSql</c> constant with the same parameters, so the two cannot drift:
+    /// a returning subscriber is handed a fresh, unburned token whichever path reactivated them.
+    /// <c>UnsubscribedOn</c> is left in place, so the earlier withdrawal stays on the record.</para>
+    /// <para><b>Flow:</b> stamp the instant → UPDATE the flag, the consent column and all three
+    /// token columns → report whether a row changed.</para>
+    /// <para><b>Side Effects:</b> Updates one row and invalidates the subscriber's previous
+    /// unsubscribe link.</para>
+    /// </remarks>
+    /// <param name="subscriberId">The subscriber giving consent.</param>
+    /// <param name="newUnsubscribeToken">The freshly generated token to install.</param>
+    /// <returns><c>true</c> when a row was changed; <c>false</c> when the identifier is unknown.</returns>
+    public bool RecordConsent(long subscriberId, string newUnsubscribeToken)
+    {
+        var parameters = new DynamicParameters();
+        parameters.Add("SubscriberId", subscriberId);
+        parameters.Add("UnsubscribeToken", newUnsubscribeToken);
+        parameters.Add("ConfirmedOn", DbTimestamp.AsTimestamp(DateTime.UtcNow));
+
+        using var connection = GetOpenConnection();
+        return connection.Execute(RecordConsentSql, parameters) > 0;
     }
 
     /// <summary>

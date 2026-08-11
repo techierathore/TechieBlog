@@ -100,9 +100,25 @@ public class BlogTagRepo : GenericRepository<BlogTag>, IBlogTagRepo
             WHERE pt.PostId = @PostId
             ORDER BY t.TagName";
 
+    /// <summary>
+    /// The public tag archive's listing read. [REQ-FN-057] <c>PublishedOn</c> is projected because
+    /// every renderer dates a post as <c>PublishedOn ?? CreatedOn</c>: a column that is never
+    /// selected does not make that fallback fire "when appropriate", it makes it fire on every row,
+    /// so the tag archive silently dated its cards by when the post was drafted while the home page
+    /// and the category archive — reading through <c>BlogPostRepo</c>, which does project it —
+    /// dated the same posts by when they went live. Fixing the renderer alone would have changed
+    /// nothing at all.
+    /// <para>[REQ-UI-059] The <c>ORDER BY</c> is now that same expression rather than
+    /// <c>p.CreatedOn DESC</c>. Dating a card by one column while sorting it by another is what put a
+    /// post dated "Aug 09" third on this very page, behind cards dated Jul 08 and Jul 01
+    /// (<c>tests/.artifacts/e-tag-archive-date-desktop.png</c>). <c>p.PostID DESC</c> is the unique
+    /// tiebreaker: this listing is paged with <c>LIMIT</c>/<c>OFFSET</c>, and tied
+    /// <c>COALESCE</c> values under a non-deterministic order let one post appear on two pages while
+    /// another is never shown at all.</para>
+    /// </summary>
     private const string SelectPostsByTagSql = @"
             SELECT p.PostID, p.Title, p.Slug, p.Abstract, p.PostContent, p.CreatedOn, p.UpdatedOn,
-                   p.UserID, p.Tags, p.CategoryId, p.FeaturedImage, p.Published,
+                   p.PublishedOn, p.UserID, p.Tags, p.CategoryId, p.FeaturedImage, p.Published,
                    CONCAT(u.FirstName, ' ', u.LastName) as BlogWriter
             FROM BlogPost p
             INNER JOIN PostTag pt ON p.PostID = pt.PostId
@@ -110,7 +126,7 @@ public class BlogTagRepo : GenericRepository<BlogTag>, IBlogTagRepo
             WHERE pt.TagId = @TagId
                 AND p.Published = TRUE
                 AND (p.IsDeleted = FALSE OR p.IsDeleted IS NULL)
-            ORDER BY p.CreatedOn DESC
+            ORDER BY COALESCE(p.PublishedOn, p.CreatedOn) DESC, p.PostID DESC
             LIMIT @PageSize OFFSET @Offset";
 
     private const string CountPostsByTagSql = @"
@@ -453,7 +469,7 @@ public class BlogTagRepo : GenericRepository<BlogTag>, IBlogTagRepo
     /// <param name="pageSize">Rows per page.</param>
     /// <param name="offset">Rows to skip.</param>
     /// <param name="cancellationToken">Cancels the query.</param>
-    /// <returns>Published posts with this tag, newest first.</returns>
+    /// <returns>Published posts with this tag, most recently published first (REQ-UI-059).</returns>
     public async Task<IEnumerable<BlogPost>> GetPostsByTagAsync(long tagId, int pageSize, int offset, CancellationToken cancellationToken = default)
     {
         return await QueryAsync<BlogPost>(
@@ -671,7 +687,7 @@ public class BlogTagRepo : GenericRepository<BlogTag>, IBlogTagRepo
     /// <param name="tagId">The tag identifier.</param>
     /// <param name="pageSize">Rows per page.</param>
     /// <param name="offset">Rows to skip.</param>
-    /// <returns>Published posts with this tag, newest first.</returns>
+    /// <returns>Published posts with this tag, most recently published first (REQ-UI-059).</returns>
     public IEnumerable<BlogPost> GetPostsByTag(long tagId, int pageSize, int offset)
     {
         using var connection = GetOpenConnection();

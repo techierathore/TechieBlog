@@ -208,6 +208,14 @@ public static class BlogSvcInitializer
         services.AddTransient<IPostViewRepo>(x => new PostViewRepo(dbConnectionString));
         services.AddTransient<IPostViewTracker, Services.PostViewTracker>();
 
+        // [REQ-NFR-034] The view write is queued rather than performed on the article render path.
+        // The queue MUST be a singleton — a transient would hand every producer its own empty
+        // channel and view tracking would stop dead without a single error. The writer is the one
+        // consumer, and takes a fresh DI scope per item because the scope that observed the view is
+        // long gone by the time it is written.
+        services.AddSingleton<Services.IPostViewQueue, Services.PostViewQueue>();
+        services.AddHostedService<Services.PostViewWriter>();
+
         // Popular posts and per-post engagement statistics (REQ-FN-035)
         services.AddTransient<IAnalyticsRepo>(x => new AnalyticsRepo(dbConnectionString));
         services.AddTransient<IAnalyticsService, Services.AnalyticsSvc>();

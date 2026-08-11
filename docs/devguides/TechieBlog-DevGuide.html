@@ -117,6 +117,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
       <li><a href="#4-screens">4. Screens</a></li>
       <li><a href="#5-cross-cutting-notes-for-bug-chasing">5. Cross-cutting notes for bug-chasing</a></li>
       <li><a href="#6-findings-logged-to-the-checklist">6. Findings logged to the checklist</a></li>
+      <li><a href="#7-ci-and-package-feed-authentication">7. CI and package-feed authentication</a></li>
     </ol>
   </nav>
   <main>
@@ -186,6 +187,27 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <h2 id="6-findings-logged-to-the-checklist">6. Findings logged to the checklist<a class="anchor-link" href="#6-findings-logged-to-the-checklist">#</a></h2>
 <p>All of these were confirmed by reading the code and are recorded in <code>docs/TechieBlog-Checklist.md</code> Remarks:</p>
 <table><thead><tr><th>#</th><th>Finding</th><th>File:line</th><th>Owning REQ</th></tr></thead><tbody><tr><td>1</td><td>Post-login redirect is role-blind — every role is sent to <code>/admin</code>, which Readers/Contributors cannot enter</td><td><code>LoginPage.razor.cs:106</code></td><td>REQ-UI-001, REQ-FN-009</td></tr><tr><td>2</td><td>Admin dashboard stat tiles are <strong>stub data</strong> — <code>TotalUsers = 1</code>, <code>TotalSubscribers = 1</code>, <code>TotalComments = 0</code>, <code>PendingComments = 0</code> are hardcoded, and "Popular posts" is really <em>recent</em> posts with <code>Views = 0</code></td><td><code>AdminDashboard.razor.cs:59-68</code></td><td>REQ-UI-019, REQ-FN-036</td></tr><tr><td>3</td><td>Site Settings does <strong>not persist</strong> — only the pagination word count is written (to browser local storage); everything else reports "Settings saved successfully" while a <code>TODO</code> admits no database save exists</td><td><code>Settings.razor:327-350</code></td><td>REQ-FN-040, REQ-UI-026</td></tr><tr><td>4</td><td>The site theme is stored <strong>per browser</strong> in local storage, so the "admin-selectable <em>site</em> theme" is actually a per-visitor preference</td><td><code>Common/ThemeService.cs:46-50</code>, <code>Settings.razor:14</code></td><td>REQ-UI-032, REQ-FN-039</td></tr><tr><td>5</td><td><code>ContributorOrAbove</code> policy is registered but no page uses it — the Contributor role grants nothing beyond Reader</td><td><code>Program.cs:96</code></td><td>REQ-FN-009</td></tr><tr><td>6</td><td>Orphan code-behinds <code>BlogHome.razor.cs</code> and <code>BlogPage.razor.cs</code> have no matching <code>.razor</code> — dead legacy files</td><td><code>source/BlogUI/Pages/BlogPages/</code></td><td>REQ-NFR-020</td></tr><tr><td>7</td><td>Duplicate <code>AccessDenied</code> exists as both a page and a component</td><td><code>Pages/AccessDenied.razor</code>, <code>Components/AccessDenied.razor</code></td><td>REQ-NFR-020</td></tr><tr><td>8</td><td>Solution does not build (<code>NU1605</code>) — blocks every runtime verification</td><td><code>source/BlogUI/BlogUI.csproj</code></td><td>REQ-FN-043</td></tr></tbody></table>
+<h2 id="7-ci-and-package-feed-authentication">7. CI and package-feed authentication<a class="anchor-link" href="#7-ci-and-package-feed-authentication">#</a></h2>
+<p><strong>If a build fails with <code>NU1301</code> / <code>403 Forbidden</code> on restore, this section is the whole answer.</strong></p>
+<p>The solution depends on <code>TrBlazeUI.Components</code> and <code>TrBlazeUI.Icons.Lucide</code>, published to a <strong>private, user-scoped GitHub Packages feed</strong> (<code>https://nuget.pkg.github.com/techierathore/index.json</code>). Restore cannot reach it anonymously — locally, in CI, or inside the deploy image build.</p>
+<p><code>NuGet.Config</code> at the repository root deliberately carries <strong>no credentials</strong> (REQ-NFR-025): a PAT was committed there until 2026-08-09, was invalidated by GitHub secret scanning, and <strong>cannot be reused</strong>. Never put a token back into that file — it is published to every clone and fork.</p>
+<p><strong>Local machine.</strong> Store your own token in your <em>user-level</em> NuGet config, which lives outside the repository and merges with the committed one:</p>
+<pre><code class="language-bash">dotnet nuget add source https://nuget.pkg.github.com/techierathore/index.json \
+  --name TrBlazeUI \
+  --username techierathore \
+  --password &lt;your PAT with read:packages&gt; \
+  --store-password-in-clear-text
+</code></pre>
+<p>That writes to <code>~/.nuget/NuGet/NuGet.Config</code> (Linux/macOS) or <code>%APPDATA%\NuGet\NuGet.Config</code> (Windows).</p>
+<p><strong>GitHub Actions.</strong> Do <strong>one</strong> of:</p>
+<ol>
+<li>Create a <strong>classic</strong> PAT (fine-grained tokens do not work with GitHub Packages for NuGet) with the <strong><code>read:packages</code></strong> scope only, then add it under <em>Settings → Secrets and variables → Actions → New repository secret</em> named exactly <strong><code>TrBlazeUiPackagesToken</code></strong> (case-sensitive).</li>
+<li>Or, on each TrBlazeUI package page under <code>github.com/users/techierathore/packages</code>, open <em>Package settings → Manage Actions access</em> and grant this repository <strong>Read</strong> access. The built-in <code>GITHUB_TOKEN</code> then suffices and no secret is needed.</li>
+</ol>
+<p><code>.github/workflows/ci.yml</code> writes a throwaway <code>nuget.ci.config</code> at run time from that secret (falling back to <code>GITHUB_TOKEN</code> with a warning) and runs a <strong>preflight probe</strong> before restore, so a credential problem fails in one actionable line instead of ~60 lines of NuGet retry noise. The deploy workflow passes the same token to <code>docker build</code> as a <strong>BuildKit secret</strong> with id <code>nuget_pat</code> — never as a build <code>ARG</code>, because <code>docker history</code> would expose it. That id must match the <code>Dockerfile</code>'s <code>RUN --mount=type=secret,id=nuget_pat</code> <strong>exactly</strong>: BuildKit does not error on a mismatch, it just mounts an empty file, and the build then dies with an <code>NU1301</code> that never mentions a secret.</p>
+<blockquote>
+<p><strong>Fuller reference:</strong> <a href="../Prod-Deploy-Checklist.html">docs/Prod-Deploy-Checklist.md</a> §"NuGet / TrBlazeUI package feed authentication" carries the click-by-click steps, plus every other GitHub secret the production pipeline needs and what breaks without each one.</p>
+</blockquote>
 <p>--- Generated 2026-08-02 · reflects code as built · ⚠ STATIC-ONLY</p>
   </main>
 </div>

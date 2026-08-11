@@ -85,7 +85,12 @@ else
                             <span data-testid="home-featured-author">
                                 By @(string.IsNullOrWhiteSpace(featuredPost.BlogWriter) ? "Unknown" : featuredPost.BlogWriter)
                             </span>
-                            <span data-testid="home-featured-date">@featuredPost.CreatedOn.ToString("MMM dd, yyyy")</span>
+                            @* [REQ-FN-057] Dated by PublishedOn, falling back to CreatedOn only for a
+                               legacy row that never recorded one. The featured projection selects
+                               PublishedOn precisely so this card can show when the post went live
+                               rather than when its draft was started — reading CreatedOn here made
+                               widening that projection pointless on the one surface it was widened for. *@
+                            <span data-testid="home-featured-date">@((featuredPost.PublishedOn ?? featuredPost.CreatedOn).ToString("MMM dd, yyyy"))</span>
                             <span data-testid="home-featured-readtime">
                                 @BlogEngine.Common.ReadingTimeCalculator.Calculate(featuredPost.PostContent ?? string.Empty)
                             </span>
@@ -98,7 +103,7 @@ else
         @* Most recent published posts, linking to the real articles. *@
         <HomeLatestArticles Posts="@latestPosts" IsLoading="false" />
 
-        @* Contact block — email, phone, location, LinkedIn. *@
+        @* Contact block — location plus the LinkedIn call to action (no email, no phone). *@
         <ResumeContact User="@siteOwner" />
     </div>
 }

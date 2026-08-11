@@ -44,7 +44,7 @@ public partial class ResumePage
         try
         {
             // Get the user where IsSiteOwner = true
-            siteOwner = UserRepo.GetSiteOwner();
+            siteOwner = await UserRepo.GetSiteOwnerAsync();
         }
         catch
         {

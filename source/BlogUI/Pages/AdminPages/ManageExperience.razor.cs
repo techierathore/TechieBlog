@@ -13,6 +13,30 @@ namespace BlogUI.Pages.AdminPages;
 /// </summary>
 public partial class ManageExperience : ComponentBase
 {
+
+    /// <summary>
+    /// Curated messages shown when an unexpected failure is caught on this page (REQ-NFR-033).
+    /// </summary>
+    /// <remarks>
+    /// <para>These assignments previously interpolated <c>ex.Message</c>. The page is gated by
+    /// <c>AppPolicies.AdminOnly</c>, which was the defence offered for the disclosure, but an
+    /// exception's text is not written for an audience and routinely carries a SQL fragment, a
+    /// table name or a file-system path — none of which an administrator can act on and all of
+    /// which end up in a screenshot pasted into a ticket.</para>
+    /// <para>The engine service beneath every one of these calls already logs the exception with
+    /// its own context through <c>ILogger&lt;T&gt;</c>, where the host's
+    /// <c>CorrelationIdMiddleware</c> has stamped the request's correlation id onto the event
+    /// (REQ-NFR-015), so nothing is lost by curating here. This page injects no logger of its own;
+    /// adding one is tracked as a follow-up.</para>
+    /// </remarks>
+    private const string LoadFailureMessage =
+        "Could not load the experience entries. Please try again later.";
+
+    private const string SaveFailureMessage =
+        "Could not save the experience entry. Please try again later.";
+
+    private const string DeleteFailureMessage =
+        "Could not delete the experience entry. Please try again later.";
     #region Injected Services
 
     [Inject]
@@ -174,7 +198,7 @@ public partial class ManageExperience : ComponentBase
         {
             try
             {
-                AllUsers = UserRepo.GetAll()?.ToList() ?? new List<AppUser>();
+                AllUsers = (await UserRepo.GetAllAsync())?.ToList() ?? new List<AppUser>();
             }
             catch
             {
@@ -190,12 +214,12 @@ public partial class ManageExperience : ComponentBase
 
         try
         {
-            ExperienceList = EventRepo.GetByUserAndType(EffectiveUserId, ExperienceEventType)?.ToList()
+            ExperienceList = (await EventRepo.GetByUserAndTypeAsync(EffectiveUserId, ExperienceEventType))?.ToList()
                 ?? new List<UserEvent>();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error loading experience: {ex.Message}";
+            StatusMessage = LoadFailureMessage;
             IsError = true;
             ExperienceList = new List<UserEvent>();
         }
@@ -203,8 +227,6 @@ public partial class ManageExperience : ComponentBase
         {
             IsLoading = false;
         }
-
-        await Task.CompletedTask;
     }
 
     private async Task LoadEventForEdit()
@@ -214,7 +236,7 @@ public partial class ManageExperience : ComponentBase
 
         try
         {
-            var eventData = EventRepo.GetSingle(EventId);
+            var eventData = await EventRepo.GetSingleAsync(EventId);
             if (eventData == null)
             {
                 StatusMessage = "Experience entry not found.";
@@ -233,9 +255,9 @@ public partial class ManageExperience : ComponentBase
                 ShowForm = true;
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error loading experience: {ex.Message}";
+            StatusMessage = LoadFailureMessage;
             IsError = true;
             CurrentEvent = new UserEvent();
         }
@@ -398,13 +420,13 @@ public partial class ManageExperience : ComponentBase
             if (CurrentEvent.EventID > 0)
             {
                 // Update existing
-                EventRepo.Update(CurrentEvent);
+                await EventRepo.UpdateAsync(CurrentEvent);
                 StatusMessage = "Experience updated successfully.";
             }
             else
             {
                 // Insert new
-                var newId = EventRepo.InsertToGetId(CurrentEvent);
+                var newId = await EventRepo.InsertToGetIdAsync(CurrentEvent);
                 CurrentEvent.EventID = newId;
                 StatusMessage = "Experience added successfully.";
             }
@@ -422,9 +444,9 @@ public partial class ManageExperience : ComponentBase
                 NavManager.NavigateTo("/admin/experience");
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error saving experience: {ex.Message}";
+            StatusMessage = SaveFailureMessage;
             IsError = true;
         }
         finally
@@ -467,14 +489,14 @@ public partial class ManageExperience : ComponentBase
 
         try
         {
-            EventRepo.Delete(EventToDelete.EventID);
+            await EventRepo.DeleteAsync(EventToDelete.EventID);
             StatusMessage = "Experience deleted successfully.";
             IsError = false;
             await LoadData();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error deleting experience: {ex.Message}";
+            StatusMessage = DeleteFailureMessage;
             IsError = true;
         }
         finally

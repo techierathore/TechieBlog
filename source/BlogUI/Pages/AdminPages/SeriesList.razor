@@ -199,7 +199,7 @@
             <Button Variant="ButtonVariant.Outline" OnClick="CancelDelete" data-testid="series-delete-cancel">
                 Cancel
             </Button>
-            <Button Variant="ButtonVariant.Destructive" OnClick="DeleteSeries" data-testid="series-delete-confirm">
+            <Button Variant="ButtonVariant.Destructive" OnClick="DeleteSeriesAsync" data-testid="series-delete-confirm">
                 Delete
             </Button>
         </DialogFooter>
@@ -228,9 +228,9 @@
         : "Create your first series to group related posts together.";
 
     /// <inheritdoc />
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        LoadSeries();
+        await LoadSeriesAsync();
     }
 
     /// <summary>Keeps the legacy hide-flag in sync with the dialog open state.</summary>
@@ -244,11 +244,11 @@
         }
     }
 
-    private void LoadSeries()
+    private async Task LoadSeriesAsync()
     {
         try
         {
-            ObjectList = SeriesService.GetAllWithCounts().ToList();
+            ObjectList = (await SeriesService.GetAllWithCountsAsync()).ToList();
             ApplyFilter();
         }
         catch
@@ -314,16 +314,16 @@
         HideDeleteDialog = true;
     }
 
-    private void DeleteSeries()
+    private async Task DeleteSeriesAsync()
     {
         if (SeriesToDelete == null) return;
 
-        var result = SeriesService.DeleteSeries(SeriesToDelete.SeriesId);
+        var result = await SeriesService.DeleteSeriesAsync(SeriesToDelete.SeriesId);
         if (result.IsSuccess)
         {
             StatusMessage = $"Series '{SeriesToDelete.Name}' deleted successfully.";
             IsError = false;
-            LoadSeries();
+            await LoadSeriesAsync();
         }
         else
         {

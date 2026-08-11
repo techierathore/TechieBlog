@@ -30,7 +30,7 @@
                    @bind-Value="searchQuery"
                    @onkeydown="HandleSearchKeyDown"
                    data-testid="search-input" />
-            <Button OnClick="DoSearch" data-testid="search-submit">
+            <Button OnClick="DoSearchAsync" data-testid="search-submit">
                 <LucideIcon Name="search" Size="16" />
                 Search
             </Button>
@@ -87,7 +87,7 @@
                data-testid="search-empty">
             <Icon><LucideIcon Name="search" Size="48" /></Icon>
             <ChildContent>
-                <Button Variant="ButtonVariant.Outline" OnClick="ClearFilters" data-testid="search-clear-filters">Clear filters</Button>
+                <Button Variant="ButtonVariant.Outline" OnClick="ClearFiltersAsync" data-testid="search-clear-filters">Clear filters</Button>
             </ChildContent>
         </Empty>
     }
@@ -155,7 +155,7 @@
         @if (TotalPages > 1)
         {
             <div class="mt-8">
-                <BlogPagination CurrentPage="@currentPage" TotalPages="@TotalPages" OnPageChanged="HandlePageChanged" />
+                <BlogPagination CurrentPage="@currentPage" TotalPages="@TotalPages" OnPageChanged="HandlePageChangedAsync" />
             </div>
         }
     }
@@ -195,46 +195,46 @@ else
     /// <summary>
     /// Initialize component and perform search if query provided.
     /// </summary>
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         // Load categories for the filter dropdown
-        categories = CategorySvc.GetAllCategories().ToList();
+        categories = (await CategorySvc.GetAllCategoriesAsync()).ToList();
 
         if (!string.IsNullOrEmpty(Query))
         {
             searchQuery = Query;
-            PerformSearch();
+            await PerformSearchAsync();
         }
     }
 
     /// <summary>
     /// Handle Enter key press to trigger search.
     /// </summary>
-    private void HandleSearchKeyDown(KeyboardEventArgs e)
+    private async Task HandleSearchKeyDown(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
         {
-            DoSearch();
+            await DoSearchAsync();
         }
     }
 
     /// <summary>
     /// Navigate to search results with query.
     /// </summary>
-    private void DoSearch()
+    private async Task DoSearchAsync()
     {
         if (!string.IsNullOrWhiteSpace(searchQuery))
         {
             currentPage = 1;
             Navigation.NavigateTo($"/search?q={Uri.EscapeDataString(searchQuery)}");
-            PerformSearch();
+            await PerformSearchAsync();
         }
     }
 
     /// <summary>
     /// Resets the category, date and sort filters and re-runs the current query.
     /// </summary>
-    private void ClearFilters()
+    private async Task ClearFiltersAsync()
     {
         categoryFilter = string.Empty;
         dateFilter = string.Empty;
@@ -242,24 +242,24 @@ else
 
         if (!string.IsNullOrWhiteSpace(searchQuery))
         {
-            PerformSearch();
+            await PerformSearchAsync();
         }
     }
 
     /// <summary>
     /// Perform search against the database.
     /// </summary>
-    private void PerformSearch()
+    private async Task PerformSearchAsync()
     {
         hasSearched = true;
         displayQuery = searchQuery;
 
         // Get total count for pagination
-        totalResults = BlogSvc.GetSearchResultCount(searchQuery);
+        totalResults = await BlogSvc.GetSearchResultCountAsync(searchQuery);
 
         // Get paginated results from database
         int offset = (currentPage - 1) * PageSize;
-        var posts = BlogSvc.SearchPosts(searchQuery, PageSize, offset);
+        var posts = await BlogSvc.SearchPostsAsync(searchQuery, PageSize, offset);
 
         // Convert BlogPost to SearchResult with highlighted excerpts
         searchResults = posts.Select(post => new SearchResult
@@ -270,7 +270,10 @@ else
             ExcerptWithHighlights = HighlightSearchTerms(post.Abstract ?? string.Empty, searchQuery, ExcerptLength),
             Slug = post.Slug ?? string.Empty,
             Author = post.BlogWriter ?? "Unknown",
-            Date = post.CreatedOn.ToString("MMM dd, yyyy"),
+            // [REQ-FN-057] Publication date, not creation date — SearchSql selects PublishedOn for
+            // this row, and a result dated by its draft date disagrees with the same post's card on
+            // the home page and the category archive.
+            Date = (post.PublishedOn ?? post.CreatedOn).ToString("MMM dd, yyyy"),
             ReadTime = EstimateReadTime(post.PostContent),
             ImageUrl = post.FeaturedImage ?? string.Empty,
             Rating = 0
@@ -381,10 +384,10 @@ else
     /// <summary>
     /// Handle page change for pagination.
     /// </summary>
-    private void HandlePageChanged(int page)
+    private async Task HandlePageChangedAsync(int page)
     {
         currentPage = page;
-        PerformSearch();
+        await PerformSearchAsync();
     }
 
     /// <summary>

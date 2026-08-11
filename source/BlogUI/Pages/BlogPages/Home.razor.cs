@@ -86,10 +86,10 @@ public partial class Home
     {
         isLoading = true;
 
-        siteOwner = LoadSiteOwner();
-        ownerStats = siteOwner is null ? [] : LoadStats(siteOwner.UserId);
-        latestPosts = LoadLatestPosts();
-        featuredPost = LoadFeaturedPost();
+        siteOwner = await LoadSiteOwnerAsync();
+        ownerStats = siteOwner is null ? [] : await LoadStatsAsync(siteOwner.UserId);
+        latestPosts = await LoadLatestPostsAsync();
+        featuredPost = await LoadFeaturedPostAsync();
 
         isLoading = false;
         await InvokeAsync(StateHasChanged);
@@ -99,11 +99,11 @@ public partial class Home
     /// Resolves the user flagged as the site owner.
     /// </summary>
     /// <returns>The site owner, or null when none is configured or the read fails.</returns>
-    private AppUser? LoadSiteOwner()
+    private async Task<AppUser?> LoadSiteOwnerAsync()
     {
         try
         {
-            return UserRepo.GetSiteOwner();
+            return await UserRepo.GetSiteOwnerAsync();
         }
         catch
         {
@@ -121,11 +121,12 @@ public partial class Home
     /// </remarks>
     /// <param name="userId">The site owner's identifier.</param>
     /// <returns>The statistics, or an empty list when none exist or the read fails.</returns>
-    private IReadOnlyList<UserStat> LoadStats(long userId)
+    private async Task<IReadOnlyList<UserStat>> LoadStatsAsync(long userId)
     {
         try
         {
-            return UserStatsRepo.GetByUserId(userId)
+            var stats = await UserStatsRepo.GetByUserIdAsync(userId);
+            return stats
                 .OrderBy(stat => stat.DisplayOrder)
                 .ThenBy(stat => stat.StatId)
                 .Take(HeadlineStatCount)
@@ -141,11 +142,11 @@ public partial class Home
     /// Loads the newest published posts for the latest-articles grid.
     /// </summary>
     /// <returns>The posts newest first, or an empty list when none exist or the read fails.</returns>
-    private IReadOnlyList<BlogPost> LoadLatestPosts()
+    private async Task<IReadOnlyList<BlogPost>> LoadLatestPostsAsync()
     {
         try
         {
-            return BlogService.GetPublishedPosts(LatestArticleCount, 0).ToList();
+            return (await BlogService.GetPublishedPostsAsync(LatestArticleCount, 0)).ToList();
         }
         catch
         {
@@ -165,11 +166,11 @@ public partial class Home
     /// than blanking the landing page.</para>
     /// </remarks>
     /// <returns>The newest published post, or null when there is none or the read fails.</returns>
-    private BlogPost? LoadFeaturedPost()
+    private async Task<BlogPost?> LoadFeaturedPostAsync()
     {
         try
         {
-            return BlogService.GetFeaturedPost();
+            return await BlogService.GetFeaturedPostAsync();
         }
         catch
         {

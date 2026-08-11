@@ -48,7 +48,7 @@
             <span class="text-sm font-medium">View statistics for:</span>
             <Select TValue="string"
                     Value="@SelectedUserId.ToString()"
-                    ValueChanged="@OnSelectedUserChanged"
+                    ValueChanged="@OnSelectedUserChangedAsync"
                     Class="w-72">
                 <SelectTrigger data-testid="stats-user-select">
                     <SelectValue Placeholder="Select a user" />
@@ -131,7 +131,7 @@
                                     Size="ButtonSize.IconSmall"
                                     AriaLabel="Move statistic up"
                                     Disabled="@IsFirstStat(current)"
-                                    OnClick="@(() => MoveStatUp(current))"
+                                    OnClick="@(() => MoveStatUpAsync(current))"
                                     data-testid="move-stat-up">
                                 <LucideIcon Name="chevron-up" Size="16" />
                             </Button>
@@ -139,7 +139,7 @@
                                     Size="ButtonSize.IconSmall"
                                     AriaLabel="Move statistic down"
                                     Disabled="@IsLastStat(current)"
-                                    OnClick="@(() => MoveStatDown(current))"
+                                    OnClick="@(() => MoveStatDownAsync(current))"
                                     data-testid="move-stat-down">
                                 <LucideIcon Name="chevron-down" Size="16" />
                             </Button>
@@ -205,7 +205,7 @@
             <Button Variant="ButtonVariant.Outline" OnClick="@CancelStatDialog" data-testid="cancel-stat">
                 Cancel
             </Button>
-            <Button OnClick="@SaveStat" data-testid="save-stat">
+            <Button OnClick="@SaveStatAsync" data-testid="save-stat">
                 @(IsEditMode ? "Save Changes" : "Add Statistic")
             </Button>
         </DialogFooter>
@@ -226,7 +226,7 @@
             <Button Variant="ButtonVariant.Outline" OnClick="@CancelDelete" data-testid="stat-delete-cancel">
                 Cancel
             </Button>
-            <Button Variant="ButtonVariant.Destructive" OnClick="@DeleteStat" data-testid="stat-delete-confirm">
+            <Button Variant="ButtonVariant.Destructive" OnClick="@DeleteStatAsync" data-testid="stat-delete-confirm">
                 Delete
             </Button>
         </AlertDialogFooter>

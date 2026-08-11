@@ -14,6 +14,9 @@
                  IPostViewTracker.TrackCurrentVisitAsync while its markup is being
                  produced for the HTTP response. See TrackVisitAndReadCountsAsync
                  for why that cannot double-count on a prerendered Blazor page.
+    REQ-NFR-034 — that call now QUEUES the view instead of writing it, and the byline
+                 figures come from the maintained PostViewCount rollup instead of an
+                 aggregate over PostViews. No write and no table scan on the render path.
     REQ-FN-035 — the byline carries the post's own total/unique view counts, the
                  public face of the per-post engagement statistics.
     REQ-UI-007 — markdown tables get their own horizontal scroll container so a wide
@@ -36,6 +39,8 @@
 @inject BlogModels.Interfaces.IAnalyticsService AnalyticsService
 @inject NavigationManager Navigation
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@* REQ-UI-058 — the ambient request, used ONLY to turn an unresolvable slug into a real 404. *@
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
 
 @* REQ-NFR-007 / WCAG 2.4.2 Page Titled — every route needs a unique, descriptive title. *@
 <PageTitle>@(blogPost == null ? "Post · TechieBlog" : $"{blogPost.Title} · TechieBlog")</PageTitle>
@@ -80,7 +85,12 @@ else if (blogPost != null)
                 <span class="text-muted-foreground" data-testid="post-author">
                     @(string.IsNullOrEmpty(blogPost.BlogWriter) ? "Unknown Author" : blogPost.BlogWriter)
                 </span>
-                <span data-testid="post-date">@blogPost.CreatedOn.ToString("MMMM dd, yyyy")</span>
+                @* [REQ-FN-057] Date is the PUBLICATION date, not the creation date. This page must
+                   agree with its own listing card: Home, HomeLatestArticles, CategoryArchive,
+                   SearchResults and the RSS feed all resolve the date as PublishedOn ?? CreatedOn,
+                   so dating the detail page by CreatedOn made /post/{slug} contradict the card the
+                   reader clicked to reach it. *@
+                <span data-testid="post-date">@((blogPost.PublishedOn ?? blogPost.CreatedOn).ToString("MMMM dd, yyyy"))</span>
                 <span data-testid="post-readtime">@GetReadingTime(blogPost.PostContent)</span>
                 @* REQ-FN-035 — per-post engagement, read straight from the recorded views *@
                 <span class="inline-flex items-center gap-1" data-testid="post-views">
@@ -308,7 +318,7 @@ else if (blogPost != null)
 
             <CommentThread Comments="@comments" />
 
-            <CommentForm PostId="@blogPost.PostID" OnSubmitted="LoadComments" />
+            <CommentForm PostId="@blogPost.PostID" OnSubmitted="LoadCommentsAsync" />
         </section>
     </article>
 }
@@ -364,7 +374,7 @@ else if (blogPost != null)
             // Load pagination setting from local storage
             await LoadPaginationSetting();
 
-            blogPost = BlogService.GetPostBySlug(Slug);
+            blogPost = await BlogService.GetPostBySlugAsync(Slug);
 
             if (blogPost == null || !blogPost.Published)
             {
@@ -390,7 +400,7 @@ else if (blogPost != null)
                 };
 
                 // Load related posts (other recent posts)
-                var allPosts = BlogService.GetPublishedPosts(4, 0);
+                var allPosts = await BlogService.GetPublishedPostsAsync(4, 0);
                 relatedPosts = allPosts
                     .Where(p => p.PostID != blogPost.PostID)
                     .Take(3)
@@ -399,14 +409,14 @@ else if (blogPost != null)
                 // Load series navigation if post is part of a series
                 if (blogPost.SeriesId.HasValue)
                 {
-                    seriesNavigation = SeriesService.GetSeriesNavigation(blogPost.PostID);
+                    seriesNavigation = await SeriesService.GetSeriesNavigationAsync(blogPost.PostID);
                 }
                 else
                 {
                     seriesNavigation = null;
                 }
 
-                LoadComments();
+                await LoadCommentsAsync();
             }
         }
         catch
@@ -414,7 +424,21 @@ else if (blogPost != null)
             notFound = true;
         }
 
-        if (!notFound && blogPost != null)
+        if (notFound)
+        {
+            // REQ-UI-058 — this route MATCHED, so nothing downstream will 404 for us: without
+            // these two calls an unknown slug answered HTTP 200 while rendering the not-found panel
+            // below, and a search engine indexes that as a live page. NavigationManager.NotFound()
+            // is the framework's own signal: on the static pass it sets HTTP 404, and the Router's
+            // NotFoundPage (Routes.razor) renders the site's 404 screen in the same pass, so the
+            // visitor gets a real status AND a real page. Apply() then switches off the status-code
+            // page middleware, which would otherwise re-execute a request that has already
+            // rendered and fail with 'RemoteNavigationManager already initialized' (measured
+            // 2026-08-10). Both are no-ops on the interactive pass, where there is no request.
+            Navigation.NotFound();
+            BlogUI.Common.NotFoundResponse.Apply(HttpContextAccessor?.HttpContext);
+        }
+        else if (blogPost != null)
         {
             await TrackVisitAndReadCountsAsync();
         }
@@ -435,9 +459,21 @@ else if (blogPost != null)
     /// conditional insert would refuse a second row for the same visitor and post anyway. The local
     /// guard adds a third, cheaper stop for the re-renders inside one instance — moving between the
     /// pages of a paginated article is still one view of one article.</para>
-    /// <para><b>Flow:</b> count the visit unless this instance already counted this post → read the
+    /// <para><b>[REQ-NFR-034] Neither call touches PostViews any more.</b> This method used to be
+    /// two database round trips on the critical path of every article render: an INSERT the reader
+    /// waited for, and a <c>COUNT(*)</c> + <c>COUNT(DISTINCT VisitorHash)</c> aggregate whose plan
+    /// was a sequential scan of a table that grows forever. Now the tracker queues the view and
+    /// returns without any I/O, and the count is a primary-key lookup of one maintained rollup row.
+    /// The read is the only database call left here, and its cost no longer depends on how popular
+    /// the post is.</para>
+    /// <para><b>What that changes on screen:</b> the byline shows the count as it stood when the
+    /// reader arrived, because the write is still in the queue when the figure is read. On an
+    /// interactively rendered page the second (circuit) pass re-reads it and usually picks the new
+    /// visit up; either way the number is right within a moment and no reader waits on a write to
+    /// see the article.</para>
+    /// <para><b>Flow:</b> queue the visit unless this instance already counted this post → read the
     /// post's total and unique views for the byline.</para>
-    /// <para><b>Side Effects:</b> May insert one <c>PostViews</c> row; replaces
+    /// <para><b>Side Effects:</b> May queue one view for background writing; replaces
     /// <c>viewCounts</c>. Neither call throws — analytics never costs a reader the article — so no
     /// guard is needed around them.</para>
     /// </remarks>
@@ -457,15 +493,19 @@ else if (blogPost != null)
     /// Loads the publicly visible comment thread for the current post.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> <c>CommentSvc.GetCommentsByPostId</c> reads through a
+    /// <para><b>Business Logic:</b> <c>CommentSvc.GetCommentsByPostIdAsync</c> reads through a
     /// repository query that filters on the Approved moderation status, so a comment that has
     /// not been email-confirmed AND approved can never reach this page. This is also the
     /// callback the comment form fires after a successful submission — the newly written
     /// comment deliberately does NOT appear.</para>
-    /// <para><b>Flow:</b> read the approved thread, re-render.</para>
+    /// <para><b>Flow:</b> await the approved thread, re-render.</para>
     /// <para><b>Side Effects:</b> Replaces <c>comments</c>.</para>
+    /// <para><b>[REQ-NFR-026] stage 3:</b> the async twin is awaited rather than the blocking
+    /// member being called. This is a public article route, so every synchronous read here parked
+    /// a thread-pool thread for the whole round trip.</para>
     /// </remarks>
-    private void LoadComments()
+    /// <returns>A task that completes when the thread has been read and rendered.</returns>
+    private async Task LoadCommentsAsync()
     {
         if (blogPost == null)
         {
@@ -473,8 +513,8 @@ else if (blogPost != null)
             return;
         }
 
-        comments = CommentService.GetCommentsByPostId(blogPost.PostID)?.ToList()
-            ?? new List<BlogModels.BlogComment>();
+        var thread = await CommentService.GetCommentsByPostIdAsync(blogPost.PostID);
+        comments = thread?.ToList() ?? new List<BlogModels.BlogComment>();
         StateHasChanged();
     }
 

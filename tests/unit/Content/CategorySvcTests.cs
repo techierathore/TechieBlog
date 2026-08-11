@@ -2,6 +2,7 @@ using BlogEngine.Services;
 using BlogModels;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using TechieBlog.Tests.Dashboard;
 using Xunit;
 
 namespace TechieBlog.Tests.Content;
@@ -28,9 +29,9 @@ public class CategorySvcTests
     /// </summary>
     /// <param name="repo">The substituted repository the service should use.</param>
     /// <returns>A service wired to <paramref name="repo"/>.</returns>
-    private static CategorySvc BuildService(ICategoryRepo repo)
+    private static CategorySvc BuildService(ICategoryRepo repo, ILogger<CategorySvc>? logger = null)
     {
-        return new CategorySvc(repo, Substitute.For<ILogger<CategorySvc>>());
+        return new CategorySvc(repo, logger ?? Substitute.For<ILogger<CategorySvc>>());
     }
 
     /// <summary>
@@ -371,21 +372,28 @@ public class CategorySvcTests
     /// <summary>
     /// An unexpected persistence error is converted into a failed result rather than escaping to the
     /// admin page.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public void CreateCategoryReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
+        var logger = new RecordingLogger<CategorySvc>();
         repo.When(r => r.InsertToGetId(Arg.Any<Category>()))
             .Do(_ => throw new InvalidOperationException("duplicate key"));
 
         // Act
-        var result = BuildService(repo).CreateCategory(ValidCategory());
+        var result = BuildService(repo, logger).CreateCategory(ValidCategory());
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to create category: duplicate key", result.ErrorMessage);
+        Assert.Equal("Failed to create category. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("duplicate key", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "duplicate key");
     }
 
     // =============================================================================================
@@ -553,21 +561,28 @@ public class CategorySvcTests
 
     /// <summary>
     /// An unexpected persistence error on the update is converted into a failed result.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public void UpdateCategoryReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
+        var logger = new RecordingLogger<CategorySvc>();
         repo.GetSingle(6).Returns(ValidCategory(6));
         repo.When(r => r.Update(Arg.Any<Category>())).Do(_ => throw new InvalidOperationException("deadlock"));
 
         // Act
-        var result = BuildService(repo).UpdateCategory(ValidCategory(6));
+        var result = BuildService(repo, logger).UpdateCategory(ValidCategory(6));
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to update category: deadlock", result.ErrorMessage);
+        Assert.Equal("Failed to update category. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("deadlock", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "deadlock");
     }
 
     /// <summary>
@@ -670,21 +685,28 @@ public class CategorySvcTests
     /// <summary>
     /// A foreign-key violation raised by the schema is converted into a failed result carrying the
     /// reason rather than escaping to the page.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public void DeleteCategoryReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
+        var logger = new RecordingLogger<CategorySvc>();
         repo.GetSingle(6).Returns(ValidCategory(6));
         repo.When(r => r.Delete(6)).Do(_ => throw new InvalidOperationException("foreign key"));
 
         // Act
-        var result = BuildService(repo).DeleteCategory(6);
+        var result = BuildService(repo, logger).DeleteCategory(6);
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to delete category: foreign key", result.ErrorMessage);
+        Assert.Equal("Failed to delete category. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("foreign key", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "foreign key");
     }
 
     // =============================================================================================
@@ -824,21 +846,28 @@ public class CategorySvcTests
     /// <summary>
     /// An unexpected persistence error on the async insert becomes a failed result rather than a
     /// faulted task.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public async Task CreateCategoryAsyncReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
+        var logger = new RecordingLogger<CategorySvc>();
         repo.When(r => r.InsertToGetIdAsync(Arg.Any<Category>(), Arg.Any<CancellationToken>()))
             .Do(_ => throw new InvalidOperationException("duplicate key"));
 
         // Act
-        var result = await BuildService(repo).CreateCategoryAsync(ValidCategory(), TestContext.Current.CancellationToken);
+        var result = await BuildService(repo, logger).CreateCategoryAsync(ValidCategory(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to create category: duplicate key", result.ErrorMessage);
+        Assert.Equal("Failed to create category. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("duplicate key", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "duplicate key");
     }
 
     /// <summary>
@@ -877,22 +906,29 @@ public class CategorySvcTests
 
     /// <summary>
     /// An unexpected persistence error on the async update becomes a failed result.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public async Task UpdateCategoryAsyncReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
+        var logger = new RecordingLogger<CategorySvc>();
         repo.GetSingleAsync(6, Arg.Any<CancellationToken>()).Returns(ValidCategory(6));
         repo.When(r => r.UpdateAsync(Arg.Any<Category>(), Arg.Any<CancellationToken>()))
             .Do(_ => throw new InvalidOperationException("deadlock"));
 
         // Act
-        var result = await BuildService(repo).UpdateCategoryAsync(ValidCategory(6), TestContext.Current.CancellationToken);
+        var result = await BuildService(repo, logger).UpdateCategoryAsync(ValidCategory(6), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to update category: deadlock", result.ErrorMessage);
+        Assert.Equal("Failed to update category. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("deadlock", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "deadlock");
     }
 
     /// <summary>
@@ -945,21 +981,28 @@ public class CategorySvcTests
 
     /// <summary>
     /// An unexpected persistence error on the async delete becomes a failed result.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public async Task DeleteCategoryAsyncReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
+        var logger = new RecordingLogger<CategorySvc>();
         repo.GetSingleAsync(6, Arg.Any<CancellationToken>()).Returns(ValidCategory(6));
         repo.When(r => r.DeleteAsync(6, Arg.Any<CancellationToken>()))
             .Do(_ => throw new InvalidOperationException("foreign key"));
 
         // Act
-        var result = await BuildService(repo).DeleteCategoryAsync(6, TestContext.Current.CancellationToken);
+        var result = await BuildService(repo, logger).DeleteCategoryAsync(6, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to delete category: foreign key", result.ErrorMessage);
+        Assert.Equal("Failed to delete category. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("foreign key", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "foreign key");
     }
 }

@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
+using BlogEngine.Services;
 using BlogModels;
-using BlogModels.Interfaces;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Logging;
 
@@ -24,7 +24,7 @@ namespace BlogUI.Pages.BlogPages;
 /// <list type="number">
 ///   <item>The route parameter carries the subscriber's opaque token.</item>
 ///   <item><see cref="OnAfterRenderAsync"/> — never <c>OnInitializedAsync</c>, see below — hands it
-///         to <see cref="INewsletterService.UnsubscribeAsync"/>.</item>
+///         to <see cref="SubscriberSvc.UnsubscribeByTokenAsync"/>.</item>
 ///   <item>The returned <see cref="UnsubscribeOutcome"/> chooses one of three final states; a failed
 ///         result chooses the fourth.</item>
 /// </list>
@@ -42,7 +42,16 @@ namespace BlogUI.Pages.BlogPages;
 /// an unhonoured one is a compliance breach. The operation is idempotent, so a scanner that opens
 /// the link twice changes nothing the second time.</para>
 ///
-/// <para><b>Dependencies:</b> <see cref="INewsletterService"/>, registered transient by
+/// <para><b>[REQ-FN-059] 2026-08-10 — this page now consumes the token through
+/// <see cref="SubscriberSvc"/>, not <c>INewsletterService</c>.</b> The old path ran
+/// <c>UPDATE Subscriber SET IsConfirmed = FALSE</c>, which erased the proof that the address had
+/// ever consented and left an opted-out reader indistinguishable from one who never confirmed.
+/// The subscriber service owns the consent record, so the redemption now writes the withdrawal
+/// instant, keeps the confirmation instant, and burns the link so it cannot be replayed. The screen
+/// itself is unchanged — the same three outcomes, the same wording and the same test hooks — so the
+/// flow smoked under REQ-FN-032 behaves exactly as it did.</para>
+///
+/// <para><b>Dependencies:</b> <see cref="SubscriberSvc"/>, registered transient by
 /// <c>BlogSvcInitializer</c>, and <see cref="ILogger{TCategoryName}"/>.</para>
 ///
 /// <para><b>Usage:</b> The work runs from <see cref="OnAfterRenderAsync"/> on the first INTERACTIVE
@@ -69,10 +78,10 @@ public partial class Unsubscribe
     public string Token { get; set; } = default!;
 
     /// <summary>
-    /// Gets or sets the newsletter service that resolves and consumes the token.
+    /// Gets or sets the subscriber service that resolves the token and records the withdrawal.
     /// </summary>
     [Inject]
-    public INewsletterService NewsletterService { get; set; } = default!;
+    public SubscriberSvc SubscriberService { get; set; } = default!;
 
     /// <summary>
     /// Gets or sets the logger for unsubscribe outcomes.
@@ -166,7 +175,7 @@ public partial class Unsubscribe
 
         try
         {
-            var result = await NewsletterService.UnsubscribeAsync(Token).ConfigureAwait(false);
+            var result = await SubscriberService.UnsubscribeByTokenAsync(Token).ConfigureAwait(false);
             if (result.IsFailure)
             {
                 ErrorMessage = string.IsNullOrWhiteSpace(result.ErrorMessage)

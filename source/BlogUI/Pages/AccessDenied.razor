@@ -6,6 +6,12 @@
     surface is now token-driven, so it is readable in dark mode (REQ-UI-033).
     Layout: AuthLayout (bare centered card, per the UI design spec).
 
+    REQ-UI-060 — the "Access Denied" heading is a raw <h1>, not <CardTitle>. CardTitle
+    renders <h3> and cannot be re-levelled (TR-066), which left this page with NO
+    document heading at all. Keep it an <h1>: AuthLayout contributes no heading of its
+    own, so this element is the page's entire outline, and Routes.razor's
+    <FocusOnNavigate Selector="h1" /> has nothing to focus without it.
+
     REQ-UI-004 — this component has TWO call sites and only one of them routes:
       1. the /access-denied ROUTE, where @layout AuthLayout applies and the card is
          correctly alone on a bare centered shell;
@@ -30,7 +36,18 @@
         <div class="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
             <LucideIcon Name="shield-alert" Size="24" />
         </div>
-        <CardTitle>Access Denied</CardTitle>
+        @* REQ-UI-060 — this is a raw <h1>, NOT <CardTitle>, and it must stay one.
+           TrBlazeUI's CardTitle hardcodes <h3> and exposes no heading-level parameter
+           (ChildContent / Class / AdditionalAttributes only), so the page's entire
+           outline was a lone h3 with no document heading at all — invisible to axe,
+           but the first thing a screen reader asks for. Logged as TR-066.
+           It also silently broke Routes.razor's <FocusOnNavigate Selector="h1" />,
+           which had nothing to focus when a visitor was bounced here.
+           The classes reproduce CardTitle's own styling so the card looks unchanged. *@
+        <h1 class="m-0 text-2xl font-semibold leading-none tracking-tight"
+            data-testid="access-denied-heading">
+            Access Denied
+        </h1>
         <CardDescription>You don't have permission to access this page.</CardDescription>
     </CardHeader>
 

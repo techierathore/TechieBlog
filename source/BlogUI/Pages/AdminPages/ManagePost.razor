@@ -224,11 +224,11 @@
                                                    @bind-Value="NewTagInput"
                                                    Placeholder="Add a tag..."
                                                    Class="flex-1"
-                                                   @onkeydown="@(e => { if (e.Key == "Enter") { AddNewTag(); } })"
+                                                   @onkeydown="@(async e => { if (e.Key == "Enter") { await AddNewTagAsync(); } })"
                                                    data-testid="tag-input" />
                                             <Button Variant="ButtonVariant.Outline"
                                                     Size="ButtonSize.Small"
-                                                    OnClick="AddNewTag"
+                                                    OnClick="AddNewTagAsync"
                                                     Disabled="@string.IsNullOrWhiteSpace(NewTagInput)"
                                                     data-testid="add-tag">
                                                 <LucideIcon Name="plus" Size="16" />

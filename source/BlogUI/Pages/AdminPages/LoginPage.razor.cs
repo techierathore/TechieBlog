@@ -78,8 +78,51 @@ public partial class LoginPage : ComponentBase
         pageClaimsPrincipal = (await AuthStateTask).User;
         if (pageClaimsPrincipal.Identity?.IsAuthenticated == true)
         {
-            NavigationManager.NavigateTo(RoleLandingRoutes.PublicHome);
+            NavigationManager.NavigateTo(ResolveAlreadySignedInDestination());
         }
+    }
+
+    /// <summary>
+    /// Chooses where to send a visitor who reaches this page while they are ALREADY signed in.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> [REQ-FN-058] 2026-08-10 — this branch used to send every such
+    /// visitor to the public home page, discarding the <c>returnUrl</c>, and that is the last
+    /// surviving half of the "deep link bounces to the home page" defect. The session cookie
+    /// mirrors the ACCESS token, which expires after
+    /// <c>SessionPolicy.DefaultAccessTokenMinutes</c> (60) while the cookie itself lives seven days
+    /// and the refresh window fourteen: open a bookmarked admin URL more than an hour after the last
+    /// circuit and the server cannot resolve the cookie, challenges to
+    /// <c>/login?returnUrl=/admin/analytics</c>, and the circuit then renews the session from the
+    /// refresh token — at which point this branch fires with a perfectly valid session and threw the
+    /// requested route away. Measured on 2026-08-10 with a deliberately unresolvable cookie: the
+    /// deep link landed on <c>/</c>. Honouring the return URL is what makes the acceptance
+    /// ("a full document load of an admin route with a valid session renders that route") hold for a
+    /// bookmark rather than only for a link opened within the access-token lifetime.</para>
+    /// <para><b>Flow:</b> forced password change wins outright → otherwise the validated return URL
+    /// → otherwise the public home page, exactly as before.</para>
+    /// <para><b>Security:</b> the destination comes from <see cref="ReadReturnUrl"/>, which accepts
+    /// only site-relative paths, so this cannot be turned into an open redirect. A route the user's
+    /// role cannot open still ends at <c>/access-denied</c> through
+    /// <c>AuthorizeRouteView</c> — reaching the URL is not the same as being authorised for it.</para>
+    /// <para><b>Side Effects:</b> None; pure.</para>
+    /// </remarks>
+    /// <returns>The change-password route, the requested return URL, or the public home page.</returns>
+    private string ResolveAlreadySignedInDestination()
+    {
+        // REQ-NFR-023 — an account still using a password it did not choose has no business
+        // reaching the page it asked for, exactly as ResolveDestination decides after a sign-in.
+        var mustChangePassword = pageClaimsPrincipal?
+            .FindFirst(CustomAuthStateProvider.MustChangePasswordClaim)?.Value;
+        if (string.Equals(mustChangePassword, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            return RoleLandingRoutes.ChangePassword;
+        }
+
+        var returnUrl = ReadReturnUrl();
+        return string.IsNullOrWhiteSpace(returnUrl)
+            ? RoleLandingRoutes.PublicHome
+            : returnUrl;
     }
 
     /// <summary>

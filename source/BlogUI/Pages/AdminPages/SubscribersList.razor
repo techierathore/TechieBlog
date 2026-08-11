@@ -132,6 +132,29 @@
                     </CellTemplate>
                 </DataTableColumn>
 
+                @*
+                    [REQ-FN-059] Consent is a SEPARATE axis from the Status column above. Status is
+                    the mailability bit (IsConfirmed); this is the consent record, derived from
+                    ConfirmedOn / UnsubscribedOn / IsConsentUnknown. They differ exactly where the
+                    old single bit was lying: "Withdrawn" and "Pending" both show Status = Inactive,
+                    but only one of them made a decision, and only "Withdrawn" must be left out of a
+                    re-confirmation sweep. Not sortable or filterable on purpose - the tabs above
+                    already partition on mailability and a second sortable status column reads as a
+                    duplicate of it.
+                *@
+                <DataTableColumn TData="Subscriber" TValue="SubscriberConsentState" Property="@(s => s.ConsentState)" Header="Consent" Width="190px">
+                    <CellTemplate Context="row">
+                        <div class="flex flex-col gap-0.5">
+                            <Badge Variant="@ConsentBadgeVariant(row.ConsentState)" data-testid="subscriber-row-consent">
+                                @row.ConsentState.ToString()
+                            </Badge>
+                            <span class="text-xs text-muted-foreground" data-testid="subscriber-row-consent-detail">
+                                @ConsentDetail(row)
+                            </span>
+                        </div>
+                    </CellTemplate>
+                </DataTableColumn>
+
                 <DataTableColumn TData="Subscriber" TValue="long" Property="@(s => s.SubscriberId)" Header="Actions" Width="120px">
                     <CellTemplate Context="row">
                         <div class="flex flex-nowrap items-center gap-1">
@@ -139,7 +162,7 @@
                             {
                                 <Button Size="ButtonSize.IconSmall"
                                         Variant="ButtonVariant.Ghost"
-                                        OnClick="@(() => ToggleStatus(row, false))"
+                                        OnClick="@(() => ToggleStatusAsync(row, false))"
                                         AriaLabel="Deactivate subscriber"
                                         data-testid="subscriber-deactivate">
                                     <LucideIcon Name="user-minus" Size="16" />
@@ -149,7 +172,7 @@
                             {
                                 <Button Size="ButtonSize.IconSmall"
                                         Variant="ButtonVariant.Ghost"
-                                        OnClick="@(() => ToggleStatus(row, true))"
+                                        OnClick="@(() => ToggleStatusAsync(row, true))"
                                         AriaLabel="Activate subscriber"
                                         data-testid="subscriber-activate">
                                     <LucideIcon Name="user-plus" Size="16" />
@@ -183,17 +206,60 @@
         ? "Try a different status tab or clear the search term."
         : "Subscribers will appear here when readers sign up.";
 
-    /// <inheritdoc />
-    protected override void OnInitialized()
+    /// <summary>
+    /// Picks the badge variant for a consent state. [REQ-FN-059]
+    /// </summary>
+    /// <remarks>
+    /// Withdrawn is the only state an operator can make a compliance mistake against, so it is the
+    /// only one styled as a warning. Pending and Unknown are merely not-yet-consented and are shown
+    /// as quiet outlines rather than as problems.
+    /// </remarks>
+    /// <param name="state">The subscriber's derived consent state.</param>
+    /// <returns>The badge variant to render.</returns>
+    private static BadgeVariant ConsentBadgeVariant(SubscriberConsentState state) => state switch
     {
-        LoadSubscribers();
+        SubscriberConsentState.Confirmed => BadgeVariant.Default,
+        SubscriberConsentState.Withdrawn => BadgeVariant.Destructive,
+        _ => BadgeVariant.Outline
+    };
+
+    /// <summary>
+    /// Renders the one line of evidence behind a consent state. [REQ-FN-059]
+    /// </summary>
+    /// <remarks>
+    /// A withdrawn subscriber shows BOTH dates when both are known, because the point of the
+    /// requirement is that opting out no longer erases the proof of the earlier opt-in.
+    /// </remarks>
+    /// <param name="subscriber">The row being rendered.</param>
+    /// <returns>A short human-readable summary of the consent record.</returns>
+    private static string ConsentDetail(Subscriber subscriber)
+    {
+        var confirmed = subscriber.ConfirmedOn.HasValue
+            ? $"opted in {subscriber.ConfirmedOn.Value:MMM dd, yyyy}"
+            : string.Empty;
+
+        return subscriber.ConsentState switch
+        {
+            SubscriberConsentState.Confirmed => confirmed,
+            SubscriberConsentState.Withdrawn when subscriber.ConfirmedOn.HasValue =>
+                $"left {subscriber.UnsubscribedOn:MMM dd, yyyy} - {confirmed}",
+            SubscriberConsentState.Withdrawn => $"left {subscriber.UnsubscribedOn:MMM dd, yyyy}",
+            SubscriberConsentState.Unknown => "pre-2026-08-10 row, never interpreted",
+            _ => "opt-in link not yet redeemed"
+        };
     }
 
-    private void LoadSubscribers()
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSubscribersAsync();
+    }
+
+    private async Task LoadSubscribersAsync()
     {
         try
         {
-            SubscriberList = SubscriberService.GetAllSubscribers().ToList();
+            SubscriberList = (await SubscriberService.GetAllSubscribersAsync()).ToList();
             ApplyFilter();
         }
         catch
@@ -246,9 +312,9 @@
         ApplyFilter();
     }
 
-    private void ToggleStatus(Subscriber subscriber, bool newStatus)
+    private async Task ToggleStatusAsync(Subscriber subscriber, bool newStatus)
     {
-        var result = SubscriberService.UpdateSubscriberStatus(subscriber.SubscriberId, newStatus);
+        var result = await SubscriberService.UpdateSubscriberStatusAsync(subscriber.SubscriberId, newStatus);
         if (result.IsSuccess)
         {
             subscriber.IsActive = newStatus;
@@ -267,7 +333,7 @@
     {
         try
         {
-            var subscribers = SubscriberService.GetSubscribersForExport();
+            var subscribers = await SubscriberService.GetSubscribersForExportAsync();
             var csv = "Email,Name,SubscribedOn,Status\n";
             foreach (var s in subscribers)
             {
@@ -283,9 +349,11 @@
             StatusMessage = $"Exported {subscribers.Count()} subscribers.";
             IsError = false;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Export failed: {ex.Message}";
+            // REQ-NFR-033: the exception text never reaches the screen. The export failure is
+            // logged by the service beneath; the operator matches it on the correlation id.
+            StatusMessage = "The export failed. Please try again later.";
             IsError = true;
         }
     }

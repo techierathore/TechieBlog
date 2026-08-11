@@ -2,6 +2,7 @@ using BlogEngine.Services;
 using BlogModels;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using TechieBlog.Tests.Dashboard;
 using Xunit;
 
 namespace TechieBlog.Tests.Content;
@@ -27,9 +28,9 @@ public class TagSvcTests
     /// </summary>
     /// <param name="repo">The substituted repository the service should use.</param>
     /// <returns>A service wired to <paramref name="repo"/>.</returns>
-    private static TagSvc BuildService(IBlogTagRepo repo)
+    private static TagSvc BuildService(IBlogTagRepo repo, ILogger<TagSvc>? logger = null)
     {
-        return new TagSvc(repo, Substitute.For<ILogger<TagSvc>>());
+        return new TagSvc(repo, logger ?? Substitute.For<ILogger<TagSvc>>());
     }
 
     /// <summary>
@@ -597,21 +598,28 @@ public class TagSvcTests
     /// <summary>
     /// A unique-constraint violation from a concurrent insert is reported as a failed result rather
     /// than crashing the editor.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public void CreateTagReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
+        var logger = new RecordingLogger<TagSvc>();
         repo.When(r => r.InsertToGetId(Arg.Any<BlogTag>()))
             .Do(_ => throw new InvalidOperationException("duplicate key"));
 
         // Act
-        var result = BuildService(repo).CreateTag(ValidTag());
+        var result = BuildService(repo, logger).CreateTag(ValidTag());
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to create tag: duplicate key", result.ErrorMessage);
+        Assert.Equal("Failed to create tag. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("duplicate key", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "duplicate key");
     }
 
     /// <summary>
@@ -756,21 +764,28 @@ public class TagSvcTests
 
     /// <summary>
     /// An unexpected persistence error on the update is converted into a failed result.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public void UpdateTagReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
+        var logger = new RecordingLogger<TagSvc>();
         repo.GetSingle(4).Returns(ValidTag(4));
         repo.When(r => r.Update(Arg.Any<BlogTag>())).Do(_ => throw new InvalidOperationException("deadlock"));
 
         // Act
-        var result = BuildService(repo).UpdateTag(ValidTag(4));
+        var result = BuildService(repo, logger).UpdateTag(ValidTag(4));
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to update tag: deadlock", result.ErrorMessage);
+        Assert.Equal("Failed to update tag. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("deadlock", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "deadlock");
     }
 
     /// <summary>
@@ -870,21 +885,28 @@ public class TagSvcTests
 
     /// <summary>
     /// An unexpected persistence error on the delete is converted into a failed result.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public void DeleteTagReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
+        var logger = new RecordingLogger<TagSvc>();
         repo.GetSingle(4).Returns(ValidTag(4));
         repo.When(r => r.Delete(4)).Do(_ => throw new InvalidOperationException("constraint"));
 
         // Act
-        var result = BuildService(repo).DeleteTag(4);
+        var result = BuildService(repo, logger).DeleteTag(4);
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to delete tag: constraint", result.ErrorMessage);
+        Assert.Equal("Failed to delete tag. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("constraint", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "constraint");
     }
 
     /// <summary>
@@ -1150,21 +1172,28 @@ public class TagSvcTests
     /// <summary>
     /// An unexpected persistence error on the async insert becomes a failed result rather than a
     /// faulted task.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public async Task CreateTagAsyncReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
+        var logger = new RecordingLogger<TagSvc>();
         repo.When(r => r.InsertToGetIdAsync(Arg.Any<BlogTag>(), Arg.Any<CancellationToken>()))
             .Do(_ => throw new InvalidOperationException("duplicate key"));
 
         // Act
-        var result = await BuildService(repo).CreateTagAsync(ValidTag(), TestContext.Current.CancellationToken);
+        var result = await BuildService(repo, logger).CreateTagAsync(ValidTag(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to create tag: duplicate key", result.ErrorMessage);
+        Assert.Equal("Failed to create tag. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("duplicate key", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "duplicate key");
     }
 
     /// <summary>
@@ -1203,22 +1232,29 @@ public class TagSvcTests
 
     /// <summary>
     /// An unexpected persistence error on the async update becomes a failed result.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public async Task UpdateTagAsyncReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
+        var logger = new RecordingLogger<TagSvc>();
         repo.GetSingleAsync(4, Arg.Any<CancellationToken>()).Returns(ValidTag(4));
         repo.When(r => r.UpdateAsync(Arg.Any<BlogTag>(), Arg.Any<CancellationToken>()))
             .Do(_ => throw new InvalidOperationException("deadlock"));
 
         // Act
-        var result = await BuildService(repo).UpdateTagAsync(ValidTag(4), TestContext.Current.CancellationToken);
+        var result = await BuildService(repo, logger).UpdateTagAsync(ValidTag(4), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to update tag: deadlock", result.ErrorMessage);
+        Assert.Equal("Failed to update tag. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("deadlock", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "deadlock");
     }
 
     /// <summary>
@@ -1271,22 +1307,29 @@ public class TagSvcTests
 
     /// <summary>
     /// An unexpected persistence error on the async delete becomes a failed result.
+    /// The message the caller sees is the curated sentence and never the exception text, while
+    /// the exception itself is written to the log — that split is REQ-NFR-031, and both halves
+    /// are asserted here because checking only the new wording would let the disclosure regress
+    /// silently.
     /// </summary>
     [Fact]
     public async Task DeleteTagAsyncReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
+        var logger = new RecordingLogger<TagSvc>();
         repo.GetSingleAsync(4, Arg.Any<CancellationToken>()).Returns(ValidTag(4));
         repo.When(r => r.DeleteAsync(4, Arg.Any<CancellationToken>()))
             .Do(_ => throw new InvalidOperationException("constraint"));
 
         // Act
-        var result = await BuildService(repo).DeleteTagAsync(4, TestContext.Current.CancellationToken);
+        var result = await BuildService(repo, logger).DeleteTagAsync(4, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Failed to delete tag: constraint", result.ErrorMessage);
+        Assert.Equal("Failed to delete tag. Please try again later.", result.ErrorMessage);
+        Assert.DoesNotContain("constraint", result.ErrorMessage);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error?.Message == "constraint");
     }
 
     /// <summary>

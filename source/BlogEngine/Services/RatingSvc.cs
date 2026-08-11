@@ -1,5 +1,6 @@
 using System.Net.Mail;
 using BlogModels;
+using BlogModels.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace BlogEngine.Services;
@@ -58,9 +59,41 @@ namespace BlogEngine.Services;
 /// <para><b>Usage:</b> Registered transient by <c>BlogSvcInitializer</c>. Read methods swallow
 /// errors and return neutral values (0, null, empty), because a broken rating widget must never
 /// take a blog post down with it — which also means a zero average cannot be distinguished from a
-/// read failure without checking the log. Note the mixed sync/async surface: the aggregate reads
-/// are synchronous while the per-address reads and every mutation are asynchronous, following the
-/// repository they sit on.</para>
+/// read failure without checking the log. Note the mixed sync/async surface: each of the three
+/// aggregate reads exists twice, as a blocking member and as an <c>…Async</c> twin (REQ-NFR-026
+/// stage 3), while the per-address reads and every mutation are asynchronous only. <b>Call the
+/// twins.</b> The blocking members are retained until stage 4 deletes them; the home page's
+/// latest-articles grid asks every card for an average and a count, so those two reads were among
+/// the last blocking calls left on the most-hit route in the application.</para>
+///
+/// <para><b>Caching (REQ-NFR-018).</b> The three aggregate reads —
+/// <see cref="GetPostRatingStats"/>, <see cref="GetAverageRating"/> and
+/// <see cref="GetRatingCount"/> — go through <see cref="ICacheService"/> under
+/// <c>CacheTags.Content</c>, keyed by post id. They are the N+1 behind the home page: the
+/// latest-articles grid asks each of its cards for an average and a count, so three article cards
+/// cost six round trips on every render of a figure that changes when somebody rates a post, which
+/// on a personal blog is rarely.</para>
+///
+/// <para><b>Only the aggregates are cached, never the visitor's own score.</b>
+/// <see cref="GetPostRatingStatsForEmailAsync"/> and <see cref="GetRatingByEmailAsync"/> vary by
+/// email address and are read straight from the repository every time. Storing either under a
+/// post-keyed entry would show one visitor the stars another visitor selected — the cross-user
+/// disclosure <see cref="ICacheService"/>'s own remarks warn about.</para>
+///
+/// <para><b>Each aggregate is cached TWICE, under adjacent keys.</b> The synchronous read stores a
+/// value and its <c>…Async</c> twin stores a task, and <see cref="ICacheService"/> reads a type
+/// mismatch as a miss — so a shared key would make the two twins evict each other on every
+/// alternating call, turning the cache into a permanent miss. Each twin therefore reads under
+/// <see cref="ServiceCache.AsyncVariant"/> of its original's key, carrying the SAME tag.</para>
+///
+/// <para><b>Invalidation:</b> <see cref="SubmitRatingAsync"/> and <see cref="RemoveRatingAsync"/>
+/// drop that post's keys by name through <see cref="ServiceCache.InvalidateRatings"/> —
+/// precisely, so one reader rating one article does not throw away every cached listing on the
+/// site. That helper evicts <b>both</b> members of each pair; a twin that is cached but not
+/// invalidated would leave the home page and the post page showing different star counts for the
+/// same article until the entry expired. Confirming a rating by email changes the aggregates too
+/// (they count verified rows only) and is invalidated from <c>EmailVerificationSvc</c>, which is
+/// where that transition happens.</para>
 /// </remarks>
 public class RatingSvc
 {
@@ -74,6 +107,7 @@ public class RatingSvc
     private readonly ICaptchaService captchaService;
     private readonly IEmailVerificationService emailVerificationService;
     private readonly ILogger<RatingSvc> logger;
+    private readonly ICacheService? cacheService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RatingSvc"/> class.
@@ -82,16 +116,22 @@ public class RatingSvc
     /// <param name="captchaService">Proves an anonymous submitter is human.</param>
     /// <param name="emailVerificationService">Issues and tracks double opt-in confirmations.</param>
     /// <param name="logger">Logger for operational and security events.</param>
+    /// <param name="cacheService">
+    /// Cache holding the per-post rating aggregates (REQ-NFR-018). Optional: omitting it makes every
+    /// read go to the database, which is what a unit test that is not exercising caching wants.
+    /// </param>
     public RatingSvc(
         IPostRatingRepo ratingRepo,
         ICaptchaService captchaService,
         IEmailVerificationService emailVerificationService,
-        ILogger<RatingSvc> logger)
+        ILogger<RatingSvc> logger,
+        ICacheService? cacheService = null)
     {
         this.ratingRepo = ratingRepo;
         this.captchaService = captchaService;
         this.emailVerificationService = emailVerificationService;
         this.logger = logger;
+        this.cacheService = cacheService;
     }
 
     /// <summary>
@@ -136,6 +176,7 @@ public class RatingSvc
             var ratingId = await ratingRepo.UpsertByEmailAsync(
                 submission.PostId, submission.Email.Trim(), submission.Rating,
                 submission.UserId, isVerified).ConfigureAwait(false);
+            ServiceCache.InvalidateRatings(cacheService, submission.PostId);
             return await FinishSubmissionAsync(submission, ratingId, isVerified).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -254,7 +295,11 @@ public class RatingSvc
     {
         try
         {
-            return ratingRepo.GetStatsByPost(postId);
+            return ServiceCache.Read(
+                cacheService,
+                ServiceCache.RatingStatsKey(postId),
+                CacheTags.Content,
+                () => ratingRepo.GetStatsByPost(postId));
         }
         catch (Exception ex)
         {
@@ -314,7 +359,11 @@ public class RatingSvc
     {
         try
         {
-            return ratingRepo.GetAverageByPost(postId);
+            return ServiceCache.Read(
+                cacheService,
+                ServiceCache.RatingAverageKey(postId),
+                CacheTags.Content,
+                () => ratingRepo.GetAverageByPost(postId));
         }
         catch (Exception ex)
         {
@@ -337,7 +386,123 @@ public class RatingSvc
     {
         try
         {
-            return ratingRepo.GetCountByPost(postId);
+            return ServiceCache.Read(
+                cacheService,
+                ServiceCache.RatingCountKey(postId),
+                CacheTags.Content,
+                () => ratingRepo.GetCountByPost(postId));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error getting rating count for post {PostId}", postId);
+            return 0;
+        }
+    }
+
+    // =================================================================================================
+    // Async surface — REQ-NFR-026 stage 3. Preferred over the three blocking aggregate reads above.
+    //
+    // Each twin is written line for line against its synchronous original: the same repository query,
+    // the same verified-ratings-only filter (which lives in the repository SQL), the same
+    // swallow-and-log read contract, the same neutral value on failure. The only differences are the
+    // awaited repository member, the flowed token and the cache key.
+    //
+    // The cache key is the ONE place they must differ. A synchronous read stores a T and its twin
+    // stores a Task<T>; ICacheService treats a type mismatch as a miss, so sharing a key would have
+    // the two twins evict each other on every alternating call. ServiceCache.AsyncVariant gives the
+    // twin an adjacent key under the SAME tag, and ServiceCache.InvalidateRatings drops both, so the
+    // pair can never hold different numbers for one post.
+    // =================================================================================================
+
+    /// <summary>
+    /// Gets the aggregate figures for a post, without blocking the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The async twin of <see cref="GetPostRatingStats"/> and
+    /// behaviourally identical to it. Average and count over <b>verified ratings only</b> — the
+    /// filter lives in the repository's SQL, and it is what stops an unconfirmed submission moving
+    /// a public number.</para>
+    /// <para><b>Flow:</b> read through the cache under this twin's own key → await the repository →
+    /// log and degrade to zeroes on failure.</para>
+    /// <para><b>Side Effects:</b> Populates the cache on a miss; nothing else beyond logging. A read
+    /// failure returns zeroes, which render as an unrated post rather than an error.</para>
+    /// </remarks>
+    /// <param name="postId">The post id.</param>
+    /// <param name="cancellationToken">Cancels the query.</param>
+    /// <returns>Average and count over the verified ratings; zeroed on error.</returns>
+    public async Task<PostRatingStats> GetPostRatingStatsAsync(
+        long postId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await ServiceCache.ReadAsync(
+                cacheService,
+                ServiceCache.AsyncVariant(ServiceCache.RatingStatsKey(postId)),
+                CacheTags.Content,
+                () => ratingRepo.GetStatsByPostAsync(postId, cancellationToken)).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error getting rating stats for post {PostId}", postId);
+            return new PostRatingStats { AverageRating = 0, RatingCount = 0 };
+        }
+    }
+
+    /// <summary>
+    /// Gets the average of the verified ratings for a post, without blocking the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The async twin of <see cref="GetAverageRating"/>. Verified
+    /// ratings only. A post with no verified ratings and a post whose read failed both return 0 —
+    /// check <see cref="GetRatingCountAsync"/> to tell "unrated" from "rated zero", which cannot
+    /// otherwise be distinguished.</para>
+    /// <para><b>Flow:</b> read through the cache under this twin's own key → await the repository →
+    /// log and degrade to 0 on failure.</para>
+    /// <para><b>Side Effects:</b> Populates the cache on a miss; nothing else beyond logging.</para>
+    /// </remarks>
+    /// <param name="postId">The post id.</param>
+    /// <param name="cancellationToken">Cancels the query.</param>
+    /// <returns>The average, 0 to 5; 0 on error.</returns>
+    public async Task<double> GetAverageRatingAsync(long postId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await ServiceCache.ReadAsync(
+                cacheService,
+                ServiceCache.AsyncVariant(ServiceCache.RatingAverageKey(postId)),
+                CacheTags.Content,
+                () => ratingRepo.GetAverageByPostAsync(postId, cancellationToken)).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error getting average rating for post {PostId}", postId);
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// Gets the number of verified ratings for a post, without blocking the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The async twin of <see cref="GetRatingCount"/>. Verified ratings
+    /// only, so the "based on N ratings" caption matches the average beside it. Parked submissions
+    /// are invisible to this count.</para>
+    /// <para><b>Flow:</b> read through the cache under this twin's own key → await the repository →
+    /// log and degrade to 0 on failure.</para>
+    /// <para><b>Side Effects:</b> Populates the cache on a miss; nothing else beyond logging.</para>
+    /// </remarks>
+    /// <param name="postId">The post id.</param>
+    /// <param name="cancellationToken">Cancels the query.</param>
+    /// <returns>The count; 0 on error.</returns>
+    public async Task<int> GetRatingCountAsync(long postId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await ServiceCache.ReadAsync(
+                cacheService,
+                ServiceCache.AsyncVariant(ServiceCache.RatingCountKey(postId)),
+                CacheTags.Content,
+                () => ratingRepo.GetCountByPostAsync(postId, cancellationToken)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -404,6 +569,8 @@ public class RatingSvc
             var isRemoved = await ratingRepo.DeleteByPostAndEmailAsync(postId, email).ConfigureAwait(false);
             if (!isRemoved)
                 return Result.Failure("No rating found for this post.");
+
+            ServiceCache.InvalidateRatings(cacheService, postId);
 
             logger.LogInformation("Rating removed for post {PostId}", postId);
             return Result.Success();

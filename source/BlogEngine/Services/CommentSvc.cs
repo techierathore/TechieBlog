@@ -28,9 +28,53 @@ namespace BlogEngine.Services;
 ///
 /// <para><b>Usage:</b> Registered per request. The read methods are safe for the public page
 /// because the repository filters on the approved status.</para>
+///
+/// <para><b>Async surface (REQ-NFR-026 stage 3):</b> the four members the Blazor pages call —
+/// <see cref="GetCommentsByPostId"/>, <see cref="GetAllComments"/>, <see cref="ApproveComment"/>
+/// and <see cref="DeleteComment"/> — each have an <c>…Async</c> twin carrying a
+/// <see cref="CancellationToken"/>. <b>Call the twins.</b> The blocking members are retained until
+/// stage 4 deletes them, and every twin is written line for line against its original so the
+/// filters, the null-to-empty coalescing and the verbatim <c>Result</c> failure strings are
+/// identical on both paths.</para>
+///
+/// <para><b>Nothing here is cached, deliberately.</b> Unlike <c>RatingSvc</c>, whose per-post
+/// aggregates sit under <c>CacheTags.Content</c>, a comment read must be current: a moderator has
+/// to see the decision they just made, and an approved comment has to appear on the article at
+/// once. A ten-minute entry over <see cref="GetAllComments"/> would make the moderation grid lie
+/// about its own actions.</para>
+///
+/// <para><b>Exception text never reaches the caller (REQ-NFR-033).</b> Every mutation used to
+/// interpolate <c>ex.Message</c> into its failed <c>Result</c>. That was never defensible here:
+/// <see cref="CreateComment"/> is reached from the <b>anonymous</b> comment form on every public
+/// article, so a persistence error would have rendered a SQL fragment, a table name or a connection
+/// detail straight onto a public page. Every <c>catch</c> now logs the exception through
+/// <see cref="ILogger{TCategoryName}"/> with the post or comment id and returns one of the curated
+/// constants below; the detail is recoverable from the log, where the host's
+/// <c>CorrelationIdMiddleware</c> has already attached the request's correlation id to every event
+/// (REQ-NFR-015). This is the pattern REQ-NFR-031 established in <c>BlogSvc</c>, <c>TagSvc</c>,
+/// <c>CategorySvc</c> and <c>SeriesSvc</c>, extended here to the rest of <c>source/</c>.</para>
 /// </remarks>
 public class CommentSvc
 {
+    /// <summary>
+    /// Message returned when a comment could not be persisted (REQ-NFR-033).
+    /// </summary>
+    /// <remarks>
+    /// Rendered on the public article page, so it must read as a normal service message and must
+    /// carry nothing about the database. Do not reintroduce <c>ex.Message</c>: this path is
+    /// anonymous.
+    /// </remarks>
+    private const string CreateFailureMessage = "Failed to post your comment. Please try again later.";
+
+    /// <summary>Curated message for an approval that could not be persisted. See <see cref="CreateFailureMessage"/>.</summary>
+    private const string ApproveFailureMessage = "Failed to approve comment. Please try again later.";
+
+    /// <summary>Curated message for a delete that could not be persisted. See <see cref="CreateFailureMessage"/>.</summary>
+    private const string DeleteFailureMessage = "Failed to delete comment. Please try again later.";
+
+    /// <summary>Curated message for an update that could not be persisted. See <see cref="CreateFailureMessage"/>.</summary>
+    private const string UpdateFailureMessage = "Failed to update comment. Please try again later.";
+
     private readonly IBlogCommentRepo commentRepo;
     private readonly ICaptchaService captchaService;
     private readonly ICommentSpamGuard spamGuard;
@@ -479,7 +523,7 @@ public class CommentSvc
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to create comment for post {PostId}", comment.PostID);
-            return Result<BlogComment>.Failure($"Failed to create comment: {ex.Message}");
+            return Result<BlogComment>.Failure(CreateFailureMessage);
         }
     }
 
@@ -515,7 +559,7 @@ public class CommentSvc
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to approve comment ID {CommentId}", commentId);
-            return Result.Failure($"Failed to approve comment: {ex.Message}");
+            return Result.Failure(ApproveFailureMessage);
         }
     }
 
@@ -664,7 +708,7 @@ public class CommentSvc
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to delete comment ID {CommentId}", commentId);
-            return Result.Failure($"Failed to delete comment: {ex.Message}");
+            return Result.Failure(DeleteFailureMessage);
         }
     }
 
@@ -699,7 +743,7 @@ public class CommentSvc
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to update comment ID {CommentId}", comment.CommentID);
-            return Result<BlogComment>.Failure($"Failed to update comment: {ex.Message}");
+            return Result<BlogComment>.Failure(UpdateFailureMessage);
         }
     }
 
@@ -734,6 +778,152 @@ public class CommentSvc
         {
             logger.LogError(ex, "Error getting all comments");
             return Enumerable.Empty<BlogComment>();
+        }
+    }
+
+    // =================================================================================================
+    // Async surface — REQ-NFR-026 stage 3. Preferred over the blocking twins above.
+    //
+    // Each twin is written line for line against its synchronous original: the same repository query
+    // (so the same Approved / IsEmailVerified filters, which live in the repository SQL), the same
+    // null-to-empty coalescing, the same swallow-and-log read contract, and the same VERBATIM Result
+    // failure strings — "Invalid comment ID", "Comment not found" and the interpolated
+    // "Failed to approve comment: {message}" / "Failed to delete comment: {message}". The only
+    // differences are the awaited repository member and the flowed token.
+    //
+    // This service holds NO cache, unlike RatingSvc: a moderator's grid must show the decision they
+    // just made, and the public thread must show a comment the moment it is approved.
+    // =================================================================================================
+
+    /// <summary>
+    /// Gets the approved comment thread for a post, without blocking the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The async twin of <see cref="GetCommentsByPostId"/> and
+    /// behaviourally identical to it. The repository filters on the approved status, so nothing
+    /// unconfirmed or unmoderated can leak onto the page.</para>
+    /// <para><b>Flow:</b> await the repository → coalesce <c>null</c> to empty → log and degrade to
+    /// empty on failure.</para>
+    /// <para><b>Side Effects:</b> Writes an error log entry on failure. A read failure renders an
+    /// empty thread rather than taking the article down.</para>
+    /// </remarks>
+    /// <param name="postId">The post id.</param>
+    /// <param name="cancellationToken">Cancels the query.</param>
+    /// <returns>Approved top-level comments with their replies; empty on error.</returns>
+    public async Task<IEnumerable<BlogComment>> GetCommentsByPostIdAsync(
+        long postId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await commentRepo.GetAllByIdAsync(postId, cancellationToken).ConfigureAwait(false)
+                ?? Enumerable.Empty<BlogComment>();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error getting comments for post ID: {PostId}", postId);
+            return Enumerable.Empty<BlogComment>();
+        }
+    }
+
+    /// <summary>
+    /// Gets every comment, newest first, without blocking the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The async twin of <see cref="GetAllComments"/>. Every row in
+    /// every state — this is the administrative grid's read, not a public one.</para>
+    /// <para><b>Flow:</b> await the repository → coalesce <c>null</c> to empty → log and degrade to
+    /// empty on failure.</para>
+    /// <para><b>Side Effects:</b> Writes an error log entry on failure.</para>
+    /// </remarks>
+    /// <param name="cancellationToken">Cancels the query.</param>
+    /// <returns>All comments; empty on error.</returns>
+    public async Task<IEnumerable<BlogComment>> GetAllCommentsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await commentRepo.GetAllAsync(cancellationToken).ConfigureAwait(false)
+                ?? Enumerable.Empty<BlogComment>();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error getting all comments");
+            return Enumerable.Empty<BlogComment>();
+        }
+    }
+
+    /// <summary>
+    /// Approves a comment, making it publicly visible, without blocking the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The async twin of <see cref="ApproveComment"/>. It keeps the
+    /// unconfirmed-address refusal, which is the last line of defence behind the "an unconfirmed
+    /// comment never appears publicly" rule — dropping that check here would have re-opened the
+    /// hole through the async path alone, with the synchronous member still guarding it.</para>
+    /// <para><b>Flow:</b> guard the id → await the load → refuse an unconfirmed address → await the
+    /// approval.</para>
+    /// <para><b>Side Effects:</b> Sets the status to Approved and Published to true.</para>
+    /// </remarks>
+    /// <param name="commentId">The comment to approve.</param>
+    /// <param name="cancellationToken">Cancels the load and the update.</param>
+    /// <returns>Success, or a failure message.</returns>
+    public async Task<Result> ApproveCommentAsync(long commentId, CancellationToken cancellationToken = default)
+    {
+        if (commentId <= 0)
+            return Result.Failure("Invalid comment ID");
+
+        try
+        {
+            var existing = await commentRepo.GetSingleAsync(commentId, cancellationToken).ConfigureAwait(false);
+            if (existing == null)
+                return Result.Failure("Comment not found");
+
+            if (!existing.IsEmailVerified)
+                return Result.Failure("This comment's email address has not been confirmed yet.");
+
+            await commentRepo.ApproveBlogCommentAsync(commentId, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Approved comment ID {CommentId}", commentId);
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to approve comment ID {CommentId}", commentId);
+            return Result.Failure(ApproveFailureMessage);
+        }
+    }
+
+    /// <summary>
+    /// Deletes a comment permanently, without blocking the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The async twin of <see cref="DeleteComment"/>. The existence
+    /// check is kept rather than folded into the delete, because the administration grid
+    /// distinguishes "removed" from "was never there" and the synchronous member does too.</para>
+    /// <para><b>Flow:</b> guard the id → await the load → await the delete.</para>
+    /// <para><b>Side Effects:</b> Removes one comment row and its replies.</para>
+    /// </remarks>
+    /// <param name="commentId">The comment to delete.</param>
+    /// <param name="cancellationToken">Cancels the load and the statement.</param>
+    /// <returns>Success, or a failure message.</returns>
+    public async Task<Result> DeleteCommentAsync(long commentId, CancellationToken cancellationToken = default)
+    {
+        if (commentId <= 0)
+            return Result.Failure("Invalid comment ID");
+
+        try
+        {
+            var existing = await commentRepo.GetSingleAsync(commentId, cancellationToken).ConfigureAwait(false);
+            if (existing == null)
+                return Result.Failure("Comment not found");
+
+            await commentRepo.DeleteAsync(commentId, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Deleted comment ID {CommentId}", commentId);
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to delete comment ID {CommentId}", commentId);
+            return Result.Failure(DeleteFailureMessage);
         }
     }
 

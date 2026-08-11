@@ -152,7 +152,7 @@
             <Button Variant="ButtonVariant.Outline" OnClick="CancelDelete" data-testid="tag-delete-cancel">
                 Cancel
             </Button>
-            <Button Variant="ButtonVariant.Destructive" OnClick="DeleteTag" data-testid="tag-delete-confirm">
+            <Button Variant="ButtonVariant.Destructive" OnClick="DeleteTagAsync" data-testid="tag-delete-confirm">
                 Delete
             </Button>
         </DialogFooter>
@@ -177,9 +177,9 @@
         : "Try a different search term.";
 
     /// <inheritdoc />
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        LoadTags();
+        await LoadTagsAsync();
     }
 
     /// <summary>Keeps the legacy hide-flag in sync with the dialog open state.</summary>
@@ -193,11 +193,11 @@
         }
     }
 
-    private void LoadTags()
+    private async Task LoadTagsAsync()
     {
         try
         {
-            TagList = TagService.GetAllWithCounts().ToList();
+            TagList = (await TagService.GetAllWithCountsAsync()).ToList();
             ApplyFilter();
         }
         catch
@@ -248,16 +248,16 @@
         HideDeleteDialog = true;
     }
 
-    private void DeleteTag()
+    private async Task DeleteTagAsync()
     {
         if (TagToDelete == null) return;
 
-        var result = TagService.DeleteTag(TagToDelete.TagId);
+        var result = await TagService.DeleteTagAsync(TagToDelete.TagId);
         if (result.IsSuccess)
         {
             StatusMessage = $"Tag '{TagToDelete.TagName}' deleted successfully.";
             IsError = false;
-            LoadTags();
+            await LoadTagsAsync();
         }
         else
         {

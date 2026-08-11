@@ -309,7 +309,11 @@
     private string siteTheme = FallbackTheme;
     private string siteTitle = "Techie Blog";
     private string metaDescription = string.Empty;
-    private bool isDarkModeDefault;
+
+    // Dark is the shipped site default (owner decision, 2026-08-10), so a settings read that
+    // fails still renders class="dark" on <html> and the first paint is dark rather than a flash
+    // of light. Kept in step with SiteSettings.IsDarkModeDefault and ThemeService.ShippedDarkMode.
+    private bool isDarkModeDefault = true;
 
     /// <summary>
     /// The RSS auto-discovery tag, emitted as raw markup (REQ-UI-046).

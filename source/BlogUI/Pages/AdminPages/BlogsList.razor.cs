@@ -109,16 +109,17 @@ partial class BlogsList : ComponentBase
         isAdminOrEditor = loggedInUser.IsInRole(AppRoles.Admin) ||
                           loggedInUser.IsInRole(AppRoles.Editor);
 
-        LoadPosts();
+        await LoadPostsAsync();
     }
 
     /// <summary>
     /// Loads the posts visible to the signed-in user. REQ-UI-017: the service applies the
     /// author scoping — Admin/Editor get every post, everyone else only their own.
     /// </summary>
-    private void LoadPosts()
+    /// <returns>A task that completes when the visible posts have been read and filtered.</returns>
+    private async Task LoadPostsAsync()
     {
-        var posts = BlogService.GetAllPosts(currentUserId, isAdminOrEditor);
+        var posts = await BlogService.GetAllPostsAsync(currentUserId, isAdminOrEditor);
         ObjectList = posts?.ToList() ?? new List<BlogPost>();
         ApplyFilter();
     }
@@ -196,7 +197,7 @@ partial class BlogsList : ComponentBase
         }
     }
 
-    private void ApplyBulkAction()
+    private async Task ApplyBulkActionAsync()
     {
         if (string.IsNullOrEmpty(BulkAction) || !HasSelectedPosts) return;
 
@@ -207,23 +208,23 @@ partial class BlogsList : ComponentBase
             switch (BulkAction)
             {
                 case "publish":
-                    QuickPublish(post);
+                    await QuickPublishAsync(post);
                     break;
                 case "unpublish":
-                    QuickUnpublish(post);
+                    await QuickUnpublishAsync(post);
                     break;
                 case "delete":
-                    BlogService.DeletePost(post.PostID);
+                    await BlogService.DeletePostAsync(post.PostID);
                     break;
             }
         }
 
         BulkAction = "";
         SelectAll = false;
-        LoadPosts();
+        await LoadPostsAsync();
     }
 
-    private void QuickPublish(BlogPost post)
+    private async Task QuickPublishAsync(BlogPost post)
     {
         if (IsProcessing || post == null) return;
         IsProcessing = true;
@@ -231,12 +232,12 @@ partial class BlogsList : ComponentBase
 
         try
         {
-            var result = BlogService.QuickPublish(post.PostID);
+            var result = await BlogService.QuickPublishAsync(post.PostID);
             if (result.IsSuccess)
             {
                 StatusMessage = $"Post \"{post.Title}\" published successfully!";
                 IsError = false;
-                LoadPosts();
+                await LoadPostsAsync();
             }
             else
             {
@@ -255,7 +256,7 @@ partial class BlogsList : ComponentBase
         }
     }
 
-    private void QuickUnpublish(BlogPost post)
+    private async Task QuickUnpublishAsync(BlogPost post)
     {
         if (IsProcessing || post == null) return;
         IsProcessing = true;
@@ -263,12 +264,12 @@ partial class BlogsList : ComponentBase
 
         try
         {
-            var result = BlogService.UnpublishPost(post.PostID);
+            var result = await BlogService.UnpublishPostAsync(post.PostID);
             if (result.IsSuccess)
             {
                 StatusMessage = $"Post \"{post.Title}\" unpublished successfully!";
                 IsError = false;
-                LoadPosts();
+                await LoadPostsAsync();
             }
             else
             {
@@ -287,7 +288,7 @@ partial class BlogsList : ComponentBase
         }
     }
 
-    private void CancelSchedule(BlogPost post)
+    private async Task CancelScheduleAsync(BlogPost post)
     {
         if (IsProcessing || post == null) return;
         IsProcessing = true;
@@ -295,12 +296,12 @@ partial class BlogsList : ComponentBase
 
         try
         {
-            var result = BlogService.CancelSchedule(post.PostID);
+            var result = await BlogService.CancelScheduleAsync(post.PostID);
             if (result.IsSuccess)
             {
                 StatusMessage = $"Schedule canceled for \"{post.Title}\". Post is now a draft.";
                 IsError = false;
-                LoadPosts();
+                await LoadPostsAsync();
             }
             else
             {
@@ -331,17 +332,17 @@ partial class BlogsList : ComponentBase
         ShowDeleteConfirm = false;
     }
 
-    private void ConfirmDelete()
+    private async Task ConfirmDeleteAsync()
     {
         if (PostToDelete == null) return;
 
-        var result = BlogService.DeletePost(PostToDelete.PostID);
+        var result = await BlogService.DeletePostAsync(PostToDelete.PostID);
 
         if (result.IsSuccess)
         {
             StatusMessage = $"Post \"{PostToDelete.Title}\" deleted successfully.";
             IsError = false;
-            LoadPosts();
+            await LoadPostsAsync();
         }
         else
         {

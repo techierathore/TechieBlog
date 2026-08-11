@@ -227,7 +227,7 @@ public partial class NewsletterComposer : ComponentBase
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
-        LoadSubscribers();
+        await LoadSubscribersAsync();
         await RefreshIssuesAsync();
     }
 
@@ -554,9 +554,10 @@ public partial class NewsletterComposer : ComponentBase
     /// <para><b>Flow:</b> read all subscribers → count → seed the estimate.</para>
     /// <para><b>Side Effects:</b> None beyond the cached list.</para>
     /// </remarks>
-    private void LoadSubscribers()
+    /// <returns>A task that completes when the subscriber list has been cached.</returns>
+    private async Task LoadSubscribersAsync()
     {
-        subscribers = SubscriberService.GetAllSubscribers().ToList();
+        subscribers = (await SubscriberService.GetAllSubscribersAsync()).ToList();
         TotalSubscriberCount = subscribers.Count;
         ActiveSubscriberCount = subscribers.Count(subscriber => subscriber.IsConfirmed);
         RefreshAudienceEstimate();

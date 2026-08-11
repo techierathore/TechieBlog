@@ -18,7 +18,28 @@
     <ThemeProvider>
         <ErrorBoundary @ref="errorBoundary">
             <ChildContent>
-                <Router AppAssembly="@typeof(Routes).Assembly">
+                @* REQ-UI-058 — NotFoundPage is what lets a route that MATCHED but found no data
+                   answer a real 404. `NavigationManager.NotFound()` (PostView calls it for an
+                   unresolvable slug) makes the framework set HTTP 404 and swap the route content
+                   for this component IN THE SAME RENDER PASS.
+
+                   It has to be in the same pass. Blazor deliberately writes NO BODY for an SSR
+                   response whose status is 404, expecting the status-code-page middleware to
+                   re-execute and supply one — and re-execution is impossible here: measured
+                   2026-08-10, re-executing a request whose component tree has already prerendered
+                   reuses the same scoped services and throws
+                   `InvalidOperationException: 'RemoteNavigationManager' already initialized`,
+                   turning the article into an HTTP 500. That is why `/nonexistent-route-zzz`
+                   re-executes happily (nothing rendered first) while `/post/<bad-slug>` cannot.
+
+                   Naming the page here also replaces the <NotFound> RenderFragment this router used
+                   to carry: NotFoundPage renders `_404Page` with its own `@layout` (MainLayout), so
+                   the client-side miss looks exactly as it did, and the prerendered and hydrated
+                   screens stay byte-identical. `_404Page` is the compiler-sanitised type name — a
+                   C# identifier cannot start with a digit, so `404Page.razor` compiles to
+                   `_404Page`. *@
+                <Router AppAssembly="@typeof(Routes).Assembly"
+                        NotFoundPage="@typeof(BlogUI.Pages.AdminPages._404Page)">
                     <Found Context="routeData">
                         <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
                             @* [REQ-NFR-007] NO <LayoutView> IN HERE — see the Authorizing note below.
@@ -60,7 +81,13 @@
                         </AuthorizeRouteView>
                         <FocusOnNavigate RouteData="@routeData" Selector="h1" />
                     </Found>
-                    @* REQ-UI-012 — LIVE AGAIN, and it must render the SAME screen as the server.
+                    @* REQ-UI-012 / REQ-UI-058 — SUPERSEDED BY THE NotFoundPage PARAMETER ABOVE.
+                       The router's `NotFound` RenderFragment and its `NotFoundPage` parameter are
+                       two spellings of the same thing and only one may be supplied, so the
+                       fragment is gone and the note it carried is kept here because the reasoning
+                       still applies.
+
+                       REQ-UI-012 — this must render the SAME screen as the server.
                        The old comment here described a catch-all `@page "/{*NotFoundPath}"` on
                        404Page.razor that no longer exists, and called this block dead code. Both
                        statements went stale on 2026-08-09 when cluster F replaced the catch-all
@@ -77,16 +104,10 @@
                        404Page component instead makes the hydrated result byte-identical to the
                        prerendered one, so there is nothing to see.
 
-                       The LayoutView IS required here (unlike in <Authorizing> above): a Router
-                       NotFound fragment is rendered with no layout at all, and 404Page's own
-                       `@layout` directive only applies when the component is reached by routing.
-                       `_404Page` is the compiler-sanitised type name — a C# identifier cannot start
-                       with a digit, so `404Page.razor` compiles to `_404Page`. *@
-                    <NotFound>
-                        <LayoutView Layout="@typeof(MainLayout)">
-                            <BlogUI.Pages.AdminPages._404Page />
-                        </LayoutView>
-                    </NotFound>
+                       The fragment used to need an explicit <LayoutView>, because a Router
+                       NotFound fragment is rendered with no layout at all. NotFoundPage does not:
+                       the framework renders the named component through its own `@layout`
+                       directive, which on `_404Page` is already MainLayout. *@
                 </Router>
             </ChildContent>
             <ErrorContent Context="exception">

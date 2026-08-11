@@ -52,14 +52,39 @@ namespace BlogEngine.DbAccess;
 ///   <description>The full entity, <c>BlogWriter</c>, and the joined <c>SeriesName</c> /
 ///   <c>SeriesSlug</c>. These two are deliberately identical except for the key.</description></item>
 ///   <item><term><c>SelectPagedSql</c></term>
-///   <description><b>Narrow.</b> No join at all, so no <c>BlogWriter</c>, and no <c>DeletedOn</c>,
-///   <c>PublishedOn</c>, <c>ScheduledPublishOn</c>, <c>SeriesId</c> or <c>SeriesPartNumber</c>. A
-///   post read through this path reports Author "Unknown" and <c>Status</c> "Draft" whatever the row
-///   actually says.</description></item>
-///   <item><term><c>SelectPublishedSql</c></term>
-///   <description><b>Narrow.</b> Has <c>BlogWriter</c>, but omits <c>PublishedOn</c>, so a public
-///   listing built on it must date posts by <c>CreatedOn</c>, not by when they went live.</description></item>
+///   <description>The paged twin of <c>SelectAllSql</c> — identical projection, identical filters,
+///   plus <c>LIMIT</c>/<c>OFFSET</c>. It was the narrowest read here until REQ-FN-057; see the
+///   comment on the constant for what that cost was waiting to be.</description></item>
+///   <item><term><c>SelectPublishedSql</c>, <c>SelectFeaturedSql</c>, <c>SelectByCategorySql</c>,
+///   <c>SearchSql</c></term>
+///   <description><b>Public read shape.</b> The entity, <c>BlogWriter</c> and <c>PublishedOn</c>,
+///   without the soft-delete, schedule or series columns. REQ-FN-057 added <c>PublishedOn</c>: these
+///   feed every surface that dates a post as <c>PublishedOn ?? CreatedOn</c>, so without the column
+///   the fallback fired on every row and the public site dated posts by when they were drafted.
+///   Read-only paths — never write an entity loaded through one of them back.</description></item>
 /// </list>
+///
+/// <para><b>REQ-UI-059 (2026-08-11) — a public listing sorts by the column it dates by.</b> The four
+/// public reads above order by <c>COALESCE(p.PublishedOn, p.CreatedOn) DESC, p.PostID DESC</c>, not by
+/// <c>CreatedOn</c>. REQ-FN-057 moved every renderer onto <c>PublishedOn ?? CreatedOn</c> but left the
+/// <c>ORDER BY</c> on <c>CreatedOn</c>, so a card's printed date and its position in the list came from
+/// two different columns: a back-dated import, a long-lived draft or a scheduled publish read as
+/// mis-sorted to a visitor, because it was sorted by when somebody started writing it. The
+/// <c>p.PostID DESC</c> half is not decoration — <c>COALESCE</c> ties are common (a post published the
+/// moment it was created has <c>PublishedOn = CreatedOn</c>, and seed data lands whole batches on the
+/// same instant), and PostgreSQL is free to return tied rows in any order per execution, so a paged
+/// listing without a unique tiebreaker can show the same post on page 1 and page 2 while another
+/// vanishes entirely. Every paged public listing here carries the tiebreaker. The ADMIN reads
+/// (<c>SelectAllSql</c>, <c>SelectAllByUserSql</c>, <c>SelectPagedSql</c>) deliberately still order by
+/// <c>CreatedOn</c>: they include drafts, whose <c>PublishedOn</c> is <c>NULL</c>, so authoring order
+/// is the only order that means anything there. Migration <c>026</c> carries the index that keeps the
+/// new public sort off a sequential scan.</para>
+///
+/// <para><b>REQ-FN-057 (2026-08-10).</b> Three latent projection omissions registered by the
+/// completeness gate were closed here: <c>PublishedOn</c> restored to the four public listing reads,
+/// and <c>SelectPagedSql</c> widened to its unpaged twin's shape. The narrowings that remain are
+/// declared in <c>ProjectionCompletenessTests.DeclaredNarrowProjections</c> and pinned statement by
+/// statement in <c>BlogPostRepoProjectionTests</c>, so none of them can drift back silently.</para>
 ///
 /// <para><b>Authoring reads and public reads are separate statements — pick the right one
 /// (REQ-FN-015).</b> <c>SelectBySeriesSql</c> filters only on soft-deletion so the admin series
@@ -104,12 +129,25 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
             WHERE p.UserID = @UserID AND (p.IsDeleted = FALSE OR p.IsDeleted IS NULL)
             ORDER BY p.CreatedOn DESC";
 
+    // REQ-FN-057: the PAGED TWIN of SelectAllSql, and it must stay a twin. It used to select a bare
+    // thirteen-column list off BlogPost with no join, so a post read here reported Author "Unknown",
+    // Status "Draft" whatever the row said, and — the sharp edge — carried NULL in PublishedOn and
+    // ScheduledPublishOn, which UpdateSql writes unconditionally. Nothing called it, which is the only
+    // reason that never cost data. It is an override of an abstract member, so it can never be deleted
+    // and the next caller inherits the landmine; it is now the same projection and the same filters as
+    // SelectAllSql, differing only by LIMIT/OFFSET. It is an ADMIN read: no Published filter, exactly
+    // like SelectAllSql and SelectCountsSql, so the page and the dashboard count agree. Both halves of
+    // that are pinned by ProjectionCompletenessTests.PagedPostReadMatchesTheUnpagedAdminRead and
+    // ProjectionCompletenessTests.PagedPostReadStaysAnAdminRead.
     private const string SelectPagedSql = @"
-            SELECT PostID, Title, Slug, Abstract, PostContent, CreatedOn, UpdatedOn,
-                   UserID, Tags, CategoryId, FeaturedImage, Published, IsDeleted
-            FROM BlogPost
-            WHERE IsDeleted = FALSE OR IsDeleted IS NULL
-            ORDER BY CreatedOn DESC
+            SELECT p.PostID, p.Title, p.Slug, p.Abstract, p.PostContent, p.CreatedOn, p.UpdatedOn,
+                   p.UserID, p.Tags, p.CategoryId, p.FeaturedImage, p.Published, p.IsDeleted, p.DeletedOn,
+                   p.PublishedOn, p.ScheduledPublishOn, p.SeriesId, p.SeriesPartNumber,
+                   CONCAT(u.FirstName, ' ', u.LastName) as BlogWriter
+            FROM BlogPost p
+            LEFT JOIN BlogUser u ON p.UserID = u.UserId
+            WHERE p.IsDeleted = FALSE OR p.IsDeleted IS NULL
+            ORDER BY p.CreatedOn DESC
             LIMIT @PageSize OFFSET @OffSet";
 
     private const string SelectCountsSql = @"
@@ -147,14 +185,21 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
             LEFT JOIN BlogSeries s ON p.SeriesId = s.SeriesId
             WHERE p.Slug = @Slug AND (p.IsDeleted = FALSE OR p.IsDeleted IS NULL)";
 
+    // REQ-FN-057: PublishedOn is part of this projection and must stay in it. Every public surface
+    // that dates a post — the RSS pubDate, the sitemap lastmod, the listing cards — resolves the date
+    // as `PublishedOn ?? CreatedOn`. Omitting the column does not make those callers fall back
+    // knowingly; it makes PublishedOn arrive NULL on every row, so the fallback fires always and the
+    // whole site dates posts by when they were drafted rather than by when they went live.
+    // REQ-UI-059: and the ORDER BY is the same expression the renderer dates by, with PostID as the
+    // unique tiebreaker that makes LIMIT/OFFSET paging repeatable across ties.
     private const string SelectPublishedSql = @"
             SELECT p.PostID, p.Title, p.Slug, p.Abstract, p.PostContent, p.CreatedOn, p.UpdatedOn,
-                   p.UserID, p.Tags, p.CategoryId, p.FeaturedImage, p.Published,
+                   p.UserID, p.Tags, p.CategoryId, p.FeaturedImage, p.Published, p.PublishedOn,
                    CONCAT(u.FirstName, ' ', u.LastName) as BlogWriter
             FROM BlogPost p
             LEFT JOIN BlogUser u ON p.UserID = u.UserId
             WHERE p.Published = TRUE AND (p.IsDeleted = FALSE OR p.IsDeleted IS NULL)
-            ORDER BY p.CreatedOn DESC
+            ORDER BY COALESCE(p.PublishedOn, p.CreatedOn) DESC, p.PostID DESC
             LIMIT @PageSize OFFSET @Offset";
 
     private const string CountBySlugSql = @"
@@ -191,30 +236,36 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
                 DeletedOn = @DeletedOn
             WHERE PostID = @PostID";
 
+    // REQ-FN-057: same public shape as SelectPublishedSql, PublishedOn included — the home page's
+    // featured card dates the hero post from it. REQ-UI-059: "featured" means the most recently
+    // PUBLISHED post, so it must be picked by the same expression the card prints; ordering by
+    // CreatedOn made a back-dated import the hero while the card underneath it showed an older date.
     private const string SelectFeaturedSql = @"
             SELECT p.PostID, p.Title, p.Slug, p.Abstract, p.PostContent, p.CreatedOn, p.UpdatedOn,
-                   p.UserID, p.Tags, p.CategoryId, p.FeaturedImage, p.Published,
+                   p.UserID, p.Tags, p.CategoryId, p.FeaturedImage, p.Published, p.PublishedOn,
                    CONCAT(u.FirstName, ' ', u.LastName) as BlogWriter
             FROM BlogPost p
             LEFT JOIN BlogUser u ON p.UserID = u.UserId
             WHERE p.Published = TRUE AND (p.IsDeleted = FALSE OR p.IsDeleted IS NULL)
-            ORDER BY p.CreatedOn DESC
+            ORDER BY COALESCE(p.PublishedOn, p.CreatedOn) DESC, p.PostID DESC
             LIMIT 1";
 
     private const string CountPublishedSql = @"
             SELECT COUNT(*) FROM BlogPost
             WHERE Published = TRUE AND (IsDeleted = FALSE OR IsDeleted IS NULL)";
 
+    // REQ-FN-057: same public shape as SelectPublishedSql, PublishedOn included — /category/{slug}
+    // dates every card from it. REQ-UI-059: and orders by that same expression, tiebroken on PostID.
     private const string SelectByCategorySql = @"
             SELECT p.PostID, p.Title, p.Slug, p.Abstract, p.PostContent, p.CreatedOn, p.UpdatedOn,
-                   p.UserID, p.Tags, p.CategoryId, p.FeaturedImage, p.Published,
+                   p.UserID, p.Tags, p.CategoryId, p.FeaturedImage, p.Published, p.PublishedOn,
                    CONCAT(u.FirstName, ' ', u.LastName) as BlogWriter
             FROM BlogPost p
             LEFT JOIN BlogUser u ON p.UserID = u.UserId
             WHERE p.CategoryId = @CategoryId
                 AND p.Published = TRUE
                 AND (p.IsDeleted = FALSE OR p.IsDeleted IS NULL)
-            ORDER BY p.CreatedOn DESC
+            ORDER BY COALESCE(p.PublishedOn, p.CreatedOn) DESC, p.PostID DESC
             LIMIT @PageSize OFFSET @Offset";
 
     private const string CountByCategorySql = @"
@@ -294,9 +345,13 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
                 UpdatedOn = @UpdatedOn
             WHERE SeriesId = @SeriesId";
 
+    // REQ-FN-057: same public shape as SelectPublishedSql, PublishedOn included — /search dates every
+    // result from it. REQ-UI-059: and orders by that same expression, tiebroken on PostID. Relevance
+    // is not modelled here; ILIKE gives no score, so "most recently published first" is the ranking,
+    // and it must be the one the result rows print.
     private const string SearchSql = @"
             SELECT p.PostID, p.Title, p.Slug, p.Abstract, p.PostContent, p.CreatedOn, p.UpdatedOn,
-                   p.UserID, p.Tags, p.CategoryId, p.FeaturedImage, p.Published,
+                   p.UserID, p.Tags, p.CategoryId, p.FeaturedImage, p.Published, p.PublishedOn,
                    CONCAT(u.FirstName, ' ', u.LastName) as BlogWriter
             FROM BlogPost p
             LEFT JOIN BlogUser u ON p.UserID = u.UserId
@@ -306,7 +361,7 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
                     OR p.Abstract ILIKE @Query
                     OR p.PostContent ILIKE @Query
                     OR p.Tags ILIKE @Query)
-            ORDER BY p.CreatedOn DESC
+            ORDER BY COALESCE(p.PublishedOn, p.CreatedOn) DESC, p.PostID DESC
             LIMIT @PageSize OFFSET @Offset";
 
     private const string SearchCountSql = @"
@@ -388,8 +443,11 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
     /// </summary>
     /// <remarks>
     /// <para><b>Business Logic:</b> Paging is applied in SQL so a large archive never crosses the wire
-    /// in full.</para>
-    /// <para><b>Flow:</b> helper opens the connection asynchronously → LIMIT/OFFSET query → materialised list.</para>
+    /// in full. REQ-FN-057: this is the paged twin of <see cref="GetAllAsync"/> and projects exactly
+    /// what it projects — author name, publication date and pending schedule included — so a post read
+    /// here is a complete entity rather than one that reports Author "Unknown" and would NULL its own
+    /// publication date if it were ever written back.</para>
+    /// <para><b>Flow:</b> helper opens the connection asynchronously → left join the author → LIMIT/OFFSET query → materialised list.</para>
     /// <para><b>Side Effects:</b> None — read-only query.</para>
     /// </remarks>
     /// <param name="pageSize">Rows per page.</param>
@@ -469,7 +527,7 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
     /// <param name="pageSize">Rows per page.</param>
     /// <param name="offset">Rows to skip.</param>
     /// <param name="cancellationToken">Cancels the query.</param>
-    /// <returns>Published posts, newest first.</returns>
+    /// <returns>Published posts, most recently published first (REQ-UI-059).</returns>
     public async Task<IEnumerable<BlogPost>> GetPublishedPostsAsync(int pageSize, int offset, CancellationToken cancellationToken = default)
     {
         return await QueryAsync<BlogPost>(
@@ -579,13 +637,15 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
     /// Gets the most recent published post, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> "Featured" is defined as simply the newest published post, so the
-    /// home page never needs a manually curated flag to stay current.</para>
+    /// <para><b>Business Logic:</b> "Featured" is defined as simply the most recently published post,
+    /// so the home page never needs a manually curated flag to stay current. REQ-UI-059: "most recently
+    /// published" is <c>COALESCE(PublishedOn, CreatedOn)</c> — the same expression the hero card prints —
+    /// not <c>CreatedOn</c>, which would hand the slot to whichever post was <i>drafted</i> last.</para>
     /// <para><b>Flow:</b> helper opens the connection asynchronously → ordered query with LIMIT 1 → first row or <c>null</c>.</para>
     /// <para><b>Side Effects:</b> None — read-only query.</para>
     /// </remarks>
     /// <param name="cancellationToken">Cancels the query.</param>
-    /// <returns>The newest published post, or <c>null</c> when nothing is published.</returns>
+    /// <returns>The most recently published post, or <c>null</c> when nothing is published.</returns>
     public async Task<BlogPost?> GetFeaturedPostAsync(CancellationToken cancellationToken = default)
     {
         return await QueryFirstOrDefaultAsync<BlogPost>(SelectFeaturedSql, null, cancellationToken).ConfigureAwait(false);
@@ -620,7 +680,7 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
     /// <param name="pageSize">Rows per page.</param>
     /// <param name="offset">Rows to skip.</param>
     /// <param name="cancellationToken">Cancels the query.</param>
-    /// <returns>Published posts in the category, newest first.</returns>
+    /// <returns>Published posts in the category, most recently published first (REQ-UI-059).</returns>
     public async Task<IEnumerable<BlogPost>> GetPostsByCategoryAsync(long categoryId, int pageSize, int offset, CancellationToken cancellationToken = default)
     {
         return await QueryAsync<BlogPost>(
@@ -800,7 +860,7 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
     /// <param name="pageSize">Rows per page.</param>
     /// <param name="offset">Rows to skip.</param>
     /// <param name="cancellationToken">Cancels the query.</param>
-    /// <returns>Matching published posts, newest first, or an empty sequence for a blank query.</returns>
+    /// <returns>Matching published posts, most recently published first, or an empty sequence for a blank query.</returns>
     public async Task<IEnumerable<BlogPost>> SearchPostsAsync(string query, int pageSize = 10, int offset = 0, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(query))
@@ -923,7 +983,7 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
     /// </summary>
     /// <param name="pageSize">Rows per page.</param>
     /// <param name="offset">Rows to skip.</param>
-    /// <returns>Published posts, newest first.</returns>
+    /// <returns>Published posts, most recently published first (REQ-UI-059).</returns>
     public IEnumerable<BlogPost> GetPublishedPosts(int pageSize, int offset)
     {
         using var connection = GetOpenConnection();
@@ -988,7 +1048,7 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
     /// <summary>
     /// Gets the most recent published post.
     /// </summary>
-    /// <returns>The newest published post, or <c>null</c> when nothing is published.</returns>
+    /// <returns>The most recently published post, or <c>null</c> when nothing is published.</returns>
     public BlogPost? GetFeaturedPost()
     {
         using var connection = GetOpenConnection();
@@ -1011,7 +1071,7 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
     /// <param name="categoryId">Category to filter by.</param>
     /// <param name="pageSize">Rows per page.</param>
     /// <param name="offset">Rows to skip.</param>
-    /// <returns>Published posts in the category, newest first.</returns>
+    /// <returns>Published posts in the category, most recently published first (REQ-UI-059).</returns>
     public IEnumerable<BlogPost> GetPostsByCategory(long categoryId, int pageSize, int offset)
     {
         using var connection = GetOpenConnection();

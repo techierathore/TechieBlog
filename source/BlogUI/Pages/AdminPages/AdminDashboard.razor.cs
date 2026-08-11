@@ -115,7 +115,7 @@ public partial class AdminDashboard : ComponentBase, IDisposable
         var cancellationToken = componentCancellation.Token;
 
         ApplyCounts(await DashboardService.GetAdminCountsAsync(cancellationToken));
-        LoadPostBreakdown();
+        await LoadPostBreakdownAsync(cancellationToken);
         PopularPosts = (await AnalyticsService
             .GetPopularPostsAsync(PopularPostWindowDays, PopularPostCount, cancellationToken)).ToList();
     }
@@ -171,9 +171,12 @@ public partial class AdminDashboard : ComponentBase, IDisposable
     /// <para><b>Side Effects:</b> Sets component state only; a read failure leaves the breakdown at
     /// zero without disturbing the tiles already populated from the counts service.</para>
     /// </remarks>
-    private void LoadPostBreakdown()
+    /// <param name="cancellationToken">Cancels the read when the circuit tears the component down.</param>
+    /// <returns>A task that completes once the breakdown has been derived.</returns>
+    private async Task LoadPostBreakdownAsync(CancellationToken cancellationToken)
     {
-        var posts = BlogService.GetAllPosts(0, true)?.ToList() ?? new List<BlogPost>();
+        var posts = (await BlogService.GetAllPostsAsync(0, true, cancellationToken))?.ToList()
+            ?? new List<BlogPost>();
         var startOfMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
 
         DraftPosts = posts.Count(p => !p.Published && !p.IsScheduled);

@@ -1,10 +1,17 @@
 @*
     ResumeContact.razor
-    Purpose: Contact section of the public Resume page — email, phone, location
-    and the LinkedIn profile link.
+    Purpose: Contact section of the public Resume page — location and the LinkedIn
+    profile, which is the ONLY contact route offered publicly.
 
     REQ-UI-036 / REQ-UI-048 — TrBlazeUI (Card / Button / LucideIcon).
     Grid primitive (.resume-autogrid) lives in wwwroot/css/resume.css.
+
+    Email address and phone number are DELIBERATELY not rendered here (owner
+    decision, 2026-08-10). They remain on AppUser and stay editable on
+    /admin/profile — this component simply does not publish them, so the public
+    site exposes no mailto: or tel: target for a harvester to scrape. LinkedIn
+    therefore has to be the primary call to action, not a footnote: it is the only
+    way a reader can reach the site owner.
 *@
 
 @using BlogModels.Models
@@ -14,78 +21,58 @@
     <Card id="contact" Class="resume-section" data-testid="contact-section">
         <CardHeader>
             <CardTitle Class="text-2xl">Contact</CardTitle>
-            <CardDescription>Reach out — I read every message.</CardDescription>
+            <CardDescription>LinkedIn is the best way to reach me — I read every message.</CardDescription>
         </CardHeader>
         <CardContent>
-            <div class="resume-autogrid" data-testid="contact-grid">
+            <div class="resume-stack" data-testid="contact-grid">
 
-                @if (!string.IsNullOrWhiteSpace(User?.EmailId))
+                @if (!string.IsNullOrWhiteSpace(User?.LinkedInUrl))
                 {
-                    <div class="flex items-center gap-3 rounded-lg border border-border bg-card p-4" data-testid="contact-email">
-                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted text-primary">
-                            <LucideIcon Name="mail" Size="20" />
+                    <a href="@User.LinkedInUrl"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       class="resume-contact-primary"
+                       data-testid="contact-linkedin">
+                        <span class="resume-contact-primary-icon">
+                            <LucideIcon Name="linkedin" Size="28" />
                         </span>
-                        <div class="min-w-0">
-                            <div class="text-xs text-muted-foreground">Email</div>
-                            <a href="mailto:@User.EmailId"
-                               class="text-sm font-medium text-primary hover:underline"
-                               data-testid="contact-email-value">@User.EmailId</a>
-                        </div>
-                    </div>
-                }
-
-                @if (!string.IsNullOrWhiteSpace(User?.PhoneNumber))
-                {
-                    <div class="flex items-center gap-3 rounded-lg border border-border bg-card p-4" data-testid="contact-phone">
-                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted text-primary">
-                            <LucideIcon Name="phone" Size="20" />
+                        <span class="resume-contact-primary-text">
+                            <span class="resume-contact-primary-label text-xs">LinkedIn</span>
+                            <span class="resume-contact-primary-value text-lg font-semibold" data-testid="contact-linkedin-value">
+                                Connect with me on LinkedIn
+                            </span>
                         </span>
-                        <div class="min-w-0">
-                            <div class="text-xs text-muted-foreground">Phone</div>
-                            <a href="tel:@User.PhoneNumber"
-                               class="text-sm font-medium text-primary hover:underline"
-                               data-testid="contact-phone-value">@User.PhoneNumber</a>
-                        </div>
-                    </div>
+                        <span class="resume-contact-primary-chevron" aria-hidden="true">
+                            <LucideIcon Name="arrow-right" Size="20" />
+                        </span>
+                    </a>
                 }
 
                 @if (!string.IsNullOrWhiteSpace(User?.Location))
                 {
-                    <div class="flex items-center gap-3 rounded-lg border border-border bg-card p-4" data-testid="contact-location">
-                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted text-primary">
-                            <LucideIcon Name="map-pin" Size="20" />
-                        </span>
-                        <div class="min-w-0">
-                            <div class="text-xs text-muted-foreground">Location</div>
-                            <div class="text-sm font-medium text-foreground" data-testid="contact-location-value">@User.Location</div>
-                        </div>
-                    </div>
-                }
-
-                @if (!string.IsNullOrWhiteSpace(User?.LinkedInUrl))
-                {
-                    <div class="flex items-center gap-3 rounded-lg border border-border bg-card p-4" data-testid="contact-linkedin">
-                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted text-primary">
-                            <LucideIcon Name="linkedin" Size="20" />
-                        </span>
-                        <div class="min-w-0">
-                            <div class="text-xs text-muted-foreground">LinkedIn</div>
-                            <a href="@User.LinkedInUrl"
-                               target="_blank"
-                               rel="noopener noreferrer"
-                               class="text-sm font-medium text-primary hover:underline"
-                               data-testid="contact-linkedin-value">LinkedIn profile</a>
+                    <div class="resume-autogrid">
+                        <div class="flex items-center gap-3 rounded-lg border border-border bg-card p-4" data-testid="contact-location">
+                            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted text-primary">
+                                <LucideIcon Name="map-pin" Size="20" />
+                            </span>
+                            <div class="min-w-0">
+                                <div class="text-xs text-muted-foreground">Location</div>
+                                <div class="text-sm font-medium text-foreground" data-testid="contact-location-value">@User.Location</div>
+                            </div>
                         </div>
                     </div>
                 }
             </div>
         </CardContent>
         <CardFooter>
-            @if (!string.IsNullOrWhiteSpace(User?.EmailId))
+            @if (!string.IsNullOrWhiteSpace(User?.LinkedInUrl))
             {
-                <Button Href="@($"mailto:{User.EmailId}")" data-testid="send-email">
-                    <LucideIcon Name="mail" Size="16" />
-                    Send an email
+                <Button Href="@User.LinkedInUrl"
+                        Target="_blank"
+                        rel="noopener noreferrer"
+                        data-testid="connect-linkedin">
+                    <LucideIcon Name="linkedin" Size="16" />
+                    Connect on LinkedIn
                 </Button>
             }
         </CardFooter>
@@ -103,6 +90,13 @@
     /// Indicates whether at least one contact detail is available to display.
     /// Sections with no data are hidden entirely on the public resume page.
     /// </summary>
+    /// <remarks>
+    /// The guard keys off exactly the two fields this component RENDERS — location and the
+    /// LinkedIn URL. It deliberately does not consider the email address or the phone number:
+    /// those are no longer published, so an owner who has filled in only an email would
+    /// otherwise get an empty Contact card with a header and nothing under it.
+    /// </remarks>
+    /// <returns>True when there is something publicly displayable.</returns>
     private bool HasContactDetails()
     {
         if (User is null)
@@ -110,9 +104,7 @@
             return false;
         }
 
-        return !string.IsNullOrWhiteSpace(User.EmailId)
-            || !string.IsNullOrWhiteSpace(User.PhoneNumber)
-            || !string.IsNullOrWhiteSpace(User.Location)
+        return !string.IsNullOrWhiteSpace(User.Location)
             || !string.IsNullOrWhiteSpace(User.LinkedInUrl);
     }
 }

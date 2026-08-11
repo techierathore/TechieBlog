@@ -81,14 +81,14 @@ public class AuthService : IAuthService
     /// <para><b>Side Effects:</b> On success the engine records a login row in the site database and
     /// may upgrade the stored password hash.</para>
     /// </remarks>
-    /// <param name="aLoginUser">Envelope carrying the plaintext email and password.</param>
+    /// <param name="user">Envelope carrying the plaintext email and password.</param>
     /// <returns>The signed-in user, or <c>null</c> when authentication is refused.</returns>
-    public async Task<AppUser?> LoginAsync(SvcData aLoginUser)
+    public async Task<AppUser?> LoginAsync(SvcData user)
     {
-        aLoginUser.LoginEmail = AppEncrypt.EncryptText(aLoginUser.LoginEmail);
-        aLoginUser.LoginPass = AppEncrypt.EncryptText(aLoginUser.LoginPass);
+        user.LoginEmail = AppEncrypt.EncryptText(user.LoginEmail);
+        user.LoginPass = AppEncrypt.EncryptText(user.LoginPass);
 
-        var response = await authSvc.AppLoginAsync(aLoginUser).ConfigureAwait(false);
+        var response = await authSvc.AppLoginAsync(user).ConfigureAwait(false);
         if (response == null)
         {
             return null;
@@ -148,9 +148,9 @@ public class AuthService : IAuthService
     /// <para><b>Flow:</b> accept and return.</para>
     /// <para><b>Side Effects:</b> None.</para>
     /// </remarks>
-    /// <param name="aVerifiEmailData">Envelope carrying the address.</param>
+    /// <param name="resendEmailData">Envelope carrying the address.</param>
     /// <returns>Always <c>true</c>.</returns>
-    public Task<bool> ResendVerifiEmailAsync(SvcData aVerifiEmailData)
+    public Task<bool> ResendVerifiEmailAsync(SvcData resendEmailData)
     {
         return Task.FromResult(true);
     }
@@ -214,9 +214,9 @@ public class AuthService : IAuthService
     /// <para><b>Flow:</b> accept and return.</para>
     /// <para><b>Side Effects:</b> None.</para>
     /// </remarks>
-    /// <param name="aVerifiEmailData">Envelope carrying the new address.</param>
+    /// <param name="correctedEmailData">Envelope carrying the new address.</param>
     /// <returns>Always <c>true</c>.</returns>
-    public Task<bool> UpdateNSendVerifiEmailAsync(SvcData aVerifiEmailData)
+    public Task<bool> UpdateNSendVerifiEmailAsync(SvcData correctedEmailData)
     {
         return Task.FromResult(true);
     }
@@ -230,9 +230,9 @@ public class AuthService : IAuthService
     /// <para><b>Flow:</b> return null.</para>
     /// <para><b>Side Effects:</b> None.</para>
     /// </remarks>
-    /// <param name="aVerifyEmailData">Envelope carrying the verification token.</param>
+    /// <param name="verifyEmailData">Envelope carrying the verification token.</param>
     /// <returns>Always <c>null</c>.</returns>
-    public Task<AppUser?> VerifyEmailAsync(SvcData aVerifyEmailData)
+    public Task<AppUser?> VerifyEmailAsync(SvcData verifyEmailData)
     {
         return Task.FromResult<AppUser?>(null);
     }

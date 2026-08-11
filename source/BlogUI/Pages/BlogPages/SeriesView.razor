@@ -257,7 +257,7 @@
     protected override async Task OnParametersSetAsync()
     {
         canSeeDrafts = await IsContentManagerAsync();
-        LoadData();
+        await LoadDataAsync();
     }
 
     /// <summary>
@@ -289,7 +289,7 @@
         }
     }
 
-    private void LoadData()
+    private async Task LoadDataAsync()
     {
         // Setup breadcrumb
         breadcrumbItems = new List<BlogBreadcrumbItem>
@@ -299,13 +299,13 @@
         };
 
         // Load all series
-        allSeries = SeriesService.GetAllWithCounts()?.ToList() ?? new List<BlogModels.BlogSeries>();
+        allSeries = (await SeriesService.GetAllWithCountsAsync())?.ToList() ?? new List<BlogModels.BlogSeries>();
 
         if (!string.IsNullOrEmpty(Slug))
         {
             // Load specific series with its posts. REQ-FN-015: only a content manager gets the
             // draft parts; every other visitor gets the published-only list.
-            series = SeriesService.GetSeriesBySlug(Slug, canSeeDrafts);
+            series = await SeriesService.GetSeriesBySlugAsync(Slug, canSeeDrafts);
 
             if (series != null && series.SeriesId > 0)
             {

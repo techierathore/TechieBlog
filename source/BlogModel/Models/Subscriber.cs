@@ -21,21 +21,31 @@ namespace BlogModels;
 /// <para><b>Usage — read this before writing a send query.</b> <see cref="IsConfirmed"/> and
 /// <see cref="IsActive"/> look like two independent flags and are <i>not</i>. There is no
 /// <c>IsActive</c> column: <c>SubscriberRepo</c> selects <c>IsConfirmed AS IsActive</c> and its
-/// update writes back to <c>IsConfirmed</c>, and unsubscribing runs
-/// <c>UPDATE Subscriber SET IsConfirmed = FALSE</c>. The two properties are therefore always equal
-/// on a materialised row, and one bit is carrying two different meanings — "never completed double
-/// opt-in" and "explicitly opted out". Consequences to design around:</para>
+/// update writes back to <c>IsConfirmed</c>. The two properties are therefore always equal on a
+/// materialised row. <see cref="IsConfirmed"/> is the single MAILABILITY bit and is the only thing
+/// a send query may filter on.</para>
+///
+/// <para><b>[REQ-FN-059] 2026-08-10 — the consent record is no longer that bit.</b> Until migration
+/// <c>024-SubscriberConsentAndTokenLifecycle.sql</c> the one bit also carried the consent history,
+/// so unsubscribing (<c>UPDATE Subscriber SET IsConfirmed = FALSE</c>) ERASED the proof of consent
+/// instead of recording a withdrawal, and an address that deliberately left was indistinguishable
+/// from one that never confirmed. Consent now lives in its own columns —
+/// <see cref="ConfirmedOn"/>, <see cref="UnsubscribedOn"/> and <see cref="IsConsentUnknown"/> —
+/// surfaced as <see cref="ConsentState"/>. Neither timestamp is ever cleared, so a resubscribe
+/// keeps the record of the earlier withdrawal and the row can always show <i>when</i> consent was
+/// given and <i>when</i> it was withdrawn.</para>
 /// <list type="bullet">
-///   <item>An unsubscribe erases the proof of consent rather than recording a withdrawal, so the
-///         row can no longer show that the address ever opted in.</item>
-///   <item>An unsubscribed address is indistinguishable from one that never confirmed, so a
-///         "resend confirmation" sweep would mail people who explicitly left.</item>
-///   <item>Testing both flags (<c>IsConfirmed &amp;&amp; IsActive</c>) is harmless but buys nothing;
-///         it reads as a safety check that is not actually checking anything.</item>
+///   <item>Deciding whether to MAIL an address: test <see cref="IsConfirmed"/>. Unchanged, and
+///         every existing send query keeps working.</item>
+///   <item>Deciding whether the address ever CONSENTED, or whether a re-confirmation sweep may
+///         touch it: test <see cref="ConsentState"/>. A
+///         <see cref="SubscriberConsentState.Withdrawn"/> or
+///         <see cref="SubscriberConsentState.Unknown"/> address must never be swept.</item>
+///   <item>The two axes are kept in step by the database trigger
+///         <c>TrgSubscriberConsentChange</c>, so a writer that only knows about
+///         <c>IsConfirmed</c> — including <c>NewsletterRepo.DeactivateSubscriberAsync</c> — still
+///         records the withdrawal instead of erasing the consent.</item>
 /// </list>
-/// <para>Separating the two needs a migration that adds a real column, so it is not a local fix.
-/// Until then, treat <see cref="IsConfirmed"/> as the single mailability bit and prefer it in new
-/// code.</para>
 /// </remarks>
 public class Subscriber
 {
@@ -101,12 +111,108 @@ public class Subscriber
     /// set a column default, so <c>SubscriberRepo</c> never has to supply one on insert.
     /// </summary>
     /// <remarks>
-    /// Long-lived and never rotated: the same value ships in every issue the subscriber ever
-    /// receives, so anyone who obtains one message can unsubscribe that address at any time. That
-    /// is the accepted trade — a one-click unsubscribe must work without a login — but it means the
-    /// token is a credential, not an identifier. Do not reuse it to authorise anything other than
-    /// unsubscribing, do not log it, and do not render it anywhere except inside the unsubscribe
-    /// URL of an outbound message.
+    /// <para>It is a credential, not an identifier: whoever holds it can opt this address out
+    /// without a login, which is the point — a one-click unsubscribe must work from a mail client.
+    /// Do not reuse it to authorise anything else, do not log it, and do not render it anywhere
+    /// except inside the unsubscribe URL of an outbound message.</para>
+    /// <para><b>[REQ-FN-059] It is no longer unlimited.</b> It is now rotatable, burnable and — once
+    /// it carries a recorded issuance — expirable. See <see cref="UnsubscribeTokenIssuedOn"/> and
+    /// <see cref="UnsubscribeTokenUsedOn"/>.</para>
+    /// <para><b>[REQ-FN-060] It is no longer what a newsletter mails.</b> Since migration 027 a
+    /// send issues a token scoped to that one issue into the <c>UnsubscribeToken</c> TABLE, so the
+    /// credential in a message authorises that issue and nothing else. This column is now the
+    /// FALLBACK: it resolves every unsubscribe link already sitting in a delivered mail, and the
+    /// send path uses it only when a per-issue token could not be issued. Two consequences —
+    /// a subscriber legitimately holds several live tokens at once, and a value read from this
+    /// property is NOT the token that was mailed in any particular issue.</para>
+    /// <para><b>Do not write this property back from an entity loaded by
+    /// <c>ISubscriberRepo.GetByNewsletterTokenAsync</c>.</b> That read deliberately projects the
+    /// matched per-issue token row onto this property and the two issuance stamps, so the entity
+    /// describes a token rather than the row; saving it would overwrite the row-level token.</para>
     /// </remarks>
     public string UnsubscribeToken { get; set; } = string.Empty;
+
+    /// <summary>
+    /// When consent was most recently GIVEN (<c>ConfirmedOn</c>, nullable). Proof of consent: it is
+    /// never cleared, so unsubscribing can no longer erase the fact that the address opted in.
+    /// </summary>
+    /// <remarks>
+    /// Stamped by the double opt-in redemption, by an administrative re-activation and by the
+    /// database trigger <c>TrgSubscriberConsentChange</c> for any writer that only flips
+    /// <c>IsConfirmed</c>. Migration 024 backfilled it from <see cref="SubscribedOn"/> for rows that
+    /// were already mailable — an under-statement of the consent age, never an over-statement.
+    /// </remarks>
+    public DateTime? ConfirmedOn { get; set; }
+
+    /// <summary>
+    /// When consent was most recently WITHDRAWN (<c>UnsubscribedOn</c>, nullable). Proof of
+    /// withdrawal, and the fact that used to be lost when <c>IsConfirmed</c> was flipped to false.
+    /// </summary>
+    /// <remarks>
+    /// Never cleared either. A resubscribe sets a newer <see cref="ConfirmedOn"/> rather than
+    /// nulling this, so both halves of the history survive and <see cref="ConsentState"/> is decided
+    /// by comparing the two timestamps.
+    /// </remarks>
+    public DateTime? UnsubscribedOn { get; set; }
+
+    /// <summary>
+    /// True when this row predates migration 024 and its unconfirmed state could not be interpreted
+    /// as either pending or withdrawn (<c>IsConsentUnknown</c>, <c>NOT NULL DEFAULT FALSE</c>).
+    /// </summary>
+    /// <remarks>
+    /// Written once by the migration and never by application code. The migration refused to guess
+    /// because inventing a <see cref="ConfirmedOn"/> would fabricate proof of consent; the marker
+    /// records the ambiguity honestly so a re-confirmation sweep can exclude exactly these rows.
+    /// </remarks>
+    public bool IsConsentUnknown { get; set; }
+
+    /// <summary>
+    /// When the CURRENT <see cref="UnsubscribeToken"/> was issued (nullable). <c>null</c> means a
+    /// legacy token with no recorded issuance, which never expires.
+    /// </summary>
+    /// <remarks>
+    /// A legacy token is already sitting in delivered mail and cannot be recalled, so expiring it
+    /// could only ever strand a subscriber with no way off the list. Every token issued through
+    /// rotation carries this stamp and expires
+    /// <c>SubscriberSvc.UnsubscribeTokenLifetimeDays</c> days later.
+    /// </remarks>
+    public DateTime? UnsubscribeTokenIssuedOn { get; set; }
+
+    /// <summary>
+    /// When the current <see cref="UnsubscribeToken"/> was redeemed (nullable). A burned token
+    /// performs no further state change.
+    /// </summary>
+    /// <remarks>
+    /// Stamped in the same UPDATE that records the withdrawal, so one link causes at most one state
+    /// change. Cleared — together with a fresh token — on any re-consent, so a subscriber who comes
+    /// back always holds a working link.
+    /// </remarks>
+    public DateTime? UnsubscribeTokenUsedOn { get; set; }
+
+    /// <summary>
+    /// Gets where this subscriber stands in the consent lifecycle, derived from
+    /// <see cref="ConfirmedOn"/>, <see cref="UnsubscribedOn"/> and <see cref="IsConsentUnknown"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Withdrawal wins a tie. When the two timestamps are equal the
+    /// state is <see cref="SubscriberConsentState.Withdrawn"/>, because the safe direction of error
+    /// for a consent question is "do not mail". The same derivation is documented in the header of
+    /// <c>024-SubscriberConsentAndTokenLifecycle.sql</c>.</para>
+    /// <para><b>Side Effects:</b> None; pure. Not a column and never persisted — Dapper leaves it
+    /// alone because it has no setter.</para>
+    /// </remarks>
+    public SubscriberConsentState ConsentState
+    {
+        get
+        {
+            if (UnsubscribedOn.HasValue &&
+                (!ConfirmedOn.HasValue || UnsubscribedOn.Value >= ConfirmedOn.Value))
+                return SubscriberConsentState.Withdrawn;
+
+            if (ConfirmedOn.HasValue)
+                return SubscriberConsentState.Confirmed;
+
+            return IsConsentUnknown ? SubscriberConsentState.Unknown : SubscriberConsentState.Pending;
+        }
+    }
 }

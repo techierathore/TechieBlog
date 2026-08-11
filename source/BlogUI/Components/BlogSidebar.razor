@@ -170,20 +170,20 @@
     private CaptchaWidget captcha;
 
     /// <inheritdoc />
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        categories = LoadCategories();
-        popularTags = LoadPopularTags();
+        categories = await LoadCategoriesAsync();
+        popularTags = await LoadPopularTagsAsync();
     }
 
     /// <summary>
     /// Reads every category with its post count, degrading to an empty list.
     /// </summary>
-    private List<Category> LoadCategories()
+    private async Task<List<Category>> LoadCategoriesAsync()
     {
         try
         {
-            return CategoryService.GetAllWithCounts().ToList();
+            return (await CategoryService.GetAllWithCountsAsync()).ToList();
         }
         catch
         {
@@ -194,11 +194,11 @@
     /// <summary>
     /// Reads the ten most-used tags, degrading to an empty list.
     /// </summary>
-    private List<BlogTag> LoadPopularTags()
+    private async Task<List<BlogTag>> LoadPopularTagsAsync()
     {
         try
         {
-            return TagService.GetAllWithCounts()
+            return (await TagService.GetAllWithCountsAsync())
                 .OrderByDescending(t => t.PostCount)
                 .Take(10)
                 .ToList();

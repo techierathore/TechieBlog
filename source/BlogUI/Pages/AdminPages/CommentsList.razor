@@ -151,7 +151,7 @@
                             {
                                 <Button Size="ButtonSize.IconSmall"
                                         Variant="ButtonVariant.Ghost"
-                                        OnClick="@(() => ApproveComment(row))"
+                                        OnClick="@(() => ApproveCommentAsync(row))"
                                         AriaLabel="Approve comment"
                                         data-testid="comment-approve">
                                     <LucideIcon Name="circle-check" Size="16" />
@@ -168,7 +168,7 @@
                             {
                                 <Button Size="ButtonSize.IconSmall"
                                         Variant="ButtonVariant.Ghost"
-                                        OnClick="@(() => ApproveComment(row))"
+                                        OnClick="@(() => ApproveCommentAsync(row))"
                                         AriaLabel="Not spam"
                                         data-testid="comment-approve">
                                     <LucideIcon Name="circle-check" Size="16" />
@@ -247,7 +247,7 @@
             <Button Variant="ButtonVariant.Outline" OnClick="CancelDelete" data-testid="comment-delete-cancel">
                 Cancel
             </Button>
-            <Button Variant="ButtonVariant.Destructive" OnClick="DeleteComment" data-testid="comment-delete-confirm">
+            <Button Variant="ButtonVariant.Destructive" OnClick="DeleteCommentAsync" data-testid="comment-delete-confirm">
                 Delete
             </Button>
         </DialogFooter>
@@ -319,9 +319,9 @@
         : "Comments will appear here when readers engage with your posts.";
 
     /// <inheritdoc />
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        LoadComments();
+        await LoadCommentsAsync();
     }
 
     /// <summary>Maps a moderation status onto a badge variant.</summary>
@@ -366,19 +366,20 @@
         _ => "Pending"
     };
 
-    private void LoadComments()
+    private async Task LoadCommentsAsync()
     {
         IsLoading = true;
         try
         {
-            // Load all comments from service
-            var comments = CommentService.GetAllComments();
+            // Load all comments from service. [REQ-NFR-026] stage 3 — the async twin, so the
+            // admin grid stops parking a thread-pool thread for the whole round trip.
+            var comments = await CommentService.GetAllCommentsAsync();
             ObjectList = new List<CommentViewModel>();
 
             foreach (var comment in comments)
             {
                 // Get post details for the comment
-                var post = BlogService.GetSinglePost(comment.PostID);
+                var post = await BlogService.GetSinglePostAsync(comment.PostID);
 
                 ObjectList.Add(new CommentViewModel
                 {
@@ -398,11 +399,13 @@
 
             ApplyFilter();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             ObjectList = new List<CommentViewModel>();
             FilteredList = new List<CommentViewModel>();
-            StatusMessage = $"Failed to load comments: {ex.Message}";
+            // REQ-NFR-033: the exception text never reaches the screen. CommentSvc has already
+            // logged it with context; the operator matches it on the response correlation id.
+            StatusMessage = "Could not load comments. Please try again later.";
             IsError = true;
         }
         finally
@@ -525,9 +528,21 @@
         IsError = false;
     }
 
-    private void ApproveComment(CommentViewModel comment)
+    /// <summary>
+    /// Approves one comment from the grid and reflects the decision in the row.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The service refuses to approve a comment whose address was
+    /// never confirmed, and that refusal is surfaced verbatim rather than being re-worded here.</para>
+    /// <para><b>[REQ-NFR-026] stage 3:</b> awaits <c>ApproveCommentAsync</c>, which carries the
+    /// same guards and the same <c>Result</c> strings as the blocking member it replaces.</para>
+    /// <para><b>Side Effects:</b> Publishes the comment; updates the row and the status banner.</para>
+    /// </remarks>
+    /// <param name="comment">The grid row whose comment is being approved.</param>
+    /// <returns>A task that completes when the outcome has been shown.</returns>
+    private async Task ApproveCommentAsync(CommentViewModel comment)
     {
-        var result = CommentService.ApproveComment(comment.CommentId);
+        var result = await CommentService.ApproveCommentAsync(comment.CommentId);
         if (result.IsSuccess)
         {
             comment.Status = "Approved";
@@ -568,11 +583,22 @@
         HideDeleteDialog = true;
     }
 
-    private void DeleteComment()
+    /// <summary>
+    /// Deletes the comment the confirmation dialog is pointed at.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Permanent removal, taking the replies with it. An unknown id
+    /// comes back as "Comment not found" rather than being treated as success, so the grid can
+    /// tell "removed" from "was never there".</para>
+    /// <para><b>[REQ-NFR-026] stage 3:</b> awaits <c>DeleteCommentAsync</c>.</para>
+    /// <para><b>Side Effects:</b> Removes the row from the grid and closes the dialog.</para>
+    /// </remarks>
+    /// <returns>A task that completes when the outcome has been shown.</returns>
+    private async Task DeleteCommentAsync()
     {
         if (CommentToDelete == null) return;
 
-        var result = CommentService.DeleteComment(CommentToDelete.CommentId);
+        var result = await CommentService.DeleteCommentAsync(CommentToDelete.CommentId);
         if (result.IsSuccess)
         {
             ObjectList.Remove(CommentToDelete);

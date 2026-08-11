@@ -231,25 +231,47 @@ public class AnalyticsSvc : IAnalyticsService
     /// <remarks>
     /// <para><b>Business Logic:</b> SQL only returns days that have rows. A chart plotted from that
     /// sparse set would silently drop quiet days and overstate the trend.</para>
-    /// <para><b>Flow:</b> index the recorded days → walk the range → emit the recorded point or a
-    /// zeroed one.</para>
-    /// <para><b>Side Effects:</b> None; pure.</para>
+    ///
+    /// <para><b>Duplicate days — REQ-FN-056.</b> This used to index the recorded points with
+    /// <c>ToDictionary(point =&gt; point.Day.Date)</c>, which throws the instant two rows truncate to
+    /// the same calendar day. The throw happened inside the caller's read <c>try</c>, so it was
+    /// swallowed and the ENTIRE trend degraded to an empty list — the chart blanked with only a
+    /// misleading "failed to read" line to go on. A <c>ToLookup</c> cannot throw on a repeated key, so
+    /// one bad row can no longer take the whole series down. The first row for a repeated day is the
+    /// one plotted: the rows are not merged, because <c>UniqueViews</c> is distinct <i>within</i> a
+    /// day and summing two partial rows would over-count it (see <see cref="ViewTrendPoint"/>).
+    /// Collapsing rows does lose readership, so it is never silent — a repeated day is a defect in the
+    /// aggregate query and is reported as a warning naming the range and the number of days affected.</para>
+    ///
+    /// <para><b>Flow:</b> index the recorded days → count any day carrying more than one row → walk
+    /// the range → emit the first recorded point for the day or a zeroed one → warn if any day
+    /// repeated.</para>
+    /// <para><b>Side Effects:</b> Writes a warning when the recorded set repeats a day; otherwise
+    /// none.</para>
     /// </remarks>
     /// <param name="recorded">Days that actually had traffic.</param>
     /// <param name="rangeStart">Inclusive first day of the range.</param>
     /// <param name="rangeEnd">Exclusive last day of the range.</param>
     /// <returns>One point per day, oldest first.</returns>
-    private static IReadOnlyList<ViewTrendPoint> FillQuietDays(
+    private IReadOnlyList<ViewTrendPoint> FillQuietDays(
         IReadOnlyList<ViewTrendPoint> recorded, DateTime rangeStart, DateTime rangeEnd)
     {
-        var byDay = recorded.ToDictionary(point => point.Day.Date);
+        var byDay = recorded.ToLookup(point => point.Day.Date);
+        var repeatedDayCount = byDay.Count(dayRows => dayRows.Skip(1).Any());
         var points = new List<ViewTrendPoint>();
 
         for (var day = rangeStart.Date; day < rangeEnd; day = day.AddDays(1))
         {
-            points.Add(byDay.TryGetValue(day, out var recordedPoint)
-                ? recordedPoint
-                : new ViewTrendPoint { Day = day });
+            points.Add(byDay[day].FirstOrDefault() ?? new ViewTrendPoint { Day = day });
+        }
+
+        if (repeatedDayCount > 0)
+        {
+            logger.LogWarning(
+                "The view trend between {RangeStart} and {RangeEnd} carried more than one aggregate row "
+                + "for {RepeatedDayCount} day(s); the first row for each of those days was plotted and "
+                + "the rest discarded",
+                rangeStart, rangeEnd, repeatedDayCount);
         }
 
         return points;

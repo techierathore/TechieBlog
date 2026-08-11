@@ -45,6 +45,18 @@ namespace BlogEngine.Services;
 ///     multi-instance deployment each instance caches independently, so a save on one instance is
 ///     not seen by the others.</item>
 /// </list>
+/// <para><b>REQ-NFR-018 — the store behind that contract is now <see cref="ICacheService"/>.</b> When
+/// the shared cache is injected (always, in the host) the aggregate lives under
+/// <c>settings:effective</c> with the <c>settings</c> tag instead of in the private field, which
+/// changes two things and nothing else. First, the entry carries an absolute ten-minute expiry, so
+/// the "no expiry of any kind" hazard above is now bounded: a row changed behind this class's back
+/// is picked up within ten minutes rather than never. Second, <see cref="InvalidateCache"/> evicts
+/// the tag, so one call clears this layer and anything else filed under <c>settings</c> — the same
+/// vocabulary the host's output cache uses. The invalidation contract itself is unchanged: every
+/// write still routes through <c>PublishChangeAsync</c>, and a new write path that skips it is still
+/// the defect this section warns about. The private field remains as the fallback for a service
+/// constructed without a cache, and behaves exactly as it always did.</para>
+///
 /// <para>The cache is also read <i>outside</i> the lock on the fast path (a plain field read),
 /// which is safe because the field is only ever replaced with a fully-built aggregate, never
 /// mutated in place. <see cref="InvalidateCache"/> exists for the case where an external writer is
@@ -89,8 +101,26 @@ namespace BlogEngine.Services;
 /// </remarks>
 public class SiteSettingsService : ISiteSettingsService
 {
+    /// <summary>
+    /// Message returned when the settings aggregate could not be persisted (REQ-NFR-033).
+    /// </summary>
+    /// <remarks>
+    /// The write-failure message used to interpolate <c>ex.Message</c>, defended on the grounds
+    /// that the caller is the admin-only Settings screen — but nothing in this class enforces that
+    /// gating, and the settings row set holds the SMTP password and the cloud access key, so a
+    /// database error raised while writing them is the last exception whose text should ever be
+    /// rendered. The exception now stays in the log, where the host's
+    /// <c>CorrelationIdMiddleware</c> has already stamped the request's correlation id onto every
+    /// event (REQ-NFR-015). Same pattern as REQ-NFR-031's four services.
+    /// </remarks>
+    private const string SaveSettingsFailureMessage = "Failed to save settings. Please try again later.";
+
+    /// <summary>Curated message for a single-key write that failed. See <see cref="SaveSettingsFailureMessage"/>.</summary>
+    private const string SaveSettingFailureMessage = "Failed to save setting. Please try again later.";
+
     private readonly ISiteSettingRepo siteSettingRepo;
     private readonly ILogger<SiteSettingsService> logger;
+    private readonly ICacheService? cacheService;
     private readonly SemaphoreSlim cacheGate = new SemaphoreSlim(1, 1);
     private SiteSettings? cachedSettings;
 
@@ -99,10 +129,22 @@ public class SiteSettingsService : ISiteSettingsService
     /// </summary>
     /// <param name="siteSettingRepo">Persistence for the key/value settings table.</param>
     /// <param name="logger">Structured logger for read and write failures.</param>
-    public SiteSettingsService(ISiteSettingRepo siteSettingRepo, ILogger<SiteSettingsService> logger)
+    /// <param name="cacheService">
+    /// Shared settings cache (REQ-NFR-018). When supplied it <b>replaces</b> the private field cache
+    /// described in the type remarks: the aggregate is stored under
+    /// <see cref="ServiceCache.SettingsEffectiveKey"/> with the <c>settings</c> tag, which gives it a
+    /// bounded lifetime and lets one eviction clear this layer and the host's output cache together.
+    /// Optional, so a unit test can exercise the service without a cache; the host always supplies
+    /// it.
+    /// </param>
+    public SiteSettingsService(
+        ISiteSettingRepo siteSettingRepo,
+        ILogger<SiteSettingsService> logger,
+        ICacheService? cacheService = null)
     {
         this.siteSettingRepo = siteSettingRepo ?? throw new ArgumentNullException(nameof(siteSettingRepo));
         this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        this.cacheService = cacheService;
     }
 
     /// <inheritdoc />
@@ -132,6 +174,15 @@ public class SiteSettingsService : ISiteSettingsService
     /// </remarks>
     public async Task<SiteSettings> GetSettingsAsync()
     {
+        if (cacheService is not null)
+        {
+            return await ServiceCache.ReadAsync(
+                cacheService,
+                ServiceCache.SettingsEffectiveKey,
+                CacheTags.Settings,
+                LoadSettingsAsync).ConfigureAwait(false);
+        }
+
         var snapshot = cachedSettings;
         if (snapshot != null)
         {
@@ -164,8 +215,9 @@ public class SiteSettingsService : ISiteSettingsService
     /// change takes effect immediately across every circuit without a restart. Logs the row
     /// count.</para>
     /// <para><b>Result contract:</b> a validation failure and a write failure are both
-    /// <i>returned</i>, never thrown. The write-failure message interpolates <c>ex.Message</c>,
-    /// which is acceptable only because the caller is the admin-only Settings screen.</para>
+    /// <i>returned</i>, never thrown. The write-failure message is the curated
+    /// <see cref="SaveSettingsFailureMessage"/> — the exception text stays in the log
+    /// (REQ-NFR-033).</para>
     /// <para><b>Returns the reloaded settings, not the supplied ones</b> — read the
     /// <c>Result.Data</c> rather than reusing the object you passed in, since defaults and
     /// normalisation are applied during the reload.</para>
@@ -189,7 +241,7 @@ public class SiteSettingsService : ISiteSettingsService
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to persist site settings");
-            return Result<SiteSettings>.Failure($"Failed to save settings: {ex.Message}");
+            return Result<SiteSettings>.Failure(SaveSettingsFailureMessage);
         }
     }
 
@@ -260,7 +312,7 @@ public class SiteSettingsService : ISiteSettingsService
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to write site setting {SettingKey}", settingKey);
-            return Result.Failure($"Failed to save setting: {ex.Message}");
+            return Result.Failure(SaveSettingFailureMessage);
         }
     }
 
@@ -315,6 +367,7 @@ public class SiteSettingsService : ISiteSettingsService
     public void InvalidateCache()
     {
         cachedSettings = null;
+        cacheService?.EvictTag(CacheTags.Settings);
     }
 
     /// <summary>

@@ -105,7 +105,7 @@ partial class ManagePost : ComponentBase
     protected override async Task OnInitializedAsync()
     {
         // Load categories for dropdown
-        Categories = CategoryService.GetAllCategories().ToList();
+        Categories = (await CategoryService.GetAllCategoriesAsync()).ToList();
 
         // Resolve the signed-in user for the featured-image picker
         var initialAuthState = await AuthStateProvider.GetAuthenticationStateAsync();
@@ -116,15 +116,15 @@ partial class ManagePost : ComponentBase
         }
 
         // Load available tags for selection
-        AvailableTags = TagService.GetAllTags().ToList();
+        AvailableTags = (await TagService.GetAllTagsAsync()).ToList();
 
         // Load available series for selection
-        AvailableSeries = SeriesService.GetAllWithCounts().ToList();
+        AvailableSeries = (await SeriesService.GetAllWithCountsAsync()).ToList();
 
         if (PageId > 0)
         {
             // Edit mode - load existing post
-            PageObj = BlogService.GetSinglePost(PageId);
+            PageObj = await BlogService.GetSinglePostAsync(PageId);
             if (PageObj != null)
             {
                 PageHeader = "Edit Post";
@@ -133,7 +133,7 @@ partial class ManagePost : ComponentBase
                 SelectedCategoryId = PageObj.CategoryId.ToString();
 
                 // Load existing tags for this post
-                SelectedTags = TagService.GetTagsForPost(PageId).ToList();
+                SelectedTags = (await TagService.GetTagsForPostAsync(PageId)).ToList();
 
                 // Load scheduling data if scheduled
                 if (PageObj.ScheduledPublishOn.HasValue)
@@ -206,7 +206,7 @@ partial class ManagePost : ComponentBase
             }
 
             // Save the post
-            var result = BlogService.SavePost(PageObj);
+            var result = await BlogService.SavePostAsync(PageObj);
 
             if (result.IsSuccess)
             {
@@ -215,7 +215,7 @@ partial class ManagePost : ComponentBase
 
                 // Save tags for the post
                 var tagIds = SelectedTags.Select(t => t.TagId).ToList();
-                TagService.SetTagsForPost(postId, tagIds);
+                await TagService.SetTagsForPostAsync(postId, tagIds);
 
                 StatusMessage = PageId > 0 ? "Post updated successfully!" : "Post created successfully!";
                 IsError = false;
@@ -292,7 +292,7 @@ partial class ManagePost : ComponentBase
     /// <summary>
     /// Adds a new tag by name (creates if doesn't exist).
     /// </summary>
-    protected void AddNewTag()
+    protected async Task AddNewTagAsync()
     {
         if (string.IsNullOrWhiteSpace(NewTagInput))
             return;
@@ -307,7 +307,7 @@ partial class ManagePost : ComponentBase
         }
 
         // Get or create the tag
-        var tag = TagService.GetOrCreateTag(tagName);
+        var tag = await TagService.GetOrCreateTagAsync(tagName);
         if (tag != null)
         {
             SelectedTags.Add(tag);
@@ -376,7 +376,7 @@ partial class ManagePost : ComponentBase
         try
         {
             if (PageObj == null) return;
-            var result = BlogService.UnpublishPost(PageObj.PostID);
+            var result = await BlogService.UnpublishPostAsync(PageObj.PostID);
             if (result.IsSuccess)
             {
                 PageObj.Published = false;
@@ -428,7 +428,7 @@ partial class ManagePost : ComponentBase
                 PageObj.SeriesId = seriesId;
                 if (!PageObj.SeriesPartNumber.HasValue || PageObj.SeriesPartNumber <= 0)
                 {
-                    PageObj.SeriesPartNumber = SeriesService.GetNextPartNumber(seriesId);
+                    PageObj.SeriesPartNumber = await SeriesService.GetNextPartNumberAsync(seriesId);
                 }
             }
             else
@@ -455,11 +455,11 @@ partial class ManagePost : ComponentBase
             Result<BlogPost> result;
             if (publish)
             {
-                result = BlogService.PublishPost(PageObj);
+                result = await BlogService.PublishPostAsync(PageObj);
             }
             else
             {
-                result = BlogService.SaveDraft(PageObj);
+                result = await BlogService.SaveDraftAsync(PageObj);
             }
 
             if (result.IsSuccess)
@@ -475,7 +475,7 @@ partial class ManagePost : ComponentBase
 
                 // Save tags for the post
                 var tagIds = SelectedTags.Select(t => t.TagId).ToList();
-                TagService.SetTagsForPost(postId, tagIds);
+                await TagService.SetTagsForPostAsync(postId, tagIds);
 
                 if (publish)
                 {
@@ -578,7 +578,7 @@ partial class ManagePost : ComponentBase
                 PageObj.SeriesId = seriesId;
                 if (!PageObj.SeriesPartNumber.HasValue || PageObj.SeriesPartNumber <= 0)
                 {
-                    PageObj.SeriesPartNumber = SeriesService.GetNextPartNumber(seriesId);
+                    PageObj.SeriesPartNumber = await SeriesService.GetNextPartNumberAsync(seriesId);
                 }
             }
             else
@@ -603,7 +603,7 @@ partial class ManagePost : ComponentBase
 
             // Schedule the post
             var scheduledUtc = scheduledDateTime.Value.ToUniversalTime();
-            var result = BlogService.SchedulePost(PageObj, scheduledUtc);
+            var result = await BlogService.SchedulePostAsync(PageObj, scheduledUtc);
 
             if (result.IsSuccess)
             {
@@ -616,7 +616,7 @@ partial class ManagePost : ComponentBase
                 // Save tags for the post
                 var postId = result.Data?.PostID ?? PageObj.PostID;
                 var tagIds = SelectedTags.Select(t => t.TagId).ToList();
-                TagService.SetTagsForPost(postId, tagIds);
+                await TagService.SetTagsForPostAsync(postId, tagIds);
 
                 StatusMessage = $"Post scheduled for {scheduledDateTime:dddd, MMMM dd, yyyy 'at' h:mm tt}";
                 IsError = false;
@@ -654,7 +654,7 @@ partial class ManagePost : ComponentBase
 
         try
         {
-            var result = BlogService.CancelSchedule(PageObj.PostID);
+            var result = await BlogService.CancelScheduleAsync(PageObj.PostID);
 
             if (result.IsSuccess)
             {

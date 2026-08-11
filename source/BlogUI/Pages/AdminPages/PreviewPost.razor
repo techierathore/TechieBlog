@@ -209,19 +209,18 @@ else
     }
 
     /// <summary>Loads the post to preview.</summary>
-    private Task LoadPost()
+    private async Task LoadPost()
     {
         isLoading = true;
         try
         {
-            blogPost = BlogService.GetSinglePost(PostId);
+            blogPost = await BlogService.GetSinglePostAsync(PostId);
         }
         catch
         {
             blogPost = null;
         }
         isLoading = false;
-        return Task.CompletedTask;
     }
 
     /// <summary>Publishes the previewed post and redirects to the public post URL.</summary>
@@ -234,7 +233,7 @@ else
 
         try
         {
-            var result = BlogService.QuickPublish(blogPost.PostID);
+            var result = await BlogService.QuickPublishAsync(blogPost.PostID);
             if (result.IsSuccess)
             {
                 statusMessage = "Post published successfully! Redirecting...";

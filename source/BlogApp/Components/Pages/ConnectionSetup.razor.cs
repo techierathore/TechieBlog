@@ -32,6 +32,22 @@ public partial class ConnectionSetup : ComponentBase
     /// <summary>Route the app returns to after a cancelled reconfiguration.</summary>
     private const string LoginRoute = "/login";
 
+    /// <summary>
+    /// Message shown when the credential store refused the save (REQ-NFR-033).
+    /// </summary>
+    /// <remarks>
+    /// The exception raised here comes from the DPAPI-backed <c>ConnectionStore</c> and its text
+    /// carries the local account name and the credential path. It is logged in full by the
+    /// <c>catch</c> that sets this message; the screen shows only the curated sentence, matching the
+    /// pattern REQ-NFR-031 established across the engine services.
+    /// </remarks>
+    private const string SaveFailureMessage =
+        "The connection could not be saved. The underlying error is recorded in the application log.";
+
+    /// <summary>Message shown when the stored connection could not be cleared. See <see cref="SaveFailureMessage"/>.</summary>
+    private const string ForgetFailureMessage =
+        "The connection could not be removed. The underlying error is recorded in the application log.";
+
     private bool isTesting;
     private bool isSaving;
     private string successMessage;
@@ -237,7 +253,7 @@ public partial class ConnectionSetup : ComponentBase
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to save the connection settings");
-            errorMessage = $"The connection could not be saved: {ex.Message}";
+            errorMessage = SaveFailureMessage;
         }
         finally
         {
@@ -275,7 +291,7 @@ public partial class ConnectionSetup : ComponentBase
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to clear the connection settings");
-            errorMessage = $"The connection could not be removed: {ex.Message}";
+            errorMessage = ForgetFailureMessage;
         }
         finally
         {

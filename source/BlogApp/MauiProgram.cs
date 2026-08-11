@@ -57,6 +57,30 @@ public static class MauiProgram
     /// </summary>
     public const string ConnectionStringKey = "AppDbConString";
 
+    /// <summary>Per-file cap for the rolling log file: 10 MB (REQ-NFR-036).</summary>
+    /// <remarks>
+    /// Matches <c>TechieBlog.Configuration.LogFileSettings.DefaultSizeLimitBytes</c> so both heads
+    /// state their disk budget in the same units. Without this the sink took Serilog's 1 GB default.
+    /// </remarks>
+    public const long LogFileSizeLimitBytes = 10L * 1024 * 1024;
+
+    /// <summary>Rolled log files retained; older ones are deleted (REQ-NFR-036).</summary>
+    /// <remarks>
+    /// Fourteen days of history is the desktop head's long-standing choice and is kept: a user
+    /// reporting a fault a week later still has the evidence. With
+    /// <see cref="LogFileSizeLimitBytes"/> the count now bounds a VOLUME rather than a file count —
+    /// <c>LogFileSizeLimitBytes * LogFileRetainedFileCountLimit</c> = <b>140 MB worst case</b>.
+    /// </remarks>
+    public const int LogFileRetainedFileCountLimit = 14;
+
+    /// <summary>The most disk this head's logs can ever occupy: 140 MB.</summary>
+    /// <remarks>
+    /// The number an operator actually needs, stated once so nobody has to multiply it themselves —
+    /// the same contract <c>LogFileSettings.WorstCaseTotalBytes</c> exposes for the web head.
+    /// </remarks>
+    public const long LogFileWorstCaseTotalBytes =
+        LogFileSizeLimitBytes * LogFileRetainedFileCountLimit;
+
     /// <summary>
     /// Builds and returns the configured MAUI application.
     /// </summary>
@@ -153,13 +177,34 @@ public static class MauiProgram
             .WriteTo.File(
                 path: Path.Combine(logDirectory, "blogapp-.log"),
                 rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 14,
+                // REQ-NFR-036 - bound the VOLUME, not just the file count. A daily roll with a
+                // retention count and no size cap is not a bound: Serilog defaults
+                // fileSizeLimitBytes to 1 GB and, with rollOnFileSizeLimit left false, SILENTLY
+                // STOPS WRITING at that ceiling - so the worst case was 14 GB of disk AND a log
+                // that quietly goes deaf on the loudest day, which is the day it was needed.
+                // Capping a file is not capping a disk; the PRODUCT of the next two lines is:
+                // 10 MB * 14 = 140 MB, stated once as LogFileWorstCaseTotalBytes. Raise either
+                // number with that product in mind.
+                retainedFileCountLimit: LogFileRetainedFileCountLimit,
+                fileSizeLimitBytes: LogFileSizeLimitBytes,
+                rollOnFileSizeLimit: true,
                 // shared: a connection change relaunches BlogApp, so the outgoing and incoming
                 // instances overlap briefly. Without it the second process cannot open the file
                 // and drops every event it writes during startup.
                 shared: true,
                 outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
+
+        // REQ-NFR-036 - state the disk budget in the log it describes, so an operator reading the
+        // file never has to find this source to learn what bounds it. Parity with the web head's
+        // equivalent line in Program.cs.
+        Log.Information(
+            "Log file sink writing to {LogDirectory} - at most {RetainedFileCountLimit} files of "
+            + "{SizeLimitBytes} bytes, {WorstCaseTotalBytes} bytes of disk worst case",
+            logDirectory,
+            LogFileRetainedFileCountLimit,
+            LogFileSizeLimitBytes,
+            LogFileWorstCaseTotalBytes);
 
         // Same contract as the web head's TechieBlog.Observability.GlobalExceptionLogging: the sink
         // is closed ONLY when the runtime says it is terminating. CloseAndFlush swaps in a silent

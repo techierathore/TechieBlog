@@ -128,8 +128,7 @@ else if (experiences is not null && experiences.Count > 0)
 
         try
         {
-            // Run synchronous repo call on a background thread
-            var allEvents = await Task.Run(() => EventRepo.GetAllById(UserId));
+            var allEvents = await EventRepo.GetAllByIdAsync(UserId);
 
             // Filter for Experience type and order by EventDate descending (newest first)
             experiences = allEvents

@@ -362,10 +362,6 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
-# BMAD (local only)
-.bmad-core/
-.bmad-*/
-
 # AI Assistant files (local only)
 .claude/
 .opencode/
@@ -422,6 +418,10 @@ logs/
 # TechieFlow agent artifacts — machine-generated test harness & logs, never commit (managed by scaffold/update-framework.sh)
 tests/.artifacts/
 test-results-*/
+
+# Per-agent private build output (-p:OutDir=.smokeout/<agent>/). Build artefacts only, and hundreds
+# of megabytes of them — the `logs/` pattern above already covers any log folder inside it.
+.smokeout/
 
 # TechieFlow agent artifacts — machine-generated test harness & logs, never commit (managed by scaffold/update-framework.sh)
 /scripts-*/

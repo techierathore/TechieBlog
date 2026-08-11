@@ -34,8 +34,17 @@ namespace BlogEngine.Services;
 /// <para><b>Result contract:</b> expected failures (missing owner, over-length label, unknown id)
 /// are returned; unexpected ones are caught, logged with the statistic or user id, and converted.
 /// Reads never throw — a failure yields an empty sequence or null, so a database problem degrades
-/// the resume section rather than the page. The mutation failure messages interpolate
-/// <c>ex.Message</c>, acceptable only because every caller is admin-only.</para>
+/// the resume section rather than the page.</para>
+///
+/// <para><b>Exception text never reaches the caller (REQ-NFR-033).</b> The mutation failure
+/// messages used to interpolate <c>ex.Message</c>, defended on the grounds that every caller is
+/// admin-only — but nothing in this class enforces that gating, so the disclosure would go live the
+/// moment a mutation was reached from an anonymous surface. Every <c>catch</c> now logs the
+/// exception through <see cref="ILogger{TCategoryName}"/> with the statistic or user id and returns
+/// one of the curated constants below; the detail is recoverable from the log, where the host's
+/// <c>CorrelationIdMiddleware</c> has already attached the request's correlation id to every event
+/// (REQ-NFR-015). This is the pattern REQ-NFR-031 established in <c>BlogSvc</c>, <c>TagSvc</c>,
+/// <c>CategorySvc</c> and <c>SeriesSvc</c>, extended here to the rest of <c>source/</c>.</para>
 ///
 /// <para><b>Usage:</b> Registered transiently alongside the other engine services. Every mutation
 /// returns <c>Result</c>, so pages surface failures without exception handling. Call the
@@ -58,6 +67,29 @@ public class UserStatsSvc
 {
     private const int MaxLabelLength = 100;
     private const int MaxValueLength = 50;
+
+    /// <summary>
+    /// Message returned when a persistence failure has been logged but must not be described to the
+    /// caller (REQ-NFR-033).
+    /// </summary>
+    /// <remarks>
+    /// The same curated-constant convention REQ-NFR-031 established in <c>BlogSvc</c>,
+    /// <c>TagSvc</c>, <c>CategorySvc</c> and <c>SeriesSvc</c>: the exception stays in the log, where
+    /// the host's <c>CorrelationIdMiddleware</c> has already stamped the request's correlation id
+    /// onto every event (REQ-NFR-015), and the caller sees only this sentence. Do not reintroduce
+    /// <c>ex.Message</c> here — nothing in this class enforces the admin gating that was previously
+    /// offered as the justification for the disclosure.
+    /// </remarks>
+    private const string CreateFailureMessage = "Failed to create statistic. Please try again later.";
+
+    /// <summary>Curated message for an update that could not be persisted. See <see cref="CreateFailureMessage"/>.</summary>
+    private const string UpdateFailureMessage = "Failed to update statistic. Please try again later.";
+
+    /// <summary>Curated message for a delete that could not be persisted. See <see cref="CreateFailureMessage"/>.</summary>
+    private const string DeleteFailureMessage = "Failed to delete statistic. Please try again later.";
+
+    /// <summary>Curated message for a reorder that could not be persisted. See <see cref="CreateFailureMessage"/>.</summary>
+    private const string ReorderFailureMessage = "Failed to reorder statistics. Please try again later.";
 
     private readonly IUserStatsRepo userStatsRepo;
     private readonly ILogger<UserStatsSvc> logger;
@@ -289,7 +321,7 @@ public class UserStatsSvc
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to create statistic for user {UserId}", stat.UserId);
-            return Result<UserStat>.Failure($"Failed to create statistic: {ex.Message}");
+            return Result<UserStat>.Failure(CreateFailureMessage);
         }
     }
 
@@ -329,7 +361,7 @@ public class UserStatsSvc
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to create statistic for user {UserId}", stat.UserId);
-            return Result<UserStat>.Failure($"Failed to create statistic: {ex.Message}");
+            return Result<UserStat>.Failure(CreateFailureMessage);
         }
     }
 
@@ -364,7 +396,7 @@ public class UserStatsSvc
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to update statistic {StatId}", stat.StatId);
-            return Result<UserStat>.Failure($"Failed to update statistic: {ex.Message}");
+            return Result<UserStat>.Failure(UpdateFailureMessage);
         }
     }
 
@@ -407,7 +439,7 @@ public class UserStatsSvc
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to update statistic {StatId}", stat.StatId);
-            return Result<UserStat>.Failure($"Failed to update statistic: {ex.Message}");
+            return Result<UserStat>.Failure(UpdateFailureMessage);
         }
     }
 
@@ -490,7 +522,7 @@ public class UserStatsSvc
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to delete statistic {StatId}", statId);
-            return Result.Failure($"Failed to delete statistic: {ex.Message}");
+            return Result.Failure(DeleteFailureMessage);
         }
     }
 
@@ -534,7 +566,7 @@ public class UserStatsSvc
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to delete statistic {StatId}", statId);
-            return Result.Failure($"Failed to delete statistic: {ex.Message}");
+            return Result.Failure(DeleteFailureMessage);
         }
     }
 
@@ -566,7 +598,7 @@ public class UserStatsSvc
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to reorder statistics for user {UserId}", userId);
-            return Result.Failure($"Failed to reorder statistics: {ex.Message}");
+            return Result.Failure(ReorderFailureMessage);
         }
     }
 
@@ -611,7 +643,7 @@ public class UserStatsSvc
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to reorder statistics for user {UserId}", userId);
-            return Result.Failure($"Failed to reorder statistics: {ex.Message}");
+            return Result.Failure(ReorderFailureMessage);
         }
     }
 

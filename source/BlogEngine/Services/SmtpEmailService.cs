@@ -103,6 +103,31 @@ public class SmtpEmailService : IEmailService
     private const int DefaultSmtpPort = 587;
     private const int DefaultTimeoutSeconds = 30;
 
+    /// <summary>
+    /// Message returned when the mail server refused the message (REQ-NFR-033).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>This is the highest-value disclosure in the codebase, which is why it is curated
+    /// first.</b> An <c>SmtpException</c>'s text routinely carries the mail host's name, the port,
+    /// the server's greeting banner and — on an authentication failure — a "5.7.8 Username and
+    /// Password not accepted" style response that tells an attacker the send account exists and
+    /// which credential was rejected. <see cref="SendAsync"/> is reached from the <b>anonymous</b>
+    /// newsletter-subscribe path, so that text used to be one failed send away from being rendered
+    /// to a visitor who never authenticated.</para>
+    /// <para>The exception — including its SMTP status code, which is logged as a structured field
+    /// — stays in the log, where the host's <c>CorrelationIdMiddleware</c> has already stamped the
+    /// request's correlation id onto every event (REQ-NFR-015). Callers see only this sentence. Do
+    /// not reintroduce <c>ex.Message</c>.</para>
+    /// </remarks>
+    private const string DeliveryRejectedMessage =
+        "The message could not be delivered. Please try again later.";
+
+    /// <summary>
+    /// Curated message for an unexpected send failure. See <see cref="DeliveryRejectedMessage"/>.
+    /// </summary>
+    private const string DeliveryFailedMessage =
+        "Email delivery failed. Please try again later.";
+
     private readonly ILogger<SmtpEmailService> logger;
     private readonly string smtpHost;
     private readonly int smtpPort;
@@ -211,12 +236,12 @@ public class SmtpEmailService : IEmailService
         {
             logger.LogError(ex, "SMTP rejected the message to {ToAddress} (status {StatusCode})",
                 message.ToAddress, ex.StatusCode);
-            return Result.Failure($"SMTP delivery failed: {ex.Message}");
+            return Result.Failure(DeliveryRejectedMessage);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Unexpected failure sending email to {ToAddress}", message.ToAddress);
-            return Result.Failure($"Email delivery failed: {ex.Message}");
+            return Result.Failure(DeliveryFailedMessage);
         }
     }
 

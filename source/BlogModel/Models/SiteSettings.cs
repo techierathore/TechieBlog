@@ -106,7 +106,15 @@ public class SiteSettings
     /// <summary>
     /// Whether the site defaults to dark mode for visitors with no stored preference.
     /// </summary>
-    public bool IsDarkModeDefault { get; set; }
+    /// <remarks>
+    /// Ships as <c>true</c> (owner decision, 2026-08-10): the site opens dark. This value is the
+    /// fallback used whenever the setting row is missing or unreadable, and it must agree with the
+    /// seeded row (<c>025-DefaultToDarkMode.sql</c>) and with
+    /// <c>ThemeService.GetSiteDefaultDarkModeAsync</c>'s failure path — a fresh database and an
+    /// established one otherwise open in different modes. An administrator can still switch the
+    /// site default back to light on /settings, and a visitor's own toggle still wins over both.
+    /// </remarks>
+    public bool IsDarkModeDefault { get; set; } = true;
 
     /// <summary>
     /// Default meta description emitted for pages that do not supply their own.

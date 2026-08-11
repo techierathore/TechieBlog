@@ -67,8 +67,15 @@ public class ThemeService
     /// </summary>
     private const string LegacyDefaultTheme = "fluent-modern";
 
+    /// <summary>
+    /// The shipped light/dark default — dark (owner decision, 2026-08-10). Must stay in step with
+    /// <see cref="BlogModels.Models.SiteSettings.IsDarkModeDefault"/>'s property initialiser and
+    /// with the seeded row written by <c>025-DefaultToDarkMode.sql</c>.
+    /// </summary>
+    private const bool ShippedDarkMode = true;
+
     private string currentTheme = DefaultTheme;
-    private bool isDarkMode = false;
+    private bool isDarkMode = ShippedDarkMode;
 
     /// <summary>
     /// Event raised when the theme or dark mode setting changes.
@@ -126,7 +133,10 @@ public class ThemeService
     /// <para><b>Business Logic:</b> The administrator sets the starting point; a visitor's own
     /// toggle still overrides it (BRD-66), so this value only decides what an untouched browser
     /// gets.</para>
-    /// <para><b>Side Effects:</b> None. A read failure falls back to light mode.</para>
+    /// <para><b>Side Effects:</b> None. A read failure falls back to <see cref="ShippedDarkMode"/>,
+    /// which is dark — the shipped site default (owner decision, 2026-08-10). Falling back to light
+    /// here would make a settings outage change the site's appearance rather than leave it
+    /// unchanged.</para>
     /// </remarks>
     /// <returns>True when new visitors should start in dark mode.</returns>
     public async Task<bool> GetSiteDefaultDarkModeAsync()
@@ -138,7 +148,7 @@ public class ThemeService
         }
         catch
         {
-            return false;
+            return ShippedDarkMode;
         }
     }
 

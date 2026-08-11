@@ -1,0 +1,365 @@
+# =============================================================================
+# TechieBlog — production deploy pipeline
+# =============================================================================
+# Implements docs/claude-code-deployment-brief.md §4 item 5 for:
+#
+#   APP_NAME=techieblog · DOMAIN=techierathore.com (apex) · DB_NAME=techieblog
+#   NEEDS_PGVECTOR=no · HAS_UPLOADS=yes · DOTNET_VERSION=10 · MEM_LIMIT=512m
+#   PROJECT_PATH=source/TechieBlog/TechieBlog.csproj · INTERNAL_APIS=none
+#
+#   push to main
+#    ├─ build:   image -> GHCR as :latest and :<short-sha>
+#    ├─ deploy:  render compose with envsubst -> scp -> ensure-db -> compose up
+#    └─ verify:  curl the public health endpoint, 3 retries, fail loudly
+#
+# The one thing this pipeline deliberately does NOT do is touch DNS. The single
+# manual step per app is the A record — see deploy/SERVER-SETUP.md.
+#
+# Owner-facing setup (every secret, the NuGet PAT, uploads, rollback):
+#   docs/Prod-Deploy-Checklist.md
+#
+# -----------------------------------------------------------------------------
+# NOTES ON THE TWO PLACES THIS PIPELINE DIFFERS FROM THE GENERIC BRIEF
+# -----------------------------------------------------------------------------
+# 1. HEALTH ENDPOINT IS /healthz — matching the brief, as of 2026-08-10.
+#    This file previously used /health because the app did not expose /healthz.
+#    It does now: source/TechieBlog/Program.cs maps DeploymentHealthProbe.Path
+#    ("/healthz") with the READINESS predicate, AllowAnonymous and
+#    DisableRateLimiting, so it answers 200 only when PostgreSQL answered too and
+#    503 when it did not. That is deliberate — a probe that goes green while the
+#    database is unreachable would report a broken deploy as a good one.
+#    `/health` (liveness) and `/health/ready` remain mapped and still work; they
+#    are simply not what the pipeline or the uptime monitor watch.
+#    HEALTH_PATH below and the UptimeRobot monitor must always change together.
+#
+# 2. CADDY SNIPPET IS STAGED THROUGH /tmp.
+#    The brief says "if the file exists, do NOT copy". The pipeline copies the
+#    snippet to /tmp/techieblog.caddy (a scratch path that is authoritative to
+#    nobody) and a single SSH step installs it into /srv/caddy/sites/ ONLY when
+#    absent. The guarantee the brief is protecting — an existing
+#    /srv/caddy/sites/techieblog.caddy is never overwritten, and Caddy is never
+#    reloaded when the file was already there — is preserved exactly. The staging
+#    hop exists because branching a later `scp` step on the result of an earlier
+#    `ssh` step depends on an action output that is not part of the action's
+#    documented contract; a single idempotent shell step cannot drift.
+# =============================================================================
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-techieblog
+  cancel-in-progress: false
+
+env:
+  APP_NAME: techieblog
+  DOMAIN: techierathore.com
+  IMAGE_NAME: ghcr.io/techierathore/techieblog
+  HEALTH_PATH: /healthz
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # BUILD — image to GHCR
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      sha_short: ${{ steps.vars.outputs.sha_short }}
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      # The Dockerfile's `dotnet restore` needs the PRIVATE TrBlazeUI GitHub
+      # Packages feed. Without a usable token restore dies with ~60 lines of
+      # NuGet retry noise ending in NU1301 / 403 that never names the cause, and
+      # here it dies INSIDE a docker build layer where the noise is even harder
+      # to read. Probe the feed first so the failure is one actionable line.
+      # (Same preflight as .github/workflows/ci.yml — REQ-NFR-017 / REQ-NFR-025.)
+      - name: Preflight — TrBlazeUI feed authentication
+        env:
+          PatToken: ${{ secrets.TrBlazeUiPackagesToken }}
+          FallbackToken: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          PackagesToken="${PatToken:-$FallbackToken}"
+          probe="https://nuget.pkg.github.com/techierathore/download/trblazeui.components/index.json"
+          code=$(curl -s -o /dev/null -w '%{http_code}' -u "techierathore:$PackagesToken" "$probe")
+
+          if [ "$code" = "200" ]; then
+            echo "TrBlazeUI feed reachable and authenticated (HTTP 200)."
+            exit 0
+          fi
+
+          cat >&2 <<MSG
+          ============================================================================
+          Cannot read the private TrBlazeUI GitHub Packages feed (HTTP $code).
+
+          The image build needs TrBlazeUI.Components and TrBlazeUI.Icons.Lucide,
+          which live on a private user-scoped feed. Without a token carrying the
+          read:packages scope, the Dockerfile's restore fails with NU1301 / 403.
+
+          To fix, do ONE of:
+
+            1. Create a classic PAT with the read:packages scope, then add it at
+               Settings -> Secrets and variables -> Actions -> New repository secret
+               named exactly:  TrBlazeUiPackagesToken
+
+            2. Or, on each TrBlazeUI package page under
+               github.com/users/techierathore/packages , open Package settings ->
+               Manage Actions access and grant this repository Read access. The
+               built-in GITHUB_TOKEN then suffices and no secret is needed.
+
+          Note: the token previously committed in NuGet.Config was invalidated by
+          GitHub secret scanning and cannot be reused. (REQ-NFR-025)
+
+          Full walkthrough: docs/Prod-Deploy-Checklist.md
+          ============================================================================
+          MSG
+          exit 1
+
+      - name: Compute short SHA
+        id: vars
+        run: echo "sha_short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The feed token is passed as a BUILDKIT SECRET, never a build ARG: an ARG
+      # is baked into the image metadata and readable by anyone who can run
+      # `docker history`. The Dockerfile consumes it with
+      # `RUN --mount=type=secret,id=nuget_pat`.
+      # ---- CONTRACT: the secret id is exactly `nuget_pat`, and it is the
+      #      Dockerfile that owns that spelling. This workflow used to send
+      #      `trblazeui_token`, which BuildKit would have accepted silently while
+      #      /run/secrets/nuget_pat stayed empty — restore would then have failed
+      #      with an unauthenticated NU1301 that never mentions the secret. ----
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          provenance: false
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.sha_short }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          secrets: |
+            nuget_pat=${{ secrets.TrBlazeUiPackagesToken || secrets.GITHUB_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # DEPLOY — render compose, place files, ensure DB, bring the stack up
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: Deploy to VPS
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      # envsubst substitutes an UNSET variable with an empty string and exits 0,
+      # so "it rendered" proves nothing. Every required secret is therefore
+      # checked for presence AND for the minimum length the application's own
+      # startup validation enforces, before rendering. Values are never echoed —
+      # only names and lengths appear in the log.
+      - name: Render docker-compose.yml
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          SEQ_API_KEY: ${{ secrets.SEQ_API_KEY }}
+          JWT_SIGNING_KEY: ${{ secrets.JWT_SIGNING_KEY }}
+          APP_ENCRYPTION_KEY: ${{ secrets.APP_ENCRYPTION_KEY }}
+          ANALYTICS_VISITOR_SALT: ${{ secrets.ANALYTICS_VISITOR_SALT }}
+        run: |
+          set -euo pipefail
+
+          missing=""
+          for name in DB_PASSWORD SEQ_API_KEY JWT_SIGNING_KEY APP_ENCRYPTION_KEY ANALYTICS_VISITOR_SALT; do
+            if [ -z "${!name:-}" ]; then
+              missing="$missing $name"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing GitHub secret(s):$missing — see docs/Prod-Deploy-Checklist.md (GitHub secrets table)."
+            exit 1
+          fi
+
+          # Mirrors AppSecrets (REQ-NFR-027) and DeploymentConfiguration
+          # (REQ-NFR-030). Failing here beats a container that crash-loops on the
+          # server with the same message buried in `docker logs`.
+          if [ "${#JWT_SIGNING_KEY}" -lt 32 ]; then
+            echo "::error::JWT_SIGNING_KEY is ${#JWT_SIGNING_KEY} characters; AppSecrets requires at least 32."
+            exit 1
+          fi
+          if [ "${#APP_ENCRYPTION_KEY}" -lt 16 ]; then
+            echo "::error::APP_ENCRYPTION_KEY is ${#APP_ENCRYPTION_KEY} characters; AppSecrets requires at least 16."
+            exit 1
+          fi
+          if [ "${#ANALYTICS_VISITOR_SALT}" -lt 32 ]; then
+            echo "::error::ANALYTICS_VISITOR_SALT is ${#ANALYTICS_VISITOR_SALT} characters; DeploymentConfiguration requires at least 32."
+            exit 1
+          fi
+
+          mkdir -p rendered
+          envsubst '${DB_PASSWORD} ${SEQ_API_KEY} ${JWT_SIGNING_KEY} ${APP_ENCRYPTION_KEY} ${ANALYTICS_VISITOR_SALT}' \
+            < deploy/docker-compose.template.yml \
+            > rendered/docker-compose.yml
+
+          # Any surviving dollar-brace token means the template gained a
+          # placeholder that the substitution list above does not know about.
+          # Report the LINE NUMBERS ONLY — printing the line could print a secret.
+          if grep -n '\${' rendered/docker-compose.yml > /dev/null 2>&1; then
+            echo "::error::Unsubstituted placeholder(s) left in the rendered compose file at line(s): $(grep -n '\${' rendered/docker-compose.yml | cut -d: -f1 | paste -sd, -). Add the variable to the envsubst list in this workflow."
+            exit 1
+          fi
+
+          echo "Rendered $(wc -l < rendered/docker-compose.yml) lines; no placeholders remain."
+
+      - name: Create server directories
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            mkdir -p /srv/apps/techieblog
+            mkdir -p /srv/data/techieblog/uploads
+            # The DataProtection key ring, bind-mounted to
+            # /home/app/.aspnet/DataProtection-Keys. Without it the runtime
+            # writes the ring inside the container and every redeploy mints a
+            # new key, which breaks the Blazor circuit descriptors and the
+            # antiforgery token carried by any page rendered by the outgoing
+            # container. Like uploads, `mkdir -p` creates it ROOT-owned and the
+            # container runs as UID 1654 — see docs/Prod-Deploy-Checklist.md §5.
+            mkdir -p /srv/data/techieblog/dp-keys
+            # No logs directory: the container logs to STDOUT only
+            # (LogFileEnabled=false). `docker logs techieblog` and Seq are where
+            # logs live; a file sink inside a container writes to an ephemeral
+            # layer the next redeploy discards.
+
+      - name: Copy rendered compose file
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: rendered/docker-compose.yml
+          target: /srv/apps/techieblog
+          strip_components: 1
+          overwrite: true
+
+      # Staged to /tmp; the next step installs it ONLY if the real snippet is
+      # absent. See "DELIBERATE DEVIATIONS" at the top of this file.
+      - name: Stage Caddy snippet
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: deploy/techieblog.caddy
+          target: /tmp
+          strip_components: 1
+          overwrite: true
+
+      - name: Install Caddy snippet (create-only) and reload
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            if [ -f /srv/caddy/sites/techieblog.caddy ]; then
+              echo "caddy entry already present — skipped"
+              rm -f /tmp/techieblog.caddy
+              exit 0
+            fi
+            install -D -m 0644 /tmp/techieblog.caddy /srv/caddy/sites/techieblog.caddy
+            rm -f /tmp/techieblog.caddy
+            docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+            echo "caddy entry created and Caddy reloaded"
+
+      # ensure-db is idempotent and passwordless for the deploy user. No `vector`
+      # argument: NEEDS_PGVECTOR=no. This is the ONLY SQL-adjacent thing the
+      # pipeline runs — schema itself is applied by DbUp inside the app at
+      # startup (source/BlogDb/PostgresScripts).
+      - name: Ensure database
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            sudo /usr/local/bin/ensure-db techieblog
+
+      - name: Pull and restart the stack
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd /srv/apps/techieblog
+            docker compose pull
+            docker compose up -d
+            docker image prune -f
+
+  # ---------------------------------------------------------------------------
+  # VERIFY — through the real public URL: DNS -> Caddy -> TLS -> app -> DB
+  # ---------------------------------------------------------------------------
+  verify:
+    name: Verify public health endpoint
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Wait for the container to come up
+        run: sleep 20
+
+      # DbUp runs its migrations before the host starts serving, so the first
+      # boot after a schema change legitimately takes longer than a restart —
+      # hence the retries rather than a single probe.
+      - name: Probe health endpoint
+        run: |
+          set -uo pipefail
+          url="https://${DOMAIN}${HEALTH_PATH}"
+          for attempt in 1 2 3; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$url" || echo "000")
+            if [ "$code" = "200" ]; then
+              echo "$url responded 200 on attempt $attempt."
+              exit 0
+            fi
+            echo "Attempt $attempt: $url responded $code."
+            if [ "$attempt" -lt 3 ]; then
+              sleep 10
+            fi
+          done
+
+          echo "::error::$url did not return 200 after 3 attempts. Check: docker logs techieblog (the two startup gates, REQ-NFR-027 and REQ-NFR-030, abort the host with a named message), then the DNS A record and the Caddy snippet. Troubleshooting: docs/Prod-Deploy-Checklist.md"
+          exit 1

@@ -251,9 +251,10 @@ public class RssFeedSvc
     /// <para><b>Business Logic:</b> The link and the <c>guid</c> are the same permalink, with
     /// <c>isPermaLink="true"</c>, so a reader that has seen the post recognises it after an edit
     /// instead of showing it twice. <c>pubDate</c> prefers the publication date and falls back to
-    /// the creation date, matching <see cref="SitemapSvc"/> — note that the published-post
-    /// projection does not select <c>PublishedOn</c>, so in practice the creation date is what is
-    /// emitted; widening that projection belongs to the repository, not here.</para>
+    /// the creation date, matching <see cref="SitemapSvc"/>. REQ-FN-057 widened
+    /// <c>BlogPostRepo.SelectPublishedSql</c> to select <c>PublishedOn</c>, so that preference now
+    /// actually takes effect; before it did, the column arrived null on every row and the fallback
+    /// fired always, dating the whole feed by when posts were drafted.</para>
     /// <para><b>Author is emitted as <c>dc:creator</c>, not <c>author</c>.</b> RSS 2.0 defines
     /// <c>&lt;author&gt;</c> as an <i>email address</i>. The only author identity this projection
     /// carries is a display name, and publishing staff email addresses on an anonymous feed would

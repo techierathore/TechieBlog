@@ -83,11 +83,12 @@
     /// <summary>
     /// Loads the awards for the current user whenever the UserId parameter changes.
     /// </summary>
-    protected override void OnParametersSet()
+    /// <returns>A task that completes when the awards have been read.</returns>
+    protected override async Task OnParametersSetAsync()
     {
         if (UserId > 0)
         {
-            awards = AwardsRepo.GetByUserId(UserId);
+            awards = await AwardsRepo.GetByUserIdAsync(UserId);
         }
     }
 }

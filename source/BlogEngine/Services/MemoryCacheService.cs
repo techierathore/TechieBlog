@@ -62,13 +62,16 @@ namespace BlogEngine.Services;
 /// entries other components store in the same <see cref="IMemoryCache"/> —
 /// <see cref="Clear"/> only clears what this service tagged.</para>
 ///
-/// <para><b>Current consumers.</b> The tag vocabulary (<c>settings</c>, <c>taxonomy</c>,
-/// <c>content</c>) is deliberately shared with the host's output-cache tags so one eviction can
-/// clear both layers, but at present the only in-tree caller is the readiness health check, which
-/// round-trips a sentinel. The invalidation contract is therefore defined <i>ahead</i> of its
-/// callers: when a service starts caching through this class, the matching
-/// <see cref="EvictTag"/> call must be added to its write path in the same change — a cache with
-/// no invalidation is worse than no cache.</para>
+/// <para><b>Current consumers (REQ-NFR-018).</b> The tag vocabulary (<c>settings</c>,
+/// <c>taxonomy</c>, <c>content</c>) is deliberately shared with the host's output-cache tags so one
+/// eviction can clear both layers. Six services now cache through this class, all of them via
+/// <see cref="ServiceCache"/>, which owns the key vocabulary and the invalidation rules:
+/// <c>SiteSettingsService</c> (settings), <c>CategorySvc</c>, <c>TagSvc</c> and <c>SeriesSvc</c>
+/// (taxonomy), and <c>BlogSvc</c> and <c>RatingSvc</c> (listings and the per-post rating
+/// aggregates). The readiness health check still round-trips a sentinel through the settings tag.
+/// The rule that governs all of them is unchanged and non-negotiable: when a service starts caching
+/// through this class, the matching <see cref="EvictTag"/> call must be added to its write path
+/// <i>in the same change</i> — a cache with no invalidation is worse than no cache.</para>
 ///
 /// <para><b>Thread safety and the factory.</b> Safe for concurrent use.
 /// <see cref="GetOrCreate{T}"/> is <b>not</b> atomic, however: concurrent misses on the same key

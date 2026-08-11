@@ -104,7 +104,10 @@
                         <a href="/post/@post.Slug"
                            class="text-primary no-underline hover:underline"
                            data-testid="rss-recent-post-title">@post.Title</a>
-                        <span class="text-sm text-muted-foreground">@post.CreatedOn.ToString("MMM dd, yyyy")</span>
+                        @* [REQ-FN-057] Must match the pubDate the feed itself emits for this post,
+                           which is PublishedOn ?? CreatedOn — this page is the human preview of that
+                           feed, so a different date here reads as a bug in the feed. *@
+                        <span class="text-sm text-muted-foreground">@((post.PublishedOn ?? post.CreatedOn).ToString("MMM dd, yyyy"))</span>
                     </li>
                 }
             </ul>
@@ -137,17 +140,17 @@
         ("The Old Reader", "Web-based")
     };
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         rssUrl = $"{Navigation.BaseUri}feed.xml";
-        LoadRecentPosts();
+        await LoadRecentPostsAsync();
     }
 
-    private void LoadRecentPosts()
+    private async Task LoadRecentPostsAsync()
     {
         try
         {
-            recentPosts = BlogService.GetPublishedPosts(5, 0).ToList();
+            recentPosts = (await BlogService.GetPublishedPostsAsync(5, 0)).ToList();
         }
         catch
         {

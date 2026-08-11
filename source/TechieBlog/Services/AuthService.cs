@@ -84,15 +84,15 @@ public class AuthService : IAuthService
     /// or refused (REQ-FN-051). On success it also records a login row and may upgrade the stored
     /// password hash.</para>
     /// </remarks>
-    /// <param name="aLoginUser">Envelope carrying the plaintext email and password.</param>
+    /// <param name="user">Envelope carrying the plaintext email and password.</param>
     /// <returns>The signed-in user, or <c>null</c> when authentication is refused.</returns>
-    public async Task<AppUser?> LoginAsync(SvcData aLoginUser)
+    public async Task<AppUser?> LoginAsync(SvcData user)
     {
-        aLoginUser.LoginEmail = AppEncrypt.EncryptText(aLoginUser.LoginEmail);
-        aLoginUser.LoginPass = AppEncrypt.EncryptText(aLoginUser.LoginPass);
-        StampClientMetadata(aLoginUser);
+        user.LoginEmail = AppEncrypt.EncryptText(user.LoginEmail);
+        user.LoginPass = AppEncrypt.EncryptText(user.LoginPass);
+        StampClientMetadata(user);
 
-        var svcResponse = await authSvc.AppLoginAsync(aLoginUser);
+        var svcResponse = await authSvc.AppLoginAsync(user);
         if (svcResponse == null)
             return null;
 
@@ -165,9 +165,9 @@ public class AuthService : IAuthService
     /// <summary>
     /// Resends verification email to user.
     /// </summary>
-    /// <param name="aVerifiEmailData">User email data.</param>
+    /// <param name="resendEmailData">User email data.</param>
     /// <returns>True if email sent successfully.</returns>
-    public Task<bool> ResendVerifiEmailAsync(SvcData aVerifiEmailData)
+    public Task<bool> ResendVerifiEmailAsync(SvcData resendEmailData)
     {
         // Email verification not fully implemented in backend yet
         // Return true to indicate request was received
@@ -214,9 +214,9 @@ public class AuthService : IAuthService
     /// <summary>
     /// Updates email and sends verification.
     /// </summary>
-    /// <param name="aVerifiEmailData">Updated email data.</param>
+    /// <param name="correctedEmailData">Updated email data.</param>
     /// <returns>True if processed successfully.</returns>
-    public Task<bool> UpdateNSendVerifiEmailAsync(SvcData aVerifiEmailData)
+    public Task<bool> UpdateNSendVerifiEmailAsync(SvcData correctedEmailData)
     {
         // Email verification not fully implemented in backend yet
         return Task.FromResult(true);
@@ -225,9 +225,9 @@ public class AuthService : IAuthService
     /// <summary>
     /// Verifies user's email address with token.
     /// </summary>
-    /// <param name="aVerifyEmailData">Contains verification token.</param>
+    /// <param name="verifyEmailData">Contains verification token.</param>
     /// <returns>AppUser if verified, null otherwise.</returns>
-    public Task<AppUser?> VerifyEmailAsync(SvcData aVerifyEmailData)
+    public Task<AppUser?> VerifyEmailAsync(SvcData verifyEmailData)
     {
         // Email verification not fully implemented in backend yet
         // Return null to indicate not verified

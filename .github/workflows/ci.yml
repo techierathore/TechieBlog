@@ -166,8 +166,16 @@ jobs:
             --collect:"XPlat Code Coverage" \
             --settings tests/TechieBlog.Tests/coverlet.runsettings
 
-      # BlogEngine line-coverage target is 80% (BRD-76). The gate is reported,
-      # not enforced, until the sibling suites land; flip `exit 1` on to enforce.
+      # BlogEngine line-coverage target is 80% (BRD-76), measured against the DELIBERATELY
+      # NARROWED scope declared in tests/TechieBlog.Tests/coverlet.runsettings — read that
+      # file's comment block before quoting this number anywhere. It is NOT whole-assembly
+      # coverage (that figure is 51.6%).
+      #
+      # ENFORCING since 2026-08-10 (REQ-NFR-016, cluster F). It was report-only while the
+      # sibling suites were landing and the measured figure sat under target. It now measures
+      # 82.5% (5,002/6,065 lines, 1,291 tests), which is clear enough of 80% that the gate
+      # trips on a real regression rather than on a one-line change — the knife-edge case that
+      # gets a gate switched off again.
       - name: Report BlogEngine coverage
         if: always()
         run: |
@@ -179,7 +187,10 @@ jobs:
           rate=$(sed -n 's/.*line-rate="\([0-9.]*\)".*/\1/p' "$report" | head -n 1)
           pct=$(awk -v r="$rate" 'BEGIN { printf "%.1f", r * 100 }')
           echo "BlogEngine line coverage: ${pct}% (target 80%)" >> "$GITHUB_STEP_SUMMARY"
-          awk -v r="$rate" 'BEGIN { if (r < 0.80) print "::warning::BlogEngine coverage below the 80% REQ-NFR-016 target" }'
+          if awk -v r="$rate" 'BEGIN { exit (r < 0.80) ? 0 : 1 }'; then
+            echo "::error::BlogEngine coverage ${pct}% is below the 80% REQ-NFR-016 target"
+            exit 1
+          fi
 
       - name: Publish web host
         run: |

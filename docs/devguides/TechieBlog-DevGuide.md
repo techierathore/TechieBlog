@@ -149,5 +149,51 @@ All of these were confirmed by reading the code and are recorded in
 | 7 | Duplicate `AccessDenied` exists as both a page and a component | `Pages/AccessDenied.razor`, `Components/AccessDenied.razor` | REQ-NFR-020 |
 | 8 | Solution does not build (`NU1605`) — blocks every runtime verification | `source/BlogUI/BlogUI.csproj` | REQ-FN-043 |
 
+## 7. CI and package-feed authentication
+
+**If a build fails with `NU1301` / `403 Forbidden` on restore, this section is the whole answer.**
+
+The solution depends on `TrBlazeUI.Components` and `TrBlazeUI.Icons.Lucide`, published to a **private,
+user-scoped GitHub Packages feed** (`https://nuget.pkg.github.com/techierathore/index.json`). Restore
+cannot reach it anonymously — locally, in CI, or inside the deploy image build.
+
+`NuGet.Config` at the repository root deliberately carries **no credentials** (REQ-NFR-025): a PAT was
+committed there until 2026-08-09, was invalidated by GitHub secret scanning, and **cannot be reused**.
+Never put a token back into that file — it is published to every clone and fork.
+
+**Local machine.** Store your own token in your *user-level* NuGet config, which lives outside the
+repository and merges with the committed one:
+
+```bash
+dotnet nuget add source https://nuget.pkg.github.com/techierathore/index.json \
+  --name TrBlazeUI \
+  --username techierathore \
+  --password <your PAT with read:packages> \
+  --store-password-in-clear-text
+```
+
+That writes to `~/.nuget/NuGet/NuGet.Config` (Linux/macOS) or `%APPDATA%\NuGet\NuGet.Config` (Windows).
+
+**GitHub Actions.** Do **one** of:
+
+1. Create a **classic** PAT (fine-grained tokens do not work with GitHub Packages for NuGet) with the
+   **`read:packages`** scope only, then add it under *Settings → Secrets and variables → Actions → New
+   repository secret* named exactly **`TrBlazeUiPackagesToken`** (case-sensitive).
+2. Or, on each TrBlazeUI package page under `github.com/users/techierathore/packages`, open
+   *Package settings → Manage Actions access* and grant this repository **Read** access. The built-in
+   `GITHUB_TOKEN` then suffices and no secret is needed.
+
+`.github/workflows/ci.yml` writes a throwaway `nuget.ci.config` at run time from that secret (falling
+back to `GITHUB_TOKEN` with a warning) and runs a **preflight probe** before restore, so a credential
+problem fails in one actionable line instead of ~60 lines of NuGet retry noise. The deploy workflow
+passes the same token to `docker build` as a **BuildKit secret** with id `nuget_pat` — never as a
+build `ARG`, because `docker history` would expose it. That id must match the `Dockerfile`'s
+`RUN --mount=type=secret,id=nuget_pat` **exactly**: BuildKit does not error on a mismatch, it just
+mounts an empty file, and the build then dies with an `NU1301` that never mentions a secret.
+
+> **Fuller reference:** [`docs/Prod-Deploy-Checklist.md`](../Prod-Deploy-Checklist.md) §"NuGet /
+> TrBlazeUI package feed authentication" carries the click-by-click steps, plus every other GitHub
+> secret the production pipeline needs and what breaks without each one.
+
 ---
 Generated 2026-08-02 · reflects code as built · ⚠ STATIC-ONLY

@@ -106,13 +106,18 @@ else
             {
                 @* [REQ-UI-045] 2026-08-09 — see the matching note in CategoryArchive.razor: the
                    featured image was never passed, so this listing showed placeholders while the
-                   home page showed real covers for the same posts. *@
+                   home page showed real covers for the same posts.
+                   [REQ-FN-057] 2026-08-10 — Date is the PUBLICATION date, matching every other
+                   PostCard caller. Fixing this line alone would have changed nothing: the tag
+                   archive reads through BlogTagRepo.SelectPostsByTagSql, which did not project
+                   PublishedOn at all, so the ?? fallback fired on every row. The projection was
+                   widened first. *@
                 <PostCard Category="@GetCategoryName(post)"
                           Title="@post.Title"
                           Excerpt="@(string.IsNullOrEmpty(post.Abstract) ? GetExcerpt(post.PostContent) : post.Abstract)"
                           PostUrl="@($"/post/{post.Slug}")"
                           AuthorName="@(string.IsNullOrEmpty(post.BlogWriter) ? "Unknown" : post.BlogWriter)"
-                          Date="@post.CreatedOn.ToString("MMM dd")"
+                          Date="@((post.PublishedOn ?? post.CreatedOn).ToString("MMM dd"))"
                           ReadTime="@GetReadingTime(post.PostContent)"
                           ImageUrl="@post.FeaturedImage"
                           ImagePlaceholder="@post.Title" />
@@ -164,7 +169,7 @@ else
             // Load categories into cache for name lookup
             if (categoryCache.Count == 0)
             {
-                var allCategories = CategorySvc.GetAllCategories();
+                var allCategories = await CategorySvc.GetAllCategoriesAsync();
                 categoryCache = allCategories.ToDictionary(c => c.CategoryId, c => c);
             }
 
@@ -172,7 +177,7 @@ else
             {
                 // Show all tags
                 showTagList = true;
-                allTags = TagService.GetAllWithCounts().ToList();
+                allTags = (await TagService.GetAllWithCountsAsync()).ToList();
 
                 breadcrumbItems = new List<BlogBreadcrumbItem>
                 {
@@ -183,7 +188,7 @@ else
             else
             {
                 // Show specific tag
-                tagInfo = TagService.GetTagBySlug(Slug);
+                tagInfo = await TagService.GetTagBySlugAsync(Slug);
 
                 if (tagInfo == null)
                 {
@@ -198,11 +203,11 @@ else
                         new BlogBreadcrumbItem { Label = tagInfo.TagName, Url = "" }
                     };
 
-                    totalPosts = TagService.GetPostCountByTag(tagInfo.TagId);
+                    totalPosts = await TagService.GetPostCountByTagAsync(tagInfo.TagId);
                     totalPages = Math.Max(1, (int)Math.Ceiling(totalPosts / (double)PageSize));
 
                     var offset = (currentPage - 1) * PageSize;
-                    posts = TagService.GetPostsByTag(tagInfo.TagId, PageSize, offset).ToList();
+                    posts = (await TagService.GetPostsByTagAsync(tagInfo.TagId, PageSize, offset)).ToList();
                 }
             }
         }

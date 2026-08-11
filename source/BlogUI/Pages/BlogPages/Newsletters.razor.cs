@@ -66,7 +66,7 @@ public partial class Newsletters : ComponentBase
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
-        LoadSubscriberCount();
+        await LoadSubscriberCountAsync().ConfigureAwait(true);
         await LoadPageAsync(1).ConfigureAwait(true);
     }
 
@@ -111,11 +111,13 @@ public partial class Newsletters : ComponentBase
     /// <para><b>Flow:</b> count active subscribers → fall back to zero, which hides the line.</para>
     /// <para><b>Side Effects:</b> None beyond a read.</para>
     /// </remarks>
-    private void LoadSubscriberCount()
+    /// <returns>A task that completes when the count has been read.</returns>
+    private async Task LoadSubscriberCountAsync()
     {
         try
         {
-            confirmedSubscriberCount = SubscriberRepo.GetActiveSubscribers().Count();
+            var activeSubscribers = await SubscriberRepo.GetActiveSubscribersAsync().ConfigureAwait(true);
+            confirmedSubscriberCount = activeSubscribers.Count();
         }
         catch (Exception)
         {

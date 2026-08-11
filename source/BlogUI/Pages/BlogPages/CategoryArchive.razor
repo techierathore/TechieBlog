@@ -119,12 +119,14 @@ else
                    category projection selects FeaturedImage and every published post has one.
                    The acceptance is that PostCard renders IDENTICALLY on home, archive and search;
                    this matches what HomeLatestArticles already passes. *@
+                @* [REQ-FN-057] Date is the PUBLICATION date, not the creation date —
+                   SelectByCategorySql selects PublishedOn for exactly this card. *@
                 <PostCard Category="@category.CategoryName"
                           Title="@post.Title"
                           Excerpt="@(string.IsNullOrEmpty(post.Abstract) ? GetExcerpt(post.PostContent) : post.Abstract)"
                           PostUrl="@($"/post/{post.Slug}")"
                           AuthorName="@(string.IsNullOrEmpty(post.BlogWriter) ? "Unknown" : post.BlogWriter)"
-                          Date="@post.CreatedOn.ToString("MMM dd")"
+                          Date="@((post.PublishedOn ?? post.CreatedOn).ToString("MMM dd"))"
                           ReadTime="@GetReadingTime(post.PostContent)"
                           ImageUrl="@post.FeaturedImage"
                           ImagePlaceholder="@post.Title" />
@@ -176,7 +178,7 @@ else
             {
                 // Show all categories
                 showCategoryList = true;
-                allCategories = CategoryService.GetAllWithCounts().ToList();
+                allCategories = (await CategoryService.GetAllWithCountsAsync()).ToList();
 
                 breadcrumbItems = new List<BlogBreadcrumbItem>
                 {
@@ -187,7 +189,7 @@ else
             else
             {
                 // Show specific category
-                category = CategoryService.GetCategoryBySlug(Slug);
+                category = await CategoryService.GetCategoryBySlugAsync(Slug);
 
                 if (category == null)
                 {
@@ -202,11 +204,11 @@ else
                         new BlogBreadcrumbItem { Label = category.CategoryName, Url = "" }
                     };
 
-                    totalPosts = BlogService.GetPostCountByCategory(category.CategoryId);
+                    totalPosts = await BlogService.GetPostCountByCategoryAsync(category.CategoryId);
                     totalPages = Math.Max(1, (int)Math.Ceiling(totalPosts / (double)PageSize));
 
                     var offset = (currentPage - 1) * PageSize;
-                    posts = BlogService.GetPostsByCategory(category.CategoryId, PageSize, offset).ToList();
+                    posts = (await BlogService.GetPostsByCategoryAsync(category.CategoryId, PageSize, offset)).ToList();
                 }
             }
         }

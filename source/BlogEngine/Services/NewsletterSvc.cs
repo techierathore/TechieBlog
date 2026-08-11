@@ -30,6 +30,16 @@ namespace BlogEngine.Services;
 ///         carried a URL that answered 404.</item>
 /// </list>
 ///
+/// <para><b>[REQ-FN-060] 2026-08-11 — the unsubscribe link is now scoped to one issue.</b>
+/// <c>DeliverAsync</c> used to read <c>subscriber.UnsubscribeToken</c> straight off the recipient
+/// row, so one credential shipped in every issue an address ever received; a single forwarded
+/// archive mail handed the recipient a link that worked against every past and future issue. Each
+/// message now carries a token issued for that (subscriber, issue) pair through
+/// <c>SubscriberSvc.IssueTokenForNewsletterAsync</c>. Older issues' links deliberately keep
+/// working — see the header of <c>027-PerIssueUnsubscribeToken.sql</c> for why refusing them would
+/// be the worse defect — and a send that cannot issue a per-issue token falls back to the row-level
+/// one rather than mailing a footer with no link.</para>
+///
 /// <para><b>The publish/archive contract — an unsent draft must never be publicly reachable.</b>
 /// An issue becomes public only when all three of these hold, and every archive query enforces all
 /// three in SQL rather than trusting the caller:</para>
@@ -111,6 +121,7 @@ public class NewsletterSvc : INewsletterService
     private readonly IEmailService emailService;
     private readonly MarkdownRenderer markdownRenderer;
     private readonly ILogger<NewsletterSvc> logger;
+    private readonly SubscriberSvc subscriberSvc;
     private readonly string baseUrl;
 
     /// <summary>
@@ -121,17 +132,28 @@ public class NewsletterSvc : INewsletterService
     /// <param name="markdownRenderer">Shared sanitising Markdown pipeline used to render the mail body.</param>
     /// <param name="configuration">Application configuration, read for <c>SiteSettings:BaseUrl</c>.</param>
     /// <param name="logger">Logger for send outcomes and failures.</param>
+    /// <param name="subscriberSvc">
+    /// [REQ-FN-060] Issues the per-issue unsubscribe token each message carries. Optional, and
+    /// optional for one specific reason: when it is absent the send falls back to the subscriber's
+    /// row-level token, which is a coarser credential but still a WORKING unsubscribe link. Failing
+    /// the send instead — or mailing a footer with no link — would be a strictly worse outcome than
+    /// the defect this parameter exists to fix. The container always supplies it;
+    /// <c>BlogSvcInitializer</c> registers <c>SubscriberSvc</c> transient, so no registration change
+    /// was needed for this parameter.
+    /// </param>
     public NewsletterSvc(
         INewsletterRepo newsletterRepo,
         IEmailService emailService,
         MarkdownRenderer markdownRenderer,
         IConfiguration configuration,
-        ILogger<NewsletterSvc> logger)
+        ILogger<NewsletterSvc> logger,
+        SubscriberSvc subscriberSvc = null)
     {
         this.newsletterRepo = newsletterRepo;
         this.emailService = emailService;
         this.markdownRenderer = markdownRenderer;
         this.logger = logger;
+        this.subscriberSvc = subscriberSvc;
         baseUrl = configuration?["SiteSettings:BaseUrl"]?.TrimEnd('/') ?? string.Empty;
     }
 
@@ -309,6 +331,12 @@ public class NewsletterSvc : INewsletterService
     /// returned as failures carrying the <i>same</i> wording, so the route cannot be used to test
     /// whether a guessed token belongs to a real subscriber. Unexpected failures are logged without
     /// the token.</para>
+    /// <para><b>SUPERSEDED — do not route new callers here.</b> This member resolves only the
+    /// row-level <c>Subscriber.UnsubscribeToken</c>, so it cannot honour the per-issue tokens
+    /// REQ-FN-060 mails, and its write erases the consent record REQ-FN-059 preserves. The
+    /// <c>/unsubscribe/{token}</c> page has used <c>SubscriberSvc.UnsubscribeByTokenAsync</c> since
+    /// 2026-08-10, which handles both token stores and records the withdrawal properly. This one
+    /// remains only because it is on the <c>INewsletterService</c> contract.</para>
     /// </remarks>
     public async Task<Result<UnsubscribeOutcome>> UnsubscribeAsync(string unsubscribeToken)
     {
@@ -548,8 +576,13 @@ public class NewsletterSvc : INewsletterService
     /// marking the issue sent. A per-address failure is recorded and logged but does not abort the
     /// run, so one bad address cannot cost the whole list. The issue is published only when at
     /// least one message was delivered.</para>
-    /// <para><b>Flow:</b> repair missing tokens → resolve audience → guard emptiness → mail each
-    /// recipient → stamp sent → log and return the report.</para>
+    /// <para><b>Flow:</b> repair missing row-level tokens → resolve audience → guard emptiness →
+    /// mail each recipient → stamp sent → log and return the report.</para>
+    /// <para><b>Why the token repair stays</b> now that REQ-FN-060 issues a per-issue token per
+    /// message: it is what makes <c>ResolveUnsubscribeTokenAsync</c>'s fallback safe. If per-issue
+    /// issuance fails for one recipient, the row-level token is used instead, and this call
+    /// guarantees that token is non-empty — otherwise that recipient would receive a footer whose
+    /// Unsubscribe anchor points at an empty URL.</para>
     /// <para><b>Side Effects:</b> Sends email, writes send-history rows and updates the issue.</para>
     /// </remarks>
     /// <param name="newsletter">The issue to send.</param>
@@ -589,17 +622,26 @@ public class NewsletterSvc : INewsletterService
     /// Sends one issue to one subscriber and records the outcome.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Every message carries the subscriber's personal unsubscribe
-    /// link, in the body and in the <c>List-Unsubscribe</c> header.</para>
-    /// <para><b>Flow:</b> build the message → send → write a history row with the outcome.</para>
-    /// <para><b>Side Effects:</b> Sends email; inserts a <c>SubscriberNewsletter</c> row.</para>
+    /// <para><b>Business Logic:</b> Every message carries an unsubscribe link that is personal to
+    /// the recipient AND scoped to this issue, in the body and in the <c>List-Unsubscribe</c>
+    /// header.</para>
+    /// <para><b>[REQ-FN-060] The token is issued here, not read off the recipient row.</b> Until
+    /// 2026-08-11 this method used <c>subscriber.UnsubscribeToken</c> — the single row-level token —
+    /// so the same credential shipped in every issue that address ever received and its blast radius
+    /// was "every mail we have ever sent you". A fresh token is now issued per (subscriber, issue)
+    /// immediately before the message is composed.</para>
+    /// <para><b>Flow:</b> issue the per-issue token → build the message → send → write a history row
+    /// with the outcome.</para>
+    /// <para><b>Side Effects:</b> Adds one <c>UnsubscribeToken</c> row, sends email, and inserts a
+    /// <c>SubscriberNewsletter</c> row.</para>
     /// </remarks>
     /// <param name="newsletter">The issue being sent.</param>
     /// <param name="subscriber">The recipient.</param>
     /// <returns>True when the transport accepted the message.</returns>
     private async Task<bool> DeliverAsync(Newsletter newsletter, Subscriber subscriber)
     {
-        var unsubscribeUrl = BuildUnsubscribeUrl(subscriber.UnsubscribeToken);
+        var unsubscribeToken = await ResolveUnsubscribeTokenAsync(newsletter, subscriber).ConfigureAwait(false);
+        var unsubscribeUrl = BuildUnsubscribeUrl(unsubscribeToken);
         var message = new EmailMessage
         {
             ToAddress = subscriber.Email,
@@ -617,6 +659,65 @@ public class NewsletterSvc : INewsletterService
 
         await RecordAttemptAsync(newsletter, subscriber, sendResult).ConfigureAwait(false);
         return sendResult.IsSuccess;
+    }
+
+    /// <summary>
+    /// Issues the unsubscribe token this one message will carry, falling back rather than failing.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> [REQ-FN-060] Asks <c>SubscriberSvc</c> for a token scoped to
+    /// this (subscriber, issue) pair, so the credential in this message authorises nothing beyond
+    /// this issue. It is an ADDITIONAL token, not a replacement: the links in issues already
+    /// delivered keep working, which is the deliberate design choice recorded in the header of
+    /// <c>027-PerIssueUnsubscribeToken.sql</c> — a reader who opens last week's mail and clicks
+    /// Unsubscribe must be unsubscribed, and refusing that click would be a compliance failure
+    /// rather than a tightened credential.</para>
+    /// <para><b>Flow:</b> issue a per-issue token → on any failure, log and fall back to the
+    /// subscriber's row-level token.</para>
+    /// <para><b>Side Effects:</b> Adds one <c>UnsubscribeToken</c> row on the normal path.</para>
+    /// <para><b>The fallback is the important part.</b> A subscriber with no per-issue token still
+    /// gets the row-level one, which is coarser but works; the one outcome never allowed here is an
+    /// empty token, because <see cref="BuildUnsubscribeUrl"/> turns that into an empty URL and mails
+    /// a footer whose Unsubscribe anchor goes nowhere. A mailing nobody can get off is a strictly
+    /// worse defect than a credential that is broader than it needs to be, so this method degrades
+    /// instead of throwing. <c>DispatchAsync</c> has already run
+    /// <c>EnsureUnsubscribeTokensAsync</c>, so the row-level token is guaranteed non-empty by the
+    /// time the fallback is reached.</para>
+    /// </remarks>
+    /// <param name="newsletter">The issue being sent; the scope of the token.</param>
+    /// <param name="subscriber">The recipient the token is issued to.</param>
+    /// <returns>The token to embed in this message's unsubscribe URL.</returns>
+    private async Task<string> ResolveUnsubscribeTokenAsync(Newsletter newsletter, Subscriber subscriber)
+    {
+        if (subscriberSvc == null)
+            return subscriber.UnsubscribeToken;
+
+        try
+        {
+            var issued = await subscriberSvc
+                .IssueTokenForNewsletterAsync(subscriber.SubscriberId, newsletter.NewsletterId)
+                .ConfigureAwait(false);
+
+            if (issued.IsSuccess && !string.IsNullOrWhiteSpace(issued.Data))
+                return issued.Data;
+
+            logger.LogWarning(
+                "No per-issue unsubscribe token could be issued for subscriber {SubscriberId} on newsletter "
+                + "{NewsletterId}; falling back to the subscriber's own token",
+                subscriber.SubscriberId,
+                newsletter.NewsletterId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Failed to issue a per-issue unsubscribe token for subscriber {SubscriberId} on newsletter "
+                + "{NewsletterId}; falling back to the subscriber's own token",
+                subscriber.SubscriberId,
+                newsletter.NewsletterId);
+        }
+
+        return subscriber.UnsubscribeToken;
     }
 
     /// <summary>

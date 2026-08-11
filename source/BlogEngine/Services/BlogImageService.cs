@@ -31,6 +31,26 @@ namespace BlogEngine.Services;
 /// <para><b>Usage:</b> Registered scoped. Callers should surface the validation message from
 /// <see cref="ValidateImageAsync"/> before attempting an upload rather than catching the
 /// exception thrown by <see cref="UploadImageAsync"/>.</para>
+///
+/// <para><b>A storage failure is now audible (REQ-NFR-040).</b> When the uploads directory was not
+/// writable by the container's user, <c>StoreAsync</c> let the <c>UnauthorizedAccessException</c>
+/// escape unlogged: the container stayed Up, <c>/healthz</c> stayed 200 Healthy, the startup line
+/// still announced "Uploaded media served from /app/uploads", and the container log carried zero
+/// <c>[ERR]</c>, <c>[WRN]</c> or <c>[FTL]</c> entries. The administrator saw only the caller's
+/// generic "An error occurred while uploading the file. Please try again." and an operator grepping
+/// the log found nothing at all. The failure was — and remains — transactionally clean: no partial
+/// file, no orphaned <c>blogimage</c> row. <b>Only the observability was broken.</b></para>
+///
+/// <para><b>The split this fixes is the REQ-NFR-033 split.</b> <see cref="StoreAsync"/> now catches
+/// every I/O failure, logs it at Error with the storage provider, the target relative path and the
+/// exception itself — whose own text carries the absolute server path — and rethrows a curated
+/// <see cref="InvalidOperationException"/>. The log gets the path and the exception; the
+/// administrator gets <see cref="StorageUnwritableMessage"/> or
+/// <see cref="StorageFailureMessage"/>, which name the <i>class</i> of problem without disclosing a
+/// server path or exception text. Both calling components (<c>ImagePicker</c> and
+/// <c>ManageImages</c>) already render the message of an <c>InvalidOperationException</c> and fall
+/// back to their generic sentence for anything else, so the distinction reaches the screen with no
+/// change on their side.</para>
 /// </remarks>
 public class BlogImageService : IBlogImageService
 {
@@ -55,6 +75,38 @@ public class BlogImageService : IBlogImageService
     /// Maximum length of <c>blogimage.alttext</c>, which is <c>VARCHAR(255)</c>.
     /// </summary>
     private const int MaxAltTextLength = 255;
+
+    /// <summary>
+    /// Message shown when the storage backend refused the write for a permissions reason
+    /// (REQ-NFR-040).
+    /// </summary>
+    /// <remarks>
+    /// <para>This is the message whose absence made the original defect invisible. It has to say
+    /// something an administrator can act on — "the server cannot write there", which is a hosting
+    /// problem, not something a retry will fix — while disclosing neither the absolute path nor the
+    /// exception text (REQ-NFR-033). The path and the exception are in the Error log line raised
+    /// immediately before this is thrown.</para>
+    /// <para>Deliberately distinct from <see cref="StorageFailureMessage"/>: an operator told
+    /// "please try again" will retry forever against a directory that will never become writable,
+    /// which is exactly what happened here.</para>
+    /// </remarks>
+    private const string StorageUnwritableMessage =
+        "The server cannot write to its upload location, so the file was not saved. " +
+        "Retrying will not help — the uploads directory needs to be made writable by the " +
+        "application. Ask an administrator to check the server log for the details.";
+
+    /// <summary>
+    /// Message shown when the storage backend failed for a non-permissions I/O reason
+    /// (REQ-NFR-040). See <see cref="StorageUnwritableMessage"/>.
+    /// </summary>
+    /// <remarks>
+    /// A full disk, a severed network share or a transient object-store error. Unlike a permissions
+    /// failure this one may genuinely clear, so the message invites a retry — but it still names the
+    /// server as the source, so the administrator does not assume their file was at fault.
+    /// </remarks>
+    private const string StorageFailureMessage =
+        "The server could not save the file to its storage location. " +
+        "Please try again; if it keeps failing, ask an administrator to check the server log.";
 
     /// <summary>
     /// Category constraints defining max size and allowed formats per category.
@@ -264,6 +316,10 @@ public class BlogImageService : IBlogImageService
     /// <param name="relativePath">Storage-relative destination path.</param>
     /// <param name="altText">Alternative text supplied by the uploader, or <c>null</c>.</param>
     /// <returns>The persisted image record including its generated identifier.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// The bytes could not be written. The underlying exception and the target path have already
+    /// been logged at Error (REQ-NFR-040); the message carried here is curated and safe to render.
+    /// </exception>
     private async Task<BlogImage> StoreAsync(
         IBrowserFile file, string category, long userId, string extension, string relativePath,
         string? altText)
@@ -274,8 +330,7 @@ public class BlogImageService : IBlogImageService
         await using var buffer = await BufferUploadAsync(file, category).ConfigureAwait(false);
         var dimensions = ReadDimensions(buffer, file.Name);
 
-        var stored = await storage
-            .SaveAsync(buffer, relativePath, mimeType, CancellationToken.None)
+        var stored = await WriteBytesAsync(storage, buffer, relativePath, mimeType, userId)
             .ConfigureAwait(false);
 
         try
@@ -287,6 +342,68 @@ public class BlogImageService : IBlogImageService
             logger.LogError(ex, "Metadata insert failed for {RelativePath}; removing stored file", relativePath);
             await storage.DeleteAsync(relativePath, CancellationToken.None).ConfigureAwait(false);
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Writes the buffered upload through the storage backend, making any failure audible
+    /// (REQ-NFR-040).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> This is the whole of REQ-NFR-040. The write used to be a bare
+    /// <c>await storage.SaveAsync(...)</c>, so an <c>UnauthorizedAccessException</c> raised because
+    /// the uploads directory was not writable by the container's user travelled all the way to the
+    /// page's <c>catch (Exception)</c>, which set a generic sentence and logged nothing. The
+    /// container stayed Up and the log stayed clean, so there was no signal anywhere that uploads
+    /// were dead.</para>
+    /// <para><b>Two failure classes, two messages, because they demand different actions.</b> A
+    /// permissions refusal will never clear on its own — telling the administrator to retry sends
+    /// them into a loop — so it maps to <see cref="StorageUnwritableMessage"/>. Any other I/O
+    /// failure (a full disk, a dropped network share, an object-store timeout) may well clear, and
+    /// maps to <see cref="StorageFailureMessage"/>.</para>
+    /// <para><b>Flow:</b> write → on failure log at Error with the provider, the storage-relative
+    /// target path, the uploader and the exception → rethrow as a curated
+    /// <see cref="InvalidOperationException"/> the calling page already knows how to render.</para>
+    /// <para><b>Side Effects:</b> Writes one file. On failure, emits exactly one <c>[ERR]</c> line —
+    /// which is the observable this requirement is measured by — and no file is left behind, because
+    /// the backend never completed the write.</para>
+    /// <para><b>The absolute path is in the log, never in the message.</b> The relative path and the
+    /// provider name are logged as structured fields, and the exception carries the absolute server
+    /// path in its own text; none of that reaches the administrator's screen (REQ-NFR-033).</para>
+    /// </remarks>
+    /// <param name="storage">The resolved storage backend.</param>
+    /// <param name="buffer">The rewound upload buffer.</param>
+    /// <param name="relativePath">Storage-relative destination path.</param>
+    /// <param name="mimeType">Resolved MIME type recorded with the file.</param>
+    /// <param name="userId">Owner of the upload, logged for correlation.</param>
+    /// <returns>The storage backend's description of the written file.</returns>
+    /// <exception cref="InvalidOperationException">The write failed; see the Error log line.</exception>
+    private async Task<FileStorageResult> WriteBytesAsync(
+        IFileStorage storage, Stream buffer, string relativePath, string mimeType, long userId)
+    {
+        try
+        {
+            return await storage
+                .SaveAsync(buffer, relativePath, mimeType, CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogError(
+                ex,
+                "Upload REFUSED: {Provider} storage cannot write {RelativePath} for user {UserId}. " +
+                "The upload location is not writable by the account this process runs as — " +
+                "check the directory's ownership and mode",
+                storage.ProviderName, relativePath, userId);
+            throw new InvalidOperationException(StorageUnwritableMessage, ex);
+        }
+        catch (IOException ex)
+        {
+            logger.LogError(
+                ex,
+                "Upload FAILED: {Provider} storage could not write {RelativePath} for user {UserId}",
+                storage.ProviderName, relativePath, userId);
+            throw new InvalidOperationException(StorageFailureMessage, ex);
         }
     }
 

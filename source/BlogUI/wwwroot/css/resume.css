@@ -153,6 +153,69 @@
 }
 
 /* --------------------------------------------------------------------------
+   PRIMARY CONTACT CALL TO ACTION (LinkedIn)
+
+   The public contact block publishes no email address and no phone number
+   (owner decision, 2026-08-10), so LinkedIn is the ONLY route a reader has.
+   It therefore reads as a full-width primary panel rather than as one tile
+   among several. Every value below is a theme token — the panel inherits the
+   active site theme and both light and dark automatically.
+   -------------------------------------------------------------------------- */
+
+.resume-contact-primary {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 4);
+    padding: calc(var(--spacing) * 5);
+    border: 1px solid var(--primary);
+    border-radius: var(--radius);
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+    text-decoration: none;
+    transition: opacity 150ms ease-in-out, box-shadow 150ms ease-in-out;
+}
+
+.resume-contact-primary:hover,
+.resume-contact-primary:focus-visible {
+    opacity: 0.92;
+    box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+}
+
+.resume-contact-primary-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: calc(var(--spacing) * 12);
+    height: calc(var(--spacing) * 12);
+    border-radius: var(--radius);
+    background-color: var(--primary-foreground);
+    color: var(--primary);
+}
+
+.resume-contact-primary-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+/* Type SIZE comes from the shared utility classes on the markup (text-xs /
+   text-lg font-semibold), so this file states only what those cannot: the
+   letter-spacing and the muting of the label against the primary fill. */
+.resume-contact-primary-label {
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.85;
+}
+
+.resume-contact-primary-chevron {
+    display: flex;
+    align-items: center;
+    flex: none;
+}
+
+/* --------------------------------------------------------------------------
    PRINT
    -------------------------------------------------------------------------- */
 

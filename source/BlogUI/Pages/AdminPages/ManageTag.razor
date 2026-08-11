@@ -40,7 +40,7 @@
         }
         else
         {
-            <EditForm Model="@pageObj" OnValidSubmit="@SaveData">
+            <EditForm Model="@pageObj" OnValidSubmit="@SaveDataAsync">
                 <DataAnnotationsValidator />
                 <div class="flex max-w-lg flex-col gap-4">
 
@@ -108,19 +108,19 @@
     private bool isSaving;
 
     /// <inheritdoc />
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        LoadTag();
+        await LoadTagAsync();
     }
 
     /// <inheritdoc />
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
-        LoadTag();
+        await LoadTagAsync();
     }
 
     /// <summary>Loads the tag for editing, or prepares a blank tag for creation.</summary>
-    private void LoadTag()
+    private async Task LoadTagAsync()
     {
         if (PageId <= 0)
         {
@@ -131,7 +131,7 @@
         }
 
         pageHeader = "Edit Tag";
-        pageObj = TagService.GetSingleTag(PageId);
+        pageObj = await TagService.GetSingleTagAsync(PageId);
         if (pageObj == null)
         {
             pageObj = new BlogTag();
@@ -153,7 +153,7 @@
     }
 
     /// <summary>Validates and persists the tag, then returns to the tag list.</summary>
-    private void SaveData()
+    private async Task SaveDataAsync()
     {
         if (string.IsNullOrWhiteSpace(pageObj.TagName))
         {
@@ -167,7 +167,7 @@
 
         try
         {
-            var result = TagService.SaveTag(pageObj);
+            var result = await TagService.SaveTagAsync(pageObj);
             if (result.IsSuccess)
             {
                 Navigation.NavigateTo("/TagsList");
@@ -177,9 +177,11 @@
             statusMessage = result.ErrorMessage;
             isError = true;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            statusMessage = $"Error saving tag: {ex.Message}";
+            // REQ-NFR-033: the exception text never reaches the screen. TagSvc has already
+            // logged it with context; the operator matches it on the response correlation id.
+            statusMessage = "Could not save the tag. Please try again later.";
             isError = true;
         }
         finally

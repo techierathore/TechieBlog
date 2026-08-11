@@ -17,6 +17,13 @@
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
     <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <!--
+      REQ-NFR-013: centralised logging for the containerised deployment. The sink is attached only
+      when Seq:Url is configured (see SeqSettings), so local development needs no Seq server.
+      Referenced by the HOST ONLY - the coding standards forbid a class library referencing Serilog,
+      and BlogEngine/BlogUI/BlogModel log through ILogger<T> exactly as before.
+    -->
+    <PackageReference Include="Serilog.Sinks.Seq" Version="9.0.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\BlogDb\BlogDb.csproj" />
