@@ -10,23 +10,24 @@
 *@
 
 @*
-    REQ-NFR-007 / WCAG 4.1.2 — TR-031: even with ReadOnly="true", TrBlazeUI's Rating emits
-    non-focusable <span role="radio"> stars carrying an EMPTY aria-checked, which axe reports as
-    a critical `aria-required-attr` failure and which screen readers announce as a broken radio
-    group. Nothing in the library's public API changes that, so the stars are presented as the
-    decoration they actually are (aria-hidden) and the value is exposed as real text instead.
+    [REQ-NFR-007] 2026-08-11 — TR-045/052 are closed in TrBlazeUI 2.0.2: a `ReadOnly` rating
+    renders `role="img"` with an `aria-label`, its stars `aria-hidden`, no radio semantics and no
+    tab stop at all. The wrapper `<span aria-hidden data-a11y-decorative>` this component used to
+    need — and with it the last dependency on App.razor's deleted MutationObserver — is gone;
+    `Rating` splats its own attributes now (TR-030/048).
+
+    The stars stay hidden from assistive technology, but for a different and now honest reason:
+    the `sr-only` line beside them says the same thing INCLUDING the rating count, which the
+    graphic cannot carry, and announcing both would read the value twice. This is a decorative
+    duplicate of adjacent text, not a broken control being papered over.
 *@
 <div class="inline-flex items-center gap-1.5" data-testid="star-rating">
-    @* data-a11y-decorative — see App.razor. Read-only stars carry no tab stop today, but the
-       marker means a library change cannot quietly put one inside an aria-hidden subtree.
-       [REQ-NFR-007] *@
-    <span aria-hidden="true" class="inline-flex" data-a11y-decorative>
-        <Rating Value="@Value"
-                Max="5"
-                ReadOnly="true"
-                AllowHalf="false"
-                Size="RatingSize.Small" />
-    </span>
+    <Rating Value="@Value"
+            Max="5"
+            ReadOnly="true"
+            AllowHalf="false"
+            Size="RatingSize.Small"
+            aria-hidden="true" />
     <span class="sr-only" data-testid="star-rating-text">
         Rated @Value out of 5@(RatingCount > 0 ? $" from {RatingCount} ratings" : string.Empty)
     </span>

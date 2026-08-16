@@ -76,37 +76,84 @@ public class MarkupAccessibilityContractTests
     }
 
     /// <summary>
-    /// Any subtree hidden from assistive technology with aria-hidden that still contains a library
-    /// control is marked data-a11y-decorative, so App.razor's observer takes it out of the tab
-    /// order and it cannot become a silent, unnamed focus stop (WCAG 4.1.2, TrBlazeUI gap TR-052).
+    /// No markup depends on the deleted App.razor accessibility MutationObserver, so a library
+    /// upgrade cannot silently leave an aria-hidden subtree holding a live tab stop again
+    /// (WCAG 4.1.2, TrBlazeUI TR-052 — fixed in 2.0.2).
     /// </summary>
+    /// <remarks>
+    /// <para>This replaces the earlier <c>AriaHiddenLibraryControlsAreMarkedDecorative</c> guard,
+    /// which required the opposite: every aria-hidden wrapper around a library control had to
+    /// carry <c>data-a11y-decorative</c> so the observer would neutralise it. The observer was
+    /// deleted on 2026-08-11 after axe measured 0 violations over 9 public + 15 admin routes both
+    /// with and without it, so the marker is now dead weight — and a marker that no longer does
+    /// anything is worse than none, because the next reader will believe it still protects
+    /// something. <c>Rating</c>'s own <c>Focusable="false"</c> and <c>ReadOnly</c> are the
+    /// supported mechanism now.</para>
+    /// </remarks>
     [Fact]
-    public void AriaHiddenLibraryControlsAreMarkedDecorative()
+    public void NoMarkupDependsOnTheDeletedAccessibilityObserver()
+    {
+        var markers = new[] { "data-a11y-decorative", "data-a11y-controls-removed", "data-a11y-role-removed" };
+
+        var offenders = RazorFiles(SourceRoot())
+            .SelectMany(path => markers
+                .Where(marker => StripComments(File.ReadAllText(path)).Contains(marker, StringComparison.Ordinal))
+                .Select(marker => $"{Path.GetFileName(path)}: {marker}"))
+            .ToArray();
+
+        Assert.True(
+            offenders.Length == 0,
+            "markup still references the removed App.razor a11y observer: " + string.Join(" | ", offenders));
+    }
+
+    /// <summary>
+    /// Blanks out Razor (<c>@* … *@</c>) and single-line JavaScript/C# comments.
+    /// </summary>
+    /// <remarks>
+    /// <para>Without this, a guard that forbids a marker cannot describe in a comment WHY the marker
+    /// is forbidden — the explanation trips the guard. That happened the first time this test ran:
+    /// three files failed on the notes recording the removal, not on any live markup.</para>
+    /// </remarks>
+    /// <param name="markup">Razor source.</param>
+    /// <returns>The source with comment bodies removed.</returns>
+    private static string StripComments(string markup)
+    {
+        var withoutRazorComments = Regex.Replace(markup, @"@\*.*?\*@", string.Empty, RegexOptions.Singleline);
+        return Regex.Replace(withoutRazorComments, @"^\s*//.*$", string.Empty, RegexOptions.Multiline);
+    }
+
+    /// <summary>
+    /// An interactive TrBlazeUI <c>Rating</c> is never hidden from assistive technology, because
+    /// since 2.0.2 it is a real keyboard-operable radio group and hiding it would take the control
+    /// away from exactly the users the workaround was written for (WCAG 4.1.2 / 2.1.1, TR-031/045).
+    /// </summary>
+    /// <remarks>
+    /// <para>A <c>ReadOnly</c> rating is exempt: it renders <c>role="img"</c> with no radio
+    /// semantics and no tab stop, so hiding it as a decorative duplicate of adjacent text — which
+    /// is what <c>StarRating</c> does — is correct rather than a workaround.</para>
+    /// </remarks>
+    [Fact]
+    public void InteractiveRatingsAreNotHiddenFromAssistiveTechnology()
     {
         var offenders = new List<string>();
 
         foreach (var path in RazorFiles(Path.Combine(SourceRoot(), "BlogUI")))
         {
-            foreach (var line in File.ReadAllLines(path))
+            var markup = File.ReadAllText(path);
+
+            foreach (Match element in Regex.Matches(markup, @"<Rating\b[^>]*?/>", RegexOptions.Singleline))
             {
-                if (!line.Contains("aria-hidden=\"true\"", StringComparison.Ordinal))
-                    continue;
+                var isReadOnly = element.Value.Contains("ReadOnly=\"true\"", StringComparison.Ordinal);
+                var isHidden = element.Value.Contains("aria-hidden=\"true\"", StringComparison.Ordinal);
 
-                // Only the wrappers that exist to hide a control matter; aria-hidden on an icon or
-                // a decorative glyph has nothing focusable inside it.
-                if (!line.Contains("data-testid=\"post-rating-stars\"", StringComparison.Ordinal)
-                    && !line.Contains("class=\"inline-flex\"", StringComparison.Ordinal))
-                    continue;
-
-                if (!line.Contains("data-a11y-decorative", StringComparison.Ordinal))
-                    offenders.Add($"{Path.GetFileName(path)}: {line.Trim()}");
+                if (isHidden && !isReadOnly)
+                    offenders.Add($"{Path.GetFileName(path)}: {Regex.Replace(element.Value, @"\s+", " ")}");
             }
         }
 
         Assert.True(
             offenders.Count == 0,
-            "aria-hidden wrappers around a library control without data-a11y-decorative: "
-                + string.Join(" | ", offenders));
+            "interactive <Rating> hidden from assistive technology: " + string.Join(" | ", offenders));
     }
 
     /// <summary>Every <c>.razor</c> file under <c>source/BlogUI/Pages</c> that declares a route.</summary>

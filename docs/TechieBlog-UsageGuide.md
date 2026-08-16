@@ -39,6 +39,11 @@
 
 ## Test users (canonical — use THESE for all smoke / verify / UAT)
 
+> **Reconciled against the live database 2026-08-14 (handoff).** All four accounts exist —
+> `SELECT userid, username, emailid, userrole FROM bloguser` returns exactly ids 1-4 as listed
+> (`ravi`/Admin, `maya`/Editor, `arun`/Author, `priya`/Contributor), all `isconfirmed = true`, with
+> `issiteowner = true` on user 1 only. The `Created?` column below is therefore observed, not planned.
+
 | # | Username / Email | Password | Role / Permission | Created? | Notes |
 |---|------------------|----------|-------------------|----------|-------|
 | 1 | `Ravi@techieblog.com` | `admin_password` | Admin | ✅ | **Seeded by `source/BlogDb/PostgresScripts/003-SeedData.sql`** — exists on any database where migrations have run. Stored as a PBKDF2-HMAC-SHA256 hash, not plaintext (REQ-NFR-023); the account is flagged `MustChangePassword`. Site owner (`IsSiteOwner = true`) — this is whose resume renders at `/resume`. |
@@ -48,7 +53,22 @@
 | 5 | ~~`reader@techieblog.test`~~ | — | ~~Reader~~ | **N/A** | **Retired 2026-08-06** — reader accounts and public registration were dropped (BRD-1/13/43/44). `019-SampleData.sql` deliberately seeds **no** Reader account: comments and ratings are now anonymous and email-keyed, so a Reader credential would open nothing. Use user 6 for engagement testing. |
 | 6 | — (anonymous) | — | Guest | ✅ | No account — exercises every public page plus anonymous commenting and rating (name + email + double opt-in). |
 
-> ⚠ **Signing in with any of users 1–4 now lands on `/change-password`, not on the role's usual landing route** — [REQ-NFR-023], implemented 2026-08-08. Every seeded account carries `MustChangePassword`, and that flag is now **enforced**: the account is held on the change-password screen and cannot open any other page until the password is actually replaced (the new one must satisfy the same strength rules as `/reset-password`). This is the requirement, not a defect.
+> ⚠ **On a FRESH database, signing in with any of users 1–4 lands on `/change-password`, not on the role's usual landing route** — [REQ-NFR-023], implemented 2026-08-08. Every seeded account carries `MustChangePassword`, and that flag is **enforced**: the account is held on the change-password screen and cannot open any other page until the password is actually replaced (the new one must satisfy the same strength rules as `/reset-password`). This is the requirement, not a defect.
+>
+> **Verified at the source, 2026-08-14:** `019-SampleData.sql` inserts users 2-4 with
+> `IsConfirmed, MustChangePassword` = `TRUE, TRUE`, and `017-SecurityAndTokenPersistence.sql` sets
+> the flag on user 1. So a production deploy — always a fresh database — starts with **all four
+> flagged**, and UAT should expect the change-password wall on first sign-in.
+>
+> ⚠ **A long-running DEV database may disagree, and that is drift rather than a doc error.** The
+> development database on 2026-08-14 had `mustchangepassword = false` on users 2-4 and `true` only on
+> user 1 — because the "before the run" statement below had been applied and the "after the run" one
+> never was. **The re-arm is not optional bookkeeping; skipping it is what makes this table stop
+> matching reality.** To restore the documented state on a drifted database:
+>
+> ```sql
+> UPDATE BlogUser SET MustChangePassword = TRUE WHERE UserId IN (1, 2, 3, 4);
+> ```
 >
 > **For a test that needs the account past the sign-in screen**, either complete the change (then use the new password for the rest of the run) or clear the flag first and re-arm it afterwards, so this table stays true for the next tester:
 >
@@ -84,9 +104,9 @@ Walk these in order; together they exercise every feature in `docs/TechieBlog-BR
 - **Covers:** BRD-30, BRD-33 · REQ-UI-005, REQ-UI-006, REQ-UI-045, REQ-FN-020
 
 ### Public — Post view (`/post/{slug}`)
-- **Log in as:** user 6, then repeat as user 5
-- **Steps:** 1) open a published post → 2) confirm Markdown renders as formatted HTML → 3) check author, date, category, tags, reading time → 4) scroll to related posts and series navigation → 5) as anonymous, try to comment/rate/favourite → 6) sign in as user 5 and retry.
-- **Expected:** anonymous sees a sign-in prompt for engagement; signed-in can comment, rate and favourite.
+- **Log in as:** nobody — anonymous throughout (user 6)
+- **Steps:** 1) open a published post → 2) confirm Markdown renders as formatted HTML → 3) check author, date, category, tags, reading time → 4) scroll to related posts and series navigation → 5) leave a comment with name + email and confirm the double opt-in mail → 6) rate the post with the same email, then change the rating.
+- **Expected:** engagement needs **no account** — comment and rating are keyed to the verified email. No sign-in prompt appears. Unapproved comments never render publicly, and no email address is ever displayed.
 - **Covers:** BRD-31, BRD-32, BRD-36, BRD-40, BRD-43 · REQ-UI-007, REQ-UI-027, REQ-UI-028, REQ-UI-029
 
 ### Public — Category and tag archives (`/category/{slug}`, `/tag/{slug}`)
@@ -136,23 +156,26 @@ flowchart LR
   Reset --> Login
 ```
 
-- **Log in as:** user 6 → becomes user 5
-- **Steps:** 1) register a new reader → 2) confirm weak passwords and duplicate emails are rejected → 3) log in → 4) log out → 5) run forgot-password → 6) retrieve the reset token **from the application log** (email is not actually sent — `ConsoleEmailService`, REQ-FN-033) → 7) reset and log in with the new password.
-- **Expected:** each step behaves as above; an expired or invalid token shows a clear error.
-- **Covers:** BRD-1, BRD-2, BRD-3, BRD-4, BRD-5, BRD-6 · REQ-UI-001, REQ-UI-002, REQ-UI-003, REQ-FN-005…008
+- **Log in as:** user 4 (any seeded account works)
+- **Steps:** 1) log in → 2) log out → 3) run forgot-password for that account's email → 4) retrieve the reset token **from the application log** (with no `EmailSettings:SmtpHost` configured, `ConsoleEmailService` logs it instead of sending — REQ-FN-033) → 5) reset and log in with the new password → 6) confirm the used token is rejected on a second attempt.
+- **Expected:** each step behaves as above; an expired, invalid or already-used token shows a clear error.
+- **Note:** **public registration was retired 2026-08-06** (~~BRD-1~~) — there is no `/register` flow to test and no self-service account creation. Accounts are seeded or created by an Admin.
+- **Covers:** BRD-2, BRD-3, BRD-4, BRD-5, BRD-6 · REQ-UI-002, REQ-UI-003, REQ-FN-005…008
 
 ### Auth — Role gates (`/access-denied`)
-- **Log in as:** user 5 (Reader), then user 4, 3, 2, 1
-- **Steps:** for each user, attempt `/admin`, `/users`, `/settings`, `/ManagePost`, `/admin/skills`.
+- **Log in as:** anonymous first, then user 4 (Contributor), 3 (Author), 2 (Editor), 1 (Admin)
+- **Steps:** for each, attempt `/admin`, `/users`, `/settings`, `/ManagePost`, `/admin/skills`.
 - **Expected:** each user reaches exactly the pages their policy allows and lands on `/access-denied` otherwise; navigation items they cannot use are hidden.
 - **Covers:** BRD-7, BRD-8, BRD-9 · REQ-UI-004, REQ-UI-047, REQ-FN-009
 
-### Reader account — Profile and favourites (`/profile`, `/my-favorites`)
-- **Log in as:** user 5
-- **Steps:** 1) open `/profile` → 2) edit display name and bio, save → 3) change the password and re-login → 4) favourite two posts → 5) open `/my-favorites` → 6) unfavourite one.
-- **Expected:** changes persist; the favourites list reflects the toggles immediately.
-- **Covers:** BRD-11, BRD-12, BRD-43, BRD-44 · REQ-UI-013, REQ-UI-014, REQ-FN-011, REQ-FN-024
-- **Gap:** there is no My-Comments history page yet (REQ-UI-015, BRD-13) — nothing to test.
+### Account — Profile and password (`/profile`)
+- **Log in as:** user 3 (Author) — or any seeded account
+- **Steps:** 1) open `/profile` → 2) edit display name and bio, save → 3) reload and confirm the values persisted → 4) change the password and re-login with the new one.
+- **Expected:** changes persist across a reload; the current-password check rejects a wrong value.
+- **⚠ Watch this one:** profile **save** has never been driven end to end by an automated pass, and REQ-FN-053 was a data-loss regression in this area. Verify step 3 carefully rather than assuming.
+- **Covers:** BRD-11, BRD-12 · REQ-UI-013, REQ-FN-011
+- **Retired 2026-08-06:** favourites and `/my-favorites` (~~BRD-43/44~~, F-FAV removed) and the
+  My-Comments page (~~BRD-13~~, REQ-UI-015) — none of these exist; there is nothing to test.
 
 ### Authoring — Post editor and lifecycle (`/ManagePost`, `/BlogsList`, `/admin/preview/{id}`)
 
@@ -186,7 +209,7 @@ flowchart LR
 
 ### Editorial — Comment moderation (`/CommentsList`)
 - **Log in as:** user 2 (Editor)
-- **Steps:** 1) as user 5, post a comment → 2) as the editor, open the moderation queue → 3) approve it and confirm it appears on the post → 4) post another, reject it → 5) edit a comment → 6) bulk-select and process several.
+- **Steps:** 1) **anonymously** post a comment (name + email, complete the double opt-in) → 2) as the editor, open the moderation queue → 3) approve it and confirm it appears on the post → 4) post another, reject it → 5) edit a comment → 6) bulk-select and process several.
 - **Expected:** the queue reflects the moderation setting; approved comments appear publicly, rejected ones do not.
 - **Covers:** BRD-36…BRD-39 · REQ-UI-021, REQ-UI-029, REQ-FN-022
 
@@ -202,15 +225,22 @@ flowchart LR
 - **Expected:** no unreadable text, invisible control or broken contrast in any of the six combinations (visual gate).
 - **Covers:** BRD-65, BRD-66, BRD-67, BRD-68 · REQ-UI-031, REQ-UI-032, REQ-UI-033, REQ-FN-039
 
-### Not testable yet (features not built)
-Newsletter composition and sending (REQ-UI-043, REQ-FN-032), real SMTP delivery (REQ-FN-033), post-view
-analytics and the analytics dashboard (REQ-UI-044, REQ-FN-034, REQ-FN-035), the My-Comments page
-(REQ-UI-015), sample data (REQ-FN-041), health endpoint (REQ-NFR-014).
+### Not testable here (needs infrastructure this machine does not have)
+- **Real SMTP delivery (REQ-FN-033)** — `SmtpEmailService` ships and is selected whenever
+  `EmailSettings:SmtpHost` is set; with no host configured, `ConsoleEmailService` runs and
+  password-reset mail is written to the log instead. Exercise it against a real SMTP host during UAT.
+- **The production deployment (REQ-NFR-038)** — needs the VPS; see `docs/Prod-Deploy-Checklist.md`.
+
+*(Everything this section previously listed as "not built" — newsletter composition and sending,
+the analytics dashboard, sample data, the health endpoint — is built and `Verified`. The
+My-Comments page was removed from scope on 2026-08-06, not deferred.)*
 
 ## Prerequisites
 - .NET 10 SDK
 - PostgreSQL 15 or higher, reachable from the machine running the app
 - A modern browser (Chrome, Firefox, Edge, Safari); headless Chromium for Playwright-driven verification
+- **Windows-side `dotnet`** for anything that builds the whole solution — `source/BlogApp` targets
+  `net10.0-windows10.0.19041.0`, which WSL `dotnet` cannot build. Use `cmd.exe /c "dotnet …"`.
 
 ## Setup / Deployment steps (runbook — one command per line, in order)
 
@@ -222,36 +252,50 @@ analytics and the analytics dashboard (REQ-UI-044, REQ-FN-034, REQ-FN-035), the 
    `dotnet user-secrets set AppEncryptionKey "$(openssl rand -base64 32)" --project source/TechieBlog`
    (≥32 and ≥16 chars; the two previously committed literals are blocklisted by digest and cannot be reused).
 5. `dotnet restore`
-6. `dotnet build TechieBlog.slnx` *(green as of 2026-08-08 — 0 errors)*
+6. `cmd.exe /c "dotnet build TechieBlog.slnx"` *(green 2026-08-14 — 0 errors, 7/7 projects)*
 7. `ASPNETCORE_ENVIRONMENT=Development dotnet run --project source/TechieBlog` — DbUp applies `source/BlogDb/PostgresScripts/001…022` automatically at startup. **The environment must be Development or user secrets are not loaded and startup fails on the missing secret.**
 8. Open the URL printed by Kestrel (see `source/TechieBlog/Properties/launchSettings.json`) and log in as test user 1.
-9. All four seeded accounts are flagged `MustChangePassword` and are redirected to `/change-password` before any authorised page. To bypass for a scripted smoke, clear the flag and **re-arm it afterwards**:
-   `UPDATE bloguser SET mustchangepassword=false WHERE userid=1;` … `UPDATE bloguser SET mustchangepassword=true WHERE userid=1;`
+9. On a fresh database all four seeded accounts are flagged `MustChangePassword` and are redirected to `/change-password` before any authorised page. To bypass for a scripted smoke, clear the flag for **all four** and **re-arm afterwards** — skipping the re-arm is what makes the test-user table drift out of date:
+   `UPDATE bloguser SET mustchangepassword=false WHERE userid IN (1,2,3,4);` … `UPDATE bloguser SET mustchangepassword=true WHERE userid IN (1,2,3,4);`
 
 Optional — migrating an existing MySQL instance: `dotnet run --project source/BlogDb` (see `docs/database-migration-guide.md`).
 
 ## Test (automated)
 ```bash
-dotnet test
+cmd.exe /c "dotnet test tests\TechieBlog.Tests\TechieBlog.Tests.csproj"
 ```
-*No test project exists yet (REQ-NFR-016) — this command currently finds nothing to run.*
+*1 490 tests — 1 487 pass, 3 skipped, 0 fail (2026-08-14). Use rung #4 (`cmd.exe`): WSL `dotnet`
+cannot build this solution because `source/BlogApp` targets `net10.0-windows`.*
 
 ## Smoke checklist (quick capability pass)
-- [ ] Build is green (`dotnet build TechieBlog.slnx`)
-- [ ] Home page loads and lists published posts (user 6)
-- [ ] Open a post; Markdown renders with author, date, category, tags, reading time (user 6)
-- [ ] Register and log in as a reader; comment, rate and favourite a post (user 5)
+- [ ] Build is green (`cmd.exe /c "dotnet build TechieBlog.slnx"`)
+- [ ] Home page loads and lists published posts (anonymous)
+- [ ] Open a post; Markdown renders with author, date, category, tags, reading time (anonymous)
+- [ ] Comment and rate a post anonymously (name + email + double opt-in) — no account needed
 - [ ] Log in as Author; create, preview and publish a post with category and tags (user 3)
 - [ ] Log in as Editor; approve a pending comment (user 2)
 - [ ] Log in as Admin; open the dashboard and change the site theme in Settings (user 1)
 - [ ] Upload an image in the media library and pick it through the ImagePicker (user 1)
-- [ ] Open `/resume` and download the CV (user 6)
+- [ ] Open `/resume` and download the CV (anonymous)
 - [ ] Toggle dark mode on public and admin pages; no unreadable text
 
 ## Known limitations
-- **REQ-FN-043 — the solution does not build** (`NU1605`, FluentUI `4.*` vs pinned `Microsoft.AspNetCore.Components.Web 10.0.0`). Everything below is untestable until this is fixed.
-- **REQ-FN-033 — no real email delivery.** Password-reset "emails" are written to the log by `ConsoleEmailService`; read the token from `logs/techieblog-*.log`.
-- **REQ-NFR-019 — password-reset tokens live in memory** and are lost on restart.
-- **REQ-NFR-016 / REQ-NFR-017 — no automated tests and no CI**, so this manual walkthrough is the only regression net.
-- **REQ-NFR-023 / REQ-NFR-002 — ⚠ security:** the seeded admin password is plaintext in the seed script and password hashing is hand-rolled.
+- **REQ-NFR-017 (`PARTIAL`) — CI cannot restore TrBlazeUI** until the `TrBlazeUiPackagesToken`
+  repository secret exists. `docs/Prod-Deploy-Checklist.md` §5.
+- **REQ-NFR-026 (`PARTIAL`) — stage 4 deferred** by owner decision.
+- **REQ-NFR-025 (`In Progress`) — a revoked PAT remains in git history.** Dead (401); the open
+  question is whether to rewrite history or accept it.
+- **REQ-NFR-038 (`Implemented`, not agent-verifiable) — the deploy pipeline has never executed
+  against the VPS.** Server *state* was verified 2026-08-14; pipeline *behaviour* was not.
+- **REQ-FN-033 — real SMTP delivery is unexercised** (no SMTP host on this machine).
+- **Never driven end to end:** profile save, newsletter Send, subscriber toggles. `newsletter` has
+  0 rows, so REQ-UI-054 / REQ-FN-050 are unexercised.
+- **BlogApp (MAUI) is build-verified only** — no runtime coverage (REQ-UI-051/052, REQ-FN-046/047).
+- **Accessibility rests on a workaround** — axe reports 0/0 via an `App.razor` MutationObserver
+  (TR-054/063/064); **no screen-reader pass has ever been run**.
+
+*(Removed at handoff because each was verified false: the `NU1605` build failure — REQ-FN-043 is
+`Verified` and the build is green 7/7; in-memory reset tokens — `017-SecurityAndTokenPersistence.sql`
+persists them; "no automated tests and no CI" — 1 490 tests and two workflows exist; "the seeded
+admin password is plaintext" — it is PBKDF2-HMAC-SHA256 at 210 000 iterations.)*
 - No TrBlazeUI or TechieRag library dependency, so there are no `TR-` / `TR-RAG-` feedback items for this project.

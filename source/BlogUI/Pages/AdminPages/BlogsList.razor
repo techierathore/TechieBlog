@@ -47,12 +47,11 @@
     @* ---- Filter row ---------------------------------------------------- *@
     <div class="flex flex-wrap items-center justify-between gap-4">
         @*
-            TrBlazeUI's TabsList and TabsTrigger declare no CaptureUnmatchedValues, so a
-            data-testid on either throws at render and the ErrorBoundary swallowed the whole
-            page behind an HTTP 200 — this page was unreachable. Tabs itself does splat, so the
-            container hook lives there and each trigger's hook lives on a span this page owns.
-            Library gap TR-030/TR-046; do not put test hooks back on the
-            TabsList/TabsTrigger elements.
+            Each trigger's test hook sits on <TabsTrigger> itself. Up to TrBlazeUI 2.0.1
+            TabsList/TabsTrigger declared no CaptureUnmatchedValues, so a data-testid on either
+            threw at render and the ErrorBoundary swallowed the whole page behind an HTTP 200 —
+            this page was unreachable, and every hook had to ride on a span this page owned
+            (TR-030/TR-046). 2.0.2 splats on all 344 components, so the spans are gone.
         *@
         @*
             [REQ-UI-017] 2026-08-09 — the four triggers measure ~411px, so on a 390px phone the
@@ -68,10 +67,10 @@
                   ValueChanged="@((string value) => SetFilter(value))"
                   data-testid="posts-status-tabs">
                 <TabsList Class="w-max">
-                    <TabsTrigger Value="all"><span data-testid="posts-tab-all">All (@(ObjectList?.Count ?? 0))</span></TabsTrigger>
-                    <TabsTrigger Value="published"><span data-testid="posts-tab-published">Published (@PublishedCount)</span></TabsTrigger>
-                    <TabsTrigger Value="draft"><span data-testid="posts-tab-draft">Drafts (@DraftCount)</span></TabsTrigger>
-                    <TabsTrigger Value="scheduled"><span data-testid="posts-tab-scheduled">Scheduled (@ScheduledCount)</span></TabsTrigger>
+                    <TabsTrigger Value="all" data-testid="posts-tab-all">All (@(ObjectList?.Count ?? 0))</TabsTrigger>
+                    <TabsTrigger Value="published" data-testid="posts-tab-published">Published (@PublishedCount)</TabsTrigger>
+                    <TabsTrigger Value="draft" data-testid="posts-tab-draft">Drafts (@DraftCount)</TabsTrigger>
+                    <TabsTrigger Value="scheduled" data-testid="posts-tab-scheduled">Scheduled (@ScheduledCount)</TabsTrigger>
                 </TabsList>
             </Tabs>
         </div>

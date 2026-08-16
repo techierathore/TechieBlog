@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Components.Authorization;
 using System.Security.Claims;
 using BlogModels;
 
+using BlogUI.Common;
+
 namespace BlogUI.Pages.AdminPages;
 
 /// <summary>
@@ -51,7 +53,7 @@ partial class ManageSeries : ComponentBase
             {
                 StatusMessage = "Series not found.";
                 IsError = true;
-                PageObj = new BlogSeries { Status = "In Progress" };
+                PageObj = new BlogSeries { Status = SeriesStatus.InProgress };
             }
             else
             {
@@ -69,7 +71,7 @@ partial class ManageSeries : ComponentBase
     private async Task ResetPage()
     {
         PageHeader = "New Series";
-        PageObj = new BlogSeries { Status = "In Progress" };
+        PageObj = new BlogSeries { Status = SeriesStatus.InProgress };
         SeriesPosts = new List<BlogPost>();
         StatusMessage = null;
         IsError = false;

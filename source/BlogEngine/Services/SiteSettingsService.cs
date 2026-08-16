@@ -62,6 +62,23 @@ namespace BlogEngine.Services;
 /// mutated in place. <see cref="InvalidateCache"/> exists for the case where an external writer is
 /// known to have changed a row; it is the escape hatch, not the normal path.</para>
 ///
+/// <para><b>REQ-FN-061 — "never mutated in place" is a contract on CALLERS, and it was being
+/// broken.</b> The paragraph above states the invariant the whole design rests on; nothing was
+/// enforcing it. <see cref="GetSettingsAsync"/> returns the cached instance itself, and the admin
+/// Settings screen bound its form straight to that object — so every field on it (the theme picker,
+/// the site title, the SMTP host and password, the storage paths, every switch) wrote through to
+/// the process-wide cache on change, with no save. An administrator who opened the page, changed a
+/// value and navigated away had re-configured the live site for every user, including anonymous
+/// visitors, until the host restarted; the database still held the old value, so nothing showed the
+/// divergence and nothing rolled it back. The fix keeps the fast read exactly as it was and adds
+/// <see cref="GetEditableSettingsAsync"/>, which returns a deep copy. Every member that hands an
+/// aggregate or sub-aggregate to a caller who might reasonably write to it — the editable read,
+/// <see cref="SaveSettingsAsync"/>'s result, <see cref="GetSmtpSettingsAsync"/> and
+/// <see cref="GetStorageSettingsAsync"/> — now returns a copy. <see cref="GetSettingsAsync"/> alone
+/// still returns the shared instance, because it is on the layout's render path; it is documented
+/// as read-only, and <c>SiteSettingsAliasingTests</c> pins that split so a future edit cannot
+/// quietly re-open the hole.</para>
+///
 /// <para><b>Batch save is transactional.</b> <see cref="SaveSettingsAsync"/> projects the whole
 /// aggregate to rows and hands them to <c>ISiteSettingRepo.UpsertManyAsync</c>, which wraps the
 /// upserts in a single database transaction (<c>BeginTransactionAsync</c> /
@@ -171,6 +188,10 @@ public class SiteSettingsService : ISiteSettingsService
     /// configured branding rather than its availability. <b>A caller therefore cannot distinguish
     /// "defaults because nothing is configured" from "defaults because the database is down"</b> —
     /// check the log before concluding a setting was never saved.</para>
+    /// <para><b>Returns the SHARED cached instance — treat it as read-only (REQ-FN-061).</b> This
+    /// is the one member that deliberately does not copy, because a layout calls it on every render.
+    /// Writing to a property of the result reconfigures the site for every user immediately, with
+    /// nothing persisted. Anything that edits calls <see cref="GetEditableSettingsAsync"/>.</para>
     /// </remarks>
     public async Task<SiteSettings> GetSettingsAsync()
     {
@@ -199,6 +220,20 @@ public class SiteSettingsService : ISiteSettingsService
         {
             cacheGate.Release();
         }
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The same values <see cref="GetSettingsAsync"/> returns, deep-
+    /// copied so the caller owns them. This is what an edit form binds to (REQ-FN-061).</para>
+    /// <para><b>Flow:</b> Cached read → <see cref="SiteSettings.Clone"/>.</para>
+    /// <para><b>Side Effects:</b> May populate the cache on the first call; otherwise allocation
+    /// only. Never throws, for the same reason <see cref="GetSettingsAsync"/> does not.</para>
+    /// </remarks>
+    public async Task<SiteSettings> GetEditableSettingsAsync()
+    {
+        var effective = await GetSettingsAsync().ConfigureAwait(false);
+        return effective.Clone();
     }
 
     /// <inheritdoc />
@@ -236,7 +271,11 @@ public class SiteSettingsService : ISiteSettingsService
             await siteSettingRepo.UpsertManyAsync(rows).ConfigureAwait(false);
             logger.LogInformation("Persisted {Count} site settings", rows.Count);
             var effective = await PublishChangeAsync().ConfigureAwait(false);
-            return Result<SiteSettings>.Success(effective);
+
+            // Detached copy (REQ-FN-061). The Settings screen re-binds its form to this result, and
+            // handing back the cached instance would re-alias the very cache the save just refreshed
+            // — the leak would reappear the moment an admin edited a second time without reloading.
+            return Result<SiteSettings>.Success(effective.Clone());
         }
         catch (Exception ex)
         {
@@ -332,7 +371,10 @@ public class SiteSettingsService : ISiteSettingsService
     public async Task<SmtpSettings> GetSmtpSettingsAsync()
     {
         var settings = await GetSettingsAsync().ConfigureAwait(false);
-        return settings.Smtp ?? new SmtpSettings();
+
+        // Copy, not the cached sub-object (REQ-FN-061): a sender that normalises a host or blanks a
+        // credential on its own copy must not be editing site configuration for everyone.
+        return settings.Smtp?.Clone() ?? new SmtpSettings();
     }
 
     /// <inheritdoc />
@@ -347,7 +389,9 @@ public class SiteSettingsService : ISiteSettingsService
     public async Task<StorageSettings> GetStorageSettingsAsync()
     {
         var settings = await GetSettingsAsync().ConfigureAwait(false);
-        return settings.Storage ?? new StorageSettings();
+
+        // Copy, not the cached sub-object (REQ-FN-061) — same reason as GetSmtpSettingsAsync.
+        return settings.Storage?.Clone() ?? new StorageSettings();
     }
 
     /// <inheritdoc />

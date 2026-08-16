@@ -114,10 +114,15 @@
                 <LayoutView Layout="@typeof(MainLayout)">
                     <div class="flex flex-col items-center gap-4 py-16 text-center" data-testid="error-boundary">
                         <LucideIcon Name="circle-alert" Size="48" Class="text-destructive" />
-                        <h1 class="text-2xl font-semibold">Something went wrong</h1>
-                        <p class="text-muted-foreground">
+                        @* [REQ-UI-060] 2026-08-11 — TypographyH1/TypographyP, not raw tags with
+                           copied token classes. TR-020 gives Typography* a `Size` that REPLACES
+                           its own size classes (a Class override used to lose on equal
+                           specificity), and TR-021/048 make it splat, so this fallback screen no
+                           longer has to hand-copy the library's own typography. *@
+                        <TypographyH1 Size="TypographySize.Xl2" data-testid="error-heading">Something went wrong</TypographyH1>
+                        <TypographyP Class="text-muted-foreground">
                             We encountered an unexpected error. Please try refreshing the page.
-                        </p>
+                        </TypographyP>
                         <Button OnClick="RecoverFromError" data-testid="error-retry">Try Again</Button>
                     </div>
                 </LayoutView>

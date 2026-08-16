@@ -12,7 +12,7 @@ after the fact.
 | `commits.jsonl` | commit | the repo's own `pre-commit` hook |
 
 Schema, enums, and every known limitation: `.tfcore/telemetry/SCHEMA.md`.
-Report: `/TechieFlow:agents:flow-master *metrics <AppName>` → `METRICS.md`.
+Report: `/TechieFlow:agents:flow-master *metrics <AppName>` (OpenCode: `/flow-master *metrics <AppName>`) → `METRICS.md`.
 
 **All four files are created empty, on purpose, and an empty one is not a fault.**
 The installer seeds the set so every repo has the same shape and no writer has to

@@ -97,4 +97,31 @@ public class SmtpSettings
     /// </remarks>
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(Host) && !string.IsNullOrWhiteSpace(FromAddress);
+
+    /// <summary>
+    /// Returns an independent copy of this configuration.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Every member is a value type or a string, so a member-wise copy
+    /// is already a full copy — there is no nested reference to follow. The method exists so
+    /// <see cref="SiteSettings.Clone"/> has one place to change if a reference member is ever added
+    /// here, rather than silently degrading to a shallow copy.</para>
+    /// <para><b>Flow:</b> Construct a new instance and assign each member.</para>
+    /// <para><b>Side Effects:</b> None. The copy carries the decrypted
+    /// <see cref="Password"/>, so it is exactly as sensitive as the original.</para>
+    /// </remarks>
+    /// <returns>A new instance sharing no mutable state with this one.</returns>
+    public SmtpSettings Clone()
+    {
+        return new SmtpSettings
+        {
+            Host = Host,
+            Port = Port,
+            IsSslEnabled = IsSslEnabled,
+            UserName = UserName,
+            Password = Password,
+            FromAddress = FromAddress,
+            FromName = FromName
+        };
+    }
 }

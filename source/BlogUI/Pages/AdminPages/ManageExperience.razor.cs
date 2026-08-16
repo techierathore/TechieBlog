@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Components.Authorization;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 
+using BlogUI.Common;
+
 namespace BlogUI.Pages.AdminPages;
 
 /// <summary>

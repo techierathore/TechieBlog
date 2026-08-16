@@ -168,42 +168,45 @@
                 }
                 else
                 {
-                    @* [REQ-NFR-007] 2026-08-09 — WCAG 1.3.1 / 4.1.2, axe `aria-required-children`
-                       (CRITICAL). This block used TrBlazeUI's <ItemGroup>/<Item>. Measured DOM
-                       (test-results-cluster-l probe): ItemGroup emits `<div role="list">` but Item
-                       emits `<div data-slot="item">` with NO `role="listitem"` — so the activity
-                       feed declared itself a list and then declared it EMPTY. A screen-reader user
-                       was told "list, 0 items" on the admin landing page; the rows were unreachable
-                       by list navigation entirely. That is worse than the single axe node suggests.
+                    @* [REQ-NFR-007] 2026-08-11 — back on TrBlazeUI's own ItemGroup/Item.
 
-                       Rebuilt on a real <ul>/<li> carrying the exact classes the library rendered
-                       (captured from the live DOM before the change), so the visual result is
-                       byte-identical and the semantics are now the browser's own rather than an
-                       ARIA claim the markup does not keep. Same remedy, same reasoning, as the
-                       NavigationMenu -> <nav><ul><li> rebuild in Header.razor (TR-044).
-                       Logged upstream as TR-055; this is the application-side workaround. *@
-                    <ul class="m-0 flex list-none flex-col gap-0.5 p-0" data-testid="recent-activity-list">
+                       This block was a hand-rolled <ul>/<li> because 2.0.1's ItemGroup emitted
+                       `<div role="list">` while Item emitted `<div data-slot="item">` with no
+                       `role="listitem"` — the activity feed declared itself a list and then
+                       declared it EMPTY, so a screen-reader user was told "list, 0 items" on the
+                       admin landing page (axe `aria-required-children`, critical). TR-061 fixes
+                       exactly that: Item now takes `role="listitem"` whenever it is inside an
+                       ItemGroup, and ItemSeparator leaves the accessibility tree.
+
+                       `recent-activity-list` and `recent-activity-item` are carried onto the
+                       library components, which splat since TR-048, so the verification suite's
+                       element ids are unchanged. *@
+                    <ItemGroup Class="gap-0.5" data-testid="recent-activity-list">
                         @foreach (var activity in RecentActivities.Take(5))
                         {
-                            <li class="group relative flex items-center gap-3 rounded-lg px-4 py-3"
-                                data-testid="recent-activity-item">
-                                <span class="flex shrink-0 items-center justify-center rounded-md">
-                                    <span class="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                                        <LucideIcon Name="@GetActivityIcon(activity.Type)" Size="16" />
-                                    </span>
-                                </span>
-                                <span class="flex min-w-0 flex-1 flex-col gap-1">
-                                    <span class="flex items-center gap-2 font-medium leading-none">@activity.Title</span>
-                                    <span class="line-clamp-2 text-sm text-muted-foreground">@activity.Detail</span>
-                                </span>
-                                <span class="flex items-center gap-2">
+                            <Item data-testid="recent-activity-item">
+                                <ItemMedia Variant="ItemMediaVariant.Icon">
+                                    <LucideIcon Name="@GetActivityIcon(activity.Type)" Size="16" />
+                                </ItemMedia>
+                                @* min-w-0: `ItemContent` is a flex child with the default
+                                   `min-width:auto`, so its min-content width — the longest
+                                   unbreakable run in the activity title — becomes a hard floor
+                                   and pushes the whole card past the viewport. Measured at 390px
+                                   before this class was added: the card ran to x=455 inside a
+                                   390px pane. The hand-rolled markup this replaced carried
+                                   `min-w-0` for the same reason. Logged upstream as TR-071. *@
+                                <ItemContent Class="min-w-0">
+                                    <ItemTitle>@activity.Title</ItemTitle>
+                                    <ItemDescription>@activity.Detail</ItemDescription>
+                                </ItemContent>
+                                <ItemActions>
                                     <span class="whitespace-nowrap text-xs text-muted-foreground">
                                         @GetTimeAgo(activity.Timestamp)
                                     </span>
-                                </span>
-                            </li>
+                                </ItemActions>
+                            </Item>
                         }
-                    </ul>
+                    </ItemGroup>
                 }
             </CardContent>
         </Card>
@@ -234,7 +237,19 @@
                         {
                             <div class="flex items-center justify-between gap-4 border-b border-border py-2.5 text-sm last:border-b-0"
                                  data-testid="popular-post-row">
-                                <span class="truncate" data-testid="popular-post-title">@post.Title</span>
+                                @* [REQ-NFR-010] `w-0 flex-1`, not `min-w-0`. `truncate` sets
+                                   white-space:nowrap, so this box's MIN-CONTENT size is the whole
+                                   untruncated title — and a grid track sized `auto` is floored by
+                                   its items' min-content contributions, which `min-w-0` does not
+                                   reduce (it only lets flexbox shrink the item after the track is
+                                   already that wide). A definite `width:0` plus `flex-1` makes the
+                                   contribution 0 and lets the row grow into whatever space there
+                                   is. Measured at 390px: the admin pane's scrollWidth went 435 ->
+                                   390 and off-viewport elements 38 -> 0, with this card's own
+                                   min-content dropping from 419px to inside the 358px available.
+                                   Both dashboard cards share a grid column, which is why the
+                                   untouched sibling looked equally guilty. *@
+                                <span class="w-0 flex-1 truncate" data-testid="popular-post-title">@post.Title</span>
                                 <span class="shrink-0 tabular-nums text-muted-foreground" data-testid="popular-post-views">@post.TotalViews.ToString("N0")</span>
                             </div>
                         }

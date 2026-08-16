@@ -64,11 +64,11 @@ competent developer can run in under five minutes, understand in under an hour, 
 day, and put into production inside a week.
 
 The product has been through a full stack modernization — **.NET 9 → .NET 10 LTS, MySQL →
-PostgreSQL, Blazorise → Microsoft Fluent UI Blazor**, and removal of the REST API layer in favour of
-direct in-process service calls. That migration and the MVP feature set are complete and shipped;
-what remains open is the production-polish tail: newsletter delivery, view analytics, sample data,
-health monitoring, automated tests and CI/CD — plus one live build blocker introduced by a floating
-package version (see §4).
+PostgreSQL, Blazorise → Microsoft Fluent UI Blazor → TrBlazeUI**, and removal of the REST API layer
+in favour of direct in-process service calls. That migration and the feature set are complete and
+shipped; Fluent UI has been removed from the solution entirely.
+As of 2026-08-14, 160 of the checklist's 164 requirements are terminal; the four still open are all
+operations-side and are listed in §4 under F-OPS.
 
 **Amended 2026-08-06.** Three directional changes are folded into this revision: (1) the UI
 component library moves from Microsoft Fluent UI Blazor to **TrBlazeUI** — the owner's
@@ -91,7 +91,7 @@ PostgreSQL database (BRD-94…BRD-97, feature F-DESK).
 - **O4 — Support multi-author publishing** with a 5-tier role model (Admin, Editor, Author,
   Contributor, Reader) so the same engine serves a solo blog and a small editorial team.
 - **O5 — Achieve a "clone to production" timeline under one week** for a competent .NET developer.
-- **O6 — Modernize the legacy stack** (MySQL → PostgreSQL, Blazorise → Fluent UI, .NET 9 → .NET 10)
+- **O6 — Modernize the legacy stack** (MySQL → PostgreSQL, Blazorise → Fluent UI → TrBlazeUI, .NET 9 → .NET 10)
   for broader hosting compatibility and Microsoft-supported components. *(Met.)*
 
 ## 3. Scope
@@ -99,9 +99,9 @@ PostgreSQL database (BRD-94…BRD-97, feature F-DESK).
 **In scope:** blog post authoring with Markdown and live preview; drafts, preview, scheduling and
 series; categories and tags; the public reading experience (home, post, archives, series, search);
 reader engagement through **anonymous** comments with moderation and 1–5 star ratings; image upload
-and a media library; a resume/portfolio page for the site owner and
-per-author profiles; email subscriber capture and list management; an admin console with site
-settings; RSS and sitemap for syndication and SEO; CSS-variable theming with three site themes and a
+and a media library; a resume/portfolio page for the site owner; email subscriber capture and list
+management; an admin console with site settings; RSS and sitemap for syndication and SEO;
+CSS-variable theming with three site themes and a
 user light/dark toggle; and the template-distribution experience (README, getting-started,
 customization, deployment and migration guides). *Added 2026-08-06:* a portfolio-style public home
 page driven by the site-owner's resume data (revised BRD-30), removal of all public login/admin
@@ -135,44 +135,42 @@ BRD-94…BRD-97).
 <!-- SNAPSHOT (point-in-time), feature level only. Live per-requirement status lives in
      PROJECT-STATUS.md + the Requirements Status table in docs/TechieBlog-Checklist.md. -->
 
-**Snapshot as of 2026-08-09.** Live, per-requirement status: see `PROJECT-STATUS.md` and the
-**Requirements Status** table in `docs/TechieBlog-Checklist.md`. Statuses below are now derived from
-the **first executed `*verify all` run** (2026-08-09), which graded 131 of 139 REQs against the
-running app under the acceptance, data-render and visual-truth gates — not from the migrated MVP
-execution plan.
+**Snapshot as of 2026-08-14.** Live, per-requirement status: see `PROJECT-STATUS.md` and the
+**Requirements Status** table in `docs/TechieBlog-Checklist.md`. Every Status and % below is derived
+from that table's Status column as it stands after the **2026-08-11** verify pass (51 rows graded)
+and the **2026-08-14** pass (14 more) — not from the migrated MVP execution plan, and not carried
+forward from this document's earlier snapshots. Of the table's **164** requirement rows, **160 are
+terminal** (`Verified`, `N/A`, or `N/A (removed …)`); the **four still open all belong to F-OPS**.
 
 > **Build is GREEN** — `dotnet build TechieBlog.slnx` returns `0 Error(s)` across 7/7 projects
 > including the `net10.0-windows10.0.19041.0` BlogApp head. The earlier `NU1605` note here was
 > stale and is retired (REQ-FN-043 closed; both Fluent UI packages were removed by REQ-UI-048).
->
-> **A "Done" below now means runtime-verified, not last-built.** Percentages fell in several
-> features precisely because verification replaced assumption: view tracking turned out to be dead
-> code, RSS does not exist, and the series page leaks unpublished drafts.
+> The automated suite stands at **1 490 tests — 1 487 pass / 3 skip / 0 fail**.
 
 | Feature (F-code) | Phase | Status | % | Notes |
 |------------------|-------|--------|---|-------|
-| F-AUTH: Authentication & account access | 2 | Partial | 95 | Login, reset, policies, hashing, rate limiting and the login audit trail all **runtime-verified** 2026-08-09; the reset link was redeemed end to end for the first time. Public registration retired (~~BRD-1~~). Open: **token refresh is unreachable** — `RefreshTokenAsync` has no call site and no mapped endpoint (REQ-FN-008). |
-| F-ROLE: Roles & authorization | 2 | Partial | 90 | 5 roles × 5 policies verified by 14 route probes across all four seeded roles; every denial lands on access-denied, never a raw 403. Open: `/access-denied` renders nested inside the public shell on client-side navigation (REQ-UI-004). |
-| F-PROF: User profile & account management | 2 | Partial | 90 | Profile read/edit and change-password verified, including current-password enforcement. The **REQ-FN-053 data-loss regression holds**. Open: avatar clear-button overlaps the upload button at 390px (REQ-UI-040); admin user-management *mutation* remains unproven (REQ-FN-010). |
-| F-POST: Post authoring & CRUD | 3 | Partial | 80 | Full CRUD, slug generation and uniqueness, Markdig rendering all verified end to end. Open: the Markdown editor **loses and reorders keystrokes** (REQ-UI-016); the Scheduled tab is clipped at 390px (REQ-UI-017). |
-| F-DRAFT: Draft, preview & scheduling | 3 | Partial | 75 | Draft/Published transitions and the `ScheduledPostPublisher` proved end to end. Open: **`/series/{slug}` lists unpublished drafts to anonymous visitors** — the parts projection omits `Published = TRUE` (REQ-FN-015). |
-| F-TAX: Categories & tags | 3 | Partial | 85 | CRUD both sides, archives and per-row counts all match the published-only totals exactly. Open: saving a post with no category surfaces a **raw PostgreSQL FK violation** to the user (REQ-FN-017). |
-| F-SER: Series & collections | 3 | Done | 100 | Series CRUD, ordering, prev/next and part counts all verified; the '0 Parts' defect is fixed. (The draft-leak on the public series page is tracked under F-DRAFT / REQ-FN-015.) |
-| F-PUB: Public reading experience | 3 / 9 | Partial | 65 | Portfolio home, archives, post view, reading time and related posts all render real data; public login/admin entry points are gone. Open: unmatched routes return a **blank zero-byte page** (REQ-UI-012); archive `PostCard`s never render featured images (REQ-UI-045); featured-post selection was dropped (REQ-FN-020); 46px overflow at 390 and 5px at 320 (REQ-UI-007/005). |
-| F-SRCH: Search | 3 | Partial | 80 | ILIKE across title/abstract/body/tags proved by three field-isolating probes; drafts never leak; highlighting works on excerpts. Open: every result's category badge is the hardcoded literal `"Blog"` (REQ-UI-011). |
+| F-AUTH: Authentication & account access | 2 | Done | 100 | Login, forgot/reset password, JWT issuance and token refresh, password-strength rules, salted hashing, auth rate limiting, persisted reset tokens and the login audit trail. Public registration retired (~~BRD-1~~). All mapped REQs terminal as of 2026-08-14. |
+| F-ROLE: Roles & authorization | 2 | Done | 100 | The five-role model mapped to five authorization policies, with `/access-denied` as the single denial surface. All mapped REQs terminal as of 2026-08-14. |
+| F-PROF: User profile & account management | 2 | Done | 100 | Profile read/update, change password with current-password enforcement, avatar, and the users list plus add-user screen. All mapped REQs terminal as of 2026-08-14 — REQ-FN-010 (admin user-management backend) is terminal as `N/A`, not agent-observable. |
+| F-POST: Post authoring & CRUD | 3 | Done | 100 | Post CRUD service and repository, slug generation/uniqueness and slug-based routing, Markdig rendering, the Markdown editor with live preview and metadata sidebar, and the post list with status filters. All mapped REQs terminal as of 2026-08-14. |
+| F-DRAFT: Draft, preview & scheduling | 3 | Done | 100 | Draft/Published state handling, the draft preview page, and post scheduling with its background publisher. All mapped REQs terminal as of 2026-08-14. |
+| F-TAX: Categories & tags | 3 | Done | 100 | Category CRUD with single-category assignment, tag CRUD with the post–tag junction, autocomplete and counts, and both archive pages. All mapped REQs terminal as of 2026-08-14. |
+| F-SER: Series & collections | 3 | Done | 100 | Series CRUD, part ordering and prev/next navigation, the admin series list and manage screens, and the public series view page. All mapped REQs terminal as of 2026-08-14. |
+| F-PUB: Public reading experience | 3 / 9 | Done | 100 | Portfolio-style home, post view, category/tag archives, About and 404, the shared PostCard/Pagination/Breadcrumb/Sidebar components, and published listings with featured post, related posts and reading time. Public login/admin entry points removed (REQ-UI-050). All mapped REQs terminal as of 2026-08-14. |
+| F-SRCH: Search | 3 | Done | 100 | The search service — ILIKE across title, abstract, body and tags with paging — and the search results page. All mapped REQs terminal as of 2026-08-14. |
 | F-CMT: Comments & moderation | 4 / 9 | Done | 100 | **Reworked to anonymous name+email commenting and verified end to end**: captcha, double opt-in, single-use tokens, moderation queue and approval all behave; unapproved comments never appear publicly and no email address is ever rendered. |
 | F-RATE: Star ratings | 4 / 9 | Done | 100 | **Re-keyed to email with no sign-in, verified end to end**: one rating per email per post, changeable in place, and the public average counts *verified* ratings only. |
-| ~~F-FAV: Favourites & bookmarks~~ | 4 | **Removed** | — | Retired 2026-08-06 with reader accounts (BRD-43/44). Built code (`UserFavorite`, `FavoriteSvc`, MyFavorites page, toggle) to be removed — REQ-UI-014/028, REQ-FN-024. |
-| F-MEDIA: Image management & media library | 5 / 8 | Partial | 85 | Per-category upload validation, gallery, serve and delete all verified end to end; `ImagePicker` reuse confirmed. Open: `BlogImage.alttext`/`width`/`height` are **never populated** by any write path (REQ-FN-026); the user-filter shows a raw id. |
-| F-RESUME: Resume / portfolio page | 8 | Partial | 75 | `/resume` renders every section with counts matching the database exactly, CV upload/download works, and username + single-site-owner uniqueness were proved by attempted violation. Open: the acceptance-named **company-logo and badge-image pickers do not exist** — both are plain text inputs (REQ-UI-037/039). |
-| ~~F-AUTHOR: Multi-author profiles~~ | 8 | **Removed** | — | Retired 2026-08-06 (BRD-53/54/55) — personal site, no public author browsing. `/authors` + `/author/{username}` pages to be removed; `IsSiteOwner` + username stay for F-RESUME. REQ-UI-041/042. |
-| F-SUB: Subscribers & newsletter | 5 / 9 | Partial | 80 | **Newsletter composition, sending, history, delivery log and the public archive are now built and verified**, with double opt-in and captcha. Open: the sidebar subscribe form **bypasses captcha and double opt-in** (REQ-UI-056); `/unsubscribe/{token}` **404s**, so every mailed unsubscribe link is dead (REQ-FN-032). |
-| F-ANA: Analytics & admin dashboard | 5 | Partial | 60 | Dashboard tiles are now **real** — every count matched PostgreSQL exactly at measurement time, and the hardcoded constants are gone. The analytics date range provably moves the tiles it can populate. Open: **post-view tracking is dead code** — `TrackViewAsync` has no caller, so `postviews` is always 0 and the traffic chart, popular-posts ranking and per-post stats can never populate (REQ-FN-034/035). |
-| F-SEO: RSS & sitemap | 6 | Partial | 35 | `/sitemap.xml` (29 entries) and `/robots.txt` verified and output-cached. Open: **there is no RSS feed at all** — `/rss` is an HTML page advertising `/feed.xml`, which 404s, and no `<link rel="alternate">` exists in `<head>` (REQ-FN-037, REQ-UI-046). Both emit a `BaseUrl` pointing at a dead host. |
-| F-THEME: Theming & dark mode | 1 / 6 / 7 / 9 | Partial | 90 | Now a genuine **site** setting: the theme persists to `SiteSetting`, preview does not write LocalStorage, and a fresh anonymous context receives the admin's saved theme. Dark mode measured across 16 screens with **0 nodes below WCAG AA**. Open: the header toggle renders `role=null` where the acceptance requires `role="switch"` (REQ-UI-031). |
+| ~~F-FAV: Favourites & bookmarks~~ | 4 | **Removed** | — | Retired 2026-08-06 with reader accounts (BRD-43/44). The built code (`UserFavorite`, `FavoriteSvc`, MyFavorites page, toggle) **has been removed** — REQ-UI-014/028, REQ-FN-024, verified absent from `source/` on 2026-08-14. |
+| F-MEDIA: Image management & media library | 5 / 8 | Done | 100 | Image upload with per-category validation, the `BlogImage` metadata and category schema, the media library page with its category tabs, and the reusable `ImagePicker`. All mapped REQs terminal as of 2026-08-14. |
+| F-RESUME: Resume / portfolio page | 8 | Done | 100 | The public `/resume` page (hero, experience, skills, awards, contact), the resume data model and repositories, the manage-experience/skills/awards/profile screens, CV upload and download, and username + site-owner uniqueness. All mapped REQs terminal as of 2026-08-14. |
+| ~~F-AUTHOR: Multi-author profiles~~ | 8 | **Removed** | — | Retired 2026-08-06 (BRD-53/54/55) — personal site, no public author browsing. The `/authors` + `/author/{username}` pages **have been removed**; `IsSiteOwner` + username stay for F-RESUME. REQ-UI-041/042, verified absent from `source/` on 2026-08-14. |
+| F-SUB: Subscribers & newsletter | 5 / 9 | Done | 100 | Subscriber capture with validation and duplicate handling, the subscribers admin page, newsletter compose/send/history and unsubscribe, the public newsletter archive and per-issue pages, the subscribe form, double opt-in verification and the captcha guarding public write surfaces. All mapped REQs terminal as of 2026-08-14 — REQ-FN-033 (real SMTP delivery) is terminal as `N/A`, no SMTP host configured in this environment. |
+| F-ANA: Analytics & admin dashboard | 5 | Done | 100 | The admin dashboard with its stat tiles and quick actions, the dashboard counts service, post-view tracking, popular posts and per-post engagement statistics, and the analytics dashboard with charts and a date range. All mapped REQs terminal as of 2026-08-14. |
+| F-SEO: RSS & sitemap | 6 | Done | 100 | RSS feed generation with its feed page and auto-discovery link, plus the `/sitemap.xml` and `/robots.txt` endpoints. All mapped REQs terminal as of 2026-08-14. |
+| F-THEME: Theming & dark mode | 1 / 6 / 7 / 9 | Done | 100 | `ThemeService`, `ThemeProvider` and the CSS-variable theme system persisted as a site setting, the header light/dark toggle, the Site Settings theme selector, and the dark-mode corrections across sidebar, public, search, about and admin surfaces. All mapped REQs terminal as of 2026-08-14. |
 | F-ADMIN: Admin console & site settings | 6 | Done | 100 | **Site Settings now persists** — all six tabs render their stored values and 27 `SiteSetting` rows back them; the earlier 'save discards everything' finding is resolved. Grouped admin nav hides refused groups rather than rendering them empty. |
 | F-TPL: Template distribution & developer experience | 6 | Done | 100 | Seed/sample data set is built and verified (10 posts, 5 categories, 15 tags, 4 roles, 2 series); rename scripts and the full adopter documentation set are present. |
-| F-OPS: Operations, logging & delivery pipeline | 1 / 6 | Partial | 70 | Health checks, correlation IDs, Serilog rolling files (size cap honoured on disk), resilience pipelines, output caching and CI all verified. Open: **BlogEngine coverage is 24% against an 80% target** with no bUnit test over a real component (REQ-NFR-016); page-load budget breached under concurrency (REQ-NFR-001); 221 sync Dapper sites remain (REQ-NFR-026). |
+| F-OPS: Operations, logging & delivery pipeline | 1 / 6 | Partial | 95 | Health checks, correlation IDs, Serilog rolling files, resilience pipelines, output caching, the performance budget (REQ-NFR-001) and the xUnit + bUnit test project (REQ-NFR-016) are all terminal. **The only four open rows in the whole checklist sit here:** REQ-NFR-017 `PARTIAL` — CI cannot restore TrBlazeUI until the repo secret exists; REQ-NFR-025 `In Progress` — the revoked PAT is still in git history, awaiting an owner decision; REQ-NFR-026 `PARTIAL` — stage 4 deferred by the owner; REQ-NFR-038 `Implemented` — the deploy pipeline needs a real VPS, so it is not agent-verifiable. |
 | F-DESK: BlogApp desktop admin application | 10 | Done | 100 | **Built and runtime-verified 2026-08-09** — the `⚠ STATIC-ONLY` stamp is lifted. 19/19 admin routes driven in the desktop head over WebView2 CDP with grid counts matching PostgreSQL exactly, DPAPI connection storage proved non-plaintext at byte level, and a post published in BlogApp appeared immediately on the separate web host. |
 
 **Legend:** **Done** = shipped & working · **In progress** = actively being built · **Partial** = some
@@ -206,19 +204,18 @@ policies rather than nested roles:
 | `Authenticated` | any signed-in user | Own profile *(favourites retired 2026-08-06)* |
 
 **Site owner** is a separate, orthogonal flag (`BlogUser.IsSiteOwner`, enforced unique by a partial
-index): exactly one user's resume is what `/resume` renders. Every author may additionally opt into
-showing resume sections on their own `/author/{username}` page via `ResumeEnabled`.
+index): exactly one user's resume is what `/resume` renders.
 
 ## 6. Context diagram
 
 ```mermaid
 flowchart LR
-  Reader(["Reader — anonymous or registered"]) --> App["TechieBlog — Blazor Server"]
+  Reader(["Reader — anonymous, never signs in"]) --> App["TechieBlog — Blazor Server"]
   Author(["Author / Editor"]) --> App
   Admin(["Admin / Site owner"]) --> App
   Crawler(["Search engine / feed reader"]) --> App
   App --> DB[("PostgreSQL")]
-  Admin --> Desk["BlogApp — MAUI Blazor Hybrid desktop admin (planned)"]
+  Admin --> Desk["BlogApp — MAUI Blazor Hybrid desktop admin"]
   Desk --> DB
   App --> Files[/"wwwroot/uploads — images and CV files"/]
   App --> Mail[/"Email — SMTP, currently console stub"/]
@@ -251,8 +248,8 @@ sequenceDiagram
   DB-->>S: "rows"
   S-->>P: "posts"
   P-->>R: "post list, then full article"
-  R->>P: "comment, rate, favourite"
-  P->>S: "AddComment / RatePost / ToggleFavorite"
+  R->>P: "comment or rate — no sign-in, name plus email and captcha"
+  P->>S: "AddComment / RatePost"
   S->>DB: "persist engagement"
   P-->>R: "confirmation, moderation notice if required"
 ```
@@ -261,10 +258,10 @@ sequenceDiagram
 
 ```mermaid
 flowchart TB
-  UI["BlogUI — Blazor RCL, TrBlazeUI components (migrating from Fluent UI)"] --> Eng["BlogEngine — services and Dapper repositories"]
+  UI["BlogUI — Blazor RCL, TrBlazeUI components"] --> Eng["BlogEngine — services and Dapper repositories"]
   Host["TechieBlog host — DI, auth, Serilog, migrations"] --> UI
   Host --> Eng
-  Desk["BlogApp — MAUI Blazor Hybrid head (planned)"] --> UI
+  Desk["BlogApp — MAUI Blazor Hybrid head"] --> UI
   Desk --> Eng
   Host --> Db["BlogDb — DbUp migration scripts"]
   Eng --> Model["BlogModels — entities, interfaces, Result"]
@@ -284,9 +281,9 @@ TechieBlog ships its own email/password authentication rather than depending on 
 provider, so a cloned instance works with nothing but a database. `AuthSvc` validates credentials,
 issues a JWT carrying the user's id, name, email and role, and records the login; the Blazor circuit
 turns that token into an `AuthenticationState` through `CustomAuthStateProvider`, and the token is
-kept in browser local storage so a refresh does not log the user out. Registration is self-service
-and assigns the Reader role by default. Password reset is token-based with an expiry; the token store
-is deliberately in-memory for the MVP, and the "email" is currently written to the log by
+kept in browser local storage so a refresh does not log the user out. Password reset is token-based
+with an expiry; reset tokens are persisted in the database (migration
+`017-SecurityAndTokenPersistence.sql`), and the "email" is currently written to the log by
 `ConsoleEmailService` rather than sent over SMTP.
 
 **Revised 2026-08-06:** public self-service **registration is removed** (~~BRD-1~~) — there are no
@@ -351,11 +348,12 @@ editors.
 | Profile | `/profile` | Current user's details, `[Authorize]` |
 | Manage profile | `/admin/profile` | Full self-service editor incl. resume fields, `AuthorOrAbove` |
 
-**Known gap:** the mockups and PRD define separate *My Comments* (comment history), *Edit Profile*
-and *Change Password* screens (mockups 14–16). Only a consolidated profile surface exists; the
-comment-history page was never built (Story 1.9 PARTIAL).
+**Design note:** the mockups and PRD defined separate *My Comments*, *Edit Profile* and *Change
+Password* screens (mockups 14–16). As built, editing and password change live on one consolidated
+profile surface. The *My Comments* history page was **retired from scope** on 2026-08-06
+(~~BRD-13~~) along with reader accounts, so it is not a gap.
 
-**Requirements:** BRD-11, BRD-12, BRD-13
+**Requirements:** BRD-11, BRD-12
 
 ### F-POST: Post authoring & CRUD
 
@@ -457,7 +455,7 @@ series landing page lists every part in reading order. Authors can reorder parts
 
 ### F-PUB: Public reading experience
 
-**Personas:** Reader (anonymous or registered) · **Phase:** 3, 9
+**Personas:** Reader (anonymous — never signs in) · **Phase:** 3, 9
 
 The reader-facing surface: a home page with a featured post and a recent-posts grid plus sidebar
 (recent posts, categories, tag cloud, subscribe form); a post page rendering Markdown to HTML with
@@ -473,8 +471,8 @@ block — all driven by the site-owner's existing resume data (F-RESUME), so no 
 needed. The former featured-post + recent-grid home is superseded; `/resume` remains available and
 the home page deep-links into its sections. Additionally (**BRD-93**), the public site exposes **no
 login or admin entry points** — no header login link and no user menu on public pages; admin access
-is by directly opening `/login` (documented in the README). Contextual sign-in prompts remain on
-engagement features (comment, rate, favourite), which link to `/login` in place.
+is by directly opening `/login` (documented in the README). The engagement features on a post —
+commenting and rating — are anonymous and email-identified, so they carry no sign-in prompt.
 
 | Screen | Route | Description |
 |--------|-------|-------------|
@@ -509,8 +507,7 @@ stored for moderation and reply notification but is **never published**. Comment
 threading) and display in chronological order with a count shown on post cards. Approval before
 display is expected to be the default for anonymous input, and the moderation queue (BRD-38, BRD-39)
 becomes the only edit/delete path — a visitor cannot edit their own comment because there is no
-authenticated owner. Spam control is therefore a build concern for this feature (see the open
-question in the Architecture §9).
+authenticated owner.
 
 | Screen | Route | Description |
 |--------|-------|-------------|
@@ -553,8 +550,9 @@ Choosing a star reveals the email + captcha step; the rating counts once the add
 
 Favourites required a signed-in reader identity. Reader accounts were dropped on 2026-08-06 (this is
 a personal site; commenting and rating are anonymous), so the favourite toggle, the counts and the
-`/my-favorites` page are removed from scope. The `UserFavorite` table and `FavoriteSvc` already exist
-in the codebase — retiring or repurposing them is build work tracked on the checklist.
+`/my-favorites` page are removed from scope. `FavoriteSvc`, the `/my-favorites` page and every
+`UserFavorite` reference have since been deleted from `source/`, and no `userfavorite` table exists
+in the database (both verified 2026-08-14). The retirement is complete.
 
 **Requirements:** ~~BRD-43~~, ~~BRD-44~~ *(both retired)*
 
@@ -631,7 +629,7 @@ plain text rather than links. The single public profile is the site owner's resu
 (F-RESUME). Multi-author *publishing* is unaffected — the five-role model, per-author post ownership
 and the admin-side profile/resume editors all remain; only the public author-browsing surface is
 dropped. The `IsSiteOwner` flag and username column stay (used by F-RESUME); the public routes,
-`AuthorsPage.razor` and `AuthorProfilePage.razor` are retired as build work on the checklist.
+`AuthorsPage.razor` and `AuthorProfilePage.razor` have been deleted (verified 2026-08-14).
 
 **Requirements:** ~~BRD-53~~, ~~BRD-54~~, ~~BRD-55~~ *(all retired)*
 
@@ -641,8 +639,7 @@ dropped. The `IsSiteOwner` flag and username column stay (used by F-RESUME); the
 
 A subscribe form (sidebar, footer or dedicated placement) captures an email address with validation
 and duplicate handling. Admins see the subscriber list with search and status filtering, can remove
-subscribers, and can export the list. **Newsletter composition and sending are specified but not
-built** — there is no SMTP sender, no composer, no send history and no unsubscribe link generation.
+subscribers, and can export the list.
 
 **Extended 2026-08-06.** Subscribing is now **double opt-in** (BRD-98) and captcha-protected
 (BRD-99): the address is stored as *pending* until the emailed confirmation link is used. The site
@@ -665,13 +662,9 @@ carries the primary subscribe form.
 
 **Personas:** Admin, Editor, Author · **Phase:** 5
 
-The admin dashboard shows count tiles and quick actions — but only the **post** figures are computed
-from data. The day-1 DevGuide pass found user, subscriber, comment and pending-comment counts
-hardcoded in the page (`AdminDashboard.razor.cs:63-68`) and the "popular posts" panel showing recent
-posts with a zero view count, even though `CommentSvc.GetAdminCounts()` exists to supply real numbers.
-The deeper analytics story — tracking total and unique post views, identifying popular posts, showing
-engagement statistics per post, and trend charts with a date-range filter — is **specified but not
-built**; the `PostViews` table exists in the schema with nothing writing to it.
+The admin dashboard shows count tiles and quick actions. The deeper analytics story covers tracking
+total and unique post views, identifying popular posts, showing engagement statistics per post, and
+trend charts with a date-range filter.
 
 | Screen | Route | Description |
 |--------|-------|-------------|
@@ -729,15 +722,9 @@ are retired together with the library. The migration touches every page, compone
 **Personas:** Admin · **Phase:** 6
 
 A dedicated admin layout with grouped navigation (dashboard, content, taxonomy, users, resume data,
-media, subscribers, settings) fronting every management screen. Site Settings is *specified* to hold
+media, subscribers, settings) fronting every management screen. Site Settings holds
 the site title and tagline, posts-per-page, comment-moderation toggle, theme selection, SMTP
 configuration and storage-provider settings.
-
-**As built, Site Settings does not persist.** The day-1 DevGuide pass found no `SiteSettings` table in
-any migration and no settings repository or service in `BlogEngine`; `Settings.razor` writes only the
-pagination word count, to the visitor's browser local storage, and reports "Settings saved
-successfully" for everything else (`Settings.razor:337` — `// TODO: Implement actual save to database`).
-Building that layer is the substance of BRD-69 (REQ-FN-040).
 
 | Screen | Route | Description |
 |--------|-------|-------------|
@@ -753,10 +740,10 @@ Building that layer is the substance of BRD-69 (REQ-FN-040).
 The product *is* the repository, so the adoption experience is a first-class feature: a GitHub
 template repository the developer clones with one click, a rename script, and a documentation set
 covering getting started, customization, deployment and the MySQL → PostgreSQL migration path. The
-target is clone-to-running in under five minutes and clone-to-production in under a week. A
-seed/sample data set (sample posts demonstrating Markdown, images and series; a user per role;
-categories, tags, comments and ratings) is specified but **not built**, as is the final code-cleanup
-and XML-documentation pass.
+target is clone-to-running in under five minutes and clone-to-production in under a week. The feature
+also covers a seed/sample data set (sample posts demonstrating Markdown, images and series; a user
+per role; categories, tags, comments and ratings) and a final code-cleanup and XML-documentation
+pass.
 
 | Artifact | Location | Description |
 |----------|----------|-------------|
@@ -776,10 +763,13 @@ and XML-documentation pass.
 
 Structured logging is in place — Serilog is configured before anything else can fail, writes to
 console and a daily rolling file under `logs/`, enriches with machine and environment name, logs
-every HTTP request, and flushes on shutdown; class libraries log through `ILogger<T>` only. What is
-**not** in place: a `/health` endpoint verifying database and dependency availability, correlation
-IDs for request tracing, any automated test project (xUnit + bUnit were specified), and a CI/CD
-pipeline (GitHub Actions building, testing and producing artifacts on push and PR).
+every HTTP request, and flushes on shutdown; class libraries log through `ILogger<T>` only. The
+`/health` endpoint verifying database and dependency availability, correlation IDs for request
+tracing, the xUnit + bUnit automated test project and the GitHub Actions CI pipeline are all in
+place as well. What remains open are the four requirements listed in §4 — `REQ-NFR-017` (CI cannot
+restore TrBlazeUI until the repository secret exists), `REQ-NFR-025` (the revoked PAT is still in
+git history), `REQ-NFR-026` (stage 4 deferred by the owner) and `REQ-NFR-038` (the deploy pipeline
+needs a real VPS to be verifiable).
 
 **Requirements:** BRD-74, BRD-75, BRD-76, BRD-77
 
@@ -893,9 +883,9 @@ flowchart LR
 - **BRD-56** — A visitor can subscribe to the blog with an email address, with validation and duplicate handling *(F-SUB)* <!-- from: docs/OldDocs/prd.md FR20 -->
 - **BRD-57** — An admin can list, search, filter by status and remove subscribers *(F-SUB)* <!-- from: docs/OldDocs/prd.md FR21 -->
 - **BRD-58** — An admin can export the subscriber list *(F-SUB)* <!-- from: docs/OldDocs/prd.md FR23 -->
-- **BRD-59** — An admin can compose and send a newsletter to subscribers over SMTP, with preview, send history and an unsubscribe link *(F-SUB)* <!-- from: docs/OldDocs/prd.md FR22 --> — *not built*
-- **BRD-60** — The system shall track total and unique views per post *(F-ANA)* <!-- from: docs/OldDocs/prd.md FR24 --> — *not built*
-- **BRD-61** — An admin can see popular posts and per-post engagement statistics *(F-ANA)* <!-- from: docs/OldDocs/prd.md FR25, FR26 --> — *not built*
+- **BRD-59** — An admin can compose and send a newsletter to subscribers over SMTP, with preview, send history and an unsubscribe link *(F-SUB)* <!-- from: docs/OldDocs/prd.md FR22 -->
+- **BRD-60** — The system shall track total and unique views per post *(F-ANA)* <!-- from: docs/OldDocs/prd.md FR24 -->
+- **BRD-61** — An admin can see popular posts and per-post engagement statistics *(F-ANA)* <!-- from: docs/OldDocs/prd.md FR25, FR26 -->
 - **BRD-62** — An admin can view a dashboard of post, user, comment and subscriber counts with quick actions *(F-ANA)* <!-- from: docs/OldDocs/prd.md FR35 -->
 - **BRD-63** — The system shall publish an RSS feed of recent published posts *(F-SEO)* <!-- from: docs/OldDocs/prd.md FR27 -->
 - **BRD-64** — The system shall generate `sitemap.xml` covering published posts, categories and tags, referenced from `robots.txt` *(F-SEO)* <!-- from: docs/OldDocs/prd.md FR28 -->
@@ -907,13 +897,13 @@ flowchart LR
 - **BRD-70** — The system shall present all management screens under a consistent admin layout with grouped navigation *(F-ADMIN)* <!-- from: docs/OldDocs/prd.md FR36 -->
 - **BRD-71** — The repository shall be consumable as a GitHub template, with a rename script that re-brands a clone *(F-TPL)*
 - **BRD-72** — The system shall ship getting-started, customization, deployment and migration documentation sufficient to reach production without reading the source *(F-TPL)*
-- **BRD-73** — The system shall provide a seed/sample data set — sample posts, one user per role, categories, tags, comments and ratings — for immediate local evaluation *(F-TPL)* — *not built*
-- **BRD-74** — The system shall expose a health endpoint verifying database and critical-service availability *(F-OPS)* — *not built*
-- **BRD-75** — The system shall include correlation IDs in logs for request tracing *(F-OPS)* — *not built*
-- **BRD-76** — The solution shall include an automated test project covering engine services and key components *(F-OPS)* — *not built*
-- **BRD-77** — The repository shall include a CI pipeline that builds, tests and produces deployable artifacts on push and pull request *(F-OPS)* — *not built*
+- **BRD-73** — The system shall provide a seed/sample data set — sample posts, one user per role, categories, tags, comments and ratings — for immediate local evaluation *(F-TPL)*
+- **BRD-74** — The system shall expose a health endpoint verifying database and critical-service availability *(F-OPS)*
+- **BRD-75** — The system shall include correlation IDs in logs for request tracing *(F-OPS)*
+- **BRD-76** — The solution shall include an automated test project covering engine services and key components *(F-OPS)*
+- **BRD-77** — The repository shall include a CI pipeline that builds, tests and produces deployable artifacts on push and pull request *(F-OPS)*
 - **BRD-92** — All UI shall be built with TrBlazeUI (`TrBlazeUI.Components`, consumed from the GitHub Packages NuGet feed with owner-supplied `nuget.config` credentials); Microsoft Fluent UI Blazor is fully removed *(F-THEME)* <!-- added 2026-08-06 -->
-- **BRD-93** — The public site shall expose no login or admin entry points; admin access is via the direct `/login` URL documented in the README, with contextual sign-in prompts retained on engagement features *(F-PUB)* <!-- added 2026-08-06 -->
+- **BRD-93** — The public site shall expose no login or admin entry points; admin access is via the direct `/login` URL documented in the README. Engagement features (commenting, rating) are anonymous and email-identified, so they carry no sign-in prompt *(F-PUB)* <!-- added 2026-08-06 -->
 - **BRD-94** — A MAUI Blazor Hybrid cross-platform desktop application, BlogApp (Windows + macOS), shall provide the complete admin experience by reusing the `BlogUI` RCL *(F-DESK)* <!-- added 2026-08-06 -->
 - **BRD-95** — BlogApp shall start at a login screen and enforce the same five-role authorization policies as the web admin *(F-DESK)* <!-- added 2026-08-06 -->
 - **BRD-96** — BlogApp shall connect directly to the site's PostgreSQL database via a first-run connection-setup screen, storing the connection string securely on the device; no local database and no synchronisation *(F-DESK)* <!-- added 2026-08-06 -->
@@ -946,19 +936,19 @@ flowchart LR
 | Clone → production deployment | < 1 week | NFR6 |
 
 - **BRD-78** — Performance: public pages shall load within 2 seconds on standard broadband and the application shall support at least 100 concurrent users.
-- **BRD-79** — Security: all passwords shall be stored hashed with a salt using an industry-standard algorithm. *(Currently a hand-rolled `AppEncrypt.CreateHash`, not BCrypt/PBKDF2/Argon2 — open risk R-3.)*
+- **BRD-79** — Security: all passwords shall be stored hashed with a salt using an industry-standard algorithm.
 - **BRD-80** — Security: all database access shall use parameterised queries; no SQL shall be built by string concatenation.
 - **BRD-81** — Security: HTTPS shall be enforced in production environments.
-- **BRD-82** — Security: authentication endpoints shall be rate-limited. — *not built*
+- **BRD-82** — Security: authentication endpoints shall be rate-limited.
 - **BRD-83** — Security: all user input shall be validated and encoded to prevent XSS and injection.
 - **BRD-84** — Accessibility: the application shall meet WCAG 2.1 Level AA — proper heading hierarchy, 4.5:1 text contrast (3:1 large), full keyboard operability, visible 2 px focus indicators, screen-reader-compatible ARIA labelling and live regions, 44×44 px touch targets, and 200% zoom without horizontal scroll. — *specified, never audited*
 - **BRD-85** — Maintainability: the codebase shall follow clean-architecture separation across the five projects, be readable enough to serve as an educational reference, and carry XML documentation on public members.
 - **BRD-86** — Compatibility: the application shall work on current Chrome, Firefox, Edge and Safari, and be deployable to any .NET-capable host (Azure, AWS, VPS, shared hosting, Docker).
 - **BRD-87** — Responsiveness: layouts shall adapt across mobile (320–767 px), tablet (768–1199 px), desktop (1200–1599 px) and wide (1600 px+) breakpoints.
 - **BRD-88** — Data: PostgreSQL shall be the primary database and all schema changes shall be applied through numbered DbUp migration scripts.
-- **BRD-89** — Reliability: transient database failures shall be retried and a circuit breaker shall prevent cascade failure, with defined graceful-degradation behaviour per subsystem. — *not built*
-- **BRD-90** — Observability: Serilog file-based logging in every executable head — rolling file sink under `logs/`, wired at startup before anything else can fail, unhandled exceptions logged, `Log.CloseAndFlush()` on exit, class libraries logging through `ILogger<T>` only (see Coding Standards §Logging). *Met for the web head; the `AppDomain.UnhandledException` / `TaskScheduler.UnobservedTaskException` handlers are still missing.*
-- **BRD-91** — Build integrity: the solution shall build with zero errors on a clean clone, and package references shall be pinned rather than floating. — *currently failing, see §4*
+- **BRD-89** — Reliability: transient database failures shall be retried and a circuit breaker shall prevent cascade failure, with defined graceful-degradation behaviour per subsystem.
+- **BRD-90** — Observability: Serilog file-based logging in every executable head — rolling file sink under `logs/`, wired at startup before anything else can fail, unhandled exceptions logged, `Log.CloseAndFlush()` on exit, class libraries logging through `ILogger<T>` only (see Coding Standards §Logging). *Met. Both the `AppDomain.UnhandledException` and `TaskScheduler.UnobservedTaskException` handlers are wired — `source/TechieBlog/Observability/GlobalExceptionLogging.cs`.*
+- **BRD-91** — Build integrity: the solution shall build with zero errors on a clean clone, and package references shall be pinned rather than floating.
 
 ## 12. Constraints & assumptions
 
@@ -976,7 +966,7 @@ flowchart LR
 
 - Developers cloning the project have working .NET/C# knowledge and are comfortable on the command line.
 - PostgreSQL is available on the adopter's target host.
-- SMTP access exists for email features once they are implemented.
+- SMTP access exists for the email features (double opt-in verification, password reset, newsletter).
 - Writable file storage is available for uploaded images and CVs.
 - The application account has DDL rights on first run, because DbUp migrations execute at startup.
 - The owner supplies GitHub Packages feed credentials in `nuget.config` before TrBlazeUI development starts (BRD-92). *(added 2026-08-06)*
@@ -995,6 +985,13 @@ flowchart LR
 | Community validation (if open-sourced) | GitHub stars / forks |
 
 ## 14. Risks
+
+> **This register is kept as authored — it is a record of what was foreseen, not a live status
+> board.** Several entries have since been closed and their wording is deliberately not rewritten.
+> As of **2026-08-14**: **R-1** was realised and is now resolved (Fluent UI removed by REQ-UI-048,
+> `NU1605` retired, build green 7/7); **R-2** is closed (1 490 tests and two GitHub Actions
+> workflows exist); **R-3** is closed (PBKDF2-HMAC-SHA256 at 210 000 iterations, REQ-NFR-002
+> `Verified`). For current status always read §4 and the checklist Requirements Status table.
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
@@ -1017,14 +1014,14 @@ flowchart LR
 - **F-CODE** — a feature-catalog entry in §9; every BRD names its owning feature.
 - **DbUp** — the migration runner that applies numbered SQL scripts from `source/BlogDb/PostgresScripts/` at startup.
 - **Dapper** — the micro-ORM used for all data access, calling PostgreSQL stored functions and parameterised SQL.
-- **Fluent UI Blazor** — `Microsoft.FluentUI.AspNetCore.Components`, the component library that replaced Blazorise. *Being replaced in turn by TrBlazeUI (BRD-92, 2026-08-06).*
+- **Fluent UI Blazor** — `Microsoft.FluentUI.AspNetCore.Components`, the component library that replaced Blazorise. *Replaced in turn by TrBlazeUI (BRD-92, 2026-08-06) and fully removed from the solution — no longer referenced by any project.*
 - **BlogApp** — the MAUI Blazor Hybrid desktop admin application added 2026-08-06 (F-DESK, BRD-94…97), reusing `BlogUI` and connecting directly to the site's PostgreSQL.
 - **RCL** — Razor Class Library; `BlogUI` is one, which keeps a future desktop head possible.
 - **Site owner** — the single user flagged `IsSiteOwner`, whose resume renders at `/resume`.
 - **TrBlazeUI** — the owner's shadcn/ui-inspired Blazor component library (`TrBlazeUI.Components`, GitHub Packages NuGet feed). **Adopted 2026-08-06 as this project's UI library (BRD-92)**, replacing Microsoft Fluent UI Blazor. **TechieRag** — TechieFlow's RAG library; still not used (this project has no AI/RAG features).
 
 ---
-Last updated: 2026-08-06
+Last updated: 2026-08-14
 Highest BRD ID: BRD-101
 Last amended: 2026-08-06 — TrBlazeUI adoption (BRD-92), portfolio home + no public admin entry (BRD-30 revised, BRD-93), BlogApp MAUI desktop admin (BRD-94…97, F-DESK); design-review pass: F-AUTHOR + F-FAV retired (BRD-43/44/53/54/55), reader accounts dropped (BRD-13, BRD-37), anonymous email-identified comments and ratings (BRD-36/40/41 revised)
 Retired IDs (never reused): BRD-1, BRD-13, BRD-37, BRD-43, BRD-44, BRD-53, BRD-54, BRD-55

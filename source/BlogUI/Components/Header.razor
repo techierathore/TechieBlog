@@ -6,8 +6,8 @@
     BRD-93 / REQ-UI-050 — the public chrome carries NO login link and NO user
     menu. Do not reintroduce them.
 
-    Composition note (gap TR-016): TrBlazeUI ships no responsive top-bar shell,
-    so this component composes one from NavigationMenu (desktop) + Sheet (mobile
+    Composition note (TR-016): TrBlazeUI ships no responsive top-bar shell as a
+    single component, so this one composes NavigationMenu (desktop) + Sheet (mobile
     drawer) + a ghost ThemeToggle, exactly as recorded in
     docs/TechieBlog-TrBlazeUI-Feedback.md.
 *@
@@ -39,32 +39,35 @@
             <span class="truncate text-base">TechieBlog</span>
         </a>
 
-        @* Desktop navigation *@
-        @* Desktop navigation — plain semantic markup, NOT TrBlazeUI's NavigationMenu.
+        @* Desktop navigation — TrBlazeUI's own NavigationMenu.
 
-           REQ-NFR-007 / gap TR-032: NavigationMenuLink renders every entry as
-           <a role="menuitem" tabindex="-1">. That is a roving-tabindex menubar pattern the
-           library never completes — no item is ever given tabindex="0" and no arrow-key handler
-           is wired — so the ENTIRE primary navigation was unreachable by keyboard (WCAG 2.1.1),
-           and the orphan `menuitem` roles also failed axe's `aria-required-parent` (4.1.2).
-           A site navigation is a list of links, not a menubar, so it is built from <nav>/<ul>/
-           NavLink here. Styling matches the mobile drawer entries below. *@
-        <nav class="ml-2 hidden md:flex" aria-label="Primary" data-testid="primary-nav">
-            <ul class="flex list-none items-center gap-1 p-0">
+           [REQ-UI-005 / REQ-NFR-007] 2026-08-11: this block was a hand-rolled
+           <nav><ul><li> + NavLink because TrBlazeUI 2.0.1's NavigationMenuLink rendered every
+           entry as <a role="menuitem" tabindex="-1"> — an incomplete roving-tabindex menubar
+           that left 0 of 6 links reachable by Tab (WCAG 2.1.1) and produced orphan `menuitem`
+           roles that failed axe's `aria-required-parent`. TR-044 is fixed in 2.0.2: a
+           top-level NavigationMenuLink is an ordinary link, and `menuitem` semantics apply
+           only inside NavigationMenuContent, which is a real role="menu".
+
+           `aria-label="Primary"` and the six data-testids are carried onto the library
+           components (they splat since TR-048), so the stable element ids the verification
+           suite navigates by are unchanged. `Match` drives the current-page styling that
+           NavLink's ActiveClass used to — NavigationMenuLink owns its own active class. *@
+        <NavigationMenu Class="ml-2 hidden md:flex" aria-label="Primary" data-testid="primary-nav">
+            <NavigationMenuList>
                 @foreach (var link in NavLinks)
                 {
-                    <li>
-                        <NavLink href="@link.Href"
-                                 Match="@link.Match"
-                                 class="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-foreground no-underline hover:bg-accent hover:text-accent-foreground"
-                                 ActiveClass="bg-accent text-accent-foreground"
-                                 data-testid="@link.TestId">
+                    <NavigationMenuItem>
+                        <NavigationMenuLink Href="@link.Href"
+                                            Match="@link.Match"
+                                            Class="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-foreground no-underline hover:bg-accent hover:text-accent-foreground"
+                                            data-testid="@link.TestId">
                             @link.Label
-                        </NavLink>
-                    </li>
+                        </NavigationMenuLink>
+                    </NavigationMenuItem>
                 }
-            </ul>
-        </nav>
+            </NavigationMenuList>
+        </NavigationMenu>
 
         @* Actions: search, theme, mobile drawer trigger.
            `ml-auto` does the spacer's job without adding a flex child (see the note above). *@

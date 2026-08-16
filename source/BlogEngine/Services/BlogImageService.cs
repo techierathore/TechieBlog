@@ -11,7 +11,7 @@ namespace BlogEngine.Services;
 /// Uploads, validates and manages blog media across seven upload categories.
 /// </summary>
 /// <remarks>
-/// <para><b>Purpose:</b> Owns the rules that make an upload acceptable — per-category size limits
+/// <para><b>Purpose:</b> Enforces the rules that make an upload acceptable — per-category size limits
 /// and allowed formats — and records the resulting metadata. Since REQ-FN-042 it no longer knows
 /// where bytes physically land: every write, delete and read goes through
 /// <see cref="IFileStorage"/>, so the same code serves local disk, a network share or an object
@@ -31,6 +31,16 @@ namespace BlogEngine.Services;
 /// <para><b>Usage:</b> Registered scoped. Callers should surface the validation message from
 /// <see cref="ValidateImageAsync"/> before attempting an upload rather than catching the
 /// exception thrown by <see cref="UploadImageAsync"/>.</para>
+///
+/// <para><b>The limits are no longer written here (REQ-FN-025, 2026-08-11).</b> This class used to
+/// hold its own <c>CategoryConstraintMap</c> and its own MIME table, and <c>ManageImages</c> and
+/// <c>ImagePicker</c> each held a third and fourth copy for display — so the upload dialog could
+/// advertise "Max 2MB" from one table while the dropzone advertised "Max size: 10 MB" from the
+/// component's untouched default, and an administrator dropping a 5 MB avatar was accepted by the
+/// client and rejected here. The values now live once, in
+/// <see cref="ImageCategoryRules"/> in <c>BlogModels</c>, which every screen reads through
+/// <see cref="GetCategoryRule"/>. This service remains the authority: it re-validates on
+/// <see cref="UploadImageAsync"/> against the same table, so a bypassed client changes nothing.</para>
 ///
 /// <para><b>A storage failure is now audible (REQ-NFR-040).</b> When the uploads directory was not
 /// writable by the container's user, <c>StoreAsync</c> let the <c>UnauthorizedAccessException</c>
@@ -109,35 +119,6 @@ public class BlogImageService : IBlogImageService
         "Please try again; if it keeps failing, ask an administrator to check the server log.";
 
     /// <summary>
-    /// Category constraints defining max size and allowed formats per category.
-    /// </summary>
-    private static readonly Dictionary<string, CategoryConstraints> CategoryConstraintMap =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["profiles"] = new CategoryConstraints(2 * 1024 * 1024, new[] { "jpg", "jpeg", "png", "webp" }),
-            ["logos"] = new CategoryConstraints(500 * 1024, new[] { "jpg", "jpeg", "png", "svg", "webp" }),
-            ["awards"] = new CategoryConstraints(500 * 1024, new[] { "jpg", "jpeg", "png", "svg", "webp" }),
-            ["icons"] = new CategoryConstraints(200 * 1024, new[] { "png", "svg", "webp" }),
-            ["blog"] = new CategoryConstraints(5 * 1024 * 1024, new[] { "jpg", "jpeg", "png", "gif", "webp" }),
-            ["cv"] = new CategoryConstraints(10 * 1024 * 1024, new[] { "pdf" }),
-            ["general"] = new CategoryConstraints(5 * 1024 * 1024, new[] { "jpg", "jpeg", "png", "gif", "webp" })
-        };
-
-    /// <summary>
-    /// MIME type mappings for common file extensions.
-    /// </summary>
-    private static readonly Dictionary<string, string> MimeTypeMap = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["jpg"] = "image/jpeg",
-        ["jpeg"] = "image/jpeg",
-        ["png"] = "image/png",
-        ["gif"] = "image/gif",
-        ["webp"] = "image/webp",
-        ["svg"] = "image/svg+xml",
-        ["pdf"] = "application/pdf"
-    };
-
-    /// <summary>
     /// Creates the image service over its repository and storage factory.
     /// </summary>
     /// <param name="imageRepo">Persistence for image metadata.</param>
@@ -154,6 +135,12 @@ public class BlogImageService : IBlogImageService
     }
 
     /// <inheritdoc />
+    public ImageCategoryRule GetCategoryRule(string category)
+    {
+        return ImageCategoryRules.For(category);
+    }
+
+    /// <inheritdoc />
     public Task<(bool IsValid, string? Error)> ValidateImageAsync(IBrowserFile file, string category)
     {
         if (file == null)
@@ -162,14 +149,13 @@ public class BlogImageService : IBlogImageService
         if (string.IsNullOrWhiteSpace(category))
             return Task.FromResult<(bool IsValid, string? Error)>((false, "Category is required."));
 
-        var normalizedCategory = category.ToLowerInvariant().Trim();
-        if (!CategoryConstraintMap.TryGetValue(normalizedCategory, out var constraints))
+        if (!ImageCategoryRules.TryGet(category, out var rule))
         {
             return Task.FromResult<(bool IsValid, string? Error)>((false,
-                $"Invalid category '{category}'. Valid categories: {string.Join(", ", CategoryConstraintMap.Keys)}."));
+                $"Invalid category '{category}'. Valid categories: {string.Join(", ", ImageCategoryRules.Categories)}."));
         }
 
-        return Task.FromResult<(bool IsValid, string? Error)>(ValidateAgainstConstraints(file, normalizedCategory, constraints));
+        return Task.FromResult<(bool IsValid, string? Error)>(ValidateAgainstConstraints(file, rule));
     }
 
     /// <inheritdoc />
@@ -185,7 +171,7 @@ public class BlogImageService : IBlogImageService
             throw new InvalidOperationException(validation.Error);
         }
 
-        var normalizedCategory = category.ToLowerInvariant().Trim();
+        var normalizedCategory = ImageCategoryRules.Normalise(category);
         var extension = GetFileExtension(file.Name);
         var relativePath =
             $"{UploadRootFolder}/{normalizedCategory}/{BuildFileName(normalizedCategory, userId, extension)}";
@@ -325,7 +311,7 @@ public class BlogImageService : IBlogImageService
         string? altText)
     {
         var storage = await fileStorageFactory.GetStorageAsync().ConfigureAwait(false);
-        var mimeType = GetMimeType(extension);
+        var mimeType = ImageCategoryRules.MimeTypeFor(extension);
 
         await using var buffer = await BufferUploadAsync(file, category).ConfigureAwait(false);
         var dimensions = ReadDimensions(buffer, file.Name);
@@ -424,7 +410,7 @@ public class BlogImageService : IBlogImageService
     private static async Task<MemoryStream> BufferUploadAsync(IBrowserFile file, string category)
     {
         var buffer = new MemoryStream();
-        await using (var source = file.OpenReadStream(maxAllowedSize: GetMaxSizeForCategory(category)))
+        await using (var source = file.OpenReadStream(maxAllowedSize: ImageCategoryRules.For(category).MaxSizeBytes))
         {
             await source.CopyToAsync(buffer).ConfigureAwait(false);
         }
@@ -616,11 +602,10 @@ public class BlogImageService : IBlogImageService
     /// <para><b>Side Effects:</b> None.</para>
     /// </remarks>
     /// <param name="file">The candidate file.</param>
-    /// <param name="category">The normalised upload category.</param>
-    /// <param name="constraints">The category's limits.</param>
+    /// <param name="rule">The category's authoritative limits.</param>
     /// <returns>Validity and, when invalid, the message to show the user.</returns>
     private static (bool IsValid, string? Error) ValidateAgainstConstraints(
-        IBrowserFile file, string category, CategoryConstraints constraints)
+        IBrowserFile file, ImageCategoryRule rule)
     {
         var extension = GetFileExtension(file.Name);
         if (string.IsNullOrEmpty(extension))
@@ -628,16 +613,14 @@ public class BlogImageService : IBlogImageService
             return (false, "File must have a valid extension.");
         }
 
-        if (!constraints.AllowedFormats.Contains(extension, StringComparer.OrdinalIgnoreCase))
+        if (!rule.AllowsFormat(extension))
         {
-            return (false, $"File format '{extension}' is not allowed for category '{category}'. " +
-                           $"Allowed formats: {string.Join(", ", constraints.AllowedFormats)}.");
+            return (false, rule.BuildFormatMessage(extension));
         }
 
-        if (file.Size > constraints.MaxSize)
+        if (file.Size > rule.MaxSizeBytes)
         {
-            return (false, $"File size ({FormatFileSize(file.Size)}) exceeds maximum allowed size " +
-                           $"({FormatFileSize(constraints.MaxSize)}) for category '{category}'.");
+            return (false, rule.BuildOversizeMessage(file.Size));
         }
 
         return (true, null);
@@ -679,53 +662,4 @@ public class BlogImageService : IBlogImageService
         return fileName[(lastDot + 1)..].ToLowerInvariant();
     }
 
-    /// <summary>
-    /// Maps a file extension to its MIME type.
-    /// </summary>
-    /// <param name="extension">Lower-case extension without the dot.</param>
-    /// <returns>The MIME type, or the generic binary type.</returns>
-    private static string GetMimeType(string extension)
-    {
-        if (string.IsNullOrWhiteSpace(extension))
-            return "application/octet-stream";
-
-        return MimeTypeMap.TryGetValue(extension, out var mimeType) ? mimeType : "application/octet-stream";
-    }
-
-    /// <summary>
-    /// Returns the maximum allowed upload size for a category.
-    /// </summary>
-    /// <param name="category">The normalised upload category.</param>
-    /// <returns>The limit in bytes, falling back to the general category's limit.</returns>
-    private static long GetMaxSizeForCategory(string category)
-    {
-        return CategoryConstraintMap.TryGetValue(category, out var constraints)
-            ? constraints.MaxSize
-            : CategoryConstraintMap["general"].MaxSize;
-    }
-
-    /// <summary>
-    /// Renders a byte count as a human-readable size.
-    /// </summary>
-    /// <param name="bytes">The size in bytes.</param>
-    /// <returns>A short, user-facing size string.</returns>
-    private static string FormatFileSize(long bytes)
-    {
-        const long OneKilobyte = 1024;
-        const long OneMegabyte = OneKilobyte * 1024;
-
-        return bytes switch
-        {
-            >= OneMegabyte => $"{bytes / (double)OneMegabyte:F1} MB",
-            >= OneKilobyte => $"{bytes / (double)OneKilobyte:F1} KB",
-            _ => $"{bytes} bytes"
-        };
-    }
-
-    /// <summary>
-    /// Size and format limits for one upload category.
-    /// </summary>
-    /// <param name="MaxSize">Maximum accepted size in bytes.</param>
-    /// <param name="AllowedFormats">Extensions accepted for this category.</param>
-    private record CategoryConstraints(long MaxSize, string[] AllowedFormats);
 }

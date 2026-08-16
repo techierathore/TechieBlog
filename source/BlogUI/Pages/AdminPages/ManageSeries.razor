@@ -83,11 +83,14 @@
                                         <SelectValue Placeholder="Select status" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem TValue="string" Value="@("In Progress")" Text="In Progress">In Progress</SelectItem>
-                                        <SelectItem TValue="string" Value="@("Complete")" Text="Complete">Complete</SelectItem>
+                                        @* Values come from SeriesStatus so the picker cannot drift from
+                                           what the database stores or what the list page filters on
+                                           (REQ-UI-024). Never type the literal here. *@
+                                        <SelectItem TValue="string" Value="@SeriesStatus.InProgress" Text="@SeriesStatus.InProgress">@SeriesStatus.InProgress</SelectItem>
+                                        <SelectItem TValue="string" Value="@SeriesStatus.Completed" Text="@SeriesStatus.Completed">@SeriesStatus.Completed</SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <FieldDescription>Mark as complete when all parts have been published</FieldDescription>
+                                <FieldDescription>Mark as completed when all parts have been published</FieldDescription>
                             </FieldContent>
                         </Field>
 

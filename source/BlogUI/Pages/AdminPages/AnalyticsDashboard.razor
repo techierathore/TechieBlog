@@ -178,11 +178,17 @@
                 }
                 else
                 {
-                    <div class="overflow-x-auto">
-                    <div class="min-w-[720px]">
+                    @*
+                        TrBlazeUI 2.0.2 (TR-043): DataTable owns its own horizontally scrolling
+                        wrapper and takes a MinWidth, so the hand-rolled
+                        `overflow-x-auto` + `min-w-[720px]` pair this used to need is gone.
+                        Without a minimum the w-full table just shrinks and squeezes the Rating
+                        column away with no scrollbar, which is the defect TR-043 recorded.
+                    *@
                     <DataTable TData="PopularPost"
                                Data="@PopularPosts"
                                InitialPageSize="10"
+                               MinWidth="720px"
                                AriaLabel="Popular posts"
                                data-testid="analytics-popular-grid">
                         <Columns>
@@ -213,8 +219,6 @@
                             </DataTableColumn>
                         </Columns>
                     </DataTable>
-                    </div>
-                    </div>
                 }
             </CardContent>
         </Card>

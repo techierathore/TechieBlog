@@ -13,12 +13,11 @@
             new() { Label = post.Title } })" />
 *@
 
-@* TR-021 workaround: TrBlazeUI's Breadcrumb/BreadcrumbList declare no
-   CaptureUnmatchedValues parameter, so passing data-testid straight to
-   <Breadcrumb> throws InvalidOperationException and takes the whole page into
-   the router's ErrorBoundary. The hook lives on a wrapper element instead. *@
-<div data-testid="breadcrumb">
-<Breadcrumb>
+@* The test hook sits on <Breadcrumb> itself. Up to TrBlazeUI 2.0.1 that threw
+   InvalidOperationException and took every page using this component into the
+   router's ErrorBoundary, so it had to ride on a wrapper <div> (TR-021);
+   2.0.2 splats on all 344 components and the wrapper is gone. *@
+<Breadcrumb data-testid="breadcrumb">
     <BreadcrumbList>
         @for (var index = 0; index < Items.Count; index++)
         {
@@ -43,7 +42,6 @@
         }
     </BreadcrumbList>
 </Breadcrumb>
-</div>
 
 @code {
     /// <summary>

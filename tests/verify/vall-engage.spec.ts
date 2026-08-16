@@ -33,20 +33,22 @@ async function waitForChallenge(scope: Locator) {
 /**
  * Selects a star on the rating panel.
  *
- * The visible stars are TrBlazeUI `Rating` spans inside an `aria-hidden` wrapper; the native radio
- * group beside them (`post-rating-star-N`) is the keyboard-accessible equivalent and is visually
- * hidden until focused. Either is a legitimate way for a visitor to choose, so the helper focuses
- * the native radio first (which reveals the fieldset) and falls back to the painted star.
+ * Since TrBlazeUI 2.0.2 (TR-031/045/052) the stars ARE the control: each option is a real
+ * `<button role="radio">` with a roving tabindex and a literal `aria-checked`. The visually hidden
+ * `<fieldset>` of native radios that used to carry the keyboard semantics beside them, and its
+ * `post-rating-star-N` ids, were deleted on 2026-08-11 — so the option is addressed by position
+ * within the group and driven by keyboard, which is the path a keyboard visitor actually takes.
  */
 async function chooseStar(page: Page, value: number) {
-  const radio = page.locator(`[data-testid="post-rating-star-${value}"]`).first();
-  await expect(radio).toHaveCount(1, { timeout: 60000 });
-  await radio.evaluate((el) => (el as HTMLElement).focus());
+  const options = page.locator('[data-testid="post-rating-stars"] [role="radio"]');
+  await expect(options).toHaveCount(5, { timeout: 60000 });
+  const option = options.nth(value - 1);
+  await option.evaluate((el) => (el as HTMLElement).focus());
   await page.waitForTimeout(400);
-  try {
-    await radio.check({ force: true, timeout: 15000 });
-  } catch {
-    await page.locator('[data-testid="post-rating-stars"] [role="radio"]').nth(value - 1).click({ force: true });
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(600);
+  if ((await options.nth(value - 1).getAttribute('aria-checked')) !== 'true') {
+    await option.click({ force: true });
   }
 }
 
@@ -414,11 +416,12 @@ test('REQ-UI-027 rating widget shows the verified-only average and count with no
   expect(Number(avgUi)).toBeCloseTo(avgDb, 1);
   expect(cntUi).toContain(String(cntDb));
 
-  // Five interactive stars, reachable without an account.
-  for (let i = 1; i <= 5; i++) {
-    expect(await panel.locator(`[data-testid="post-rating-star-${i}"]`).count()).toBe(1);
-  }
+  // Five interactive stars, reachable without an account. Since 2.0.2 they are real
+  // <button role="radio"> options — no <span role="radio">, and no hidden native fallback.
   expect(await panel.locator('[data-testid="post-rating-stars"]').count()).toBe(1);
+  expect(await panel.locator('[data-testid="post-rating-stars"] button[role="radio"]').count()).toBe(5);
+  expect(await panel.locator('span[role="radio"]').count()).toBe(0);
+  expect(await panel.locator('[data-testid="post-rating-keyboard"]').count()).toBe(0);
 
   const panelText = await panel.innerText();
   expect(panelText).not.toMatch(/sign in|log in|login/i);

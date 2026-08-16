@@ -6,10 +6,15 @@
     Renders nothing when the owner has no statistics, so an unconfigured site
     degrades to a shorter page rather than an empty grid (mockup "States" note).
 
-    REQ-UI-048 — TrBlazeUI (Card). Every colour and spacing value is a utility
-    class resolving to a design token; no literals.
+    REQ-UI-048 — TrBlazeUI. Every colour and spacing value is a utility class
+    resolving to a design token; no literals.
 
-    Dependencies: TrBlazeUI Card, BlogModels.Models.UserStat
+    TrBlazeUI 2.0.2 (TR-022) ships StatTile / StatGroup, so the local
+    Card + CardContent + two hand-sized <span>s composite this used to be —
+    the very duplication TR-022 was raised about — is gone. StatGroup also
+    owns the responsive grid that used to need utilities.css.
+
+    Dependencies: TrBlazeUI StatGroup/StatTile, BlogModels.Models.UserStat
     Usage: <HomeStats Stats="@stats" /> from Pages/BlogPages/Home.razor
 *@
 
@@ -18,17 +23,14 @@
 @if (Stats is not null && Stats.Count > 0)
 {
     <section class="py-10" aria-label="Highlights" data-testid="home-stats">
-        <div class="grid grid-cols-2 gap-4 md:grid-cols-4" data-testid="home-stats-grid">
+        <StatGroup Columns="4" data-testid="home-stats-grid">
             @foreach (var stat in Stats)
             {
-                <Card Class="text-center" data-testid="home-stat-card">
-                    <CardContent Class="flex flex-col items-center gap-2 p-6">
-                        <span class="text-3xl font-bold text-primary" data-testid="home-stat-value">@stat.StatValue</span>
-                        <span class="text-sm text-muted-foreground" data-testid="home-stat-label">@stat.StatLabel</span>
-                    </CardContent>
-                </Card>
+                <StatTile Value="@stat.StatValue"
+                          Label="@stat.StatLabel"
+                          data-testid="home-stat-card" />
             }
-        </div>
+        </StatGroup>
     </section>
 }
 

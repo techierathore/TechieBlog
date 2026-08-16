@@ -130,10 +130,14 @@
         </DialogHeader>
 
         <div class="flex flex-col gap-4">
+            @* [REQ-FN-025] MaxFileSize must be supplied: the component otherwise advertises and
+               enforces its own 10 MB default, contradicting the constraint line above it. *@
             <div data-testid="upload-image">
                 <FileUpload Files="@PendingFiles"
                             FilesChanged="@OnFilesChanged"
                             Accept="@GetAcceptedFileTypes()"
+                            MaxFileSize="@GetMaxUploadSize()"
+                            OnValidationError="@OnDropzoneValidationError"
                             Multiple="false"
                             Disabled="@IsUploading" />
             </div>

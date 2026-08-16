@@ -79,7 +79,14 @@
                         <Field>
                             <FieldLabel>Post Content (Markdown)</FieldLabel>
                             <FieldContent>
-                                <PostMarkdownEditor @bind-Value="AnswerDetail" />
+                                @*
+                                    ResetKey identifies the post in the editor. The editor ignores
+                                    values arriving after the first keystroke (TR-057); without a
+                                    key change on a post switch, post A's body would stay in the
+                                    textarea under post B's URL. See ManagePost.razor.cs.
+                                *@
+                                <PostMarkdownEditor @bind-Value="AnswerDetail"
+                                                    ResetKey="@EditorResetKey" />
                             </FieldContent>
                         </Field>
                     </div>
@@ -129,25 +136,30 @@
                                             Set a date and time to automatically publish this post.
                                         </span>
 
+                                        @*
+                                            TrBlazeUI gap TR-069 (found 2026-08-11 on 2.0.2, measured live):
+                                            DatePicker and TimePicker ACCEPT a splatted data-testid — no throw,
+                                            0 build errors — and then never render it on the popover trigger
+                                            button they emit. The 2.0.2 upgrade therefore silently DELETED the
+                                            pre-existing `publish-date-picker` hook that used to ride on
+                                            <DatePicker> directly. Both hooks live on wrappers this page owns
+                                            until the library renders AdditionalAttributes on these two.
+                                            Do NOT move them back onto the components without re-measuring.
+                                        *@
                                         <Field>
                                             <FieldLabel>Publish Date</FieldLabel>
                                             <FieldContent>
-                                                <DatePicker @bind-Value="ScheduledDate"
-                                                            Placeholder="Pick a date"
-                                                            Class="w-full"
-                                                            data-testid="publish-date-picker" />
+                                                <span data-testid="publish-date-picker">
+                                                    <DatePicker @bind-Value="ScheduledDate"
+                                                                Placeholder="Pick a date"
+                                                                Class="w-full" />
+                                                </span>
                                             </FieldContent>
                                         </Field>
 
                                         <Field>
                                             <FieldLabel>Publish Time</FieldLabel>
                                             <FieldContent>
-                                                @*
-                                                    TimePicker declares no CaptureUnmatchedValues, so a data-testid
-                                                    on it throws at render and the ErrorBoundary swallowed this page
-                                                    behind an HTTP 200. The hook lives on a wrapper this page owns.
-                                                    Library gap TR-030/TR-046. (DatePicker above DOES splat.)
-                                                *@
                                                 <span data-testid="publish-time-picker">
                                                     <TimePicker @bind-Value="ScheduledTime"
                                                                 Placeholder="Pick a time"

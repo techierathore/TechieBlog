@@ -21,7 +21,10 @@ namespace TechieBlog.Tests.Media;
 /// </remarks>
 /// <param name="name">The original file name reported to the service.</param>
 /// <param name="content">The file's bytes.</param>
-public class StubBrowserFile(string name, byte[] content) : IBrowserFile
+/// <param name="declaredSize">Size the file <i>claims</i> to be. Defaults to the real length; supply
+/// a different value to model a client that lies about its upload, which is what
+/// <c>BufferUploadAsync</c>'s bounded stream exists to stop (REQ-FN-025).</param>
+public class StubBrowserFile(string name, byte[] content, long? declaredSize = null) : IBrowserFile
 {
     /// <inheritdoc />
     public string Name { get; } = name;
@@ -30,7 +33,7 @@ public class StubBrowserFile(string name, byte[] content) : IBrowserFile
     public DateTimeOffset LastModified { get; } = DateTimeOffset.UtcNow;
 
     /// <inheritdoc />
-    public long Size { get; } = content.Length;
+    public long Size { get; } = declaredSize ?? content.Length;
 
     /// <inheritdoc />
     public string ContentType { get; } = "application/octet-stream";

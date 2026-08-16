@@ -40,10 +40,10 @@
     else
     {
         @*
-            The test ids sit on a <span> INSIDE each trigger, not on the TabsTrigger itself.
-            TrBlazeUI's TabsTrigger does not capture unmatched attributes, so `data-testid` on
-            the component throws InvalidOperationException and the whole page renders as an empty
-            error boundary. Library gap TR-032 — remove the spans once TabsTrigger splats.
+            Each trigger's test hook sits on <TabsTrigger> itself. Up to TrBlazeUI 2.0.1 that
+            threw InvalidOperationException and rendered the whole page as an empty error
+            boundary, so the ids had to ride on a <span> inside the trigger (TR-032/TR-046);
+            2.0.2 splats on all 344 components and the spans are gone.
         *@
         <Tabs DefaultValue="general">
             @*
@@ -52,12 +52,12 @@
                 off-canvas. Wrapping keeps every tab reachable on a phone.
             *@
             <TabsList Class="h-auto flex-wrap">
-                <TabsTrigger Value="general"><span data-testid="tab-general">General</span></TabsTrigger>
-                <TabsTrigger Value="blog"><span data-testid="tab-blog">Blog</span></TabsTrigger>
-                <TabsTrigger Value="theme"><span data-testid="tab-theme">Theme</span></TabsTrigger>
-                <TabsTrigger Value="seo"><span data-testid="tab-seo">SEO &amp; Social</span></TabsTrigger>
-                <TabsTrigger Value="email"><span data-testid="tab-email">Email</span></TabsTrigger>
-                <TabsTrigger Value="storage"><span data-testid="tab-storage">Storage</span></TabsTrigger>
+                <TabsTrigger Value="general" data-testid="tab-general">General</TabsTrigger>
+                <TabsTrigger Value="blog" data-testid="tab-blog">Blog</TabsTrigger>
+                <TabsTrigger Value="theme" data-testid="tab-theme">Theme</TabsTrigger>
+                <TabsTrigger Value="seo" data-testid="tab-seo">SEO &amp; Social</TabsTrigger>
+                <TabsTrigger Value="email" data-testid="tab-email">Email</TabsTrigger>
+                <TabsTrigger Value="storage" data-testid="tab-storage">Storage</TabsTrigger>
             </TabsList>
 
             @* ---------------- General ---------------- *@
@@ -492,7 +492,11 @@
 
         try
         {
-            settings = await SiteSettingsService.GetSettingsAsync();
+            // Editable COPY, never the shared cached aggregate (REQ-FN-061). Every control on this
+            // page binds straight to `settings`, so binding it to the singleton's instance made each
+            // keystroke a live, unsaved, site-wide configuration change visible to anonymous
+            // visitors. The copy is discarded unless Save writes it.
+            settings = await SiteSettingsService.GetEditableSettingsAsync();
         }
         catch (Exception)
         {
@@ -511,6 +515,12 @@
     /// The theme is applied live through <see cref="ThemeService"/> so the admin sees the
     /// result at once; it is not durable until Save Settings writes it through
     /// <see cref="ISiteSettingsService"/>.
+    /// <para>Both halves of that preview are scoped to this administrator (REQ-FN-061).
+    /// <c>settings</c> is the page's own copy from <c>GetEditableSettingsAsync</c>, and
+    /// <see cref="ThemeService"/> is registered <c>Scoped</c>, so it is per-circuit. Neither reaches
+    /// another user. Before the fix <c>settings</c> WAS the singleton's cached aggregate, so this one
+    /// assignment re-themed the live site for everyone — including anonymous visitors — with nothing
+    /// written to the database and no way to undo it short of a restart.</para>
     /// </remarks>
     /// <param name="themeId">Identifier of the selected theme.</param>
     private void OnThemeSelected(string themeId)
@@ -546,7 +556,8 @@
             if (result.IsSuccess)
             {
                 // Rebind to what the store actually returned, so the screen shows the persisted
-                // truth rather than the values that were merely submitted.
+                // truth rather than the values that were merely submitted. The service returns a
+                // detached copy (REQ-FN-061), so continuing to edit after a save stays page-local.
                 settings = result.Data ?? settings;
                 settings.SiteTheme = ThemeService.NormaliseTheme(settings.SiteTheme);
                 ToastService.Success("Settings saved.", "Settings");

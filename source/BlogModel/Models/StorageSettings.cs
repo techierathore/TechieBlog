@@ -86,4 +86,30 @@ public class StorageSettings
     /// which is the correct answer for the default local provider.
     /// </summary>
     public string PublicBaseUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Returns an independent copy of this configuration.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Every member is a string, so a member-wise copy is already a
+    /// full copy. The method exists for the same reason as <see cref="SmtpSettings.Clone"/> — so a
+    /// reference member added later has an obvious place to be copied properly.</para>
+    /// <para><b>Flow:</b> Construct a new instance and assign each member.</para>
+    /// <para><b>Side Effects:</b> None. The copy carries the decrypted
+    /// <see cref="CloudAccessKey"/> and is exactly as sensitive as the original.</para>
+    /// </remarks>
+    /// <returns>A new instance sharing no mutable state with this one.</returns>
+    public StorageSettings Clone()
+    {
+        return new StorageSettings
+        {
+            ProviderName = ProviderName,
+            LocalRootPath = LocalRootPath,
+            NetworkRootPath = NetworkRootPath,
+            CloudServiceUrl = CloudServiceUrl,
+            CloudContainerName = CloudContainerName,
+            CloudAccessKey = CloudAccessKey,
+            PublicBaseUrl = PublicBaseUrl
+        };
+    }
 }

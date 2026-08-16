@@ -11,7 +11,8 @@ Index: [TechieBlog-DevGuide.md](./TechieBlog-DevGuide.md)
 |------------------|----------|--------|
 | `/BlogsList` | **renders ✓** | the 2026-08-02 note that an Author "cannot reach any post list" is **resolved**: the page is `AuthorOrAbove` with server-side scoping. Author sees exactly her own 2 rows, all authored "Arun Nair", **0 "Unknown" cells**, published rows showing `PublishedOn` not `CreatedOn`. Admin sees 10 with tabs All 10 / Published 8 / Drafts 1 / **Scheduled 1** — the Scheduled tab that could once only show 0 now works |
 | `/BlogsList` tab strip | **visual-broken (DEFECT)** | at 390 the "Scheduled (1)" tab measures `right=411` in a 390px viewport with `overflow-x:visible`, so 21px is **clipped rather than scrollable** and the count digit is cut. Still operable. 1280 clean |
-| `/ManagePost` Markdown body | **render-error (DEFECT)** | **the textarea loses and reorders keystrokes** — typing a 15-character string retained only 3–12 characters in 3 of 4 runs, at both 120ms and 1000ms per key. Every keystroke round-trips to the server and the re-render overwrites the DOM value. The live preview itself is correct and updates without blur or save |
+| `/ManagePost` Markdown body | **renders ✓** (was a DEFECT; **fixed 2026-08-09**, re-proved 2026-08-11) | The textarea used to lose and reorder keystrokes — a 15-character string retained only 3–12 characters — because TrBlazeUI's `<Textarea>` is a CONTROLLED input and every keystroke round-tripped, the returning render writing a stale value into the DOM. `PostMarkdownEditor` now uses an UNCONTROLLED raw `<textarea>` seeded once via `editorSeed`/`editorRevision` (library gap TR-057; do NOT "restore" `<Textarea>`). Re-measured 2026-08-11 after the REQ-UI-016 reload fix: `## Live heading` typed one key at a time at 40ms and 120ms per key arrived exact, both immediately and 2.5s later |
+| `/ManagePost/{id}` route change | **renders ✓** (was a DEFECT; **fixed 2026-08-11**) | Switching posts client-side used to leave the previous post's fields on screen — see the corrected note below the table. Now every bound field reloads and a save after a switch touches only the post in the URL |
 | `/ManagePost` category | **render-error (DEFECT)** | saving with the dropdown on its "-- Select Category --" default writes `CategoryId=0` and surfaces the **raw database error** `23503: ... violates foreign key constraint "blogpost_categoryid_fkey"` to the user, with no row saved. Reproduced in all 4 runs and independently on the desktop head |
 | `/ManagePost` schedule | **renders ✓** | scheduling persisted and the **background publisher was proved end to end** — a row set due was picked up by `ScheduledPostPublisher`'s minute tick, which flipped `published=true` and cleared `scheduledpublishon`. Note `data-testid="publish-date-picker"` never reaches the DOM (TrBlazeUI `DatePicker` drops unmatched attributes) |
 | `/ManagePost` tags / series / featured image | **renders ✓** | inline tag creation wrote the tag plus exactly 1 junction row; series selector auto-assigned the next part number; picker present |
@@ -22,8 +23,23 @@ Index: [TechieBlog-DevGuide.md](./TechieBlog-DevGuide.md)
 **Cross-head note:** a post authored and published in the **BlogApp desktop head** appeared immediately
 on the **web host** (separate process, same database), proving the shared `BlogUI`/`BlogEngine` write path.
 
-**Known harness trap for the next agent:** `Blazor.navigateTo('/ManagePost')` from `/ManagePost` is a
-**no-op**, so the editor keeps the post it just saved and a "new post" silently becomes an update.
+**CORRECTED 2026-08-11 — this was never a harness trap, it was a product defect (REQ-UI-016).** The
+entry here used to read *"`Blazor.navigateTo('/ManagePost')` from `/ManagePost` is a no-op, so the
+editor keeps the post it just saved and a 'new post' silently becomes an update"* and blamed the
+test harness. **The harness was innocent.** `ManagePost` loaded its post in `OnInitializedAsync`,
+which the Blazor router runs **once per visit** to the editor, so no route-parameter change ever
+re-read the row. Navigating from `/ManagePost/5` to `/ManagePost/6` left post 5's title, slug, body
+and **every** metadata sidebar field on screen under post 6's URL — and a save from that state wrote
+post 5's content over post 6. That is data corruption on the ordinary user path "edit post A, then
+edit post B", with no test harness anywhere near it.
+
+**Fixed 2026-08-11:** the per-post load moved to `OnParametersSetAsync`, guarded by a `loadedPostId`
+field so it re-reads exactly when the route parameter changes; `ClearPostFields()` resets every
+per-post field first; and `ManagePost` now hands `PostMarkdownEditor` a `ResetKey` that releases the
+editor's "user has typed" latch (the TR-057 keystroke fix) when — and only when — the document
+changes. Verified live: switching `/ManagePost/5` → `/ManagePost/7` → `/ManagePost/5` reloaded all
+ten bound fields against psql truth, a save after the switch changed post 7's row only and left post
+5 byte-for-byte identical, and typing 15 characters after a switch still yielded all 15 in order.
 
 An Author sees every Reader screen plus the ten below, all guarded by
 `@attribute [Authorize(Policy = "AuthorOrAbove")]` (Admin, Editor, Author) and rendered in `AdminLayout`.

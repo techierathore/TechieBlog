@@ -8,6 +8,8 @@ using BlogModels.Interfaces;
 using BlogModels.Models;
 using TrBlazeUI.Components.FileUpload;
 
+using BlogUI.Common;
+
 namespace BlogUI.Pages.AdminPages;
 
 /// <summary>
@@ -62,30 +64,6 @@ public partial class ManageImages : ComponentBase
         ["blog"] = "Blog",
         ["cv"] = "CV",
         ["general"] = "General"
-    };
-
-    // Category constraints for validation display
-    private static readonly Dictionary<string, (string MaxSize, string Formats)> CategoryConstraints = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["profiles"] = ("2MB", "jpg, jpeg, png, webp"),
-        ["logos"] = ("500KB", "jpg, jpeg, png, svg, webp"),
-        ["awards"] = ("500KB", "jpg, jpeg, png, svg, webp"),
-        ["icons"] = ("200KB", "png, svg, webp"),
-        ["blog"] = ("5MB", "jpg, jpeg, png, gif, webp"),
-        ["cv"] = ("10MB", "pdf"),
-        ["general"] = ("5MB", "jpg, jpeg, png, gif, webp")
-    };
-
-    // File type mappings for input accept attribute
-    private static readonly Dictionary<string, string> AcceptTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["profiles"] = "image/jpeg,image/png,image/webp",
-        ["logos"] = "image/jpeg,image/png,image/svg+xml,image/webp",
-        ["awards"] = "image/jpeg,image/png,image/svg+xml,image/webp",
-        ["icons"] = "image/png,image/svg+xml,image/webp",
-        ["blog"] = "image/jpeg,image/png,image/gif,image/webp",
-        ["cv"] = "application/pdf",
-        ["general"] = "image/jpeg,image/png,image/gif,image/webp"
     };
 
     // State properties
@@ -266,7 +244,7 @@ public partial class ManageImages : ComponentBase
         ShowUploadDialog = true;
         UploadCategory = SelectedCategory;
         SelectedFile = null;
-        PendingFiles = null;
+        PendingFiles = Array.Empty<FileUploadItem>();
         UploadError = null;
         UploadAltText = null;
         IsUploading = false;
@@ -276,7 +254,7 @@ public partial class ManageImages : ComponentBase
     {
         ShowUploadDialog = false;
         SelectedFile = null;
-        PendingFiles = null;
+        PendingFiles = Array.Empty<FileUploadItem>();
         UploadError = null;
         UploadAltText = null;
         IsUploading = false;
@@ -364,24 +342,84 @@ public partial class ManageImages : ComponentBase
         }
     }
 
+    /// <summary>
+    /// The sentence advertising the selected category's limits, taken from the service that
+    /// enforces them (REQ-FN-025).
+    /// </summary>
+    /// <param name="category">The category currently chosen in the dialog.</param>
+    /// <returns>Text such as <c>Max 2 MB, formats: jpg, jpeg, png, webp</c>.</returns>
     public string GetCategoryConstraintsText(string category)
     {
-        var normalizedCategory = category?.ToLowerInvariant() ?? "general";
-        if (CategoryConstraints.TryGetValue(normalizedCategory, out var info))
-        {
-            return $"Max {info.MaxSize}, formats: {info.Formats}";
-        }
-        return "Max 5MB, formats: jpg, jpeg, png, gif, webp";
+        return ImageService.GetCategoryRule(category).ConstraintsText;
     }
 
+    /// <summary>
+    /// The <c>accept</c> filter for the selected category, derived from the same allow-list the
+    /// server validates against.
+    /// </summary>
+    /// <param name="category">The category currently chosen in the dialog.</param>
+    /// <returns>A comma-separated MIME list for the file input.</returns>
     public string GetAcceptedFileTypes(string category)
     {
-        var normalizedCategory = category?.ToLowerInvariant() ?? "general";
-        if (AcceptTypes.TryGetValue(normalizedCategory, out var types))
-        {
-            return types;
-        }
-        return "image/jpeg,image/png,image/gif,image/webp";
+        return ImageService.GetCategoryRule(category).AcceptAttribute;
+    }
+
+    /// <summary>
+    /// The client-side size ceiling handed to the dropzone for the selected category
+    /// (REQ-FN-025).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Without this the <c>FileUpload</c> component keeps its own 10 MB
+    /// default, prints "Max size: 10 MB" directly beneath a caption saying "Max 2 MB", and accepts a
+    /// file the server is certain to reject. Feeding it the category's real ceiling makes the
+    /// dropzone advertise and enforce the same number as the caption and the service.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <param name="category">The category currently chosen in the dialog.</param>
+    /// <returns>The category's maximum upload size in bytes.</returns>
+    public long GetMaxUploadSize(string category)
+    {
+        return ImageService.GetCategoryRule(category).MaxSizeBytes;
+    }
+
+    /// <summary>
+    /// Re-arms the dialog when the uploader picks a different category.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Every advertised limit is a function of the category, so a
+    /// change has to clear whatever was staged under the previous one — a 4 MB blog image left in
+    /// the dropzone while the category moves to <c>profiles</c> would sit there under a caption that
+    /// no longer describes it.</para>
+    /// <para><b>Flow:</b> record the new category → drop the staged file and any stale error.</para>
+    /// <para><b>Side Effects:</b> Clears the staged upload; the dropzone re-renders empty with the
+    /// new ceiling, accept filter and caption.</para>
+    /// </remarks>
+    /// <param name="category">The newly selected category key.</param>
+    public void OnUploadCategoryChanged(string category)
+    {
+        UploadCategory = string.IsNullOrWhiteSpace(category) ? UploadCategory : category;
+        SelectedFile = null;
+        PendingFiles = Array.Empty<FileUploadItem>();
+        UploadError = null;
+    }
+
+    /// <summary>
+    /// Surfaces a file the dropzone itself refused, so the page's error panel names the same limit
+    /// the dropzone advertised (REQ-FN-025).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The component rejects an oversize or wrong-typed file before
+    /// <see cref="OnFilesChanged"/> ever fires, so without this the staged-file panel simply stays
+    /// empty and the administrator is told nothing. The message is the component's own, built from
+    /// the ceiling this page supplied — it carries no exception text, so REQ-NFR-033 is
+    /// unaffected.</para>
+    /// <para><b>Side Effects:</b> Sets <see cref="UploadError"/>; nothing is uploaded.</para>
+    /// </remarks>
+    /// <param name="error">The dropzone's validation failure.</param>
+    public void OnDropzoneValidationError(FileValidationError error)
+    {
+        SelectedFile = null;
+        UploadError = error.Message;
     }
 
     #endregion

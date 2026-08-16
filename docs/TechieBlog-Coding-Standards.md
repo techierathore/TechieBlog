@@ -179,24 +179,86 @@ public class DatabaseService
 > `static`. Verified: the old pattern matches `IRepo _repo` but not `ILogger<Foo> _logger`; the new
 > one matches both.
 
+> **Corrected again 2026-08-14 (REQ-NFR-041) — the "type grammar" class was UNMATCHABLE, so
+> these greps had been returning 0 for a reason unrelated to compliance.** The 2026-08-07 fix
+> above replaced `\w+` with the character class `[\w.<>,\[\]?]+`, and that class does not parse
+> the way it reads. Under POSIX bracket rules a backslash inside `[...]` is a **literal
+> backslash**, not an escape — so the `]` written as `\]` is not escaped at all and **closes the
+> class early**. `[\w.<>,\[\]?]+` therefore parses as the class `[\w.<>,\[]+` followed by the
+> literal characters `?` and `]`, which means the whole pattern only matches a line containing
+> the text `?]`. No C# field declaration contains that, so **the pattern could never match
+> anything** — including a file consisting solely of the two violations it targets. Verified
+> against a hand-written positive control (`private readonly IRepo repo;` +
+> `private readonly ILogger<Foo> _logger;`): the old pattern scores **0 of 2**.
+>
+> This is the second time these greps have been blind, and both times the zero looked like a
+> pass. **The rule that follows from it: a zero from an enforcement grep is only evidence when
+> the same pattern has just been shown to produce a non-zero on a known positive control.** The
+> patterns below are written with POSIX classes only and each is paired with its control.
+
+> **Corrected a THIRD time, 2026-08-14 (REQ-NFR-041) — the test-method pattern could only see
+> ONE underscore.** The fix above repaired the field patterns and left pattern 2 alone, so its
+> name fragment stayed `[A-Za-z0-9]+_[A-Za-z0-9]+` — a single underscore between two runs of
+> alphanumerics. That matches `Foo_Bar`, but **not** `Login_WithBadPassword_Fails`, which is the
+> `Method_Scenario_Expected` form the standard actually bans and the form anyone drifting from
+> the convention would write. Nor could it see a generic test method (`Foo_Bar<T>(`), because the
+> name was required to run straight into `(`. Verified against the synthetic control at
+> `tests/.artifacts/harness/PositiveControlTests.cs` (two deliberate violations, one correctly
+> named method): the old pattern scores **1 of 2** — it finds the single-underscore method and
+> **0 of the multi-underscore one**; the new pattern scores **2 of 2**, matches `Foo_Bar<T>(` and
+> `A_B_C_D<TFoo, TBar>(`, and does not flag `LoginWithBadPasswordFails`. Over the real `tests/`
+> tree the new pattern returns **0**, with a liveness control (same shape, underscore not
+> required) returning **1228** real test methods.
+>
+> Three failures in eight days is the pattern, not the accident. The response is not a fourth
+> regex: patterns 1-4 are now scanned at build time by `tests/unit/Ops/SourceConventionTests.cs`,
+> which carries a **self-test asserting each expression matches a hand-written violation** — the
+> guard that would have caught all three of these on the day they shipped, because an
+> unmatchable regex and a clean tree are otherwise indistinguishable.
+
 ```bash
-# Forbidden underscore-prefix fields (generic/array/nullable/qualified-type aware)
-grep -rEn "private(\s+static)?(\s+readonly)?\s+[\w.<>,\[\]?]+\s+_[a-zA-Z]" source/ \
-  --include=*.cs --include=*.razor 2>/dev/null | grep -v "/obj/\|/bin/"
+# Forbidden underscore-prefix fields (generic/array/nullable/qualified types all covered:
+# `[^;=(]*` spans the whole type expression without needing to enumerate its characters)
+grep -rEn 'private[^;=(]*[[:space:]]_[A-Za-z]' source/ \
+  --include='*.cs' --include='*.razor' 2>/dev/null | grep -v "/obj/\|/bin/"
+# POSITIVE CONTROL (must be non-zero — same shape, no underscore):
+grep -rEn 'private[^;=(]*[[:space:]][A-Za-z][A-Za-z0-9]*;' source/ \
+  --include='*.cs' 2>/dev/null | grep -v "/obj/\|/bin/" | wc -l    # 259 on 2026-08-14
 
-# Forbidden test-method underscores
-grep -rE "public\s+(async\s+)?(Task|void)\s+\w+_\w+\s*\(" tests/ 2>/dev/null
+# Forbidden test-method underscores (ANY number of underscores — `(_[A-Za-z0-9]+)+` — plus
+# generic test methods, whose name is followed by `<T>` rather than running straight into `(`)
+grep -rEn 'public[[:space:]]+(async[[:space:]]+)?(Task|void)[[:space:]]+[A-Za-z0-9]+(_[A-Za-z0-9]+)+[[:space:]]*(<[A-Za-z0-9,[:space:]]*>)?[[:space:]]*\(' \
+  tests/ --include='*.cs' 2>/dev/null | grep -v "/obj/\|/bin/\|\.artifacts"
+# POSITIVE CONTROL (must be exactly 2 — the same pattern over the synthetic control file, which
+# holds `Login_WithBadPassword_Fails` + `Foo_Bar` and one correctly named method that must NOT match):
+grep -rEn 'public[[:space:]]+(async[[:space:]]+)?(Task|void)[[:space:]]+[A-Za-z0-9]+(_[A-Za-z0-9]+)+[[:space:]]*(<[A-Za-z0-9,[:space:]]*>)?[[:space:]]*\(' \
+  tests/.artifacts/harness/PositiveControlTests.cs | wc -l                  # 2 on 2026-08-14
+# LIVENESS CONTROL (must be non-zero — same shape, underscore not required):
+grep -rEn 'public[[:space:]]+(async[[:space:]]+)?(Task|void)[[:space:]]+[A-Za-z0-9]+[[:space:]]*(<[A-Za-z0-9,[:space:]]*>)?[[:space:]]*\(' \
+  tests/ --include='*.cs' 2>/dev/null | grep -v "/obj/\|/bin/\|\.artifacts" | wc -l   # 1228 on 2026-08-14
 
-# Forbidden Hungarian/obj/a/v prefixes (this project is no-prefix)
-grep -rEn "private(\s+static)?(\s+readonly)?\s+[\w.<>,\[\]?]+\s+(obj|str|int|bln)[A-Z]" source/ \
-  --include=*.cs --include=*.razor 2>/dev/null | grep -v "/obj/\|/bin/"
+# Forbidden Hungarian/obj/str/int/bln prefixes (this project is no-prefix)
+grep -rEn 'private[^;=(]*[[:space:]](obj|str|int|bln)[A-Z]' source/ \
+  --include='*.cs' --include='*.razor' 2>/dev/null | grep -v "/obj/\|/bin/"
 
 # Forbidden a-/v- prefixed parameters and locals (e.g. aLoggedUser, vIdentity)
-grep -rEn "\b(a|v)[A-Z][a-zA-Z]*\s*[,)=;]" source/ --include=*.cs 2>/dev/null | grep -v "/obj/\|/bin/"
+grep -rEn '\b(a|v)[A-Z][A-Za-z]*[[:space:]]*[,)=;]' source/ \
+  --include='*.cs' 2>/dev/null | grep -v "/obj/\|/bin/"
 
 # Hardcoded colours in Razor/CSS outside the theme files
-grep -rnE "#[0-9a-fA-F]{3,6}\b" source/BlogUI --include="*.razor" 2>/dev/null
+grep -rnE "#[0-9a-fA-F]{3,6}\b" source/BlogUI --include='*.razor' 2>/dev/null
 ```
+
+> **Run these with the system `grep`.** Some agent shells alias `grep` to a wrapper (this machine's
+> Claude Code session wraps it as `ugrep -G`), which changes both the regex dialect and the
+> recursion defaults. Use `command grep` when the result is going to be recorded as evidence.
+
+**Patterns 1-4 are ALSO gated at build time** by `tests/unit/Ops/SourceConventionTests.cs`
+(REQ-NFR-041) — one `[Fact]` per pattern as a .NET `Regex` over the same trees, plus a self-test
+asserting every expression still matches a hand-written violation. The greps above are therefore a
+convenience for a quick local sweep, **not** the sole guard: after three blind patterns in eight
+days the convention no longer depends on anyone running a shell command correctly. Patterns 5-6 are
+gated the same way by `tests/unit/Ops/ExceptionDisclosureTests.cs`.
 
 #### Exception-text disclosure — the scope is `source/`, not a list of services (REQ-NFR-033)
 

@@ -1,20 +1,30 @@
 /* =============================================================================
-   utilities.css — supplemental Tailwind utilities for TechieBlog
+   utilities.css — the utilities TrBlazeUI's bundle still cannot generate
    =============================================================================
-   REQ-UI-048. Logged upstream as TrBlazeUI gap TR-019.
+   REQ-UI-048. Logged upstream as TrBlazeUI gaps TR-019 / TR-043 / TR-050 / TR-069.
 
-   WHY THIS FILE EXISTS
-   --------------------
-   `_content/TrBlazeUI.Components/trblazeui.css` is a PRE-COMPILED, tree-shaken
-   Tailwind v4 bundle: it contains only the utility classes TrBlazeUI's own
-   components happen to reference. TrBlazeUI's guidance is to style application
-   markup with "Tailwind utility classes via the Class parameter", but any class
-   the library does not itself use is simply absent from the bundle and therefore
-   silently does nothing — no error, no warning, just an unstyled element.
+   WHY THIS FILE STILL EXISTS (much smaller than it was)
+   -----------------------------------------------------
+   TrBlazeUI 2.0.1 shipped a tree-shaken Tailwind bundle, so 107 ordinary
+   utilities this application uses silently did nothing and had to be hand
+   declared here. **2.0.2 closed that gap** — `_content/TrBlazeUI.Components/
+   trblazeui.css` now ships the standard Tailwind scale with the sm/md/lg/xl
+   responsive variants, and every one of those 107 declarations was deleted on
+   2026-08-11 after checking each class against the shipped bundle.
 
-   TechieBlog ships no Tailwind CLI, no Node build step and no tailwind.config
-   (the library explicitly promises none are required), so the utilities this
-   application needs are declared here by hand instead.
+   Two categories survive, and only two:
+
+   1. ARBITRARY VALUES — `max-w-[820px]`, `min-h-[400px]`, `h-[60vh]`, … A
+      pre-built bundle can never generate these; the AI reference says so
+      explicitly. Where a component parameter exists, prefer it: the wide
+      analytics table now uses `DataTable MinWidth="720px"` instead of the
+      `min-w-[720px]` that used to live here.
+
+   2. SCALE POINTS 2.0.2 STILL OMITS — measured, not assumed (TR-069):
+      `min-h-28` / `min-h-36` (the `h-*` scale has 28 and 36, the `min-h-*`
+      scale jumps 24 → 32 → 40), `hover:opacity-90` (only `opacity-100` ships
+      with a hover variant), and `md:-mx-6` (negative margins ship unprefixed
+      but carry no responsive variant).
 
    RULES FOR THIS FILE
    -------------------
@@ -24,16 +34,13 @@
    - Breakpoints match Tailwind v4: sm 40rem, md 48rem, lg 64rem.
    - Loaded AFTER trblazeui.css, so anything the bundle already defines wins
      first and these only fill genuine gaps.
-   - When adding a class to a component, check it resolves. The audit script
-     lives in the build notes; grep the bundle for `.the-class` before relying on it.
+   - BEFORE ADDING ANYTHING HERE, check it is really absent from the bundle:
+     `python3 tests/.artifacts/harness/css-audit.py` cross-checks every class
+     used in BlogUI/TechieBlog markup against the installed `trblazeui.css`
+     and prints only the ones that resolve to nothing.
    ========================================================================== */
 
-/* --- Layout: max-width ---------------------------------------------------- */
-.max-w-2xl { max-width: 42rem; }
-.max-w-3xl { max-width: 48rem; }
-.max-w-4xl { max-width: 56rem; }
-.max-w-5xl { max-width: 64rem; }
-.max-w-7xl { max-width: 80rem; }
+/* --- Arbitrary max-width values ------------------------------------------- */
 .max-w-\[300px\] { max-width: 300px; }
 .max-w-\[420px\] { max-width: 420px; }
 .max-w-\[760px\] { max-width: 760px; }
@@ -42,169 +49,66 @@
 .max-w-\[860px\] { max-width: 860px; }
 .max-w-\[1200px\] { max-width: 1200px; }
 .max-w-\[1400px\] { max-width: 1400px; }
+
+/* --- Arbitrary min-width values ------------------------------------------- */
+/* Search inputs on the admin list pages keep a usable width when the filter
+   row wraps. `min-w-[720px]` used to live here for wide data tables; 2.0.2's
+   `DataTable MinWidth` parameter replaced it (TR-043). */
 .min-w-\[200px\] { min-width: 200px; }
-/* Floor for wide data tables so an overflow-x-auto wrapper actually scrolls
-   instead of the table shrinking and clipping its right-hand columns. */
-.min-w-\[720px\] { min-width: 720px; }
 
-/* `h-36` was gap-filled below but its `w-36` partner never was, so every
-   `h-36 w-36` square in the app — the ImagePicker preview frame on
-   /admin/profile, /admin/experience, /admin/awards and the post editor — rendered
-   144px tall and FULL WIDTH, stretching the thumbnail with object-cover.
-   Found 2026-08-09 (REQ-UI-037/039/040). */
-.w-36 { width: 9rem; }
-
-/* --- Layout: height ------------------------------------------------------- */
-.h-20 { height: 5rem; }
-.h-28 { height: 7rem; }
-.h-36 { height: 9rem; }
+/* --- Arbitrary height values ---------------------------------------------- */
 .h-\[60vh\] { height: 60vh; }
-.min-h-24 { min-height: 6rem; }
+.min-h-\[400px\] { min-height: 400px; }
+.max-h-\[65vh\] { max-height: 65vh; }
+
+/* --- Scale points the 2.0.2 bundle omits (TR-069) ------------------------- */
+/* `h-28` / `h-36` ship, but the min-height scale skips both. */
 .min-h-28 { min-height: 7rem; }
 .min-h-36 { min-height: 9rem; }
-.min-h-\[400px\] { min-height: 400px; }
-.max-h-96 { max-height: 24rem; }
-.max-h-\[65vh\] { max-height: 65vh; }
-.aspect-video { aspect-ratio: 16 / 9; }
-.object-contain { object-fit: contain; }
 
-/* --- Grid ----------------------------------------------------------------- */
-.grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
-.grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-
-/* --- Flex ----------------------------------------------------------------- */
-.flex-nowrap { flex-wrap: nowrap; }
-
-/* --- Gap ------------------------------------------------------------------ */
-.gap-5 { gap: 1.25rem; }
-.gap-6 { gap: 1.5rem; }
-.gap-8 { gap: 2rem; }
-.gap-x-3 { column-gap: 0.75rem; }
-.gap-x-4 { column-gap: 1rem; }
-.gap-x-5 { column-gap: 1.25rem; }
-.gap-y-1 { row-gap: 0.25rem; }
-.gap-y-2 { row-gap: 0.5rem; }
-
-/* --- Margin --------------------------------------------------------------- */
-.-mx-4 { margin-left: -1rem; margin-right: -1rem; }
-.mb-6 { margin-bottom: 1.5rem; }
-.mb-8 { margin-bottom: 2rem; }
-.mt-3 { margin-top: 0.75rem; }
-.mt-8 { margin-top: 2rem; }
-.mt-16 { margin-top: 4rem; }
-.my-4 { margin-top: 1rem; margin-bottom: 1rem; }
-.my-6 { margin-top: 1.5rem; margin-bottom: 1.5rem; }
-.my-8 { margin-top: 2rem; margin-bottom: 2rem; }
-
-/* --- Padding -------------------------------------------------------------- */
-.pt-3 { padding-top: 0.75rem; }
-.pt-6 { padding-top: 1.5rem; }
-.pb-24 { padding-bottom: 6rem; }
-.py-2\.5 { padding-top: 0.625rem; padding-bottom: 0.625rem; }
-.py-8 { padding-top: 2rem; padding-bottom: 2rem; }
-.py-10 { padding-top: 2.5rem; padding-bottom: 2.5rem; }
-.py-16 { padding-top: 4rem; padding-bottom: 4rem; }
-
-/* --- Space between children ----------------------------------------------- */
-.space-y-0 > :not([hidden]) ~ :not([hidden]) { margin-top: 0; }
-.space-y-3 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.75rem; }
-.space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 1.5rem; }
-
-/* --- Dividers ------------------------------------------------------------- */
-.divide-y > :not([hidden]) ~ :not([hidden]) {
-    border-top-width: 1px;
-    border-bottom-width: 0;
-    border-style: solid;
-}
-
-.divide-border > :not([hidden]) ~ :not([hidden]) {
-    border-color: var(--border);
-}
-
-.last\:border-b-0:last-child { border-bottom-width: 0; }
+/* Only `hover:opacity-100` ships with a hover variant. */
+.hover\:opacity-90:hover { opacity: 0.9; }
 
 /* --- Typography ----------------------------------------------------------- */
-.leading-snug { line-height: 1.375; }
-.leading-relaxed { line-height: 1.625; }
-.leading-8 { line-height: 2rem; }
-.no-underline { text-decoration-line: none; }
-.list-disc { list-style-type: disc; }
-.list-decimal { list-style-type: decimal; }
 .text-\[var\(--alert-warning\)\] { color: var(--alert-warning); }
 
 /* --- Translucent surfaces + backdrop -------------------------------------- */
-.backdrop-blur {
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
-}
-
-.bg-background\/80 { background-color: color-mix(in oklab, var(--background) 80%, transparent); }
-.bg-background\/95 { background-color: color-mix(in oklab, var(--background) 95%, transparent); }
-.bg-destructive\/10 { background-color: color-mix(in oklab, var(--destructive) 10%, transparent); }
-
+/* `bg-background/80` itself ships; the `supports-[backdrop-filter]:` variant
+   of it does not, and arbitrary variants cannot be pre-generated either. */
 @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
     .supports-\[backdrop-filter\]\:bg-background\/80 {
         background-color: color-mix(in oklab, var(--background) 80%, transparent);
     }
 }
 
-/* --- State variants ------------------------------------------------------- */
-.hover\:opacity-90:hover { opacity: 0.9; }
-
 /* =============================================================================
    Responsive variants
    ========================================================================== */
 
 @media (min-width: 40rem) { /* sm */
-    .sm\:block { display: block; }
-    .sm\:inline { display: inline; }
-    .sm\:items-center { align-items: center; }
-    .sm\:justify-between { justify-content: space-between; }
-    .sm\:px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
-    .sm\:w-40 { width: 10rem; }
-    .sm\:w-72 { width: 18rem; }
-    .sm\:w-auto { width: auto; }
     .sm\:w-\[320px\] { width: 320px; }
-    .sm\:col-span-2 { grid-column: span 2 / span 2; }
-    .sm\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .sm\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (min-width: 48rem) { /* md */
-    .md\:grid { display: grid; }
-    .md\:h-full { height: 100%; }
-    .md\:p-6 { padding: 1.5rem; }
-    .md\:px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
-    .md\:py-16 { padding-top: 4rem; padding-bottom: 4rem; }
+    /* Negative margins ship unprefixed only — no responsive variant (TR-069). */
     .md\:-mx-6 { margin-left: -1.5rem; margin-right: -1.5rem; }
-    .md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .md\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
-
-@media (min-width: 64rem) { /* lg */
-    .lg\:flex-row { flex-direction: row; }
-    .lg\:w-80 { width: 20rem; }
-    .lg\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .lg\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .lg\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
-
-@media (min-width: 80rem) { /* xl */
-    .xl\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 /* -----------------------------------------------------------------------------
    Keyboard fallback for controls the library renders unreachable — REQ-NFR-007.
 
-   TrBlazeUI's Rating paints its stars as non-focusable <span role="radio">
-   elements (TR-031), so star selection cannot be reached by keyboard at all.
+   HISTORICAL as of TrBlazeUI 2.0.2: TR-031/045/052 made `Rating`'s stars real
+   `<button role="radio">` elements with a roving tabindex, so the fallback is no
+   longer needed. The class is kept only until `PostRatingPanel.razor` drops the
+   hidden `<fieldset>` that uses it — that file belongs to another work item, and
+   deleting the rule first would un-hide a 622 px control on every post page.
+
+   TrBlazeUI's 2.0.1 Rating painted its stars as non-focusable <span role="radio">
+   elements (TR-031), so star selection could not be reached by keyboard at all.
    The application supplies a real radio group beside it; that group is hidden
    from sighted mouse users but stays in the tab order, and reveals itself as
    soon as anything inside it takes focus, so a keyboard user both reaches AND
    sees the control (WCAG 2.1.1 Keyboard + 2.4.7 Focus Visible).
-
-   The library bundle ships `.sr-only` but no `not-sr-only`, so the revealed
-   state is declared here rather than as a Tailwind variant.
    -------------------------------------------------------------------------- */
 .tb-keyboard-fallback {
     clip: rect(0, 0, 0, 0);
@@ -283,11 +187,11 @@
    24x24, and it only exists in WCAG 2.2 — WCAG 2.1 AA, which is what REQ-NFR-007
    is measured against, has no target-size criterion at all.
 
-   Measured before this rule (test-results/cluster-g/target-size-*.json): the only
-   controls under 44 px in BOTH axes were the square icon buttons the library
-   renders as `h-10 w-10` (40x40) — header search, theme toggle, the four social
-   links, the captcha reload. Raising those to the token is free: the header is
-   60 px tall and nothing else in the row is size-constrained.
+   Measured before this rule: the only controls under 44 px in BOTH axes were the
+   square icon buttons the library renders as `h-10 w-10` (40x40) — header search,
+   theme toggle, the four social links, the captcha reload. Raising those to the
+   token is free: the header is 60 px tall and nothing else in the row is
+   size-constrained.
 
    Deliberately NOT raised: inline text links (footer navigation ~20 px tall,
    in-prose contact links 16 px, newsletter issue titles 21 px, the captcha
@@ -305,24 +209,13 @@ a.size-10 {
 }
 
 /* -----------------------------------------------------------------------------
-   Nested dialog stacking — REQ-UI-037 / REQ-UI-039. Logged upstream as TR-060.
+   DELETED 2026-08-11 — nested dialog stacking (was REQ-UI-037 / REQ-UI-039).
 
-   TrBlazeUI portals every Dialog into a `.trblazeui-portal` div appended to
-   <body>, and every dialog's overlay AND panel are hard-coded to `z-50`. When one
-   Dialog is opened from inside another Dialog's content — which is exactly what
-   the company-logo and award-badge ImagePickers do — the child's portal is NOT
-   guaranteed to land after the parent's in document order. Measured on
-   /admin/experience: the gallery portal was inserted at DOM index 0 and the
-   parent experience-dialog portal sat at index 1, so with equal z-index the
-   PARENT painted over the child. The gallery was visible but its tiles could not
-   be clicked: hit-testing the centre of a tile returned the parent picker's
-   preview frame, and Playwright reported "subtree intercepts pointer events".
-
-   Raising both children of the picker's own portals puts them unambiguously above
-   any parent dialog regardless of insertion order. Scoped to the ImagePicker's two
-   dialogs on purpose — this is a targeted fix, not a blanket z-index escalation.
+   A scoped `z-index: 120` used to be forced onto the ImagePicker's gallery and
+   upload portals because TrBlazeUI 2.0.1 appended portals in an order that did
+   not follow open order, so a child dialog could paint UNDER its parent and its
+   tiles became unclickable. TR-060 fixed that library-side in 2.0.2: portals now
+   render in open order, so the nested dialog is on top by construction. Verified
+   by opening the experience dialog's ImagePicker and clicking a gallery tile
+   with this rule removed — see the cluster-f smoke artifacts.
    -------------------------------------------------------------------------- */
-.trblazeui-portal:has([data-testid="image-gallery-dialog"]) > *,
-.trblazeui-portal:has([data-testid="image-upload-dialog"]) > * {
-    z-index: 120;
-}

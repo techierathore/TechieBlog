@@ -20,7 +20,12 @@
     REQ-FN-035 — the byline carries the post's own total/unique view counts, the
                  public face of the per-post engagement statistics.
     REQ-UI-007 — markdown tables get their own horizontal scroll container so a wide
-                 table can never make the whole page scroll sideways on a phone.
+                 table can never make the whole page scroll sideways on a phone. Since
+                 TrBlazeUI 2.0.2 that container comes from the library's <Prose> component
+                 (TR-059 resolved), which gives table/pre/img/iframe their own overflow
+                 context; the WrapTablesInScrollContainer string transform this page used
+                 to apply to Markdig's output is gone. ConstrainWidth is false because the
+                 <article> above already caps the measure at 820px.
 
     Dependencies: BlogBreadcrumb, PostRatingPanel, CommentThread, CommentForm components;
     FullWidthLayout, BlogSvc, SeriesSvc, CommentSvc, MarkdownRenderer,
@@ -121,10 +126,11 @@ else if (blogPost != null)
                     @blogPost.Abstract
                 </p>
             }
-            @* Render paginated content — styling lives in wwwroot/css/base.css *@
-            <div class="markdown-content" data-testid="post-content">
+            @* Render paginated content. <Prose> supplies the reflow rules (REQ-UI-007 / TR-059);
+               `markdown-content` in wwwroot/css/base.css keeps this site's own typography. *@
+            <Prose ConstrainWidth="false" Class="markdown-content" data-testid="post-content">
                 @((MarkupString)GetPaginatedContent())
-            </div>
+            </Prose>
         </div>
 
         @* In-post Pagination Controls — server-side, one URL per page *@
@@ -698,55 +704,21 @@ else if (blogPost != null)
     /// <summary>
     /// Renders Markdown content to HTML using Markdig.
     /// </summary>
+    /// <remarks>
+    /// <para><b>[REQ-UI-007 / TR-059] The output is no longer post-processed.</b> A table cannot
+    /// shrink below the width of its widest row, so a three-column markdown table is around 420px
+    /// wide and used to push the whole 390px page sideways by 46px. This method therefore used to
+    /// rewrite Markdig's HTML string, wrapping every <c>&lt;table&gt;</c> in a scroll container,
+    /// because the markdown body arrives as one opaque blob and a stylesheet rule alone could not
+    /// introduce the extra scrolling box a table needs. TrBlazeUI 2.0.2 ships <c>Prose</c>, whose
+    /// <c>[data-slot="prose"]</c> rules give tables, <c>&lt;pre&gt;</c> blocks, images and iframes
+    /// their own overflow context, so the markup the reader sees is now Markdig's own.</para>
+    /// </remarks>
     private string RenderContent(string content)
     {
         if (string.IsNullOrWhiteSpace(content))
             return "<p>No content available.</p>";
 
-        return WrapTablesInScrollContainer(MarkdownRenderer.ToHtml(content));
-    }
-
-    /// <summary>
-    /// Opening tag of the scroll container each rendered table is wrapped in.
-    /// </summary>
-    private const string TableScrollOpenTag =
-        "<div class=\"markdown-table-scroll\" style=\"overflow-x:auto;max-width:100%\">";
-
-    /// <summary>
-    /// Matches the opening tag of a rendered table, with or without attributes.
-    /// </summary>
-    private static readonly System.Text.RegularExpressions.Regex TableOpenPattern =
-        new("<table(?=[\\s>])", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-    /// <summary>
-    /// Matches the closing tag of a rendered table.
-    /// </summary>
-    private static readonly System.Text.RegularExpressions.Regex TableClosePattern =
-        new("</table\\s*>", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-    /// <summary>
-    /// Gives every table in the rendered article its own horizontal scroll container.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> REQ-UI-007 — a table cannot shrink below the width of its widest
-    /// row, so a three-column markdown table is around 420px wide and pushed the whole 390px page
-    /// sideways by 46px. Wrapping it makes the table, and only the table, scroll; the article keeps
-    /// its own width. The wrapper is emitted here rather than styled in the shared stylesheet because
-    /// the markdown body arrives as one opaque HTML string, and a CSS rule alone cannot introduce the
-    /// extra scrolling box a table needs.</para>
-    /// <para><b>Flow:</b> leave table-free content untouched → wrap each opening tag → close the
-    /// wrapper after each closing tag.</para>
-    /// <para><b>Side Effects:</b> None; pure. Markdown tables cannot nest, so a single pass over the
-    /// opening and closing tags is enough.</para>
-    /// </remarks>
-    /// <param name="html">The rendered article body.</param>
-    /// <returns>The same HTML with every table wrapped in a scroll container.</returns>
-    private static string WrapTablesInScrollContainer(string html)
-    {
-        if (string.IsNullOrEmpty(html) || html.IndexOf("<table", StringComparison.OrdinalIgnoreCase) < 0)
-            return html;
-
-        var wrapped = TableOpenPattern.Replace(html, TableScrollOpenTag + "<table");
-        return TableClosePattern.Replace(wrapped, "</table></div>");
+        return MarkdownRenderer.ToHtml(content);
     }
 }

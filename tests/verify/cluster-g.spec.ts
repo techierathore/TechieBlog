@@ -98,8 +98,9 @@ async function waitForQuestion(page: Page, widget: string, timeoutMs = 30000) {
 /**
  * VISUAL-TRUTH: every named control has a real box inside the viewport, page does not scroll
  * sideways. Both the documentElement and the body measure are checked — the routed defect
- * (`fieldset[data-testid="post-rating-keyboard"]`, right = 662 at a 390 px viewport) showed up
- * on documentElement, and cluster E's `body.scrollWidth === body.clientWidth` is asserted too.
+ * (the visually-hidden `fieldset[data-testid="post-rating-keyboard"]`, right = 662 at a 390 px
+ * viewport — since removed with the fallback itself) showed up on documentElement, and cluster E's
+ * `body.scrollWidth === body.clientWidth` is asserted too.
  */
 async function visualGate(page: Page, testIds: string[], label: string) {
   const m = await page.evaluate(() => ({
@@ -269,11 +270,23 @@ test.describe('REQ-UI-057 accessible alternative captcha challenge', () => {
     await page.waitForSelector('[data-testid="post-rating-panel"]', { timeout: 30000 });
     await page.waitForTimeout(2500);
 
-    // Choose a star with the keyboard to reveal the identify + captcha step.
-    const toStar = await tabUntil(page, ['post-rating-star-1', 'post-rating-star-4']);
-    expect(toStar.found, `no rating star reachable by Tab. Path: ${toStar.path.join(' > ')}`).not.toBeNull();
-    console.log(`[rating] star reached after ${toStar.stops} Tab presses (${toStar.found})`);
-    await page.keyboard.press('Space');
+    // Choose a star with the keyboard to reveal the identify + captcha step. The per-star
+    // data-testids went with the native <fieldset> fallback on 2026-08-11 (TrBlazeUI 2.0.2 makes
+    // every option a real <button role="radio">), so the stop is found by ancestry.
+    let starStops = -1;
+    const starPath: string[] = [];
+    for (let i = 0; i < 200; i++) {
+      await page.keyboard.press('Tab');
+      const here = await page.evaluate(() => ({
+        inRating: !!document.activeElement?.closest('[data-testid="post-rating-stars"]'),
+        tag: document.activeElement?.tagName ?? '',
+      }));
+      starPath.push(`${i + 1}:${here.tag}`);
+      if (here.inRating) { starStops = i + 1; break; }
+    }
+    expect(starStops, `no rating star reachable by Tab. Path: ${starPath.join(' > ')}`).toBeGreaterThan(0);
+    console.log(`[rating] star reached after ${starStops} Tab presses`);
+    await page.keyboard.press('Enter');
     await page.waitForTimeout(2500);
     await page.waitForSelector('[data-testid="rating-identify-step"]', { timeout: 30000 });
 

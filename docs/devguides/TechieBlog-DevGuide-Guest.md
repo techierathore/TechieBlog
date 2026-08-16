@@ -15,6 +15,25 @@ own.
 > and zero `/login` links anywhere in the comment or rating components. The **Favourite toggle** noted
 > per screen no longer exists at all (REQ-UI-028 removed).
 
+## Runtime verification (2026-08-14) — REQ-NFR-001 scope only
+
+Runtime-verified 2026-08-14 as **anonymous/guest**, against a genuine **Release + Production** host
+(`--no-launch-profile`; see the REQ-NFR-001 checklist row for why a bare `dotnet run` silently boots
+Development). This pass exercised only the four screens the performance budget is measured against —
+**every other row in the 2026-08-09 table below is unchanged and NOT re-observed.**
+
+| Screen | Observed 2026-08-14 | Detail |
+|--------|---------------------|--------|
+| `/` (portfolio home) | **renders ✓ (runtime-confirmed 2026-08-14)** · **looks-right ✓** | 4 stat tiles with values, featured post, 3 article cards each with image/category/title/excerpt/author/date/star-rating. 0 horizontal overflow at 1280×800 and 390×844; mobile stacks to hamburger + 2-col stat grid |
+| `/post/{slug}` | **renders ✓ (runtime-confirmed 2026-08-14)** · **looks-right ✓ — the 2026-08-09 DEFECT IS FIXED** | title, hero, markdown body with fenced code, series nav ("Part 2 of 3", prev/next), tags, rating 4.5 from 2 ratings, view-count aggregate, comment form + captcha. **The 46px 390px table overflow is GONE:** probed across three posts — `the-markdown-kitchen-sink` (1 table) **0px**, `scaling-signalr-for-blazor-server` (1 table) **0px**, `blazor-circuits-and-state` (0 tables) 0px. The table-vs-no-table comparison that isolated the defect now shows no difference |
+| `/category/{slug}` | **renders ✓ (runtime-confirmed 2026-08-14)** · **looks-right ✓** | header, post list and links render real data; 0 overflow at both widths. **NOTE: the 2026-08-09 `renders-empty` featured-image defect was NOT re-tested** — this pass asserted list/link/heading data only, not `<PostCard ImageUrl>`. Treat that defect as still open |
+| `/newsletters` | **renders ✓ (runtime-confirmed 2026-08-14)** · **looks-right ✓** | content and navigable links render; 0 overflow at both widths |
+
+Evidence: `tests/verify/req-nfr-001-render-visual.spec.ts` 12/12 passed; screenshots inspected in
+`tests/.artifacts/req-nfr-001/`. Screens NOT runtime-verified this pass: `/tag/{slug}`, `/series/{slug}`,
+`/search`, `/rss`, `/authors`, `/author/{username}`, `/resume`, `/about`, `/404`, the auth screens and
+the sidebar subscribe surface — their 2026-08-09 verdicts stand.
+
 ## Runtime verification (2026-08-09)
 
 Observed by `*verify all` against the running app. Screens not listed rendered their data and looked

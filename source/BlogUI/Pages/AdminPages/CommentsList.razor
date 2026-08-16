@@ -38,21 +38,20 @@
     @* ---- Filter row ---------------------------------------------------- *@
     <div class="flex flex-wrap items-center justify-between gap-4">
         @*
-            TrBlazeUI's TabsList and TabsTrigger declare no CaptureUnmatchedValues, so a
-            data-testid on either throws at render and the ErrorBoundary swallowed the whole
-            page behind an HTTP 200 — this page was unreachable. Tabs itself does splat, so the
-            container hook lives there and each trigger's hook lives on a span this page owns.
-            Library gap TR-030/TR-046; do not put test hooks back on the
-            TabsList/TabsTrigger elements.
+            Each trigger's test hook sits on <TabsTrigger> itself. Up to TrBlazeUI 2.0.1
+            TabsList/TabsTrigger declared no CaptureUnmatchedValues, so a data-testid on either
+            threw at render and the ErrorBoundary swallowed the whole page behind an HTTP 200 —
+            this page was unreachable, and every hook had to ride on a span this page owned
+            (TR-030/TR-046). 2.0.2 splats on all 344 components, so the spans are gone.
         *@
         <Tabs Value="@StatusFilter"
               ValueChanged="@((string value) => SetFilter(value))"
               data-testid="comments-status-tabs">
             <TabsList>
-                <TabsTrigger Value="all"><span data-testid="comments-tab-all">All (@TotalCount)</span></TabsTrigger>
-                <TabsTrigger Value="pending"><span data-testid="comments-tab-pending">Pending (@PendingCount)</span></TabsTrigger>
-                <TabsTrigger Value="approved"><span data-testid="comments-tab-approved">Approved (@ApprovedCount)</span></TabsTrigger>
-                <TabsTrigger Value="spam"><span data-testid="comments-tab-spam">Spam (@SpamCount)</span></TabsTrigger>
+                <TabsTrigger Value="all" data-testid="comments-tab-all">All (@TotalCount)</TabsTrigger>
+                <TabsTrigger Value="pending" data-testid="comments-tab-pending">Pending (@PendingCount)</TabsTrigger>
+                <TabsTrigger Value="approved" data-testid="comments-tab-approved">Approved (@ApprovedCount)</TabsTrigger>
+                <TabsTrigger Value="spam" data-testid="comments-tab-spam">Spam (@SpamCount)</TabsTrigger>
             </TabsList>
         </Tabs>
 
@@ -303,6 +302,7 @@
     private string StatusFilter = "all";
     private string BulkAction = string.Empty;
     private bool SelectAll = false;
+
 
     // Computed counts
     private int TotalCount => ObjectList?.Count ?? 0;

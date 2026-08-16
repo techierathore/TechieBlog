@@ -178,4 +178,28 @@ public interface IBlogImageService
     /// <returns><c>IsValid</c> true with a <c>null</c> <c>Error</c>, or false with a message that is
     /// written for the end user and is safe to display verbatim. Never throws.</returns>
     Task<(bool IsValid, string? Error)> ValidateImageAsync(IBrowserFile file, string category);
+
+    /// <summary>
+    /// Returns the limits this service will enforce for a category, so a screen can advertise the
+    /// same numbers it will be judged against (REQ-FN-025, BRD-45).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> An upload surface must not re-type a size or a format list. It
+    /// asks for the rule and renders <see cref="ImageCategoryRule.ConstraintsText"/>,
+    /// <see cref="ImageCategoryRule.MaxSizeDisplay"/> and
+    /// <see cref="ImageCategoryRule.AcceptAttribute"/> from it — including the dropzone's own
+    /// client-side ceiling, which otherwise keeps its component default and contradicts the caption
+    /// beside it.</para>
+    /// <para><b>Flow:</b> normalise the category → return its rule, or the general category's rule
+    /// when the key is unrecognised, because a caption always has to render something.</para>
+    /// <para><b>Side Effects:</b> None — pure, and it never touches either store.</para>
+    /// <para><b>This is advisory, not a gate.</b> Reading the rule does not validate anything;
+    /// <see cref="ValidateImageAsync"/> and <see cref="UploadImageAsync"/> remain the only places an
+    /// upload is judged, and they apply these same values server-side whatever the client did.</para>
+    /// </remarks>
+    /// <param name="category">The category to describe; matched case-insensitively. An unrecognised
+    /// or blank value yields the general category's rule rather than throwing.</param>
+    /// <returns>The category's size ceiling, format allow-list and the display strings derived from
+    /// them. Never <c>null</c>.</returns>
+    ImageCategoryRule GetCategoryRule(string category);
 }

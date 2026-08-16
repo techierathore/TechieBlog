@@ -221,19 +221,27 @@
                     <Field>
                         <FieldLabel>Start Date</FieldLabel>
                         <FieldContent>
-                            <DatePicker @bind-Value="StartDateValue"
-                                        Placeholder="Pick a start date"
-                                        data-testid="experience-start-date" />
+                            @*
+                                TrBlazeUI gap TR-069 (2.0.2, measured live): DatePicker ACCEPTS a
+                                splatted data-testid — no throw, 0 build errors — and never renders
+                                it on the popover trigger it emits, so the 2.0.2 upgrade silently
+                                DELETED these two hooks. Wrapper-borne until the library fixes it.
+                            *@
+                            <span data-testid="experience-start-date">
+                                <DatePicker @bind-Value="StartDateValue"
+                                            Placeholder="Pick a start date" />
+                            </span>
                         </FieldContent>
                     </Field>
 
                     <Field>
                         <FieldLabel>End Date</FieldLabel>
                         <FieldContent>
-                            <DatePicker @bind-Value="EndDateValue"
-                                        Placeholder="Pick an end date"
-                                        Disabled="@CurrentEvent.IsCurrent"
-                                        data-testid="experience-end-date" />
+                            <span data-testid="experience-end-date">
+                                <DatePicker @bind-Value="EndDateValue"
+                                            Placeholder="Pick an end date"
+                                            Disabled="@CurrentEvent.IsCurrent" />
+                            </span>
                         </FieldContent>
                     </Field>
                 </div>

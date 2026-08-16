@@ -583,10 +583,10 @@ public class SeriesSvc
     /// <remarks>
     /// <para><b>Business Logic:</b> A name is mandatory; a slug is derived from it when the
     /// administrator leaves it blank, and a taken slug gains a numeric suffix retried up to 99
-    /// times. Status defaults to <c>In Progress</c> — the honest state for a series whose first part
+    /// times. Status is normalised to one of the <c>SeriesStatus</c> literals and defaults to <c>In Progress</c> — the honest state for a series whose first part
     /// has not been written yet, and the value the public page shows in its header.</para>
     /// <para><b>Flow:</b> null and name guards → derive slug → resolve collisions → stamp created
-    /// and updated timestamps → default the status → insert.</para>
+    /// and updated timestamps → normalise the status via SeriesStatus.Normalize → insert.</para>
     /// <para><b>Side Effects:</b> Inserts one <c>BlogSeries</c> row, <b>mutates the caller's
     /// object</b> (<c>Slug</c>, <c>CreatedOn</c>, <c>UpdatedOn</c>, <c>Status</c> and
     /// <c>SeriesId</c> are all written back), and logs the creation. Timestamps are UTC.</para>
@@ -611,11 +611,8 @@ public class SeriesSvc
         series.CreatedOn = DateTime.UtcNow;
         series.UpdatedOn = DateTime.UtcNow;
 
-        // Set default status if not provided
-        if (string.IsNullOrWhiteSpace(series.Status))
-        {
-            series.Status = "In Progress";
-        }
+        // Force a canonical status literal; blank or unrecognised text becomes In Progress (REQ-UI-024).
+        series.Status = SeriesStatus.Normalize(series.Status);
 
         try
         {
@@ -639,13 +636,13 @@ public class SeriesSvc
     /// <para><b>Business Logic:</b> Async twin of <see cref="CreateSeries"/>, with the same guards, the
     /// same slug allocation and the same failure strings. A name is mandatory; a slug is derived from
     /// it when the administrator leaves it blank, and a taken slug gains a numeric suffix retried up to
-    /// 99 times. Status defaults to <c>In Progress</c> — the honest state for a series whose first part
+    /// 99 times. Status is normalised to one of the <c>SeriesStatus</c> literals and defaults to <c>In Progress</c> — the honest state for a series whose first part
     /// has not been written yet, and the value the public page shows in its header. Validation failures
     /// are expected outcomes returned as a failed <c>Result</c>; only the insert is wrapped in
     /// <c>try</c>, so a failure of the slug-uniqueness read propagates exactly as it does in the
     /// synchronous twin.</para>
     /// <para><b>Flow:</b> null and name guards → derive slug → await the collision checks → stamp
-    /// created and updated timestamps → default the status → await the insert.</para>
+    /// created and updated timestamps → normalise the status via SeriesStatus.Normalize → await the insert.</para>
     /// <para><b>Side Effects:</b> Inserts one <c>BlogSeries</c> row, <b>mutates the caller's
     /// object</b> (<c>Slug</c>, <c>CreatedOn</c>, <c>UpdatedOn</c>, <c>Status</c> and <c>SeriesId</c>
     /// are all written back), and logs the creation. Timestamps are UTC.</para>
@@ -675,11 +672,8 @@ public class SeriesSvc
         series.CreatedOn = DateTime.UtcNow;
         series.UpdatedOn = DateTime.UtcNow;
 
-        // Set default status if not provided
-        if (string.IsNullOrWhiteSpace(series.Status))
-        {
-            series.Status = "In Progress";
-        }
+        // Force a canonical status literal; blank or unrecognised text becomes In Progress (REQ-UI-024).
+        series.Status = SeriesStatus.Normalize(series.Status);
 
         try
         {
@@ -705,7 +699,7 @@ public class SeriesSvc
     /// unchanged does not renumber its own slug. <c>CreatedOn</c> is left alone; only
     /// <c>UpdatedOn</c> is restamped.</para>
     /// <para><b>Flow:</b> null, id and name guards → confirm existence → derive slug if absent →
-    /// resolve collisions against every <i>other</i> series → stamp <c>UpdatedOn</c> → update.</para>
+    /// resolve collisions against every <i>other</i> series → normalise the status → stamp <c>UpdatedOn</c> → update.</para>
     /// <para><b>Side Effects:</b> Updates one <c>BlogSeries</c> row and mutates the caller's object.
     /// <b>Changing the slug breaks the published <c>/series/{old-slug}</c> URL</b>; no redirect is
     /// written.</para>
@@ -734,6 +728,9 @@ public class SeriesSvc
             series.Slug,
             candidate => seriesRepo.SlugExists(candidate, series.SeriesId));
 
+        // Force a canonical status literal; blank or unrecognised text becomes In Progress (REQ-UI-024).
+        series.Status = SeriesStatus.Normalize(series.Status);
+
         series.UpdatedOn = DateTime.UtcNow;
 
         try
@@ -761,7 +758,7 @@ public class SeriesSvc
     /// is restamped. Only the update statement is wrapped in <c>try</c> — a failure of the existence
     /// read or a uniqueness check propagates, exactly as in the synchronous twin.</para>
     /// <para><b>Flow:</b> null, id and name guards → await the existence check → derive slug if absent
-    /// → await the collision checks against every <i>other</i> series → stamp <c>UpdatedOn</c> → await
+    /// → await the collision checks against every <i>other</i> series → normalise the status → stamp <c>UpdatedOn</c> → await
     /// the update.</para>
     /// <para><b>Side Effects:</b> Updates one <c>BlogSeries</c> row and mutates the caller's object.
     /// <b>Changing the slug breaks the published <c>/series/{old-slug}</c> URL</b>; no redirect is
@@ -792,6 +789,9 @@ public class SeriesSvc
         series.Slug = await SlugGenerator.ResolveUniqueSlugAsync(
             series.Slug,
             candidate => seriesRepo.SlugExistsAsync(candidate, series.SeriesId, cancellationToken)).ConfigureAwait(false);
+
+        // Force a canonical status literal; blank or unrecognised text becomes In Progress (REQ-UI-024).
+        series.Status = SeriesStatus.Normalize(series.Status);
 
         series.UpdatedOn = DateTime.UtcNow;
 

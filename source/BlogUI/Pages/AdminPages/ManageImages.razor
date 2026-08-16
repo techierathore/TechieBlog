@@ -169,28 +169,46 @@
 
         <div class="flex flex-col gap-5">
 
+            @*
+                [REQ-FN-025 / TR-067] NativeSelect, not the popover Select, and the swap is load
+                bearing. TrBlazeUI 2.0.1's `Select` does not work inside `DialogContent`: the trigger
+                flips to aria-expanded="true" / data-state="open" but `SelectContent` renders ZERO
+                nodes, so there is no listbox and nothing to pick. Measured on this very page, where
+                the identical component OUTSIDE the dialog (the owner filter) opens with all five of
+                its options. The category could therefore not be changed at all, by mouse or by
+                keyboard — which also made every per-category limit but the default one unreachable.
+                `NativeSelect` renders a real <select>: no popover, keyboard operable, and a phone
+                shows its own picker. Revisit on the 2.1.0 upgrade.
+            *@
             <Field>
-                <FieldLabel>Category</FieldLabel>
+                <FieldLabel For="upload-category-select">Category</FieldLabel>
                 <FieldContent>
-                    <Select TValue="string" @bind-Value="UploadCategory">
-                        <SelectTrigger data-testid="upload-category-select">
-                            <SelectValue Placeholder="Select a category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            @foreach (var category in Categories)
-                            {
-                                <SelectItem TValue="string" Value="@category.Key" Text="@category.Value">@category.Value</SelectItem>
-                            }
-                        </SelectContent>
-                    </Select>
-                    <FieldDescription>@GetCategoryConstraintsText(UploadCategory)</FieldDescription>
+                    <NativeSelect TValue="string"
+                                  Value="@UploadCategory"
+                                  ValueChanged="@OnUploadCategoryChanged"
+                                  Disabled="@IsUploading"
+                                  id="upload-category-select"
+                                  aria-label="Upload category"
+                                  data-testid="upload-category-select">
+                        @foreach (var category in Categories)
+                        {
+                            <option value="@category.Key">@category.Value</option>
+                        }
+                    </NativeSelect>
+                    <FieldDescription data-testid="upload-category-constraints">@GetCategoryConstraintsText(UploadCategory)</FieldDescription>
                 </FieldContent>
             </Field>
 
+            @* [REQ-FN-025] MaxFileSize is NOT optional here. Left unset the dropzone keeps its own
+               10 MB component default and prints "Max size: 10 MB" directly beneath a caption that
+               says "Max 2 MB" — two limits for one upload, with the larger one accepting files the
+               server then rejects. Every value below comes from the rule the service enforces. *@
             <div data-testid="upload-dropzone">
                 <FileUpload Files="@PendingFiles"
                             FilesChanged="@OnFilesChanged"
                             Accept="@GetAcceptedFileTypes(UploadCategory)"
+                            MaxFileSize="@GetMaxUploadSize(UploadCategory)"
+                            OnValidationError="@OnDropzoneValidationError"
                             Multiple="false"
                             Disabled="@IsUploading" />
             </div>

@@ -220,11 +220,11 @@ test('REQ-UI-056 rating panel requires the captcha and still accepts a solved on
 
   const panel = page.locator('[data-testid="post-rating-panel"]');
   await expect(panel).toBeVisible();
-  // The native radio group is the WCAG 2.1.1 keyboard fallback (REQ-NFR-007) and is visually
-  // hidden until focused, so drive it the way a keyboard user does rather than with check().
-  const star = panel.locator('[data-testid="post-rating-star-4"]');
+  // The library stars ARE the keyboard control since TrBlazeUI 2.0.2 (TR-031/045/052) — each
+  // option is a <button role="radio"> — so drive them the way a keyboard user does.
+  const star = panel.locator('[data-testid="post-rating-stars"] [role="radio"]').nth(3);
   await star.focus();
-  await star.press('Space');
+  await star.press('Enter');
 
   const step = panel.locator('[data-testid="rating-identify-step"]');
   await expect(step).toBeVisible({ timeout: 20000 });

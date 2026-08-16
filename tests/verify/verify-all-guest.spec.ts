@@ -236,9 +236,12 @@ test('REQ-UI-049 portfolio home renders hero, stats, about, latest articles and 
   ]);
   const stats = page.locator('[data-testid="home-stat-card"]');
   expect(await stats.count(), 'stat tiles').toBe(4);
+  // TrBlazeUI 2.0.2 (TR-022): tiles are StatTile, whose Value/Label are string parameters with no
+  // per-part slot, so `home-stat-value` / `home-stat-label` no longer exist (logged as TR-069).
+  // Same assertion, read off the tile's own value and caption elements.
   for (let i = 0; i < 4; i++) {
-    expect(((await stats.nth(i).locator('[data-testid="home-stat-value"]').textContent()) || '').trim()).not.toBe('');
-    expect(((await stats.nth(i).locator('[data-testid="home-stat-label"]').textContent()) || '').trim()).not.toBe('');
+    expect(((await stats.nth(i).locator('.tabular-nums').first().textContent()) || '').trim()).not.toBe('');
+    expect(((await stats.nth(i).locator('.text-muted-foreground').first().textContent()) || '').trim()).not.toBe('');
   }
   // CVFilePath is EMPTY in the DB, so a Download-CV control must be legitimately absent, not blank.
   expect(await page.locator('a[href*="/uploads/cv/"]').count(), 'Download CV hidden while CVFilePath is empty').toBe(0);
@@ -456,11 +459,14 @@ test('REQ-UI-027 star rating component renders average, count and five interacti
     ['average', '[data-testid="post-rating-average"]'],
     ['count', '[data-testid="post-rating-count"]'],
     ['stars', '[data-testid="post-rating-stars"]', 'present'],
-    ['keyboard hint', '[data-testid="post-rating-keyboard"]', 'present'],
   ]);
-  for (let s = 1; s <= 5; s++) {
-    await expect(page.locator(`[data-testid="post-rating-star-${s}"]`), `star ${s} present`).toHaveCount(1);
-  }
+  // TrBlazeUI 2.0.2 (TR-031/045/052): the five options are real <button role="radio"> elements,
+  // so the visually hidden native <fieldset> that used to carry the keyboard semantics is gone.
+  await expect(page.locator('[data-testid="post-rating-stars"] button[role="radio"]'), 'five star buttons')
+    .toHaveCount(5);
+  await expect(page.locator('[data-testid="post-rating-keyboard"]'), 'legacy native fallback removed')
+    .toHaveCount(0);
+  await expect(page.locator('span[role="radio"]'), 'no dead span[role=radio] markup').toHaveCount(0);
   const avg = parseFloat(((await page.locator('[data-testid="post-rating-average"]').textContent()) || '').match(/[\d.]+/)![0]);
   expect(avg, 'average is a real 1-5 value').toBeGreaterThanOrEqual(1);
   expect(avg, 'average is a real 1-5 value').toBeLessThanOrEqual(5);

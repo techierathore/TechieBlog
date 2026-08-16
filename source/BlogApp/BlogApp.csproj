@@ -86,8 +86,8 @@
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
 
     <!-- The shared component library the BlogUI pages are written against. -->
-    <PackageReference Include="TrBlazeUI.Components" Version="2.0.1" />
-    <PackageReference Include="TrBlazeUI.Icons.Lucide" Version="2.0.1" />
+    <PackageReference Include="TrBlazeUI.Components" Version="2.0.2" />
+    <PackageReference Include="TrBlazeUI.Icons.Lucide" Version="2.0.2" />
   </ItemGroup>
 
   <!-- ===================== Linux no-op fallback ===================== -->

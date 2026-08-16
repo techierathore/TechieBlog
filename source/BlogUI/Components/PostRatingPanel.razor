@@ -11,6 +11,10 @@
     first), and a score only counts towards the public average once the address has confirmed a
     double opt-in link. An unconfirmed score is parked and invisible.
 
+    REQ-NFR-007 — the five stars are TrBlazeUI's `Rating` and nothing else: since 2.0.2 each
+    option is a real <button role="radio"> with a roving tabindex and a literal aria-checked,
+    so the widget is keyboard operable and announces correctly on its own (TR-031/045/052).
+
     Dependencies: BlogEngine.Services.RatingSvc, CaptchaWidget, TrBlazeUI Card/Rating/Field/
     Input/Alert/Button, Lucide icons.
     Usage: <PostRatingPanel PostId="@post.PostID" />
@@ -24,52 +28,26 @@
         <div class="flex flex-wrap items-center gap-4">
             <span class="text-sm font-semibold text-foreground">Rate this article</span>
 
-            @* TrBlazeUI's Rating has no CaptureUnmatchedValues, so the test hook lives on a
-               wrapper (TR-030 in docs/TechieBlog-TrBlazeUI-Feedback.md; TR-031 records that its
-               stars are not keyboard operable — the rest of this panel is). The stars are the
-               visitor's INPUT and start empty, as the mockup specifies; the community average
-               is the number beside them. *@
-            @* data-a11y-decorative: App.razor strips the tab stops out of this subtree after
-               every render. The library paints role="radiogroup" tabindex="0", so without it a
-               keyboard user gets a SILENT focus stop inside an aria-hidden subtree — axe
-               `aria-hidden-focus` (serious), and worse for a real screen-reader user than the
-               axe count suggests. Mouse clicks on the stars are unaffected. [REQ-NFR-007] *@
-            <div data-testid="post-rating-stars" aria-hidden="true" data-a11y-decorative>
-                <Rating Value="@selectedRating"
-                        ValueChanged="OnRatingChosen"
-                        Max="5"
-                        AllowHalf="false"
-                        Size="RatingSize.Default"
-                        AriaLabel="@($"Rate this article from 1 to 5 stars. Current average {FormattedAverage} out of 5 from {stats.RatingCount} ratings.")" />
-            </div>
+            @* [REQ-NFR-007] 2026-08-11 — the stars ARE the control again.
+               Until TrBlazeUI 2.0.2 this markup carried two rating widgets: the library's,
+               marked aria-hidden + data-a11y-decorative because it painted non-focusable
+               <span role="radio"> stars with an empty aria-checked (TR-031/045/052), and a
+               visually-hidden native <fieldset> radio group beside it that carried the real
+               keyboard and screen-reader semantics. 2.0.2 renders every option as a real
+               <button role="radio"> with a roving tabindex and a literal aria-checked, so the
+               duplicate is gone: Tab reaches the group, arrow keys move between stars, and
+               Enter/Space selects. `Rating` also splats now (TR-030/048), so the test hook
+               sits on the component itself rather than on a wrapper.
 
-            @* REQ-NFR-007 / WCAG 2.1.1 — keyboard fallback for TR-031.
-               TrBlazeUI's Rating paints non-focusable <span role="radio"> stars with an empty
-               aria-checked, so the widget above is unusable by keyboard AND announces a broken
-               radio group. It is therefore marked aria-hidden and this native radio group — the
-               same five values, bound to the same handler — carries the semantics instead. It
-               stays in the tab order and reveals itself on focus (.tb-keyboard-fallback). *@
-            <fieldset class="tb-keyboard-fallback" data-testid="post-rating-keyboard">
-                <legend class="text-sm font-semibold text-foreground">
-                    Rate this article from 1 to 5 stars. Current average @FormattedAverage out of 5 from @stats.RatingCount ratings.
-                </legend>
-                @for (var star = 1; star <= 5; star++)
-                {
-                    var value = star;
-                    <span class="inline-flex items-center gap-1">
-                        <input type="radio"
-                               name="@($"post-rating-{PostId}")"
-                               id="@($"post-rating-{PostId}-{value}")"
-                               value="@value"
-                               checked="@((int)selectedRating == value)"
-                               @onchange="@(() => OnRatingChosen(value))"
-                               data-testid="@($"post-rating-star-{value}")" />
-                        <label for="@($"post-rating-{PostId}-{value}")" class="text-sm text-foreground">
-                            @value @(value == 1 ? "star" : "stars")
-                        </label>
-                    </span>
-                }
-            </fieldset>
+               The stars are the visitor's INPUT and start empty, as the mockup specifies; the
+               community average is the number beside them. *@
+            <Rating Value="@selectedRating"
+                    ValueChanged="OnRatingChosen"
+                    Max="5"
+                    AllowHalf="false"
+                    Size="RatingSize.Default"
+                    AriaLabel="@($"Rate this article from 1 to 5 stars. Current average {FormattedAverage} out of 5 from {stats.RatingCount} ratings.")"
+                    data-testid="post-rating-stars" />
 
             <span class="text-sm text-muted-foreground">
                 <span class="font-semibold text-foreground" data-testid="post-rating-average">@FormattedAverage</span>

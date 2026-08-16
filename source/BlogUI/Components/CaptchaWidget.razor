@@ -60,12 +60,10 @@
 
     @*
         In question mode the label IS the question, so the input's accessible name carries it.
-        The wrapping span exists only because TrBlazeUI's Label throws on an unmatched
-        data-testid attribute (library gap TR-030) — the test hook has to hang off a plain element.
+        The test hook sits on <Label> directly — TrBlazeUI 2.0.1 threw on an unmatched
+        data-testid (TR-030) and forced a wrapper <span>; 2.0.2 splats it onto the <label>.
     *@
-    <span data-testid="captcha-prompt">
-        <Label For="@inputElementId">@PromptText</Label>
-    </span>
+    <Label For="@inputElementId" data-testid="captcha-prompt">@PromptText</Label>
 
     <div class="flex flex-wrap items-center gap-2">
         @if (!IsQuestionMode)

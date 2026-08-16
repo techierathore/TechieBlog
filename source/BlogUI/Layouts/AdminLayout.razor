@@ -141,34 +141,30 @@
                     </Button>
                 </DropdownMenuTrigger>
                 @*
-                    TrBlazeUI gap TR-040: DropdownMenuContent / DropdownMenuItem / DropdownMenuLabel
-                    declare NO CaptureUnmatchedValues parameter, so passing data-testid to them threw
-                    "does not have a property matching the name 'data-testid'" and took the whole
-                    admin shell down. Every test id therefore rides on a plain inner element.
+                    Test ids sit on the DropdownMenu components themselves. Up to TrBlazeUI 2.0.1
+                    DropdownMenuContent / DropdownMenuItem declared no CaptureUnmatchedValues, so a
+                    data-testid threw "does not have a property matching the name 'data-testid'"
+                    and took the whole admin shell down (TR-040); every hook had to ride on a plain
+                    inner element. 2.0.2 splats on all 344 components, so the wrapper <div> and the
+                    two wrapper <span>s are gone.
                 *@
-                <DropdownMenuContent Class="w-56" Align="PopoverAlign.End">
-                    <div data-testid="account-menu">
-                        <DropdownMenuLabel>
-                            <div class="flex flex-col">
-                                <span class="truncate text-sm font-medium" data-testid="account-name">@CurrentUserName</span>
-                                <span class="truncate text-xs font-normal text-muted-foreground" data-testid="account-role">@CurrentUserRole</span>
-                            </div>
-                        </DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem OnClick="NavigateToProfile">
-                            <span class="flex items-center" data-testid="account-profile">
-                                <LucideIcon Name="user" Size="16" />
-                                <span class="ml-2">My Profile</span>
-                            </span>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem OnClick="LogoutAsync">
-                            <span class="flex items-center" data-testid="account-logout">
-                                <LucideIcon Name="log-out" Size="16" />
-                                <span class="ml-2">Log Out</span>
-                            </span>
-                        </DropdownMenuItem>
-                    </div>
+                <DropdownMenuContent Class="w-56" Align="PopoverAlign.End" data-testid="account-menu">
+                    <DropdownMenuLabel>
+                        <div class="flex flex-col">
+                            <span class="truncate text-sm font-medium" data-testid="account-name">@CurrentUserName</span>
+                            <span class="truncate text-xs font-normal text-muted-foreground" data-testid="account-role">@CurrentUserRole</span>
+                        </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem OnClick="NavigateToProfile" data-testid="account-profile">
+                        <LucideIcon Name="user" Size="16" />
+                        <span class="ml-2">My Profile</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem OnClick="LogoutAsync" data-testid="account-logout">
+                        <LucideIcon Name="log-out" Size="16" />
+                        <span class="ml-2">Log Out</span>
+                    </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
         </header>

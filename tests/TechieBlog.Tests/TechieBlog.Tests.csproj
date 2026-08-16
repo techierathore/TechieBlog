@@ -83,7 +83,14 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Testcontainers.PostgreSql" Version="4.13.0" />
+    <!--
+      4.14.0, not 4.13.0: Testcontainers 4.13.0 dragged in SSH.NET 2025.1.0, which NuGet Audit
+      flags as NU1903 / GHSA-q939-rpr3-3284 (CVE-2026-48798, high, published 2026-08-12) —
+      ScpClient recursive download lets a hostile SCP server write outside the target directory.
+      Testcontainers 4.14.0 depends on the patched SSH.NET 2026.0.0, so bumping the direct
+      reference clears the advisory without pinning a transitive package by hand.
+    -->
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.14.0" />
     <PackageReference Include="Dapper" Version="2.1.35" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.0" />
     <!--

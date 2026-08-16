@@ -21,8 +21,9 @@ namespace BlogModels;
 ///
 /// <para><b>Usage:</b> <see cref="Posts"/> is empty unless the caller explicitly loaded it — an
 /// empty list means "not fetched" as often as it means "no posts", so do not use it to test whether
-/// a series is populated; use <see cref="PostCount"/>. <see cref="Status"/> is free text compared by
-/// exact string in <see cref="IsComplete"/>, so only <c>"Complete"</c> counts.</para>
+/// a series is populated; use <see cref="PostCount"/>. <see cref="Status"/> is free text, but every
+/// producer and consumer goes through <see cref="SeriesStatus"/> — never compare it to a literal
+/// (REQ-UI-024).</para>
 /// </remarks>
 public class BlogSeries
 {
@@ -73,15 +74,18 @@ public class BlogSeries
     /// 007).
     /// </summary>
     /// <remarks>
-    /// In practice one of two literals — <c>"In Progress"</c> or <c>"Complete"</c> — but there is no
-    /// enum, no lookup table and no check constraint, so the value is whatever was written. The admin
-    /// screen offers exactly those two options and <see cref="IsComplete"/> compares for
-    /// <c>"Complete"</c> with an ordinal, case-sensitive equality: <c>"complete"</c> or
-    /// <c>"Completed"</c> silently means "in progress". The C# default here matches the column
+    /// One of the two canonical literals held by <see cref="SeriesStatus"/> —
+    /// <see cref="SeriesStatus.InProgress"/> or <see cref="SeriesStatus.Completed"/>. There is no
+    /// enum and no lookup table, so the constants plus the check constraint added by
+    /// <c>029-NormalizeSeriesStatus.sql</c> are what keep the value honest; the write path runs every
+    /// value through <see cref="SeriesStatus.Normalize"/>. The C# default here matches the column
     /// default, so a new series starts in progress either way.
+    /// <para>Before REQ-UI-024 the code compared against the never-stored spelling <c>"Complete"</c>
+    /// while the database held <c>"Completed"</c>, which made a finished series render as "In
+    /// Progress" and count zero under its own filter tab. Do not reintroduce a bare literal.</para>
     /// <para>Purely informational — it does not hide the series or its posts from readers.</para>
     /// </remarks>
-    public string Status { get; set; } = "In Progress";
+    public string Status { get; set; } = SeriesStatus.InProgress;
 
     /// <summary>
     /// The user who owns the series (<c>AuthorId BIGINT</c>, migration 007, foreign key to
@@ -157,14 +161,14 @@ public class BlogSeries
     public List<BlogPost> Posts { get; set; } = new();
 
     /// <summary>
-    /// True when <see cref="Status"/> is exactly <c>"Complete"</c>. Computed; not persisted.
+    /// True when <see cref="Status"/> means the series is finished. Computed; not persisted.
     /// </summary>
     /// <remarks>
-    /// An ordinal, case-sensitive comparison against a single literal — any other spelling, casing or
-    /// surrounding whitespace reports false. It is a reader-facing badge only and grants or denies
-    /// nothing.
+    /// Delegates to <see cref="SeriesStatus.IsCompleted"/>, which trims, ignores case and still
+    /// accepts the legacy <c>"Complete"</c> spelling, so no row can be mis-rendered by a stray
+    /// variation. It is a reader-facing badge only and grants or denies nothing.
     /// </remarks>
-    public bool IsComplete => Status == "Complete";
+    public bool IsComplete => SeriesStatus.IsCompleted(Status);
 }
 
 /// <summary>

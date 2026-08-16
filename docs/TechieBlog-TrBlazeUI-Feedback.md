@@ -1,5 +1,171 @@
 # TechieBlog → TrBlazeUI feedback
 
+## Summary
+- **66 entries (TR-001 … TR-066): 65 closed, 1 open.**
+- Open: **1 high** — **TR-066** (a `Dialog` inside another `Dialog`'s `DialogContent` never opens; pre-existing, reproduces on 2.0.1; sibling-composition workaround demonstrated on `/components/dialog`). 0 blockers, 0 open majors, 0 open minors, 0 open nice-to-haves.
+- Closed: all 65 of TR-001 … TR-065, **every one fixed library-side** in **2.1.0** — none closed by asking TechieBlog to keep a workaround. TR-016 was reconciled as *not a gap* (`ResponsiveNav*` already ships). The gap requests shipped as nine new components.
+- Ships in: **TrBlazeUI 2.1.0** — built and verified, **not yet published** (owner-manual tag + release).
+- Last consolidated: **2026-08-14** (`*handoff-phase` — re-confirmed against the checklist Requirements Status table; build 0 errors 7/7; suite 1 490 tests). **No entry changed disposition and none was added since 2026-08-11**: the 2026-08-14 work (REQ-NFR-041 enforcement gate, the deploy-pipeline hardening, the VPS reconnaissance) was entirely app- and infrastructure-side, with no TrBlazeUI surface involved. Counts above stand unchanged; next free id remains **TR-067**.
+
+---
+
+## ✅ Resolution — 2026-08-11, TrBlazeUI **2.0.2**
+
+> **VERSION LABEL CORRECTED 2026-08-11 by TechieBlog's `*build-phase`.** This section was written as
+> "2.1.0 (unreleased; pending owner-manual publish)". **The release actually published to the feed
+> as `2.0.2`**, and TechieBlog is now on it. `2.1.0` exists on the feed only as the prerelease
+> `2.1.0-ci.2`. Everywhere below, read "2.1.0" as **2.0.2**.
+>
+> Identification was empirical, not by label: `2.0.2`'s `trblazeui.css` is **908,018 bytes** against
+> `2.0.1`'s 88,202 — matching this document's own "~906 KB, up from ~88 KB" note — and the new
+> component types (`Prose`, `StatTile`, `SortableList`, `Timeline`, `Stepper`) are present in
+> `2.0.2`'s assembly and absent from `2.0.1`'s.
+>
+> **Two of the "you can delete this workaround" rows below did NOT hold for this app, and the
+> deletions were reverted after measurement** — see **TR-067** (dialog `Select` still renders zero
+> options on 2.0.2) and **TR-072** (`DatePicker`/`TimePicker` silently swallow `data-testid`, which
+> *deleted* three working test hooks on upgrade). A third, **TR-069**, holds only with the host's
+> own document latch kept in place. Treat the migration table as a starting hypothesis to measure,
+> not a checklist to apply.
+
+**All 65 entries in this file are now closed.** Every defect was fixed in the library — no entry was
+closed by asking TechieBlog to keep its workaround. The gap requests (charting aside, which was
+already refuted) are shipped as new components.
+
+**One new defect was found on our side while building the demo pages** and is recorded at the end of
+this file as **TR-066** — a `Dialog` declared literally inside another `Dialog`'s `DialogContent`
+does not open. It is pre-existing (it reproduces on 2.0.1 too), it is adjacent to TR-060, and it is
+**open**. Compose stacked dialogs as siblings until it is fixed; see the note on TR-060.
+
+**Every fix and every new component has a live example in the demo app**, so you can see the
+behaviour before you upgrade: each new component has its own page under `/components/*`, the fixes
+are demonstrated in a highlighted section on the existing page for that component, and
+**`/whats-new`** collects the whole release with runnable examples of the splatting sweep, the
+utility bundle and the retuned tokens.
+
+**Verified on a running build, not by inspection:**
+
+| Gate | Result |
+|------|--------|
+| `dotnet build TrBlazeUI.sln -c Release -p:CI=true` | **0 errors / 0 warnings** |
+| `tests/verify/ui-techieblog.spec.js` on `/verify-techieblog` (headless Chromium, 1280 + 390) | **65/65 checks** |
+| All demo routes crawled for exceptions / error boundaries | **103/103 clean** |
+| Regression: `ui-ui014.spec.js` (AstroLyfe TR-003) | **8/8** |
+| Regression: `ui-ui016.spec.js` (AstroLyfe TR-010/011/012) | **23/23** |
+| `tools/splat-audit` over the built assemblies | **344/344** Components, **59/59** Primitives declare `CaptureUnmatchedValues` |
+| `tools/token-contrast.py` over the shipped tokens | **0 failing pairings** (was 18) |
+
+### Read this first — behaviour that changes under you
+
+1. **Design tokens moved.** `--input` and `--ring` are materially darker in light mode
+   (`oklch(0.922)`/`oklch(0.708)` → `oklch(0.66)`), dark `--input` → `oklch(0.55)`,
+   dark `--accent` → `oklch(0.30)`, dark `--destructive-foreground` → near-black. TechieBlog already
+   overrides `--input`, so **your values still win** (the library declares its own through
+   zero-specificity `:where()` selectors). You can now drop the override if you want the shipped
+   defaults; if you keep yours, nothing changes.
+2. **`Rating` markup changed** — options are `<button role="radio">`, not `<span role="radio">`, and
+   a `ReadOnly` rating is `role="img"` with no radio semantics at all. Any CSS or Playwright
+   selector matching `span[role=radio]` needs updating.
+3. **`TabsContent` always renders its panel element** (hidden when inactive; child content is still
+   only rendered for the active tab). That is what makes `aria-controls` resolve.
+4. **`trblazeui.css` is ~906 KB minified / ~97 KB gzipped**, up from ~88 KB, because it now ships
+   the full Tailwind utility scale.
+
+### Workarounds you can delete after upgrading
+
+| Your workaround | Why it is no longer needed |
+|---|---|
+| Wrapper `<span>`/`<div>` carrying `data-testid` around `Label`, `Typography*`, `Breadcrumb`, `TabsList`, `Rating`, `DropdownMenuContent`, `RadioGroup`, `Select*`, `Alert*`, `DataTableColumn` … | TR-048 — every public component splats now (344/344, 59/59) |
+| `source/BlogUI/wwwroot/css/utilities.css` (107 hand-declared utilities, `min-w-[720px]`, `w-36`, `top-1`) | TR-019/043/050 — the standard scale ships. Keep only genuinely arbitrary values, e.g. swap `min-w-[720px]` for `DataTable MinWidth="720px"` |
+| ~~`Header.razor` replacing `NavigationMenu*` with `<nav><ul><li>` + `NavLink`~~ **REMOVED 2026-08-11 (cluster G)** | TR-044 — the library's own links are Tab reachable and carry no orphan `menuitem` role |
+| ~~`AdminDashboard.razor` hand-rolled `<ul>/<li>` in place of `ItemGroup`/`Item`~~ **REMOVED 2026-08-11 (cluster G)** — needs `ItemContent Class="min-w-0"`, see TR-071 | TR-061 — `Item` emits `role="listitem"` inside an `ItemGroup` |
+| ~~`PostRatingPanel.razor` `aria-hidden` + hidden `<fieldset>` radio fallback, and the `.tb-keyboard-fallback` class~~ **REMOVED 2026-08-11 (cluster G)** — the `.tb-keyboard-fallback` CSS itself is now dead and is cluster F's `utilities.css` sweep | TR-031/045/052 — the stars are keyboard operable and correctly announced |
+| ~~The `MutationObserver` in `source/TechieBlog/Components/App.razor` (`data-a11y-decorative` tabindex re-application, `data-state`→`aria-selected` transcription, orphan `role="tab"` stripping, dangling `aria-controls` removal)~~ **REMOVED 2026-08-11 (cluster G)** — axe 0 before, 0 after, over 9 public + 15 admin routes | TR-052/054/063/064 — all four are fixed in the component markup. `Rating` also gained `Focusable="false"` for the decorative case |
+| ~~`PostMarkdownEditor.razor` raw `<textarea>`~~ **DELETED 2026-08-11 (cluster H)** | TR-057 — `Textarea` no longer loses keystrokes on a Server circuit. Verified against the 400 ms-latency counterfactual (9/9, vs 4/9 failures on 2.0.1). **Keep the host's own `ResetKey`/`hasLocalEdits` latch — see TR-069.** |
+| ~~Plain `<h1>`/`<h2>` with hand-copied token classes in `Newsletters.razor`, `VerifyEmail.razor`, `Routes.razor`~~ **REMOVED 2026-08-11 (cluster G)** | TR-020/021 — `Typography*` splats attributes and takes a `Size` |
+| ~~`WrapTablesInScrollContainer` string transform in `PostView.razor`~~ **DELETED 2026-08-11 (cluster H)** | TR-059 — the body is now `<Prose ConstrainWidth="false">`. Pass `ConstrainWidth="false"` when the page already caps its measure; the default `max-w-prose` is 65ch. |
+| Local `HomeStats.razor` tile composite | TR-022 — `StatTile` / `StatGroup` ship |
+| The scoped `z-index: 120` rule for the ImagePicker portals | TR-060 — portals render in open order, so the nested dialog is on top by construction |
+| Rendering display text yourself inside `SelectTrigger` | TR-049/058 — `SelectValue` resolves the item's `Text` on first paint |
+| `<div data-testid="breadcrumb">` around `BlogBreadcrumb`'s `<Breadcrumb>` | TR-021 — put it on `<Breadcrumb>`; `BreadcrumbList` forwards its attributes onto the `<ol>` |
+
+### Still your side
+
+- **`_Imports.razor`** — keep `@using TrBlazeUI.Primitives.Services`; it is now part of the
+  documented import block (TR-017). Keep fully qualifying `TrBlazeUI.Primitives.Sheet.SheetSide`
+  rather than importing that namespace — that is the sanctioned pattern and is now written down
+  (TR-018).
+- **The `Tb` prefix in `docs/TechieBlog-UIDesign.md` and the 38 mockups** is a defect in
+  TechieBlog's own spec, not a library issue. Still needs an `*amend-docs` pass on your side.
+- **The Coding-Standards conflict** (`_variables.css` vs Tailwind v4 OKLCH tokens) is an owner
+  decision on your side; the library's position is unchanged and now documented — theme by
+  overriding tokens in an application `theme.css`.
+- **Captcha (TR-015)** remains app-owned, as you recorded.
+- **`INewsletterService.SendAsync` progress** is an application observation, not a library ask.
+
+### Per-entry disposition
+
+| ID | Disposition | Where |
+|----|-------------|-------|
+| TR-001 | Already refuted by TR-042 — charts ship | `Components/Chart/*` |
+| TR-002 | **Added** `SortableList` (button-driven reorder, keyboard + screen-reader operable) | `Components/SortableList/` |
+| TR-003 | **Added** `AnchorNav` with IntersectionObserver scrollspy | `Components/AnchorNav/`, `wwwroot/js/anchor-nav.js` |
+| TR-004 | **Added** `Timeline` / `TimelineItem` (real `<ol>`/`<li>`) | `Components/Timeline/` |
+| TR-005 | **Added** `PasswordStrength` (score exposed as text, not colour alone) | `Components/PasswordStrength/` |
+| TR-006 | Withdrawn by reporter | — |
+| TR-007 | **Added** `CodeBlock` (language label + copy button; no bundled highlighter by design) | `Components/CodeBlock/` |
+| TR-008 | Confirmed app-level; no library change | — |
+| TR-009 | **Added** `Stepper` / `StepperItem` with `aria-current="step"` | `Components/Stepper/` |
+| TR-010 | **Added** `--success` / `--success-foreground` tokens + `bg-success`/`text-success`; `--alert-*` families now have library defaults | `trblazeui-input.css`, `tailwind.config.js` |
+| TR-011 | Withdrawn by reporter | — |
+| TR-012 | **Added** `CenteredPanel` | `Components/CenteredPanel/` |
+| TR-013, TR-014 | Withdrawn by reporter | — |
+| TR-015 | App-owned, as recorded | — |
+| TR-016 | Already present — `ResponsiveNavProvider` / `ResponsiveNavTrigger` / `ResponsiveNavContent` is the responsive top-bar shell (demo at `/components/responsive-nav`). Not a gap; the catalog listing you read was incomplete | `Components/ResponsiveNav/` |
+| TR-017 | **Fixed (docs)** — `TrBlazeUI.Primitives.Services` and `ApexCharts` added to the §1 import block, with the `SheetSide` / `PopoverSide` namespace split spelled out | AI reference §1 |
+| TR-018 | **Fixed (docs)** — the safe-import rule is stated explicitly, with the list of shadowing sub-namespaces | AI reference §1 |
+| TR-019 | **Fixed** — full Tailwind utility scale shipped | `trblazeui-input.css` safelist, regenerated `trblazeui.css` |
+| TR-020 | **Fixed** — `Typography*` gains `Size`; `ClassNames.cn` is variant-aware | `Components/Typography/*`, `Utilities/TailwindMerge.cs` |
+| TR-021 | **Fixed** — see TR-048 | catalog-wide |
+| TR-022 | **Added** `StatTile` / `StatGroup` | `Components/Stat/` |
+| TR-030 | **Fixed** — `Rating` and `Label` splat | catalog-wide |
+| TR-031 | **Fixed** — buttons, roving tabindex, literal `aria-checked`, unique gradient ids | `Components/Rating/` |
+| TR-040 | **Fixed** — see TR-048 | catalog-wide |
+| TR-041 | **Fixed (docs)** — §8 chart snippet replaced with a compiling `ApexPointSeries` example; the Blazor-ApexCharts relationship is stated | AI reference §8 |
+| TR-042 | Correction of the record; no action | — |
+| TR-043 | **Fixed** — `min-w-*` ships, and `DataTable.MinWidth` gives the table its own minimum | `Components/DataTable/` |
+| TR-044 | **Fixed** — plain links at the top level; `menuitem` only inside a real `role="menu"` | `Components/NavigationMenu/` |
+| TR-045 | **Fixed** — `ReadOnly` renders `role="img"`, no radio semantics | `Components/Rating/` |
+| TR-046 | **Fixed** — see TR-048 | catalog-wide |
+| TR-047 | **Fixed** — `Label` splats | `Components/Label/` |
+| TR-048 | **Fixed** — 344/344 and 59/59 verified by reflection; the two no-DOM exception groups are documented | catalog-wide, `tools/splat-audit` |
+| TR-049 | **Fixed** — `SelectValue` resolves the item `Text` | `Primitives/Select/*` |
+| TR-050 | **Fixed** — responsive `basis-*` ships | safelist |
+| TR-051 | **Fixed** — the claim is now true and measured; the exceptions are published in the AI reference and both agent personas | AI reference, `docs/skills/*` |
+| TR-052 | **Fixed** — `ReadOnly` drops the tab stop; new `Focusable` parameter | `Components/Rating/` |
+| TR-053 | **Fixed** — see TR-057 | `Components/Input/`, `Utilities/TextValueSync.cs` |
+| TR-054 | **Fixed** — `aria-controls` only when a panel exists, and the panel element stays mounted | `Primitives/Tabs/*` |
+| TR-055 | **Fixed** — superseded by TR-061 | `Components/Item/` |
+| TR-056 | **Fixed** — palette validated as a matrix; 18 failing pairings corrected; `--input` now clears 3:1 | `trblazeui-input.css`, `tools/token-contrast.py` |
+| TR-057 | **Fixed** — `Input`/`Textarea` keep the DOM value out of the server echo; optional `DebounceMilliseconds` | `Utilities/TextValueSync.cs` |
+| TR-058 | **Fixed** — items register while the listbox is closed; registration keyed on value | `Primitives/Select/*` |
+| TR-059 | **Added** `Prose` + `[data-slot="prose"]` reflow rules | `Components/Prose/`, `trblazeui-input.css` |
+| TR-060 | **Fixed** — portals render in open order | `Primitives/Services/PortalService.cs`, `PortalHost.razor` |
+| TR-061 | **Fixed** — `Item` emits `role="listitem"`; `ItemSeparator` leaves the a11y tree | `Components/Item/` |
+| TR-062 | **Fixed (docs + API)** — `AriaLabel` documented on `Input`/`Textarea`, with the "placeholder is not a name" warning | AI reference |
+| TR-063 | **Fixed** — `aria-selected` serialised as `"true"`/`"false"` (and the same class of bug swept across Calendar, Collapsible, Menubar, RangeSlider, Sidebar, Slider, Toggle) | `Primitives/Tabs/TabsTrigger.razor` + 9 others |
+| TR-064 | **Fixed** — `MarkdownEditor` renders its Write/Preview pair through `TabsList` | `Components/MarkdownEditor/` |
+| TR-065 | **Fixed** — `DataTable.Refresh()` | `Components/DataTable/` |
+
+*Thank you — this is the most useful consumer report the project has had. The measured evidence in
+TR-051 and TR-056 in particular was reproduced exactly by the two tools now committed under
+`tools/`, which is why both are now permanent gates rather than one-off findings.*
+
+---
+
+## Original report (unchanged below this line)
+
+
 Gaps found while designing the 2026-08-06 mockup set (`docs/mockups/`, 41 screens) against the
 TrBlazeUI catalog (read from github.com/techierathore/TrBlazeUI — the local
 `.trblazeui/TrBlazeUI-AI-Reference.md` is not yet deployed because the package is not installed).
@@ -10,28 +176,37 @@ Re-validate each entry against the AI reference once the feed credentials are in
 - **TR-001 — Charting.** No chart control. Analytics dashboard (34) mocks the views trend and
   category bars as styled divs on `--chart-1..5`. Build needs custom SVG or a chart lib — or
   TrBlazeUI could add a simple Bar/Line chart.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — refuted by TR-042; charts shipped. Compiling example now in AI reference §8.
 - **TR-002 — Sortable / orderable list.** No drag-to-reorder control. Series parts (24) and
   experience entries (36) mock ⋮⋮ handles with ↑↓ buttons + NumericInput order — that fallback is
   also the acceptable no-drag implementation path.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — `SortableList<TItem>` added — ↑/↓ buttons, `@bind-Items`, every move announced.
 - **TR-003 — Anchor nav / scrollspy.** Resume (10) needs a sticky in-page section nav; mocked as
   chip row + `position:sticky`.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — `AnchorNav` added, with an IntersectionObserver scrollspy and `aria-current="location"`.
 - **TR-004 — Timeline.** Resume experience (10) uses a CSS-only timeline; no Timeline component.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — `Timeline` / `TimelineItem` added (real `<ol>`/`<li>`).
 - **TR-005 — Password strength meter.** Register/reset (14, 16) show static hint text; a live
   strength meter would need TbProgress repurposing or a new control.
 - ~~**TR-006** — Icon toggle (favourite ♥).~~ **Withdrawn 2026-08-06** — favourites left scope with
   reader accounts (BRD-43/44 retired), so no favourite toggle is needed.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — `PasswordStrength` added; the score is exposed as text, not colour alone.
 - **TR-007 — Code block / syntax highlighting.** Post body code (02) mocked as mono card;
   build needs highlight.js or accepts monochrome.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — `CodeBlock` added (language label + copy button). No highlighter is bundled by design — pass pre-highlighted markup via `Html`.
 - **TR-008 — Search-term highlight helper.** Results (07) use plain `<mark>`; an excerpt
   highlighter is app-level, noted for completeness.
 - **TR-009 — Stepper / numbered steps.** Series view part numbers (06) reuse avatar circles.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — `Stepper` / `StepperItem` added, current step marked `aria-current="step"`.
 - **TR-010 — `--success` design token / `alert-success` variant.** Confirmation and "subscribed"
   states (44) hard-code `#16a34a`, the same value `.badge-success` hard-codes. A success token
   alongside `--destructive` would make these theme-aware (44, 42).
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — `--success` / `--success-foreground` added with `bg-success` / `text-success` utilities, and the `--alert-*` families now ship library defaults for light and dark.
 - **TR-011 — Disabled TbButton style.** No disabled variant, so the first/last-issue prev/next in
   the newsletter view (43) renders as a normal link.
 - **TR-012 — Centred single-panel page layout.** No utility for a vertically centred card page; the
   verification landing (44) uses inline flex. A `TbCenteredPanel` / `.center-page` would remove it.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — `CenteredPanel` added (`Width` = Small/Medium/Large).
 - **TR-013 — TbEmpty icon slot.** `.empty` has no icon area; the archive empty state (42) fakes one
   with a centred inline SVG.
 - **TR-014 — TbSkeleton.** Every screen's spec names TbSkeleton for loading states but the mockup
@@ -75,6 +250,7 @@ Re-validate each entry against the AI reference once the feed credentials are in
   shell from `NavigationMenu` + a `Sheet`/`Drawer` mobile drawer + `Button` theme toggle inside
   TechieBlog's own `Header.razor`. *Suggested fix:* add a `ResponsiveNav` (or document the composition
   as the sanctioned pattern).
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — **not a gap** — `ResponsiveNavProvider` / `ResponsiveNavTrigger` / `ResponsiveNavContent` already ship and are exactly this shell (demo: `/components/responsive-nav`). The catalog listing consulted was incomplete; the components are now in the AI reference import block.
 
 ### Entries REFUTED by the real catalog (were mockup-era guesses; now corrected)
 
@@ -129,6 +305,7 @@ TrBlazeUI's `theme.css` OKLCH token set. Recorded here; the standards doc needs 
   *Suggested fix:* either re-export these enums from the styled component namespaces (so
   `TrBlazeUI.Components.Sheet.SheetSide` resolves), or add `TrBlazeUI.Primitives.Services` and a
   guidance note about the enum split to the §1 import block.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — §1 now includes `@using TrBlazeUI.Primitives.Services` and `@using ApexCharts`, and spells out the `SheetSide` / `PopoverSide` namespace split. Your adopted workaround is now the documented pattern.
 
 - **TR-018 — Styled and primitive component families share type names across namespaces, so the
   "import everything" pattern is unsafe.** *Severity:* Low (documentation).
@@ -141,6 +318,7 @@ TrBlazeUI's `theme.css` OKLCH token set. Recorded here; the standards doc needs 
   *Workaround (adopted):* import only `TrBlazeUI.Components.*` plus `TrBlazeUI.Primitives` and
   `TrBlazeUI.Primitives.Services`; never the other `Primitives.*` sub-namespaces.
   *Suggested fix:* state the rule explicitly in §1.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — the safe-import rule and the full list of shadowing `Primitives.*` sub-namespaces are stated in AI reference §1.
 
 - **TR-019 — The shipped `trblazeui.css` is tree-shaken, so the library's own "use Tailwind utility
   classes" guidance silently fails.** *Severity:* **High** — this is the single biggest friction
@@ -173,6 +351,7 @@ TrBlazeUI's `theme.css` OKLCH token set. Recorded here; the standards doc needs 
   optional `trblazeui.utilities.css` companion for consumers who style their own markup; or (3) if
   tree-shaking must stay, document the exact supported class list and state plainly that any other
   utility will silently no-op, so consumers can plan for a Tailwind build of their own.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fix option (1) taken — `trblazeui.css` now ships the standard Tailwind scale with the responsive variants (~906 KB minified, ~97 KB gzipped). All 107 utilities you listed were re-checked on a running build and are present. Arbitrary values (`min-w-[720px]`) still cannot be pre-generated — the AI reference says so, and `DataTable.MinWidth` covers the table case.
 
 - **TR-021 — `Typography*` and `Breadcrumb*` declare no `CaptureUnmatchedValues` parameter, so a
   `data-testid` on them is a hard runtime failure, not a no-op.** *Severity:* **High** — it took
@@ -199,6 +378,7 @@ TrBlazeUI's `theme.css` OKLCH token set. Recorded here; the standards doc needs 
   renders a single element — it is already the documented library-wide promise ("All components
   support CaptureUnmatchedValues", AI-Reference §Rules), so today the docs and the assembly
   disagree. Failing that, the reference must list the exceptions explicitly.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed catalog-wide — see TR-048. `data-testid` on `<Breadcrumb>` and on every `Typography*` is asserted live in `ui-techieblog.spec.js`.
 
 - **TR-020 — `Typography*` bakes in its font size with no `Size`/`Level` parameter, and a `Class`
   override loses on CSS source order.** *Severity:* Low-Medium — cosmetic, but silent.
@@ -224,6 +404,7 @@ TrBlazeUI's `theme.css` OKLCH token set. Recorded here; the standards doc needs 
   `trblazeui.css` already uses so well for its theme tokens — so any consumer utility wins
   deterministically; or (3) document plainly that `Class` on `Typography*` can only *add*
   properties the component does not already set, never override one.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fix option (1) taken — `Size` (`TypographySize.Xs`…`Xl6`) REPLACES the baked size, including `TypographyH1`'s `lg:text-5xl`. `ClassNames.cn` is now variant-aware too, so `lg:` utilities take part in conflict resolution. Measured: default 48 px vs `Size="TypographySize.Xl2"` 24 px.
 
 - **TR-022 — No stat / metric tile component.** *Severity:* Low–Medium.
   *(Renumbered from a duplicate TR-020 by the orchestrator, 2026-08-07. Three clusters running in
@@ -245,6 +426,7 @@ TrBlazeUI's `theme.css` OKLCH token set. Recorded here; the standards doc needs 
   `Trend` and `Description`, plus a `StatGroup` wrapper that lays them out responsively.
   *Related to TR-019:* unprefixed `grid-cols-3` is absent from the bundle even though
   `sm:grid-cols-3` ships — another instance of the tree-shaking asymmetry called out there.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — `StatTile` (`Value`, `Label`, `Trend`, `TrendDirection`, `Description`, `Icon`) and `StatGroup` (responsive `Columns`) added.
 
 ### Not a gap — confirmed working during this build
 
@@ -283,6 +465,7 @@ TR-017/TR-018 added 2026-08-06 by *build-phase (REQ-UI-048 TrBlazeUI migration)
   wrapper from Playwright. Costs one extra DOM node per rating.
   *Suggested fix:* add `[Parameter(CaptureUnmatchedValues = true)] Dictionary<string, object>
   AdditionalAttributes` to `Rating` and `Label` so the whole catalog is consistent.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed — `Rating` and `Label` both splat; see TR-048.
 
 - **TR-031 — `Rating`'s stars are non-focusable `<span role="radio">` with an EMPTY
   `aria-checked`, so the control is not keyboard operable and screen readers cannot report the
@@ -307,6 +490,7 @@ TR-017/TR-018 added 2026-08-06 by *build-phase (REQ-UI-048 TrBlazeUI migration)
   *Suggested fix:* render each option as `<button type="button" role="radio" aria-checked="…">`
   (or add roving `tabindex` plus Arrow/Home/End handling on the group), always emit a literal
   `"true"`/`"false"` for `aria-checked`, and give the gradient a per-star unique id.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed exactly as suggested — each option is a `<button type="button" role="radio">` with a roving `tabindex`, `aria-checked` is a literal `"true"`/`"false"`, and each gradient id carries the star index. Measured live: 1 of 5 options focusable, `aria-checked=[false,false,true,false,false]`, 0 duplicate ids, ArrowRight changes the bound value.
 
 - **Not a gap — confirmed working.** `Input`, `Textarea`, `Field`/`FieldLabel`/`FieldContent`/
   `FieldDescription`/`FieldError`, `Card*`, `Alert*` (inline-icon-first composition), `Empty`,
@@ -360,6 +544,7 @@ TR-030/TR-031 added 2026-08-07 by *build-phase (Cluster A — REQ-UI-027/029/056
   what the documentation already promises; or (2) if some components genuinely cannot splat,
   publish the exact list in the AI reference and change the core principle from "any component" to
   the truthful statement, because today the failure mode is a page-killing exception.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed — see TR-048.
 
 - **TR-041 — The chart section of the AI reference documents an API the chart components do not
   have.** *Severity:* Medium (documentation; costs a build cycle each time).
@@ -384,6 +569,7 @@ TR-030/TR-031 added 2026-08-07 by *build-phase (Cluster A — REQ-UI-027/029/056
   be required.
   *Suggested fix:* replace the §8 chart snippet with a compiling one, add `@using ApexCharts` to
   §1, and state the Blazor-ApexCharts relationship.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — §8 replaced with a compiling `BarChart` + `ApexPointSeries` example, `@using ApexCharts` added to §1, and the Blazor-ApexCharts relationship is stated. `--chart-1…5` now have library defaults.
 
 - **TR-042 — REFUTES TR-001 ("no charting") and the mockup's two "GAP" notes on screen 34.**
   *Severity:* n/a — correction of the record.
@@ -411,6 +597,7 @@ TR-030/TR-031 added 2026-08-07 by *build-phase (Cluster A — REQ-UI-027/029/056
   plus an `overflow-x-auto` wrapper; the card was also widened to the full content column.
   *Suggested fix:* ship the `min-w-*` scale, or have `DataTable` provide its own horizontal-scroll
   wrapper with a sensible minimum width.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — both suggested fixes taken — the `min-w-*` scale (including `min-w-3xl` = 768 px) ships, and `DataTable` gained `MinWidth` so it can give the table its own minimum without an arbitrary-value class.
 
 ### Not a library gap — an application-side observation worth recording
 
@@ -478,9 +665,11 @@ app code.**
   navigation case (this is what shadcn/ui's own NavigationMenu does — it renders ordinary links);
   keep the menubar pattern only for genuine application menus, and then complete it with a
   `role="menubar"` container, a `tabindex="0"` active item and Arrow/Home/End key handling.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed as suggested — top-level `NavigationMenuLink` renders an ordinary link with no `menuitem` role and no negative `tabindex`; the menu-item semantics apply only inside `NavigationMenuContent`, which is a real `role="menu"`. Measured live: 2 of 2 links Tab reachable, no orphan roles.
 
 - **TR-045 — `Rating` is inaccessible even in `ReadOnly` mode: it emits interactive radio
   semantics with an invalid `aria-checked` for what is a pure display of a number.**
+
   *Severity:* **High** (accessibility — WCAG 4.1.2).
   *Repro:* `<Rating Value="4" Max="5" ReadOnly="true" Size="RatingSize.Small" />`, then run axe.
   *Expected:* a read-only rating is a *value*, not a control. It should render as text or an
@@ -497,6 +686,7 @@ app code.**
   parameter becoming useless.
   *Suggested fix:* when `ReadOnly="true"`, render no `role="radio"` at all — emit
   `role="img"` + `aria-label` on the wrapper and mark the stars `aria-hidden`.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed exactly as suggested — `ReadOnly` renders `role="img"` + `aria-label="Rated 4 out of 5"` with the stars `aria-hidden` and no radio semantics. Your `aria-hidden` + `sr-only` wrapper can go, and `AriaLabel` is useful again.
 
 ### TR-031 — audit findings appended (2026-08-07, Cluster J)
 
@@ -551,6 +741,7 @@ TR-044/TR-045 added, TR-031 extended, 2026-08-07 by *build-phase (Cluster J — 
   TR-030 `Rating`/`Label`, TR-040 the broader slice, TR-046 `Tabs`), please audit the **whole catalog**
   in one pass rather than fixing them one at a time. The coding standard here requires a stable
   `data-testid` on every interactive/data-bound element, so every such component is a latent crash.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed, and the whole-catalog audit you asked for was done in one pass — see TR-048.
 
 TR-046 added 2026-08-07 by *build-phase (Cluster I), renumbered by the orchestrator from a
 duplicate TR-044: Cluster J claimed TR-044/TR-045 concurrently. **Next free ID: TR-047.**
@@ -574,6 +765,7 @@ duplicate TR-044: Cluster J claimed TR-044/TR-045 concurrently. **Next free ID: 
   off that. Costs a redundant element on every instance.
   *Suggested fix:* `[Parameter(CaptureUnmatchedValues = true)]` on `Label` — but see the matrix
   below; fixing this one component is not the fix.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed — see TR-048.
 
 - **TR-048 — the splatting defect is catalog-wide, and the authoritative matrix has now been
   rediscovered independently five times (TR-021, TR-030, TR-040, TR-046, TR-047).** *Severity:*
@@ -595,6 +787,7 @@ duplicate TR-044: Cluster J claimed TR-044/TR-045 concurrently. **Next free ID: 
   *Suggested fix:* one pass over the whole catalog adding `CaptureUnmatchedValues` uniformly, and
   publish the matrix in the AI reference so it stops being rediscovered. Until then, treat the
   "rejects" list as the reference's missing appendix.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fix option (1) taken. `[Parameter(CaptureUnmatchedValues = true)]` added and splatted across the catalog in one pass. Reflection over the built assemblies now reports **344/344** public components in `TrBlazeUI.Components` and **59/59** in `TrBlazeUI.Primitives` — every name in your "rejects" column included. The audit is committed as `tools/splat-audit` so it stays a gate. Two groups accept the attributes without rendering them, because they own no element, and this is now stated in the reference rather than left to be discovered: the context roots (`Dialog`, `Sheet`, `Popover`, `HoverCard`, `DropdownMenu`, `ContextMenu`, `Drawer`, `TooltipProvider`, `ResponsiveNavProvider`, `PortalHost`) and the config-only `DataTableColumn`. `BreadcrumbList` forwards its attributes onto the `<ol>` that `Breadcrumb` renders.
 
 - **TR-049 — `SelectValue` renders the raw bound value instead of the matching `SelectItem`'s
   `Text`.** *Severity:* **Medium** — repo-wide cosmetic-but-user-facing defect.
@@ -605,6 +798,7 @@ duplicate TR-044: Cluster J claimed TR-044/TR-045 concurrently. **Next free ID: 
   *Workaround:* render the display text yourself inside `SelectTrigger`.
   *Suggested fix:* have `SelectValue` resolve the selected `SelectItem` and render its `Text`,
   falling back to the raw value only when no item matches.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed — see TR-058.
 
 - **TR-050 — no responsive `basis-*` variants in the compiled utility set.** *Severity:* **Medium**
   — silent, which is the worst kind.
@@ -616,6 +810,7 @@ duplicate TR-044: Cluster J claimed TR-044/TR-045 concurrently. **Next free ID: 
   *Encountered in:* reported by cluster L.
   *Workaround:* use a grid or an explicit `sm:w-*`.
   *Suggested fix:* include `basis-*` in the responsive variant generation for the pre-built CSS.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed — `basis-*` is generated with the `sm:`/`md:`/`lg:`/`xl:`/`2xl:` variants.
 
 - **TR-051 — the AI reference and the `trblazeui` persona both state the exact opposite of TR-048,
   which is *why* the same crash keeps being rediscovered.** *Severity:* **High** — this is the
@@ -641,6 +836,7 @@ duplicate TR-044: Cluster J claimed TR-044/TR-045 concurrently. **Next free ID: 
   *Suggested fix:* ship the reflected matrix as an appendix to the AI reference and delete the
   universal claim from both the reference and the persona — until the catalog-wide fix in TR-048
   lands, the documentation is actively causing the defect.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed — the claim is now TRUE and measured, not asserted. The reference carries the numbers, the verification command, and the two exception groups; both agent personas (`docs/skills/claude-code-trblazeui.md`, `docs/skills/opencode-trblazeui.md`) carry the same correction. Your machine-generated 132/334 matrix was the decisive evidence — thank you.
 
 TR-047 found and TR-048/TR-049/TR-050 recorded 2026-08-07 by *build-phase (Cluster G —
 REQ-UI-057)*, consolidating cluster E's reflection matrix and cluster L's two findings at the
@@ -677,6 +873,7 @@ complete machine-generated matrix (132/334 reject splatting) that TR-048 asked f
   TR-031's second half is **re-confirmed** on 2.0.1 — one `Rating` still emits **5 `<linearGradient>`
   elements sharing a single `id`** (4 duplicates), so any second Rating on the page references the
   wrong gradient.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed both ways you suggested — `ReadOnly` implies no tab stop at all, and a new `Focusable` parameter takes a decorative rating out of the tab order without JavaScript. The `MutationObserver` in `App.razor` can go. Measured live: 0 focusable elements inside `ReadOnly` and inside `Focusable="false"`.
 
 - **TR-053 — bound `Input` / `Textarea` LOSE AND REORDER CHARACTERS when text arrives faster than
   the Blazor Server circuit can echo it.** *Severity:* **High** — silent data corruption in the
@@ -702,6 +899,7 @@ complete machine-generated matrix (132/334 reject splatting) that TR-048 asked f
   *Suggested fix:* do not re-render the input's `value` from the model on every `oninput` round
   trip — either debounce the binding, or preserve the caret/uncommitted text the way
   `Microsoft.AspNetCore.Components.Forms.InputText` does.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed — see TR-057. Your exact repro string now survives a 30 ms/char type in the harness, in both the DOM and the bound value.
 
 - **TR-054 — `Tabs` emits `role="tab"` triggers whose `aria-controls` points at an element that is
   not in the document, and (intermittently) with no `role="tablist"` parent.** *Severity:*
@@ -723,6 +921,7 @@ complete machine-generated matrix (132/334 reject splatting) that TR-048 asked f
   *Suggested fix:* keep inactive `TabsContent` in the DOM with `hidden`, which fixes
   `aria-controls` and is what the ARIA authoring practices assume; and make `TabsList` always
   render the `role="tablist"` element even when its children re-render.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — both halves fixed. `aria-controls` is emitted only when a `TabsContent` panel for that value exists — so the `Value`/`ValueChanged` screens (`ManageImages`, `CommentsList`, `BlogsList`) emit none at all — and the panel element now stays in the DOM, hidden, so the reference resolves. The missing-`tablist` half was `MarkdownEditor`; see TR-064.
 
 - **TR-055 — the `ItemGroup` / `Item` pair emits `role="list"` with children that have no
   `role="listitem"`.** *Severity:* **Medium-High** — axe `aria-required-children`, **critical**.
@@ -739,6 +938,7 @@ complete machine-generated matrix (132/334 reject splatting) that TR-048 asked f
   deliberately left reported rather than patched.
   *Suggested fix:* emit `role="listitem"` on `Item` when it is inside an `ItemGroup`, or drop
   `role="list"` from the group.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed — see TR-061.
 
 TR-052 and TR-053 recorded 2026-08-08 by *build-phase (Cluster G — REQ-NFR-007)* during the WCAG
 re-audit. TR-052 supersedes the "unfixable from application code" judgement on the REQ-NFR-007 row:
@@ -753,6 +953,7 @@ runs were silently auditing the home page. **Next free ID: TR-056.**
 
 - **TR-056 — the shipped token set is tuned against `--background` only, so several defaults fail
   WCAG on the RAISED surfaces the same stylesheet defines (`--muted`, `--secondary`, `--accent`).**
+
   *Severity:* **High** — silent, palette-wide, and inherited by every consumer that trusts the
   shipped theme. It is not one bad colour; it is a missing axis in how the palette was validated.
   *Repro:* load `trblazeui.css` with its own defaults and compute sRGB contrast (the tokens are
@@ -787,11 +988,13 @@ runs were silently auditing the home page. **Next free ID: TR-056.**
   which are not "visual information required to identify UI components" under 1.4.11, so it is out
   of scope by the standard's own wording. Flagging it would be a false positive; `--input` is the
   token that carries the obligation.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed exactly as suggested — the palette is now validated as a MATRIX by `tools/token-contrast.py`, which is committed so it stays a gate. It reproduced your measurements to two decimals (`--input` 1.26:1 light, `--destructive` 4.37:1 on `--muted`, `--muted-foreground` 4.34:1) and found **18** failing pairings in total; all 18 now pass. `--input` ships at **3.11:1** light / **4.6:1** dark. Your "deliberately NOT raised" call on `--border` was followed — it is out of 1.4.11's scope and was left alone.
 
 TR-056 recorded 2026-08-08 by *build-phase (Cluster C — REQ-UI-033 dark-mode corrections).
 
 - **TR-057 — `Textarea` (and `Input`) are CONTROLLED inputs with no uncontrolled/debounced mode, so
   under Blazor Server they LOSE AND REORDER KEYSTROKES on a slow circuit.**
+
   *Severity:* **High** — silent data loss in the primary authoring surface of any Blazor **Server**
   consumer, and it only appears under load, which is exactly when nobody is testing.
   *Repro:* `<Textarea @bind-Value="text" />` on an InteractiveServer page; emulate 400ms of network
@@ -820,9 +1023,11 @@ TR-056 recorded 2026-08-08 by *build-phase (Cluster C — REQ-UI-033 dark-mode c
   `HandleInput` and skip the `value` attribute in the render tree while the element is focused.
   Whichever is chosen, the AI reference should carry an explicit Blazor **Server** warning next to
   every text-entry component.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed with a variant of option (c), plus (b) as an option. `TextValueSync` tracks the DOM value, the render-tree value and the value the parent last supplied as three separate things, so the echo of the user's own typing never re-enters the render tree and Blazor's diff produces no DOM write; a genuine programmatic change still writes, and re-keys the element in the one case where the new value equals what the tree already holds (clearing a field back to empty). `DebounceMilliseconds` is available for traffic, not correctness. You can put `<Textarea>` back in `PostMarkdownEditor.razor`.
 
 - **TR-058 — `SelectValue` shows the RAW bound value instead of the item's `Text` until the
   dropdown has been opened once.**
+
   *Severity:* Medium — cosmetic but pervasive and it looks like a data defect.
   *Repro:* a `Select` whose items live inside `SelectContent` (a popover), bound to `"0"` with
   `<SelectItem Value="0" Text="-- Select Category --">`. Render the page and do not open it.
@@ -838,9 +1043,28 @@ TR-056 recorded 2026-08-08 by *build-phase (Cluster C — REQ-UI-033 dark-mode c
   *Suggested fix:* let `SelectItem` register its `Value`/`Text` pair with the context at
   `OnInitialized` regardless of whether the popover content is currently rendered, or expose an
   `ItemsSource`-style registration the trigger can read before first open.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed exactly as suggested — `SelectItem` now registers its `Value`/`Text` pair at `OnInitialized` whether or not the popover is rendered, and registration is keyed on the value, which also fixes a latent bug where reopening the listbox duplicated every keyboard-navigation entry. Measured live: the trigger reads `-- Select Category --` on first paint where the bound value is `0`.
+  >
+  > **CONSUMER-SIDE ADOPTION CONFIRMED — 2026-08-11 (Cluster E), on the published `2.0.2` package**
+  > (the label "2.1.0" above is the pre-release name of what shipped as 2.0.2). TechieBlog's whole
+  > workaround is **deleted**: `source/BlogUI/Common/SelectFirstPaintLabel.cs`, all 18
+  > `DisplayTextSelector="@…"` attributes, every cached `…LabelSelector` member, the three
+  > page-private label resolvers they fed, and the source-scan test that required the attribute.
+  > Proved by bUnit against the real component before removal (`"1"` on 2.0.1, `"Ravi Rathore
+  > (Ravi@techieblog.com)"` on 2.0.2) and then re-proved at runtime: **all 16 `Select` triggers in
+  > `source/` render a human-readable label on the FIRST paint, with no application help.**
+  > Sentinels resolve too, because each is a declared `SelectItem` — `"0"` → *All Users*
+  > (`/admin/images`), `""` → *-- My Experience --* (`/admin/experience`), `"0"` → *-- Select
+  > Category --* and *-- Not part of a series --* (`/ManagePost`), `""` → *All Categories* /
+  > *Any Date* (`/search`). The one behaviour a consumer still has to respect is the fallback you
+  > documented under TR-068: a value with **no** matching item renders `Value.ToString()`, not the
+  > placeholder — pinned here by
+  > `tests/TechieBlog.Tests/Components/BlogUi/SelectPreselectedValueRenderTests.cs`, which is now
+  > the solution's regression alarm for this defect class.
 
 - **TR-059 — no "prose" / rendered-HTML container, so arbitrary Markdown output has no
   responsive story.**
+
   *Severity:* Low–Medium — every content-driven site hits it, and the failure is a page-level
   horizontal scroll, which is a WCAG 1.4.10 (Reflow) problem rather than a cosmetic one.
   *Repro:* render Markdig output into a plain `<div>` inside a TrBlazeUI page and view it at
@@ -862,12 +1086,14 @@ TR-056 recorded 2026-08-08 by *build-phase (Cluster C — REQ-UI-033 dark-mode c
   *Suggested fix:* ship a `Prose` component (or a documented `trb-prose` class) covering
   `table`/`pre`/`img`/`iframe` overflow, and mention it in the AI reference next to the Markdown
   guidance.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed as suggested — `<Prose>` added, with `[data-slot="prose"]` rules in `trblazeui.css` giving `table`/`pre`/`img`/`iframe` their own overflow context. Measured live at 390 px: the table scrolls inside itself and page horizontal overflow is 0 px. `WrapTablesInScrollContainer` can go.
 
 TR-057 / TR-058 recorded 2026-08-09 by *build-phase (Cluster C fix pass — REQ-UI-016 / REQ-UI-017).
 TR-059 recorded 2026-08-09 by *build-phase (Cluster B fix pass — REQ-UI-007).
 
 - **TR-060 — a `Dialog` opened from INSIDE another `Dialog`'s content is not guaranteed to stack
   above its parent, so the child renders but cannot be clicked.**
+
   *Severity:* High — the nested dialog looks correct in a screenshot and is completely dead to the
   user, which is the worst possible failure shape.
   *Repro:* put a control that owns its own `Dialog` inside another `DialogContent` — here the
@@ -893,6 +1119,7 @@ TR-059 recorded 2026-08-09 by *build-phase (Cluster B fix pass — REQ-UI-007).
   *Suggested fix:* give each opened dialog a z-index derived from a monotonically increasing open
   counter (a stack), or append every newly opened portal to the END of the portal host. Either
   makes "last opened wins" true by construction instead of by luck.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed with your second suggestion — `PortalService` now preserves registration order (it was a `ConcurrentDictionary`, whose enumeration order is arbitrary — that is the whole root cause) and `PortalHost` renders through the new `GetOrderedPortals()`. The most recently opened portal is last in the DOM, so "last opened wins" is true by construction. Your scoped `z-index: 120` rule can go. ⚠ **But note TR-066 at the end of this file:** a `Dialog` declared literally inside another `Dialog`'s `DialogContent` does not open at all — a separate, pre-existing defect. Compose stacked dialogs as siblings, each with its own `@bind-Open`; that is the pattern the `/components/dialog` demo now shows and the one the ordering fix is verified against.
 
 - **TR-019 — two more instances of the pre-compiled-bundle gap** (not new IDs; recording the
   specimens because they cost a run each). `trblazeui.css` ships `.top-0`, `.top-1\.5`, `.top-1\/2`,
@@ -928,9 +1155,11 @@ TR-060 recorded 2026-08-09 by *build-phase (Cluster D fix pass — REQ-UI-037 / 
   *Suggested fix:* emit `role="listitem"` from `Item` whenever its ancestor `ItemGroup` emits
   `role="list"` — or drop the `role="list"` and let the consumer choose the semantics. Either is
   correct; the current pair is the one combination that is actively wrong.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed with your first suggestion — `Item` emits `role="listitem"` when its ancestor `ItemGroup` declares `role="list"` (an explicit `role` you pass still wins), and `ItemSeparator` takes `role="none"` inside a group so it does not break the ownership either. Measured live: `role="list"` with `[listitem, listitem]` children.
 
 - **TR-062 — `Input` has no way to supply an accessible name, so a control with no placeholder and
   no visible label ships nameless.**
+
   *Severity:* Medium — one control, but it is a WCAG 4.1.2 **critical** axe node and it hid for
   three audits behind axe's `non-empty-placeholder` check.
   *Repro:* `<Input Value="@x" readonly />` with no `Placeholder`. Run axe.
@@ -950,6 +1179,7 @@ TR-060 recorded 2026-08-09 by *build-phase (Cluster D fix pass — REQ-UI-037 / 
   `<input id="rss-url-input" … readonly>`. axe `label` node on `/rss`: 1 → 0, light and dark.
   *Suggested fix:* add `AriaLabel` to `Input`/`Textarea` and document it; and state explicitly in
   the reference that `Placeholder` is not an accessible name.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — `AriaLabel` did exist on `Input` and `Textarea` but was missing from the parameter table — which, as you say, made it impossible to tell a supported parameter from an unmatched attribute that happens not to throw. Both tables now list it, and the reference states plainly that `Placeholder` is a hint, not an accessible name.
 
 TR-061 / TR-062 recorded 2026-08-09 by *build-phase (Cluster L fix pass — REQ-NFR-007 / REQ-NFR-010).
 
@@ -963,6 +1193,7 @@ Three findings from taking the admin area's last 48 axe nodes to 0. All three ar
 
 - **TR-063 — the active tab is marked `aria-selected=""` (EMPTY) and the inactive ones carry no
   `aria-selected` at all, so NO tab is announced as selected.**
+
   *Severity:* **High** — WCAG 4.1.2 Name/Role/**Value**. It affects every tab set in every
   consuming application and it is invisible to automated tooling, which is why three previous
   audits of this repository missed it.
@@ -987,6 +1218,7 @@ Three findings from taking the admin area's last 48 axe nodes to 0. All three ar
   *Suggested fix:* write `aria-selected` as the string `"true"`/`"false"` on every trigger. A Blazor
   `bool` interpolated into an attribute renders as `True`/`False`, and a `bool?`/conditional that
   yields `null` renders as an empty attribute — one of those two is almost certainly the cause.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed, and your diagnosis of the cause was exactly right — a Blazor `bool` interpolated into an attribute renders empty. `aria-selected` is now written as the literal string. The same class of bug was swept across the catalog: `Calendar`, `CollapsibleContent`/`CollapsibleTrigger`, `MenubarTrigger`, `RangeSlider`, `SidebarMenuButton`, `Slider`, `Toggle`, `ToggleGroupItem`. Measured live: `aria-selected=[true,false]`, exactly one selected.
 
 - **TR-064 — `MarkdownEditor` renders its own Write/Preview `TabsTrigger` pair inside a plain
   `<div>`, with no `role="tablist"`, and no roving arrow-key navigation.** (Supersedes the
@@ -1014,6 +1246,7 @@ Three findings from taking the admin area's last 48 axe nodes to 0. All three ar
   operable `<button>`s — everything that actually reaches a user today, minus a broken promise.
   *Suggested fix:* render that toolbar with `TabsList` so it emits `role="tablist"` and inherits the
   keyboard handling the outer `Tabs` already has.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed exactly as suggested — the toolbar is rendered through `TabsList`, so it emits `role="tablist"` and inherits the arrow/Home/End handling the outer `Tabs` already had. The editor's boxed-tab styling is unchanged. Your App.razor role-stripping observer can go.
 
 - **TR-054 addendum — the `aria-controls` half is worse than recorded, because three of the five
   affected screens render NO `TabsContent` at all.** `ManageImages`, `CommentsList` and `BlogsList`
@@ -1049,38 +1282,339 @@ Three findings from taking the admin area's last 48 axe nodes to 0. All three ar
   *Suggested fix:* have `DataTable` re-render its rows when the bound collection's items change, or
   document that `Data` must be reassigned (not mutated) and expose a `Refresh()` the consumer can
   call.
-
-- **TR-066 — `CardTitle` hardcodes `<h3>` and offers no way to change the heading level, so any page
-  whose PRIMARY heading is a card title can never produce a valid document outline.** The public
-  surface is `ChildContent` / `Class` / `AdditionalAttributes` only; `AdditionalAttributes` can add
-  `aria-*` but cannot change the element, and `Class` cannot either. A card-shaped page — a status
-  screen, an auth screen, an empty state — therefore renders `h3` as its first and only heading, with
-  no `h1` above it.
-  *Severity:* **Medium** — WCAG 2.4.6 / 1.3.1. Invisible to automated tooling, which is what makes it
-  durable: axe's `page-has-heading-one` is a **best-practice** rule, off by default in the standard
-  WCAG-tag rule set, and `heading-order` only compares headings that are actually present — one lone
-  `h3` violates neither. So a page can measure 0 violations and still have no document heading.
-  *Repro:* `<Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader></Card>` as the whole
-  page body. Read the heading outline.
-  *Expected:* a heading-level parameter — `<CardTitle As="h1">` or `<CardTitle Level="1">` — so the
-  card's visual weight and its semantic level can be chosen independently, the way `DialogTitle`
-  needs too (`AlertDialogTitle` / `SheetTitle` / `DrawerTitle` share the same limitation).
-  *Actual (measured 2026-08-11 on `/access-denied`):* the rendered outline was exactly `["h3: Access
-  Denied"]` — no `h1` anywhere in the document. Confirmed against the shipped assembly: the XML doc
-  for `T:TrBlazeUI.Components.Card.CardTitle` states "using semantic HTML (h3)" and the type declares
-  no level parameter.
-  *Second-order damage, which is the part worth flagging:* this application's `Routes.razor` runs
-  `<FocusOnNavigate RouteData="@routeData" Selector="h1" />`. On every card-titled page that selector
-  matches nothing, so post-navigation focus management silently does nothing — a heading-level
-  default quietly disabled a framework accessibility feature app-wide.
-  *Workaround applied:* the page emits a raw
-  `<h1 class="m-0 text-2xl font-semibold leading-none tracking-tight">` in place of `<CardTitle>`,
-  reproducing CardTitle's own classes so the card is visually identical. Same pattern the project
-  already uses in `VerifyEmail.razor` / `Unsubscribe.razor` / `_404Page.razor`.
-  *Suggested fix:* add `As` (or `Level`) to `CardTitle` and the other `*Title` sub-components,
-  defaulting to today's element so nothing breaks.
+  > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed with your second suggestion — the cause is `ShouldRender()` returning false while the `Data` reference is unchanged, which is why a page-side `StateHasChanged()` could not help. `DataTable.Refresh()` is now public: capture the grid with `@ref` and call it after an in-place edit. Documented in the AI reference next to the `Data` parameter.
 
 TR-063 / TR-064 recorded 2026-08-09 by *build-phase (Cluster M fix pass — REQ-NFR-007).
 TR-065 recorded 2026-08-10 by *build-phase (Cluster E — REQ-NFR-026 stage 3 tail).
-TR-066 recorded 2026-08-11 by *build-phase (Cluster F — REQ-UI-060).
-**Next free ID: TR-067.**
+**Next free ID: TR-066.**
+
+---
+
+## Found while building the 2.1.0 demo pages (2026-08-11, TrBlazeUI side)
+
+- **TR-066 — a `Dialog` declared INSIDE another `Dialog`'s `DialogContent` never opens.**
+  *Severity:* **High** for anyone composing a picker inside an edit dialog — which is exactly the
+  shape TR-060 describes. *Not a regression:* reproduced against the 2.0.1 `PortalService` source as
+  well as 2.1.0, so it predates this release.
+  *Repro:* put `<Dialog><DialogTrigger …/><DialogContent>…</DialogContent></Dialog>` inside another
+  dialog's `DialogContent` and click the inner trigger.
+  *Expected:* the inner dialog opens on top of the outer one.
+  *Actual (measured 2026-08-11 on a running Blazor Server demo):* nothing happens. The inner
+  trigger keeps `aria-expanded="false"`, no second portal is registered, and only one
+  `.trblazeui-portal` exists. It is not an interception problem — dispatching `.click()` directly on
+  the element through `page.evaluate`, bypassing hit testing, has no effect either, and no exception
+  or console error is raised. The inner component instance is stable across clicks (its context id
+  does not change), and an ordinary `<Button OnClick>` in the same portal content works, so events
+  reach the portal subtree; it is specifically the nested dialog's own state change that does not
+  propagate. Two candidate mechanisms were tried and did NOT fix it, and were reverted rather than
+  shipped unproven: re-rendering `PortalHost` when the registry changes during its own render, and
+  having `DialogPortal`/`SheetPortal` register from `OnStateChanged` instead of `OnParametersSet`.
+  *Workaround (supported pattern, demonstrated on `/components/dialog`):* compose stacked dialogs as
+  **siblings**, each with its own `@bind-Open`, and open the second from a handler inside the first.
+  Verified live: both portals register, the later-opened one is last in DOM order, and its tiles are
+  clickable — which is the TR-060 fix working as intended.
+  *Suggested fix:* investigate why a state change on a component living inside a portal's
+  `RenderFragment` does not reach its own `DialogPortal` child. The likely culprit is the
+  `CascadingValue` in `Dialog.razor` skipping its subtree because `objContext` is the same instance
+  mutated in place, leaving the nested portal with no parent render to ride on.
+
+TR-066 recorded 2026-08-11 by *fix-issues (TrBlazeUI side) while building the 2.1.0 demo pages.
+
+---
+
+> **ID note (2026-08-11):** **TR-067 is claimed concurrently** by the cluster working REQ-FN-025
+> (`Select` inside `DialogContent` renders zero `SelectItem` nodes, so the listbox cannot be opened;
+> `ManageImages`'s upload-category picker was swapped to `NativeSelect`). This cluster took **TR-068**
+> rather than risk the duplicate-TR-044 collision recorded earlier in this file. Cluster D also
+> confirms that TR-067 reproduces on `/users` — the change-role dialog's `user-role-select` opens
+> with **zero** `[role="option"]` nodes — and on `/admin/skills`'s add-skill dialog.
+
+- **TR-068 — `Select` silently IGNORES its bound `Value` unless a `ValueChanged` delegate is also
+  supplied, and the styled component exposes no `DefaultValue`, so a one-way pre-selection is
+  impossible.** *Severity: minor (API/documentation).* Measured on **2.0.1** with bUnit against the
+  real component (`tests/TechieBlog.Tests/Components/BlogUi/SelectFirstPaintLabelRenderTests.cs`):
+  `<Select TValue="string" Value="1" DisplayTextSelector="…">` with matching items renders its
+  **placeholder**, not the label and not "1" — the value never lands. Adding `ValueChanged` renders
+  the resolved label. Root cause is visible in `TrBlazeUI.Primitives.Select.Select<TValue>`:
+  `OnInitialized` builds `UseControllableState` with `IsControlled = ValueChanged.HasDelegate`, and
+  `OnParametersSet` re-syncs `Context.State.Value` **only** `if (objState.IsControlled)`. So without
+  a callback the component stays uncontrolled and uses `DefaultValue` — which
+  `TrBlazeUI.Components.Select.Select<TValue>` does not surface as a parameter, leaving no way to
+  express "pre-select this, read-only". *Why it costs time:* the failure is silent and looks exactly
+  like the TR-049/TR-058 first-paint bug, so an author chasing a trigger that "won't show the value"
+  cannot tell which of the two they have hit. *Suggested fix:* forward `DefaultValue` from the styled
+  `Select`, or adopt the `Value` parameter in uncontrolled mode as the initial state, and say so in
+  the AI reference's Select table.
+  *Also worth a line in that table:* when `DisplayTextSelector` returns null/empty, `SelectValue`
+  falls back to `Value.ToString()` — **not** to `Placeholder`. That is correct behaviour, but it
+  means a caller must map its sentinels (`"0"` = "All Users") explicitly; returning empty to "get the
+  placeholder" leaves the raw value on screen.
+
+TR-068 recorded 2026-08-11 by *build-phase (Cluster D fix pass — REQ-UI-034 / REQ-UI-038 / REQ-UI-039).
+
+---
+
+## Gap found fixing the per-category upload limits (2026-08-11, Cluster C — REQ-FN-025)
+
+- **TR-067 — a `Select` inside `DialogContent` opens but renders ZERO `SelectItem` nodes, so the
+  listbox is empty and the control cannot be used at all.**
+  *Severity:* **High.** Not cosmetic and not a test-only artefact — the control is inoperable by
+  mouse *and* by keyboard, so any value a dialog asks for through a `Select` is unreachable for
+  every user. Measured on **2.0.1**.
+  *Repro (this is the isolation, and it is a clean one — same page, same component, same circuit):*
+  `/admin/images` renders two `Select<string>`s. The owner filter sits on the page; the upload
+  dialog's category picker sits inside `DialogContent`. Click each and count `[role="option"]`.
+  *Expected:* both open a listbox with their options.
+  *Actual (headless Chromium against a running Blazor Server host, 2026-08-11):*
+
+  | Where | `data-state` after click | `aria-expanded` | `[role="option"]` count |
+  |---|---|---|---|
+  | Owner filter — **outside** any dialog | `open` | `true` | **5** |
+  | Upload category — **inside** `DialogContent` | `open` | `true` | **0** |
+
+  The trigger's own state is correct in both cases; it is only the content that never mounts. No
+  element with the trigger's `aria-controls` id (`select-NNN-content`) exists anywhere in the
+  document, `[role="listbox"]` and `[data-slot="select-content"]` both match nothing, and no
+  exception or console error is raised. Mouse click, `Enter`, `Space` and `ArrowDown` all flip the
+  trigger to `open` and all render nothing, so it is not a hit-testing or focus-trap problem.
+  *Relationship to TR-066:* almost certainly the same root cause one component over — a portalled
+  popover whose state change does not reach its own portal child when it lives inside another
+  portal's `RenderFragment`. TR-066 records it for a nested `Dialog`; this is the `Select` case, and
+  it is the one that bites in ordinary forms rather than in exotic composition.
+  *Confirmed elsewhere by Cluster D:* `/users` (the change-role dialog's `user-role-select`) and
+  `/admin/skills` (the add-skill dialog) reproduce it identically, so this is not specific to the
+  media library.
+  *Workaround (shipped in `ManageImages.razor`):* use **`NativeSelect`**, which renders a real
+  `<select>` and needs no popover. It is keyboard operable, it is what a phone shows its own picker
+  for, and it costs only the styled trigger. Verified live: all seven categories selectable, and the
+  per-category constraint caption, the dropzone ceiling and the `accept` filter all update on change.
+  *Suggested fix:* whatever resolves TR-066 should be checked against `SelectContent` too — and,
+  since the popover components share `PortalService`, against `DropdownMenu`, `Combobox` and
+  `Popover` inside a `Dialog` as well. Until then the AI reference's `Select` section should carry a
+  one-line warning to prefer `NativeSelect` inside a dialog.
+
+  > **STILL REPRODUCES ON 2.0.2 — re-measured 2026-08-11 (Cluster E), headless Chromium against a
+  > running Blazor Server host on :5421, seeded Admin `Ravi@techieblog.com`.** The 2.0.2 upgrade
+  > closed TR-049/TR-058 (see below) but did **not** close this one, which is consistent with the
+  > release note's own warning that one dialog-stacking defect (TR-066) remains open upstream. The
+  > workaround therefore **stays**: `ManageImages.razor` keeps its `NativeSelect`, and no dialog in
+  > this solution may use the popover `Select` yet.
+  >
+  > | Where | `data-state` after click | `aria-expanded` | `[role="option"]` | `[role="listbox"]` | `[data-slot="select-content"]` |
+  > |---|---|---|---|---|---|
+  > | `/admin/skills` `skills-user-select` — **outside** a dialog | `open` | `true` | **4** | — | — |
+  > | `/admin/stats` `stats-user-select` — outside | `open` | `true` | **4** | — | — |
+  > | `/admin/experience` `experience-user-select` — outside | `open` | `true` | **5** | — | — |
+  > | `/admin/images` `user-filter-select` — outside | `open` | `true` | **5** | — | — |
+  > | `/users` `user-role-select` — **inside** `DialogContent` | `open` | `true` | **0** | **0** | **0** |
+  > | `/admin/skills` `skill-category-select` — **inside** `DialogContent` | `open` | `true` | **0** | **0** | **0** |
+  >
+  > The trigger now emits **no `aria-controls` at all** in the dialog case (2.0.1 emitted a dangling
+  > `select-NNN-content` id), so the content element is not merely unmounted — it is never announced.
+  > Keyboard is equally dead: focusing the trigger and pressing `Enter` flips it to `open` and yields
+  > **0** options, and `ArrowDown`+`Enter` leaves the bound value untouched. Six click attempts with a
+  > 900 ms poll between them never produced an option, so this is not a timing artefact — the same
+  > polling loop finds 4–5 options on every page-level `Select` in the table above.
+  >
+  > The `NativeSelect` workaround was re-verified on 2.0.2 in the same run: `/admin/images` upload
+  > dialog renders a real `<select>` with **7** `<option>`s, `selectOption(index 3)` moves the bound
+  > value `profiles` → `icons`, and the constraint caption follows to
+  > *"Max 200 KB, formats: png, svg, webp"*. Screenshots:
+  > `tests/.artifacts/cluster-e/tr067-{users,skills}-dialog.png`, `images-upload-dialog.png`.
+
+TR-067 recorded 2026-08-11 by *build-phase (Cluster C — REQ-FN-025).
+Re-tested on 2.0.2 and confirmed **OPEN** 2026-08-11 by *build-phase (Cluster E — REQ-UI-034/038/039).
+
+---
+
+## Gap found ADOPTING the 2.0.2 fixes for TR-057 / TR-059 (2026-08-11, Cluster H — REQ-UI-007 / REQ-UI-016)
+
+**Both fixes were adopted, and both hold up.** `<Prose>` replaced `WrapTablesInScrollContainer` in
+`PostView.razor` and `<Textarea>` replaced the raw uncontrolled `<textarea>` in
+`PostMarkdownEditor.razor`. The TR-057 fix in particular was checked against the counterfactual that
+made the original defect visible, not just against a fast local circuit: 400 ms emulated latency
+(CDP `Network.emulateNetworkConditions`) with burst typing at 0/15/40 ms per key, which the **2.0.1**
+build failed 4 of 9 runs — **2.0.2 passed 9 of 9**, twice, before and after a document switch. The
+entry below is the one thing the release note over-promises.
+
+- **TR-069 — `TextValueSync` protects against the echo it recognises, not against a stale supplied
+  value, so "you do not need to debounce for correctness" is stronger than what the code guarantees.**
+
+  *Severity:* Low (documentation / hardening). Nothing in this app regressed, because the app keeps
+  its own document-scoped latch — but that latch had been written as a TR-057 workaround, and the
+  release note reads as though it can now be deleted. It cannot.
+  *Measured on:* `TrBlazeUI.Components 2.0.2`, `TrBlazeUI.Components.Utilities.TextValueSync`.
+  *Behaviour:* `OnValueSupplied(v)` short-circuits only when `v` equals `objSuppliedValue`, and
+  `OnUserInput` overwrites `objSuppliedValue` with the value of the keystroke just processed. So the
+  helper recognises exactly ONE echo — the most recent. A supplied value that is neither the current
+  DOM value nor that single last echo is classified as a programmatic change and written into the
+  DOM, caret reset included.
+  *Why that is not academic:* it is only safe because, on a Blazor Server circuit, the parent's echo
+  is produced synchronously inside the same event dispatch as the keystroke. Any host that puts a
+  layer between the control and the parent — a debounced parent, an `await` before the write-back, a
+  composite editor like ours, a component that replays a value — can supply a value one keystroke
+  behind, and the control will happily write it. That is the original TR-053/TR-057 clobber arriving
+  through a different door.
+  *Proven by counterfactual, not by argument:* `PostMarkdownEditor` sits between `ManagePost` and
+  `Textarea` and keeps a `hasLocalEdits` latch that drops any value arriving under an UNCHANGED
+  document identity. With the latch in place, `EditorIgnoresEchoedValueWhenResetKeyUnchanged`
+  (bUnit, `tests/TechieBlog.Tests/Components/BlogUi/PostEditorRouteReloadTests.cs`) passes: a stale
+  `"## Live headin"` supplied after the user typed `"## Live heading"` never reaches the DOM. With the
+  latch disabled and nothing else changed, that test **fails** — the stale value lands in the
+  rendered `value` attribute. The library did not stop it; the app did.
+  *Suggested fix:* one of — (a) keep a short window of recently-sent values rather than only the
+  last, so any of them is recognised as an echo; (b) expose the guard the app has to write anyway as
+  a parameter (`DocumentKey`/`ResetKey`: adopt `Value` unconditionally when it changes, ignore it
+  while unchanged and focused); or (c) at minimum, soften the AI reference's Blazor Server note to
+  say what is actually guaranteed — the control ignores the echo of its own last keystroke — and
+  point hosts that wrap it at (b).
+  *Not a blocker:* `Input` shares `TextValueSync` and therefore the same characteristic; nothing in
+  this app wraps `Input` the way `PostMarkdownEditor` wraps `Textarea`, so it was not exercised.
+
+  *Also worth a line in the reference, found while adopting `Prose`:* `ConstrainWidth` defaults to
+  **true** (`max-w-prose`, i.e. 65ch ≈ 600px). A page that already caps its own measure — this one
+  is `max-w-[820px]` — narrows visibly on adoption unless `ConstrainWidth="false"` is passed. The
+  parameter table documents the default correctly; the usage snippet in the Prose section leads with
+  the constrained form, which is the one most Markdown bodies do NOT want.
+
+TR-069 recorded 2026-08-11 by *build-phase (Cluster H fix pass — REQ-UI-007 / REQ-UI-016).
+
+---
+
+## Gaps found deleting the 2.0.1 accessibility workarounds (2026-08-11, Cluster G — REQ-NFR-007)
+
+Both found while removing the `App.razor` accessibility `MutationObserver` and the five markup
+workarounds the 2.0.2 notes said could go. **The headline is that they could: axe
+(wcag2a/2aa/21a/21aa) over 9 public + 15 admin routes reported 0 violation nodes before the
+removal and 0 after**, and the four DOM properties the observer used to repair were counted
+directly on every route — 0 dangling `aria-controls`, 0 orphan `role="tab"`, 0 empty
+`aria-selected`, 0 focusable nodes inside an `aria-hidden` subtree. TR-020/021/031/044/045/052/
+054/061/063/064 are all confirmed closed against this application's markup.
+
+Two residuals, neither a blocker.
+
+- **TR-070 — `Rating`'s roving `tabindex` moves on Arrow/Home/End but DOM focus does not follow
+  it, so the focus ring and the screen-reader cursor stay on option 1 while the selection is
+  somewhere else.**
+
+  *Severity:* **Medium** — WCAG 2.4.7 Focus Visible, and 4.1.2 in spirit. The control is
+  *operable* (2.1.1 passes), which is the part TR-031 was about; this is the next layer down.
+  *Repro:* `<Rating @bind-Value="v" Max="5" />` on a Blazor **Server** circuit. Tab into the group,
+  then press ArrowRight, ArrowRight, ArrowLeft, End, Home, reading after each press:
+  ```js
+  const o = [...document.querySelectorAll('[role="radio"]')];
+  ({ domFocus: o.indexOf(document.activeElement),
+     roving:   o.findIndex(x => x.getAttribute('tabindex') === '0'),
+     checked:  o.findIndex(x => x.getAttribute('aria-checked') === 'true') })
+  ```
+  *Expected:* `domFocus === roving` after every press — that is the whole point of a roving
+  tabindex; the component must call `.focus()` on the option it just made current.
+  *Actual (measured 2026-08-11, `tests/.artifacts/harness/g-rating-keys.mjs`, one trace):*
+  ```
+  after Tab         focus0  roving0  checked-none
+  after ArrowRight  focus0  roving0  checked0
+  after ArrowRight  focus0  roving1  checked1
+  after ArrowLeft   focus0  roving0  checked0
+  after End         focus0  roving4  checked4
+  after Home        focus0  roving0  checked-none
+  ```
+  `roving` and `checked` track each other perfectly — the state machine is right — but `domFocus`
+  never leaves 0, and after the first move option 0 is `tabindex="-1"`, so DOM focus is parked on
+  an option that is no longer the current one. A sighted keyboard user sees the ring stay on star
+  1 while the fill moves; a screen-reader user is told "1 out of 5" while star 4 is selected. A
+  further consequence: the next `Tab` leaves the group from option 0, not from the current option.
+  *Also seen:* `Home` sets the value to *none* rather than to option 1. With `AllowClear` defaulting
+  to `true` that may be intended, but ARIA's radiogroup pattern has Home mean "first option".
+  *Encountered in:* `source/BlogUI/Components/PostRatingPanel.razor` (REQ-UI-027).
+  *Not worked around.* An application-side `.focus()` would need exactly the render-batch-scoped
+  observer this cluster just deleted, and the control is operable without it. Recorded instead.
+  *Suggested fix:* after the roving index changes, `await ElementReference.FocusAsync()` on the new
+  current option in `OnAfterRenderAsync` (the re-render has to land first on a Server circuit).
+
+- **TR-071 — `ItemContent` sets no `min-width: 0`, so an `Item`'s text sets a hard min-content
+  floor and the whole containing grid track overflows on a narrow viewport.**
+
+  *Severity:* **Low** (layout ergonomics; a one-class workaround exists).
+  *Repro:* put an `ItemGroup`/`Item` list with realistic sentence-length `ItemTitle` /
+  `ItemDescription` text inside a `Card` in a `grid` column, and render at 390px.
+  *Expected:* the row shrinks and the text wraps or clamps — every other library surface that
+  holds long text (`CardDescription`, `DataTable` cells) already behaves this way.
+  *Actual (measured 2026-08-11 on `/admin` at 390px):* `ItemContent` is a flex child with the
+  default `min-width: auto`, so the card's own min-content width was **419px against 358px of
+  room**, and because grid tracks are floored by their items' min-content contributions the entire
+  dashboard column — including an untouched sibling card — overflowed the admin pane by 45px.
+  *Workaround (adopted):* `<ItemContent Class="min-w-0">` in
+  `source/BlogUI/Pages/AdminPages/AdminDashboard.razor`, which took this card's min-content from
+  419px to 262px.
+  *Suggested fix:* ship `min-w-0` on `ItemContent`'s own class list (and consider a line-clamp on
+  `ItemDescription`, which is what the hand-rolled markup this replaced used). Worth a sentence in
+  the reference either way, because the failure is invisible at desktop width and shows up as a
+  *sibling* component overflowing.
+
+  *Not a library issue, recorded because it cost this cluster an hour:* `min-w-0` is the wrong tool
+  when the child carries `truncate`. `truncate` implies `white-space: nowrap`, so the box's
+  min-content size is the full string; `min-width: 0` only lets flexbox shrink the item *after* the
+  track has already been sized that wide. `w-0 flex-1` is what actually reduces the contribution.
+
+TR-070 / TR-071 recorded 2026-08-11 by *build-phase (Cluster G — REQ-NFR-007 workaround removal).
+
+- **TR-072 — `DatePicker` and `TimePicker` ACCEPT a splatted `data-testid` and then never render
+  it. Upgrading 2.0.1 → 2.0.2 silently DELETED three working test hooks.**
+
+  *Severity:* **High** — it is a regression, it is silent in all three places a consumer would
+  look (build, browser console, component API), and it contradicts the release's own headline
+  claim.
+  *Repro:* render `<DatePicker @bind-Value="d" data-testid="x" />` and query `[data-testid=x]`
+  → **0 elements**. No throw, **0 build errors, 0 warnings**. Same for `TimePicker`.
+  *Expected:* the attribute reaches the popover trigger `<button>`, per TR-048's audited claim
+  that 344/344 Components and 59/59 Primitives declare `CaptureUnmatchedValues`. The documented
+  exception list names only the context roots and `DataTableColumn` — not these two.
+  *Actual, measured on TechieBlog 2026-08-11:* three `data-testid`s that had ridden directly on
+  `<DatePicker>` and **worked on 2.0.1** were gone after the upgrade — `publish-date-picker`
+  (`ManagePost.razor`), `experience-start-date` and `experience-end-date`
+  (`ManageExperience.razor`). Nothing in the build or the browser said so. They were found only
+  by a census that compared 554 component-borne test ids in the markup against 427 actually
+  observed in the DOM.
+  *Workaround (adopted):* all three moved back onto `<span>` wrappers — i.e. the TR-048 wrapper
+  pattern the migration guide tells consumers to delete. `publish-time-picker` was reverted to
+  its wrapper for the same reason.
+  *Suggested fix:* spread `AdditionalAttributes` onto the trigger element in both components —
+  **and re-run `tools/splat-audit` against RENDERED output rather than declared parameters.** A
+  declared `CaptureUnmatchedValues` property that is never spread is precisely what an audit of
+  declarations cannot see, so the 344/344 figure cannot presently be relied on.
+
+- **TR-072b — `StatTile` exposes no way to address its value or its caption.**
+
+  *Severity:* **Medium** (testability).
+  *Actual:* `Value` and `Label` are string parameters with no `ValueTemplate`/`LabelTemplate` and
+  no `data-slot` on the rendered parts, so a consumer can only put a test id on the tile root.
+  Adopting `StatTile` therefore **cost** the `home-stat-value` / `home-stat-label` hooks outright;
+  two verify specs had to be re-pointed at the tile's own elements.
+  *Suggested fix:* emit `data-slot="stat-tile-value"` / `data-slot="stat-tile-label"`, or accept
+  optional `ValueTemplate` / `LabelTemplate` fragments.
+
+- **TR-072c — "2.0.2 ships the standard Tailwind scale" is not literally complete.**
+
+  *Severity:* **Low-Medium.** Measured against the shipped bundle, these are used by TechieBlog
+  and absent: `min-h-28`, `min-h-36` (the `h-*` scale HAS 28 and 36; `min-h-*` jumps 24 → 32 → 40,
+  so the asymmetry TR-019 raised survives in smaller form), `hover:opacity-90` (only
+  `hover:opacity-100` ships), and `md:-mx-6` (negative margins ship unprefixed, with no responsive
+  variant). These four are the only non-arbitrary rules left in `utilities.css` after the sweep.
+  *Also worth stating in the AI reference:* an arbitrary value happens to work **if the library
+  itself uses it** — `w-[200px]`, `h-[150px]`, `max-h-[70vh]` are all in the bundle. That makes
+  "arbitrary values never work" a trap in the other direction: a consumer can test one, see it
+  work, and be wrong about the next one.
+
+- **TR-072d — adopting a new 2.0.2 component needs an `_Imports.razor` change the compiler will
+  not ask for, and the failure mode is silent.** *(Packaging/docs note, not a defect.)*
+
+  The nine namespaces new in 2.0.2 — `TrBlazeUI.Components.{Stat,Timeline,Stepper,CenteredPanel,
+  AnchorNav,CodeBlock,PasswordStrength,SortableList}` — are correctly listed in AI-Reference §1 but
+  are not in a consumer's `_Imports.razor` after an upgrade. `<StatTile Value="20+" />` then
+  **compiles with 0 errors** and renders as a literal, empty `<stattile value="20+">` element in
+  the DOM. Only a browser smoke catches it. Worth calling out in the upgrade notes.
+
+TR-072 recorded 2026-08-11 by *build-phase (Cluster F — CSS/layout workaround removal), written up
+by the orchestrator: the cluster measured and reported all four findings but returned them without
+writing them to this file.
+**Next free ID: TR-073.**

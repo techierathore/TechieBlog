@@ -15,7 +15,8 @@
 #
 # TLS is automatic: Caddy provisions and renews the Let's Encrypt certificate
 # for both names below once the DNS A records resolve to this VPS. That is why
-# the A records must exist BEFORE the first deploy — see deploy/SERVER-SETUP.md.
+# the A records must exist BEFORE the first deploy — see
+# docs/Prod-Deploy-Checklist.md §4.
 #
 # -----------------------------------------------------------------------------
 # BLAZOR SERVER / WEBSOCKETS — Caddy's defaults are sufficient. No extra

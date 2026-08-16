@@ -41,11 +41,23 @@ public class FakeSiteSettingsService : ISiteSettingsService
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Copies like the real service does (REQ-FN-061), so a test binding to the result cannot
+    /// mutate this double's stored aggregate and quietly pass where production would leak.
+    /// </remarks>
+    public Task<SiteSettings> GetEditableSettingsAsync()
+    {
+        return ThrowOnRead
+            ? throw new InvalidOperationException("The settings store is unavailable.")
+            : Task.FromResult(Settings.Clone());
+    }
+
+    /// <inheritdoc />
     public Task<Result<SiteSettings>> SaveSettingsAsync(SiteSettings settings)
     {
         Settings = settings;
         SettingsChanged?.Invoke(this, settings);
-        return Task.FromResult(Result<SiteSettings>.Success(settings));
+        return Task.FromResult(Result<SiteSettings>.Success(settings.Clone()));
     }
 
     /// <inheritdoc />

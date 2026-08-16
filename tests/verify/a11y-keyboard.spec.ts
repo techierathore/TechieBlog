@@ -141,33 +141,31 @@ test('TR-031 probe — library Rating vs native radio fallback', async ({ page }
   }
   console.log('TR031 LIB KEYBOARD OPERABLE: ' + libKeyboardWorks);
 
-  // (c) Does the native fallback fully cover it — keyboard only?
+  // (c) The native <fieldset> fallback is GONE (cluster G, 2026-08-11): TrBlazeUI 2.0.2 closed
+  //     TR-031/045/052, so the library stars are the only rating control and must carry the
+  //     whole keyboard contract themselves.
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(4500);
-  const star4 = page.locator('[data-testid="post-rating-star-4"]');
-  await star4.focus({ timeout: 10000 });
-  await page.keyboard.press('Space');
-  await page.waitForTimeout(800);
-  const fallbackWorks = await page
+  const fallbackRemoved = await page.locator('[data-testid="post-rating-keyboard"]').count();
+  const star = page.locator('[data-testid="post-rating-stars"] [role="radio"]').nth(3);
+  await star.focus({ timeout: 10000 });
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(1200);
+  const libraryStarsWork = await page
     .locator('[data-testid="rating-identify-step"]')
     .isVisible({ timeout: 5000 })
     .catch(() => false);
-  const fallbackGeom = await page.evaluate(() => {
-    const fs2 = document.querySelector('[data-testid="post-rating-keyboard"]') as HTMLElement;
-    if (!fs2) return null;
-    const r = fs2.getBoundingClientRect();
-    return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) };
-  });
   const checked = await page.evaluate(() =>
-    Array.from(document.querySelectorAll('[data-testid^="post-rating-star-"]'))
-      .map((e: any) => `${e.value}:${e.checked}`).join(',')
+    Array.from(document.querySelectorAll('[data-testid="post-rating-stars"] [role="radio"]'))
+      .map((e, i) => `${i + 1}:${e.getAttribute('aria-checked')}`).join(',')
   );
-  console.log(`TR031 FALLBACK: identifyStepShown=${fallbackWorks} checked=${checked} geom=${JSON.stringify(fallbackGeom)}`);
+  console.log(`TR031 LIBRARY STARS: identifyStepShown=${libraryStarsWork} checked=${checked} legacyFallbackNodes=${fallbackRemoved}`);
   fs.writeFileSync(
     path.join(OUT, 'tr031-probe.json'),
-    JSON.stringify({ libInfo, libKeyboardWorks, fallbackWorks, checked, fallbackGeom }, null, 2)
+    JSON.stringify({ libInfo, libKeyboardWorks, libraryStarsWork, checked, fallbackRemoved }, null, 2)
   );
-  expect(fallbackWorks, 'native radio fallback selects a rating by keyboard').toBe(true);
+  expect(fallbackRemoved, 'the native radio fallback is removed').toBe(0);
+  expect(libraryStarsWork, 'the library stars select a rating by keyboard').toBe(true);
 });
 
 test('1.1.1 closure — comment posted keyboard-only through the accessible question challenge', async ({ page }) => {

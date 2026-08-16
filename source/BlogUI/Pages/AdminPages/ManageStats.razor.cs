@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Security.Claims;
 
+using BlogUI.Common;
+
 namespace BlogUI.Pages.AdminPages;
 
 /// <summary>
@@ -96,8 +98,8 @@ public partial class ManageStats : ComponentBase
     /// Display name of the user whose statistics are shown.
     /// </summary>
     /// <remarks>
-    /// TrBlazeUI's <c>SelectValue</c> echoes the raw bound value rather than the matching item's
-    /// text, so the picker alone would read "1". This resolves the name for the badge beside it.
+    /// Kept for logging and messages. It no longer feeds a badge beside the picker: the trigger
+    /// itself resolves the name from the selected item's registered text.
     /// </remarks>
     public string SelectedUserName
     {

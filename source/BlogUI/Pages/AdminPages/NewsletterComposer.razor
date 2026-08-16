@@ -86,16 +86,17 @@
             </div>
 
             @*
-                TrBlazeUI gap TR-040: TabsList / TabsTrigger / TabsContent / RadioGroup /
-                RadioGroupItem / Label declare no CaptureUnmatchedValues parameter, so a
-                data-testid passed to them throws at render time. Test ids ride on plain
-                inner elements instead.
+                Test ids sit on the components themselves. Up to TrBlazeUI 2.0.1 TabsList /
+                TabsTrigger / TabsContent / RadioGroup / RadioGroupItem / Label declared no
+                CaptureUnmatchedValues, so a data-testid on any of them threw at render and the
+                hooks had to ride on plain inner elements (TR-040). 2.0.2 splats on all 344
+                components, so those wrappers are gone.
             *@
             <Tabs Value="@EditorTab" ValueChanged="@((string value) => EditorTab = value)"
                   data-testid="newsletter-editor-tabs">
                 <TabsList>
-                    <TabsTrigger Value="write"><span data-testid="newsletter-tab-write">Write</span></TabsTrigger>
-                    <TabsTrigger Value="preview"><span data-testid="newsletter-tab-preview">Email preview</span></TabsTrigger>
+                    <TabsTrigger Value="write" data-testid="newsletter-tab-write">Write</TabsTrigger>
+                    <TabsTrigger Value="preview" data-testid="newsletter-tab-preview">Email preview</TabsTrigger>
                 </TabsList>
                 <TabsContent Value="write">
                     <MarkdownEditor @bind-Value="Body"
@@ -139,29 +140,22 @@
                 <CardDescription>Every message carries the subscriber's own unsubscribe link.</CardDescription>
             </CardHeader>
             <CardContent Class="space-y-3">
-                <div data-testid="newsletter-audience">
-                    <RadioGroup TValue="string" Value="@AudienceMode"
-                                ValueChanged="@((string value) => OnAudienceChanged(value))">
-                        <div class="flex items-center gap-2">
-                            <RadioGroupItem TValue="string" Value="@("active")" Id="audience-active" />
-                            <Label For="audience-active">
-                                <span data-testid="audience-active-label">All active subscribers (@ActiveSubscriberCount)</span>
-                            </Label>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <RadioGroupItem TValue="string" Value="@("everyone")" Id="audience-everyone" />
-                            <Label For="audience-everyone">
-                                <span data-testid="audience-everyone-label">Everyone, including unconfirmed (@TotalSubscriberCount)</span>
-                            </Label>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <RadioGroupItem TValue="string" Value="@("segment")" Id="audience-segment" />
-                            <Label For="audience-segment">
-                                <span data-testid="audience-segment-label">Segment — email contains</span>
-                            </Label>
-                        </div>
-                    </RadioGroup>
-                </div>
+                <RadioGroup TValue="string" Value="@AudienceMode"
+                            ValueChanged="@((string value) => OnAudienceChanged(value))"
+                            data-testid="newsletter-audience">
+                    <div class="flex items-center gap-2">
+                        <RadioGroupItem TValue="string" Value="@("active")" Id="audience-active" />
+                        <Label For="audience-active" data-testid="audience-active-label">All active subscribers (@ActiveSubscriberCount)</Label>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <RadioGroupItem TValue="string" Value="@("everyone")" Id="audience-everyone" />
+                        <Label For="audience-everyone" data-testid="audience-everyone-label">Everyone, including unconfirmed (@TotalSubscriberCount)</Label>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <RadioGroupItem TValue="string" Value="@("segment")" Id="audience-segment" />
+                        <Label For="audience-segment" data-testid="audience-segment-label">Segment — email contains</Label>
+                    </div>
+                </RadioGroup>
 
                 <Input @bind-Value="EmailFilter"
                        @bind-Value:after="RefreshAudienceEstimate"

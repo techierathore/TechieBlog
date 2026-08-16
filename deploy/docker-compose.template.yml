@@ -118,13 +118,38 @@ services:
       AnalyticsVisitorSalt: "${ANALYTICS_VISITOR_SALT}"
 
       # --- centralised logging ------------------------------------------------
-      # Seq is reachable only on the internal `web` network, never publicly.
       # Program.cs registers the Serilog Seq sink CONDITIONALLY, on Seq:Url being
       # non-blank (SeqSettings.Resolve). Setting SeqUrl here is therefore what
       # turns it on, and every event is enriched with the application name so one
       # shared Seq server can separate this app from the others on the VPS.
-      # Leaving SeqUrl blank is a supported state: console only, no errors.
-      SeqUrl: "http://seq:5341"
+      # Leaving SeqUrl blank remains a supported state: console only, no errors.
+      #
+      # SeqUrl is RENDERED by the workflow, not hardcoded. Since 2026-08-16 it is
+      # rendered UNCONDITIONALLY — Seq IS running on this VPS
+      # (https://seq.techierathore.com, Seq 2026.1.17083, same IP as the apex,
+      # same Caddy). An earlier revision blanked it whenever SEQ_API_KEY was
+      # unset, on the strength of a 2026-08-14 recon that concluded no seq
+      # container existed; that conclusion no longer holds and the blanking
+      # silently disabled log shipping on every deploy.
+      #
+      # The value is the INTERNAL address http://seq:5341 — container `seq` on
+      # the shared `web` network, plain HTTP, ingestion-only port. This is a
+      # CONTRACT CONSTANT from deployment-brief-v3 §0/§2, confirmed on the real
+      # server by runbook-v5's acceptance script (/srv/checkup.sh: "seq
+      # container up", "seq answers through caddy"). It is not configurable.
+      #
+      # NEVER put https://seq.techierathore.com here. That is the Seq web UI for
+      # humans; using it would route ingestion out through Caddy and make this
+      # app's logging depend on public DNS and a certificate. A short-lived
+      # SEQ_URL repository variable that permitted exactly that was removed on
+      # 2026-08-16 — it existed only while the internal address was unconfirmed.
+      #
+      # SeqApiKey is a PER-APP key (repo secret SEQ_API_KEY, created in the Seq
+      # UI per runbook v5 §6.3) — it stamps App=techieblog server-side. It may be
+      # empty: this Seq accepts unauthenticated ingestion (POST /ingest/clef
+      # returned 201 on 2026-08-16), and SeqSettings.Resolve treats an empty key
+      # as null rather than as a configuration error.
+      SeqUrl: "${SEQ_URL}"
       SeqApiKey: "${SEQ_API_KEY}"
 
       # NO ROLLING FILE SINK IN THE CONTAINER, and no logs bind mount.
@@ -173,8 +198,12 @@ services:
       #
       # The host directory must be writable by UID 1654 — the `app` user the
       # .NET runtime image ships and the Dockerfile switches to. `mkdir -p` in
-      # the pipeline creates it root-owned, so run once on the server:
-      #   sudo chown -R 1654:1654 /srv/data/techieblog/uploads
+      # the pipeline cannot produce that ownership, so the deploy workflow
+      # chowns it to 1654:1654 from inside a throwaway root container after the
+      # pull and before `up -d`, then probes it with `touch` afterwards. It is
+      # idempotent and needs no sudo. NOTHING IS LEFT TO DO BY HAND HERE — if
+      # you find yourself running `sudo chown` on this path, the pipeline step
+      # ("Fix bind-mount ownership") did not run, and that is the bug.
       - /srv/data/techieblog/uploads:/app/uploads
 
       # THE DATA PROTECTION KEY RING — same class of bug as uploads, same fix.
@@ -204,8 +233,11 @@ services:
       # the behaviour deterministic. It also becomes load-bearing the moment a
       # second replica or a real SSR form post is added.
       #
-      # Same ownership rule as uploads — UID 1654 must be able to write here:
-      #   sudo chown -R 1654:1654 /srv/data/techieblog/dp-keys
+      # Same ownership rule as uploads — UID 1654 must be able to write here —
+      # and the same automation covers it: the deploy workflow chowns and then
+      # probes this directory too. It matters more here than the log makes it
+      # look: an unwritable uploads mount at least produces one [ERR] line since
+      # REQ-NFR-040, and this one produces none at all.
       - /srv/data/techieblog/dp-keys:/home/app/.aspnet/DataProtection-Keys
 
 networks:

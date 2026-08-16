@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Security.Claims;
 
+using BlogUI.Common;
+
 namespace BlogUI.Pages.AdminPages;
 
 /// <summary>
@@ -101,6 +103,28 @@ partial class ManagePost : ComponentBase
     /// <summary>Part number suggested for a newly added series post.</summary>
     public int SuggestedPartNumber { get; set; } = 1;
 
+    /// <summary>
+    /// Identifier of the post whose data is currently sitting in the editor fields.
+    /// </summary>
+    /// <remarks>
+    /// Starts at -1 rather than 0 because 0 is the legitimate identity of a NEW post, so 0
+    /// would make the first load of <c>/ManagePost</c> look like a load that already happened.
+    /// </remarks>
+    private long loadedPostId = -1;
+
+    /// <summary>Incremented on every load, so a reload of the same post still re-seeds the editor.</summary>
+    private int editorGeneration;
+
+    /// <summary>
+    /// Identity of the document currently in the markdown editor.
+    /// </summary>
+    /// <remarks>
+    /// Handed to <c>PostMarkdownEditor.ResetKey</c>. The editor deliberately ignores values
+    /// arriving after the user's first keystroke (TR-057), and that latch has to be released
+    /// when the DOCUMENT changes or the previous post's body would stay in the textarea.
+    /// </remarks>
+    public string EditorResetKey => $"post-{loadedPostId}-{editorGeneration}";
+
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
@@ -120,53 +144,121 @@ partial class ManagePost : ComponentBase
 
         // Load available series for selection
         AvailableSeries = (await SeriesService.GetAllWithCountsAsync()).ToList();
+    }
 
-        if (PageId > 0)
+    /// <summary>
+    /// Loads the routed post, and RE-loads it whenever the route parameter changes.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>[REQ-UI-016] 2026-08-11 — why this is not in <c>OnInitializedAsync</c>.</b>
+    /// Blazor's router reuses the same <c>ManagePost</c> instance for every <c>/ManagePost/{id}</c>
+    /// URL, so <c>OnInitializedAsync</c> runs exactly once per visit to the editor no matter how
+    /// many different posts are opened. With the load there, navigating client-side from
+    /// <c>/ManagePost/5</c> to <c>/ManagePost/6</c> left post 5's title, slug, body and every
+    /// sidebar field on screen under post 6's URL — and saving from that state would have written
+    /// post 5's content over post 6. Only the lookups that are the SAME for every post (categories,
+    /// tags, series, signed-in user) stay in <c>OnInitializedAsync</c>.</para>
+    /// <para><b>Side effects:</b> replaces every per-post field and bumps
+    /// <see cref="EditorResetKey"/> so the markdown editor re-seeds.</para>
+    /// </remarks>
+    protected override async Task OnParametersSetAsync()
+    {
+        if (loadedPostId == PageId)
         {
-            // Edit mode - load existing post
-            PageObj = await BlogService.GetSinglePostAsync(PageId);
-            if (PageObj != null)
-            {
-                PageHeader = "Edit Post";
-                AnswerDetail = PageObj.PostContent;
-                SlugPreview = PageObj.Slug;
-                SelectedCategoryId = PageObj.CategoryId.ToString();
-
-                // Load existing tags for this post
-                SelectedTags = (await TagService.GetTagsForPostAsync(PageId)).ToList();
-
-                // Load scheduling data if scheduled
-                if (PageObj.ScheduledPublishOn.HasValue)
-                {
-                    var localScheduled = PageObj.ScheduledPublishOn.Value.ToLocalTime();
-                    ScheduledDate = localScheduled.Date;
-                    ScheduledTime = localScheduled.TimeOfDay;
-                }
-
-                // Load series data if part of a series
-                if (PageObj.SeriesId.HasValue)
-                {
-                    SelectedSeriesId = PageObj.SeriesId.Value.ToString();
-                }
-            }
-            else
-            {
-                PageHeader = "Post Not Found";
-                StatusMessage = "The requested post could not be found.";
-                IsError = true;
-            }
+            return;
         }
-        else
+
+        await LoadRoutedPostAsync();
+    }
+
+    /// <summary>
+    /// Clears the previous post out of the form and loads the one named by the route.
+    /// </summary>
+    private async Task LoadRoutedPostAsync()
+    {
+        ClearPostFields();
+        loadedPostId = PageId;
+        editorGeneration++;
+
+        if (PageId <= 0)
         {
             // Create mode - new post
             PageObj = new BlogPost
             {
                 Published = false
             };
-            PageHeader = "New Post";
-            SelectedTags = new List<BlogTag>();
-            SelectedSeriesId = "0";
+            return;
         }
+
+        await LoadExistingPostAsync();
+    }
+
+    /// <summary>
+    /// Resets every field that belongs to one specific post, so nothing survives a switch.
+    /// </summary>
+    /// <remarks>
+    /// A field left out of this method is a field that leaks from post A into post B, which is
+    /// the whole defect this exists to prevent. Fields loaded once per visit (categories,
+    /// available tags, available series, the signed-in user) are deliberately NOT reset.
+    /// </remarks>
+    private void ClearPostFields()
+    {
+        PageObj = null;
+        PageHeader = "New Post";
+        AnswerDetail = string.Empty;
+        SlugPreview = string.Empty;
+        SelectedCategoryId = "0";
+        SelectedSeriesId = "0";
+        SuggestedPartNumber = 1;
+        SelectedTags = new List<BlogTag>();
+        NewTagInput = string.Empty;
+        ScheduledDate = null;
+        ScheduledTime = null;
+        StatusMessage = null;
+        IsError = false;
+        SaveAction = string.Empty;
+    }
+
+    /// <summary>
+    /// Reads the routed post and its tags into the form fields.
+    /// </summary>
+    private async Task LoadExistingPostAsync()
+    {
+        PageObj = await BlogService.GetSinglePostAsync(PageId);
+        if (PageObj == null)
+        {
+            PageHeader = "Post Not Found";
+            StatusMessage = "The requested post could not be found.";
+            IsError = true;
+            return;
+        }
+
+        PageHeader = "Edit Post";
+        AnswerDetail = PageObj.PostContent ?? string.Empty;
+        SlugPreview = PageObj.Slug ?? string.Empty;
+        SelectedCategoryId = PageObj.CategoryId.ToString();
+        SelectedTags = (await TagService.GetTagsForPostAsync(PageId)).ToList();
+        ApplyScheduleFields();
+
+        if (PageObj.SeriesId.HasValue)
+        {
+            SelectedSeriesId = PageObj.SeriesId.Value.ToString();
+        }
+    }
+
+    /// <summary>
+    /// Copies the loaded post's scheduled publication instant into the date and time pickers.
+    /// </summary>
+    private void ApplyScheduleFields()
+    {
+        if (PageObj?.ScheduledPublishOn == null)
+        {
+            return;
+        }
+
+        var localScheduled = PageObj.ScheduledPublishOn.Value.ToLocalTime();
+        ScheduledDate = localScheduled.Date;
+        ScheduledTime = localScheduled.TimeOfDay;
     }
 
     /// <summary>

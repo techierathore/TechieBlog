@@ -156,4 +156,49 @@ public class SiteSettings
     /// site is still running on built-in defaults.
     /// </summary>
     public DateTime UpdatedOn { get; set; }
+
+    /// <summary>
+    /// Returns an independent deep copy of this aggregate (REQ-FN-061).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The instance <c>ISiteSettingsService.GetSettingsAsync</c> hands
+    /// back is the <b>process-wide cached</b> one — a singleton's field, read by every circuit and
+    /// by anonymous public requests. Anything that intends to <i>edit</i> settings must therefore
+    /// edit a copy, because a property assignment on the shared instance is instantly effective for
+    /// every user with nothing written to the database and nothing to roll it back. That was
+    /// REQ-FN-061: an admin previewing a theme on <c>/settings</c> and navigating away silently
+    /// re-themed the live site until the host restarted.</para>
+    /// <para><b>Flow:</b> Member-wise copy of the scalars, then <see cref="SmtpSettings.Clone"/> and
+    /// <see cref="StorageSettings.Clone"/> for the two nested aggregates — a member-wise copy alone
+    /// would share those two objects and leave the SMTP and storage tabs leaking exactly as before.
+    /// A null nested member yields a fresh empty one, preserving this type's "never null"
+    /// contract.</para>
+    /// <para><b>Side Effects:</b> None. The copy carries the decrypted <c>Smtp.Password</c> and
+    /// <c>Storage.CloudAccessKey</c>, so the exposure rules on this type apply to it unchanged.</para>
+    /// </remarks>
+    /// <returns>A new aggregate sharing no mutable state with this one.</returns>
+    public SiteSettings Clone()
+    {
+        return new SiteSettings
+        {
+            SiteTitle = SiteTitle,
+            SiteTagline = SiteTagline,
+            AdminEmail = AdminEmail,
+            PostsPerPage = PostsPerPage,
+            PaginationWordCount = PaginationWordCount,
+            AreCommentsAllowed = AreCommentsAllowed,
+            AreCommentsModerated = AreCommentsModerated,
+            IsRegistrationAllowed = IsRegistrationAllowed,
+            SiteTheme = SiteTheme,
+            IsDarkModeDefault = IsDarkModeDefault,
+            MetaDescription = MetaDescription,
+            MetaKeywords = MetaKeywords,
+            TwitterUrl = TwitterUrl,
+            LinkedInUrl = LinkedInUrl,
+            GitHubUrl = GitHubUrl,
+            Smtp = Smtp?.Clone() ?? new SmtpSettings(),
+            Storage = Storage?.Clone() ?? new StorageSettings(),
+            UpdatedOn = UpdatedOn
+        };
+    }
 }

@@ -359,10 +359,26 @@ test('1.1.1 rating submitted keyboard-only through the question challenge', asyn
   await armPointerTrap(page);
   await resetFocusToDocumentStart(page);
 
-  // Reach the native radio fallback by Tab and arrow to 4 stars.
+  // Reach the library's own star radiogroup by Tab and arrow to 4 stars. The visually hidden
+  // native <fieldset> that used to carry these semantics was deleted on 2026-08-11 once
+  // TrBlazeUI 2.0.2 made every option a real <button role="radio"> (TR-031/045/052), so the
+  // stop is found by ancestry rather than by a per-star data-testid.
   const trail: string[] = [];
-  const starStops = await tabUntil(page, 'post-rating-star-1', {}, trail);
-  expect(starStops, 'rating radio group reachable by Tab').toBeGreaterThan(0);
+  let starStops = -1;
+  for (let i = 0; i < 90; i++) {
+    await page.keyboard.press('Tab');
+    const here = await page.evaluate(() => {
+      const el = document.activeElement;
+      return {
+        inRating: !!el?.closest('[data-testid="post-rating-stars"]'),
+        tag: el?.tagName ?? '',
+        role: el?.getAttribute('role') ?? '',
+      };
+    });
+    trail.push(`${i + 1}:${here.tag}${here.role ? '[' + here.role + ']' : ''}`);
+    if (here.inRating) { starStops = i + 1; break; }
+  }
+  expect(starStops, `rating radiogroup reachable by Tab. Path: ${trail.join(' > ')}`).toBeGreaterThan(0);
   // Arrow within the radio group, the way a radio group is meant to work.
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('ArrowRight');
@@ -566,7 +582,7 @@ test('tab traversal change-password — the forced staff interstitial', async ({
   expect(noIndicator.length, 'stops without a visible focus indicator').toBe(0);
 });
 
-test('TR-031 residual — library Rating radiogroup inside the aria-hidden wrapper', async ({ page }) => {
+test('TR-031 closed — the library Rating IS the control, not a decoration', async ({ page }) => {
   await page.goto(BASE + POST, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('[data-testid="post-rating-stars"]', { timeout: 30000 });
   await page.waitForTimeout(2500);
@@ -574,23 +590,29 @@ test('TR-031 residual — library Rating radiogroup inside the aria-hidden wrapp
   const info = await page.evaluate(() => {
     const host = document.querySelector('[data-testid="post-rating-stars"]');
     if (!host) return null;
-    const group = host.querySelector('[role="radiogroup"]');
     const stars = Array.from(host.querySelectorAll('[role="radio"]'));
     const gradIds = Array.from(host.querySelectorAll('linearGradient')).map(g => g.id);
-    const focusables = Array.from(
-      host.querySelectorAll('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])')
-    ).map(e => `${e.tagName.toLowerCase()}[tabindex=${e.getAttribute('tabindex')}]`);
     return {
-      wrapperAriaHidden: host.getAttribute('aria-hidden'),
-      groupTabindex: group ? group.getAttribute('tabindex') : null,
+      hiddenFromAt: !!host.closest('[aria-hidden="true"]'),
+      groupRole: host.getAttribute('role'),
       starCount: stars.length,
-      starsFocusable: stars.filter(s => s.getAttribute('tabindex') && s.getAttribute('tabindex') !== '-1').length,
-      focusablesInsideAriaHidden: focusables,
+      starTags: [...new Set(stars.map(s => s.tagName))],
+      spanRadiosOnPage: document.querySelectorAll('span[role="radio"]').length,
+      rovingTabindexes: stars.map(s => s.getAttribute('tabindex')),
+      ariaChecked: stars.map(s => s.getAttribute('aria-checked')),
+      legacyFallbackNodes: document.querySelectorAll('[data-testid="post-rating-keyboard"]').length,
       gradientIds: gradIds,
       duplicateGradientIds: gradIds.length - new Set(gradIds).size,
     };
   });
-  console.log('TR-031 RESIDUAL: ' + JSON.stringify(info));
+  console.log('TR-031 CLOSED: ' + JSON.stringify(info));
   fs.writeFileSync(path.join(OUT, 'tr031-residual.json'), JSON.stringify(info, null, 2));
   expect(info).not.toBeNull();
+  expect(info!.hiddenFromAt, 'the interactive rating is not hidden from assistive technology').toBe(false);
+  expect(info!.starTags, 'options are real buttons, not spans').toEqual(['BUTTON']);
+  expect(info!.spanRadiosOnPage, 'no dead span[role=radio] anywhere on the page').toBe(0);
+  expect(info!.legacyFallbackNodes, 'the native <fieldset> fallback is removed').toBe(0);
+  expect(info!.rovingTabindexes.filter(t => t === '0').length, 'exactly one roving tab stop').toBe(1);
+  expect(info!.ariaChecked.every(v => v === 'true' || v === 'false'), 'aria-checked is a literal token').toBe(true);
+  expect(info!.duplicateGradientIds, 'no duplicate gradient ids').toBe(0);
 });

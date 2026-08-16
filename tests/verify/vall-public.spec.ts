@@ -193,9 +193,13 @@ test('REQ-UI-049 portfolio home renders hero, stats, about, latest articles and 
   const tileCount = await tiles.count();
   console.log('REQ-UI-049 stat tiles', tileCount);
   expect(tileCount, 'home stat tiles').toBeGreaterThan(0);
+  // TrBlazeUI 2.0.2 (TR-022): the tiles are StatTile now, and StatTile renders Value/Label from
+  // string parameters — there is no slot to hang `home-stat-value` / `home-stat-label` on, so the
+  // two inner hooks are gone (logged as TR-069). The tile's own parts are read instead; the
+  // assertion below is unchanged — both lines must be non-blank.
   for (let i = 0; i < tileCount; i++) {
-    const v = ((await tiles.nth(i).locator('[data-testid="home-stat-value"]').textContent()) || '').trim();
-    const l = ((await tiles.nth(i).locator('[data-testid="home-stat-label"]').textContent()) || '').trim();
+    const v = ((await tiles.nth(i).locator('.tabular-nums').first().textContent()) || '').trim();
+    const l = ((await tiles.nth(i).locator('.text-muted-foreground').first().textContent()) || '').trim();
     console.log(`REQ-UI-049 tile ${i}: "${v}" / "${l}"`);
     expect(v.length, `stat tile ${i} value blank`).toBeGreaterThan(0);
     expect(l.length, `stat tile ${i} label blank`).toBeGreaterThan(0);

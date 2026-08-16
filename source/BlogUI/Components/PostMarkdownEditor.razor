@@ -7,19 +7,29 @@
     Dependencies: BlogEngine.Common.MarkdownRenderer, TrBlazeUI Toolbar/Tabs (REQ-UI-048)
     Note: preview typography comes from wwwroot/css/base.css `.markdown-content`.
 
-    [REQ-UI-016] 2026-08-09 — the body input is a RAW <textarea>, deliberately, and must stay
-    one. TrBlazeUI's <Textarea> is a CONTROLLED input: its markup is
-    `<textarea value="@Value" @oninput="HandleInput">` and HandleInput assigns `Value` before
-    raising ValueChanged. Under Blazor Server every keystroke therefore round-trips, and the
-    render that comes back writes a value into the DOM that is already one or more keystrokes
-    behind whatever the user typed in the meantime — the textarea LOST and REORDERED keystrokes
-    ('## Live heading' arrived as '## ivehading'). The fix is an UNCONTROLLED input: the DOM
-    value is seeded exactly once as the element's child content (`editorSeed`) and the server
-    never writes it again, so no re-render can clobber what the user typed. `editorSeed` moves
-    only for a PROGRAMMATIC change (toolbar insert, view-mode switch, an externally supplied
-    value before the first edit), and each move bumps `editorRevision`, whose @key forces Blazor
-    to re-create the element so the new text actually reaches the DOM.
-    Library gap TR-057. Do NOT "restore" <Textarea> here.
+    [REQ-UI-016] 2026-08-09..2026-08-11 — HISTORY, because two data-safety fixes live here.
+    TrBlazeUI 2.0.1's <Textarea> was a CONTROLLED input — `<textarea value="@Value"
+    @oninput="HandleInput">` with HandleInput assigning `Value` before raising ValueChanged — so
+    under Blazor Server every keystroke round-tripped and the render that came back wrote a value
+    into the DOM that was already one or more keystrokes stale. The textarea LOST and REORDERED
+    keystrokes ('## Live heading' arrived as '## ivehading'). This file therefore ran a RAW,
+    uncontrolled <textarea> seeded once through child content (library gap TR-057).
+    2.0.2 fixes that in the library: `TextValueSync` tracks the DOM value, the render-tree value
+    and the parent-supplied value as three separate things, so the echo of the user's own typing
+    never re-enters the render tree and Blazor's diff emits no DOM write, while a genuine
+    programmatic change still does. The raw element is therefore gone and <Textarea> is back.
+
+    [REQ-UI-016] 2026-08-11 — the keystroke latch below STAYS, and is not redundant. The latch says
+    "the user owns this text now, so stop writing to the DOM", and that is only true for the
+    document the user was typing into. When the host swaps the document — /ManagePost/5 to
+    /ManagePost/6 — the latch has to be released or post 5's body stays on screen under post
+    6's URL and a save writes it over post 6. The host therefore passes ResetKey, an identity
+    for the document currently in the editor; a CHANGE of ResetKey (and nothing else) clears
+    hasLocalEdits and adopts the supplied Value. Keystrokes never move ResetKey.
+    The library's own TextValueSync does NOT cover this: it only recognises the echo of the LAST
+    value it sent up, so a supplied value that differs from that — a stale echo under an unchanged
+    document — is treated as a programmatic change and written straight into the DOM. Keeping the
+    latch means such a value never reaches <Textarea> in the first place.
 *@
 @namespace BlogUI.Components
 @implements IDisposable
@@ -168,14 +178,13 @@
         @if (ViewMode != "preview")
         {
             <div class="flex min-w-0 flex-1">
-                @* Uncontrolled by design — see the file header (REQ-UI-016 / TR-057). *@
-                <textarea @key="editorRevision"
-                          class="@EditorCssClass"
-                          placeholder="@InputPlaceholder"
-                          aria-label="Post content in Markdown"
-                          data-slot="textarea-control"
-                          data-testid="markdown-input"
-                          @oninput="OnContentChanged">@editorSeed</textarea>
+                @* Library Textarea — see the file header (REQ-UI-016 / TR-057, adopted 2026-08-11). *@
+                <Textarea Value="@markdownSource"
+                          ValueChanged="OnContentChanged"
+                          Class="@EditorCssClass"
+                          Placeholder="@InputPlaceholder"
+                          AriaLabel="Post content in Markdown"
+                          data-testid="markdown-input" />
             </div>
         }
         @if (ViewMode != "edit")
@@ -220,6 +229,19 @@
     [Parameter]
     public string ViewMode { get; set; } = "split";
 
+    /// <summary>
+    /// Identity of the document currently supplied in <see cref="Value"/>.
+    /// </summary>
+    /// <remarks>
+    /// A CHANGE of this key means the host replaced the document — a different post loaded
+    /// into the same editor instance — so the "user has typed" latch, which belongs to the
+    /// previous document, is released and <see cref="Value"/> is adopted unconditionally.
+    /// Hosts that only ever edit one document may leave it unset. Never derive it from the
+    /// text itself: a key that moves with keystrokes would re-introduce TR-057.
+    /// </remarks>
+    [Parameter]
+    public string ResetKey { get; set; } = string.Empty;
+
     /// <summary>Placeholder shown in the markdown input while it is empty.</summary>
     private const string InputPlaceholder =
         "Write your content in Markdown...\n\n**Bold**  *Italic*  `code`\n# Heading 1\n- Bullet list\n[Link text](url)\n> Blockquote";
@@ -234,18 +256,18 @@
     private const int PreviewDebounceMs = 250;
 
     /// <summary>
-    /// Classes the TrBlazeUI Textarea used to produce for this editor, resolved by hand.
+    /// This editor's overrides on the library Textarea's shadcn base classes.
     /// </summary>
     /// <remarks>
-    /// These are the library's shadcn textarea base classes with the conflicts this editor
-    /// overrode already collapsed (min-h, rounded, border, padding, background, type size), so
-    /// the uncontrolled element is pixel-identical to the controlled one it replaced.
+    /// The library merges these through <c>cn()</c>, which collapses the conflicting base
+    /// utilities (min-h, rounded, border width, padding, background, type size). <c>dark:bg-card</c>
+    /// is listed explicitly because tailwind-merge treats <c>dark:bg-input/30</c> as a different
+    /// variant group from <c>bg-card</c> and would otherwise leave the library's dark background in
+    /// place.
     /// </remarks>
     private const string EditorCssClass =
-        "flex field-sizing-content min-h-[400px] w-full flex-1 resize-none rounded-none border-0 " +
-        "bg-card px-4 py-3 font-mono text-sm shadow-xs placeholder:text-muted-foreground " +
-        "outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 " +
-        "disabled:cursor-not-allowed disabled:opacity-50 transition-[color,box-shadow]";
+        "min-h-[400px] flex-1 resize-none rounded-none border-0 " +
+        "bg-card dark:bg-card px-4 py-3 font-mono text-sm";
 
     /// <summary>Rendered HTML for the current markdown source.</summary>
     private string renderedHtml = string.Empty;
@@ -253,20 +275,13 @@
     /// <summary>Authoritative markdown source held by this component.</summary>
     private string markdownSource = string.Empty;
 
-    /// <summary>
-    /// Text the textarea element is seeded with. Changes only for programmatic edits — never
-    /// for user keystrokes — which is what stops a re-render from clobbering the DOM value.
-    /// </summary>
-    private string editorSeed = string.Empty;
-
-    /// <summary>
-    /// Incremented with every <see cref="editorSeed"/> move; keys the textarea so Blazor
-    /// re-creates the element and the new seed reaches the DOM.
-    /// </summary>
-    private int editorRevision;
-
     /// <summary>True once the user has typed, after which supplied values are echoes.</summary>
     private bool hasLocalEdits;
+
+    /// <summary>
+    /// The <see cref="ResetKey"/> the current <see cref="markdownSource"/> belongs to.
+    /// </summary>
+    private string activeResetKey = string.Empty;
 
     /// <summary>Cancels the in-flight preview debounce when another keystroke arrives.</summary>
     private CancellationTokenSource? previewDebounce;
@@ -275,13 +290,25 @@
     protected override void OnInitialized()
     {
         markdownSource = Value ?? string.Empty;
-        editorSeed = markdownSource;
+        activeResetKey = ResetKey ?? string.Empty;
         UpdatePreview();
     }
 
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
+        // A different document arrived (the host loaded another post into this same editor
+        // instance). The keystroke latch below belongs to the PREVIOUS document, so keeping
+        // it would leave the old body on screen — and a save from there would overwrite the
+        // new post with it. Release the latch and adopt unconditionally.
+        if (!string.Equals(ResetKey ?? string.Empty, activeResetKey, StringComparison.Ordinal))
+        {
+            activeResetKey = ResetKey ?? string.Empty;
+            hasLocalEdits = false;
+            AdoptSuppliedValue();
+            return;
+        }
+
         // Once the user has typed, every value arriving from the parent is an echo of a
         // keystroke this component already sent — adopting it is exactly the clobber that
         // lost keystrokes. Only a pre-edit value (the post loaded into the editor) is adopted.
@@ -290,8 +317,13 @@
             return;
         }
 
+        AdoptSuppliedValue();
+    }
+
+    /// <summary>Takes the supplied <see cref="Value"/> as the source and pushes it to the DOM.</summary>
+    private void AdoptSuppliedValue()
+    {
         markdownSource = Value ?? string.Empty;
-        ReseedEditor();
         UpdatePreview();
     }
 
@@ -309,20 +341,11 @@
         renderedHtml = Renderer.ToHtml(markdownSource);
     }
 
-    /// <summary>
-    /// Pushes <see cref="markdownSource"/> into the textarea by re-creating the element.
-    /// </summary>
-    private void ReseedEditor()
-    {
-        editorSeed = markdownSource;
-        editorRevision++;
-    }
-
     /// <summary>Handles input from the markdown textarea and notifies the parent.</summary>
-    private async Task OnContentChanged(ChangeEventArgs args)
+    private async Task OnContentChanged(string value)
     {
         hasLocalEdits = true;
-        markdownSource = args.Value?.ToString() ?? string.Empty;
+        markdownSource = value ?? string.Empty;
 
         // Immediate, so the post body is current the instant a save button is pressed.
         await ValueChanged.InvokeAsync(markdownSource);
@@ -374,10 +397,6 @@
         }
 
         ViewMode = mode;
-
-        // The textarea is torn out of the tree in preview mode, so it has to be re-seeded with
-        // the current source when it comes back — otherwise it would return to its stale seed.
-        ReseedEditor();
         UpdatePreview();
     }
 
@@ -392,8 +411,6 @@
             ? before + placeholder + after
             : markdownSource + "\n" + before + placeholder + after;
 
-        // A programmatic edit is the one case where the DOM value MUST be rewritten.
-        ReseedEditor();
         UpdatePreview();
         await ValueChanged.InvokeAsync(markdownSource);
     }
