@@ -1,4 +1,5 @@
 using Blazored.LocalStorage;
+using BlogModels.Interfaces;
 
 namespace BlogUI;
 
@@ -9,17 +10,29 @@ namespace BlogUI;
 /// <para><b>Purpose:</b> Manages theme selection, light/dark mode toggle, and CSS variable injection.
 /// This service is the central point for all theme-related operations in the UI layer.</para>
 ///
+/// <para><b>Two layers, deliberately (REQ-UI-032 / REQ-FN-039, BRD-66 / BRD-68):</b></para>
+/// <list type="bullet">
+///   <item><b>Site layer</b> — the administrator's choice, persisted server-side through
+///     <see cref="ISiteSettingsService"/>. It is what an anonymous first-time visitor receives,
+///     and it is site-wide rather than per browser.</item>
+///   <item><b>Visitor layer</b> — an individual's own light/dark toggle and theme override, kept
+///     in LocalStorage. It wins when present, so BRD-66 keeps working; when absent the site layer
+///     shows through.</item>
+/// </list>
+///
 /// <para><b>Code Flow:</b></para>
 /// <list type="number">
-///   <item>On application start, retrieves saved theme preferences from LocalStorage</item>
-///   <item>Applies theme via data-site-theme and data-theme attributes on HTML element</item>
-///   <item>Persists user preferences to LocalStorage on any theme change</item>
+///   <item>On application start, reads the visitor's LocalStorage preference</item>
+///   <item>Falls back to the admin-selected site default when the visitor has none</item>
+///   <item>Applies theme via the data-site-theme attribute and the dark class on the HTML element</item>
+///   <item>Persists visitor preferences to LocalStorage on any theme change</item>
 ///   <item>Notifies subscribers via OnThemeChanged event when theme changes</item>
 /// </list>
 ///
 /// <para><b>Dependencies:</b></para>
 /// <list type="bullet">
-///   <item>Blazored.LocalStorage - Persists theme preferences across browser sessions</item>
+///   <item>Blazored.LocalStorage - Persists per-visitor preferences across browser sessions</item>
+///   <item><see cref="ISiteSettingsService"/> - Supplies the admin-selected site-wide default</item>
 /// </list>
 ///
 /// <para><b>Usage:</b> Inject via DI and use in ThemeProvider component or any component
@@ -42,13 +55,27 @@ namespace BlogUI;
 public class ThemeService
 {
     private readonly ILocalStorageService localStorageSvc;
+    private readonly ISiteSettingsService siteSettingsSvc;
 
     private const string ThemeStorageKey = "techieblog-theme";
     private const string DarkModeStorageKey = "techieblog-dark-mode";
-    private const string DefaultTheme = "fluent-modern";
+    private const string DefaultTheme = "trblaze-modern";
+
+    /// <summary>
+    /// Pre-migration identifier for the default theme, still present in the
+    /// LocalStorage of returning visitors. Mapped onto <see cref="DefaultTheme"/>.
+    /// </summary>
+    private const string LegacyDefaultTheme = "fluent-modern";
+
+    /// <summary>
+    /// The shipped light/dark default — dark (owner decision, 2026-08-10). Must stay in step with
+    /// <see cref="BlogModels.Models.SiteSettings.IsDarkModeDefault"/>'s property initialiser and
+    /// with the seeded row written by <c>025-DefaultToDarkMode.sql</c>.
+    /// </summary>
+    private const bool ShippedDarkMode = true;
 
     private string currentTheme = DefaultTheme;
-    private bool isDarkMode = false;
+    private bool isDarkMode = ShippedDarkMode;
 
     /// <summary>
     /// Event raised when the theme or dark mode setting changes.
@@ -57,7 +84,7 @@ public class ThemeService
     /// Subscribe to this event to update UI components when theme changes.
     /// The event passes the new theme name and dark mode state.
     /// </remarks>
-    public event Action<string, bool> OnThemeChanged;
+    public event Action<string, bool>? OnThemeChanged;
 
     /// <summary>
     /// Initializes a new instance of ThemeService with LocalStorage dependency.
@@ -67,9 +94,83 @@ public class ThemeService
     /// This is already installed as noted in Story 1.4 completion.
     /// </remarks>
     /// <param name="localStorageSvc">LocalStorage service for persisting theme preferences.</param>
-    public ThemeService(ILocalStorageService localStorageSvc)
+    /// <param name="siteSettingsSvc">Site settings service supplying the admin-selected default.</param>
+    public ThemeService(ILocalStorageService localStorageSvc, ISiteSettingsService siteSettingsSvc)
     {
         this.localStorageSvc = localStorageSvc;
+        this.siteSettingsSvc = siteSettingsSvc;
+    }
+
+    /// <summary>
+    /// Reads the administrator-selected site-wide theme identifier.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> This is the default every visitor sees before expressing a
+    /// preference of their own (BRD-68). A stored identifier this build no longer ships — including
+    /// the pre-migration <c>fluent-modern</c> — is mapped onto the shipped default so a stale
+    /// database can never leave the site unstyled.</para>
+    /// <para><b>Flow:</b> Read the settings aggregate, normalise the identifier.</para>
+    /// <para><b>Side Effects:</b> None. A read failure falls back to the shipped default.</para>
+    /// </remarks>
+    /// <returns>A theme identifier this build ships. Never null or empty.</returns>
+    public async Task<string> GetSiteDefaultThemeAsync()
+    {
+        try
+        {
+            var settings = await siteSettingsSvc.GetSettingsAsync();
+            return NormaliseTheme(settings.SiteTheme);
+        }
+        catch
+        {
+            return DefaultTheme;
+        }
+    }
+
+    /// <summary>
+    /// Reads whether the site defaults to dark mode for visitors with no stored preference.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The administrator sets the starting point; a visitor's own
+    /// toggle still overrides it (BRD-66), so this value only decides what an untouched browser
+    /// gets.</para>
+    /// <para><b>Side Effects:</b> None. A read failure falls back to <see cref="ShippedDarkMode"/>,
+    /// which is dark — the shipped site default (owner decision, 2026-08-10). Falling back to light
+    /// here would make a settings outage change the site's appearance rather than leave it
+    /// unchanged.</para>
+    /// </remarks>
+    /// <returns>True when new visitors should start in dark mode.</returns>
+    public async Task<bool> GetSiteDefaultDarkModeAsync()
+    {
+        try
+        {
+            var settings = await siteSettingsSvc.GetSettingsAsync();
+            return settings.IsDarkModeDefault;
+        }
+        catch
+        {
+            return ShippedDarkMode;
+        }
+    }
+
+    /// <summary>
+    /// Maps a stored theme identifier onto one this build actually ships.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Guards every entry point — settings, LocalStorage and the
+    /// settings screen — so an unknown identifier degrades to the shipped default instead of
+    /// producing an HTML element with a <c>data-site-theme</c> no stylesheet answers.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <param name="themeName">The identifier to normalise; may be null, empty or legacy.</param>
+    /// <returns>A theme identifier present in <see cref="GetAvailableThemes"/>.</returns>
+    public string NormaliseTheme(string? themeName)
+    {
+        if (string.IsNullOrWhiteSpace(themeName) || themeName == LegacyDefaultTheme)
+        {
+            return DefaultTheme;
+        }
+
+        return GetAvailableThemes().Any(theme => theme.Id == themeName) ? themeName : DefaultTheme;
     }
 
     /// <summary>
@@ -78,26 +179,33 @@ public class ThemeService
     /// <remarks>
     /// <para><b>Business Logic:</b></para>
     /// <list type="number">
-    ///   <item>Attempts to read theme from LocalStorage</item>
-    ///   <item>Falls back to "fluent-modern" if no theme is saved</item>
-    ///   <item>Updates internal state to match stored value</item>
+    ///   <item>Attempts to read the visitor's own theme from LocalStorage</item>
+    ///   <item>Falls back to the administrator's site-wide theme when the visitor has none —
+    ///     this is what makes the admin's choice the site default (REQ-UI-032, BRD-68)</item>
+    ///   <item>Updates internal state to match the resolved value</item>
     /// </list>
     /// </remarks>
     /// <returns>
-    /// Theme name string: "fluent-modern", "developer", or "minimal".
-    /// Returns "fluent-modern" as default if no preference is stored.
+    /// Theme name string: "trblaze-modern", "developer", or "minimal".
+    /// Returns the admin-selected site theme when the visitor has stored no preference.
     /// </returns>
     public async Task<string> GetCurrentThemeAsync()
     {
+        string? storedTheme = null;
         try
         {
-            var storedTheme = await localStorageSvc.GetItemAsync<string>(ThemeStorageKey);
-            currentTheme = string.IsNullOrEmpty(storedTheme) ? DefaultTheme : storedTheme;
+            storedTheme = await localStorageSvc.GetItemAsync<string>(ThemeStorageKey);
         }
         catch
         {
-            currentTheme = DefaultTheme;
+            storedTheme = null;
         }
+
+        // A visitor override wins; otherwise the site-wide default shows through.
+        currentTheme = string.IsNullOrEmpty(storedTheme) || storedTheme == LegacyDefaultTheme
+            ? await GetSiteDefaultThemeAsync()
+            : NormaliseTheme(storedTheme);
+
         return currentTheme;
     }
 
@@ -119,14 +227,25 @@ public class ThemeService
     /// </param>
     public async Task SetThemeAsync(string themeName)
     {
-        var validThemes = GetAvailableThemes().Select(t => t.Id).ToList();
-        if (!validThemes.Contains(themeName))
-        {
-            themeName = DefaultTheme;
-        }
+        currentTheme = NormaliseTheme(themeName);
+        await localStorageSvc.SetItemAsync(ThemeStorageKey, currentTheme);
+        OnThemeChanged?.Invoke(currentTheme, isDarkMode);
+    }
 
-        currentTheme = themeName;
-        await localStorageSvc.SetItemAsync(ThemeStorageKey, themeName);
+    /// <summary>
+    /// Applies a theme to the current circuit without recording a visitor preference.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The Settings screen previews a theme as the administrator
+    /// clicks through the swatches. Writing that preview to LocalStorage would silently convert
+    /// the administrator into a visitor with an override, and the site-wide default would then be
+    /// invisible to them for ever after. So the preview only raises the change event.</para>
+    /// <para><b>Side Effects:</b> Raises <see cref="OnThemeChanged"/>; touches no storage.</para>
+    /// </remarks>
+    /// <param name="themeName">The theme to preview.</param>
+    public void PreviewTheme(string themeName)
+    {
+        currentTheme = NormaliseTheme(themeName);
         OnThemeChanged?.Invoke(currentTheme, isDarkMode);
     }
 
@@ -136,21 +255,27 @@ public class ThemeService
     /// <remarks>
     /// <para><b>Business Logic:</b></para>
     /// <list type="number">
-    ///   <item>Attempts to read dark mode preference from LocalStorage</item>
-    ///   <item>Defaults to false (light mode) if no preference is stored</item>
+    ///   <item>Attempts to read the visitor's dark-mode preference from LocalStorage</item>
+    ///   <item>Falls back to the administrator's site-wide default when the visitor has none</item>
     /// </list>
+    /// <para>The value is read as a nullable bool on purpose: a stored <c>false</c> is a real
+    /// visitor choice ("I want light mode") and must not be confused with an absent key, which is
+    /// the only case where the site default applies.</para>
     /// </remarks>
     /// <returns>True if dark mode is enabled, false for light mode.</returns>
     public async Task<bool> GetDarkModeAsync()
     {
+        bool? storedDarkMode;
         try
         {
-            isDarkMode = await localStorageSvc.GetItemAsync<bool>(DarkModeStorageKey);
+            storedDarkMode = await localStorageSvc.GetItemAsync<bool?>(DarkModeStorageKey);
         }
         catch
         {
-            isDarkMode = false;
+            storedDarkMode = null;
         }
+
+        isDarkMode = storedDarkMode ?? await GetSiteDefaultDarkModeAsync();
         return isDarkMode;
     }
 
@@ -200,7 +325,7 @@ public class ThemeService
     ///
     /// <para><b>Available Themes:</b></para>
     /// <list type="bullet">
-    ///   <item>fluent-modern: Microsoft Fluent UI design (default)</item>
+    ///   <item>trblaze-modern: neutral shadcn palette, blue primary (default)</item>
     ///   <item>developer: Code editor inspired with monospace fonts</item>
     ///   <item>minimal: Typography-focused with serif fonts</item>
     /// </list>
@@ -212,9 +337,9 @@ public class ThemeService
         {
             new ThemeInfo
             {
-                Id = "fluent-modern",
-                Name = "Fluent Modern",
-                Description = "Clean, professional Microsoft Fluent UI design",
+                Id = "trblaze-modern",
+                Name = "TrBlaze Modern",
+                Description = "Clean, professional shadcn palette with a blue primary",
                 IsDefault = true
             },
             new ThemeInfo
@@ -267,13 +392,13 @@ public class ThemeInfo
     /// <summary>
     /// Unique identifier for the theme, used in data-site-theme attribute.
     /// </summary>
-    /// <example>"fluent-modern", "developer", "minimal"</example>
+    /// <example>"trblaze-modern", "developer", "minimal"</example>
     public string Id { get; set; } = string.Empty;
 
     /// <summary>
     /// Display name for the theme shown in UI.
     /// </summary>
-    /// <example>"Fluent Modern", "Developer Dark", "Minimal Clean"</example>
+    /// <example>"TrBlaze Modern", "Developer Dark", "Minimal Clean"</example>
     public string Name { get; set; } = string.Empty;
 
     /// <summary>

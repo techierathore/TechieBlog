@@ -1,0 +1,473 @@
+/* =============================================================================
+   theme.css — TechieBlog design tokens for TrBlazeUI
+   =============================================================================
+   REQ-UI-048 / REQ-FN-039 / BRD-67 (rev), BRD-66.
+
+   Purpose
+   -------
+   Re-expresses TechieBlog's three site themes as TrBlazeUI / shadcn CSS-variable
+   sets in the OKLCH colour space. This file replaces the Fluent-era
+   Themes/_variables.css + Themes/*.css set and css/fluent-dark-mode.css.
+
+   Load order (see source/TechieBlog/Components/App.razor):
+       1. theme.css                                  <-- this file (tokens)
+       2. _content/TrBlazeUI.Components/trblazeui.css (framework + components)
+      2b. utilities.css                              (utilities the tree-shaken
+                                                      library bundle omits, TR-019)
+       3. base.css                                   (app-level element defaults)
+
+   Why this file wins
+   ------------------
+   trblazeui.css declares its own defaults through ZERO-specificity selectors
+   (`:where(:root)` / `:where(.dark)`). Every rule below uses a normal `:root`,
+   `.dark` or `[data-site-theme=...]` selector, so it always takes precedence
+   regardless of source order.
+
+   Switching axes
+   --------------
+   - Light / dark  : the `dark` CLASS on <html>            (BRD-66)
+   - Site theme    : the `data-site-theme` ATTRIBUTE on <html> (BRD-67)
+     Values: "trblaze-modern" (default) | "developer" | "minimal"
+     The legacy value "fluent-modern" is accepted as an alias of the default.
+
+   Legacy bridge
+   -------------
+   The hand-written stylesheets (layout.css, blogui.css, adminui.css, site.css,
+   resume.css, author.css) still reference Fluent-era names such as
+   --color-primary and --spacing-md. The "Legacy variable bridge" section at the
+   bottom maps every one of those onto the OKLCH tokens above, so that legacy CSS
+   becomes theme-aware and dark-mode-correct for free. Do NOT add new rules that
+   depend on those names — use Tailwind utility classes via the `Class`
+   parameter, per TrBlazeUI's rules.
+   ========================================================================== */
+
+/* -----------------------------------------------------------------------------
+   1. THEME: TrBlaze Modern (default) — neutral shadcn palette, blue primary
+   -------------------------------------------------------------------------- */
+
+:root,
+:root[data-site-theme="trblaze-modern"],
+:root[data-site-theme="fluent-modern"] {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+
+    --primary: oklch(0.546 0.215 262.881);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    /* REQ-NFR-007: 0.556 gave only 4.34:1 against --muted; 0.54 clears 4.5:1 on both
+       --background (5.0:1) and --muted (4.6:1). */
+    --muted-foreground: oklch(0.54 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --destructive-foreground: oklch(1 0 0);
+
+    --border: oklch(0.922 0 0);
+    /* REQ-NFR-007 / WCAG 1.4.11: --input draws the visible boundary of form controls, so it
+       needs 3:1 against the page. The shadcn default (0.922) gives 1.26:1. */
+    --input: oklch(0.66 0 0);
+    --ring: oklch(0.546 0.215 262.881);
+    --radius: 0.625rem;
+
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-primary: oklch(0.546 0.215 262.881);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-ring: oklch(0.546 0.215 262.881);
+
+    /* REQ-NFR-007: alert colours are used as TEXT, so each needs 4.5:1 on --background.
+       success was 4.45:1 and warning only 3.04:1 before these were darkened. */
+    --alert-success: oklch(0.53 0.20 142);
+    --alert-info: oklch(0.50 0.20 255);
+    --alert-warning: oklch(0.57 0.18 55);
+    --alert-danger: oklch(0.55 0.22 27);
+
+    --chart-1: oklch(0.546 0.215 262.881);
+    --chart-2: oklch(0.60 0.16 184);
+    --chart-3: oklch(0.55 0.20 142);
+    --chart-4: oklch(0.68 0.18 55);
+    --chart-5: oklch(0.58 0.22 328);
+
+    /* Typography stacks consumed by the legacy bridge. */
+    --tb-font-ui: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --tb-font-heading: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --tb-font-mono: "Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, "Courier New", monospace;
+}
+
+:root.dark,
+:root.dark[data-site-theme="trblaze-modern"],
+:root.dark[data-site-theme="fluent-modern"] {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+
+    --primary: oklch(0.667 0.181 261.7);
+    --primary-foreground: oklch(0.145 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --destructive-foreground: oklch(0.145 0 0);
+
+    --border: oklch(1 0 0 / 14%);
+    /* REQ-NFR-007 / WCAG 1.4.11 — 18% white over the dark page is 1.6:1; 36% gives 3.3:1. */
+    --input: oklch(1 0 0 / 36%);
+    --ring: oklch(0.667 0.181 261.7);
+
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.667 0.181 261.7);
+    --sidebar-primary-foreground: oklch(0.145 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 14%);
+    --sidebar-ring: oklch(0.667 0.181 261.7);
+
+    --alert-success: oklch(0.70 0.17 142);
+    --alert-info: oklch(0.70 0.15 255);
+    --alert-warning: oklch(0.80 0.16 70);
+    --alert-danger: oklch(0.70 0.19 22);
+
+    --chart-1: oklch(0.667 0.181 261.7);
+    --chart-2: oklch(0.70 0.14 184);
+    --chart-3: oklch(0.70 0.17 142);
+    --chart-4: oklch(0.80 0.16 70);
+    --chart-5: oklch(0.70 0.19 328);
+}
+
+/* -----------------------------------------------------------------------------
+   2. THEME: Developer Dark — code-editor inspired, monospace, cyan/green accent
+   -------------------------------------------------------------------------- */
+
+:root[data-site-theme="developer"] {
+    --background: oklch(0.985 0.003 250);
+    --foreground: oklch(0.20 0.02 250);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.20 0.02 250);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.20 0.02 250);
+
+    /* REQ-UI-033: OBSERVED failure, not a theoretical one — the post link on /CommentsList
+       (`a[data-testid=comment-row-post]`) measured 4.44:1 against the row's tinted surface.
+       0.52 cleared 4.5:1 only on --background; on --muted/--secondary it was 4.23:1 and on
+       --accent 3.99:1. 0.48 clears every surface: 5.50 background, 4.96 muted, 4.69 accent,
+       and 5.59:1 for --primary-foreground sitting on it. */
+    --primary: oklch(0.48 0.13 195);
+    --primary-foreground: oklch(0.99 0 0);
+    --secondary: oklch(0.95 0.008 250);
+    --secondary-foreground: oklch(0.25 0.02 250);
+    --muted: oklch(0.95 0.008 250);
+    --muted-foreground: oklch(0.50 0.02 250);
+    --accent: oklch(0.93 0.02 195);
+    --accent-foreground: oklch(0.25 0.03 195);
+    --destructive: oklch(0.58 0.22 27);
+    --destructive-foreground: oklch(0.99 0 0);
+
+    --border: oklch(0.90 0.01 250);
+    /* REQ-NFR-007 / WCAG 1.4.11 — form-control boundary needs 3:1 against --background. */
+    --input: oklch(0.65 0.01 250);
+    /* REQ-UI-033: kept in step with --primary above so the focus ring and the brand accent stay
+       one colour. No contrast rule forces this one (a ring only owes 3:1); it is coherence. */
+    --ring: oklch(0.48 0.13 195);
+    --radius: 0.375rem;
+
+    --sidebar: oklch(0.96 0.008 250);
+    --sidebar-foreground: oklch(0.20 0.02 250);
+    --sidebar-primary: oklch(0.48 0.13 195);
+    --sidebar-primary-foreground: oklch(0.99 0 0);
+    --sidebar-accent: oklch(0.93 0.02 195);
+    --sidebar-accent-foreground: oklch(0.25 0.03 195);
+    --sidebar-border: oklch(0.90 0.01 250);
+    --sidebar-ring: oklch(0.52 0.13 195);
+
+    /* REQ-NFR-007 — alert colours render as text; success was 4.18:1, warning 2.87:1. */
+    --alert-success: oklch(0.52 0.18 150);
+    /* REQ-UI-033: same value and same failure mode as --primary above. */
+    --alert-info: oklch(0.48 0.13 195);
+    --alert-warning: oklch(0.555 0.17 65);
+    --alert-danger: oklch(0.58 0.22 27);
+
+    --chart-1: oklch(0.52 0.13 195);
+    --chart-2: oklch(0.55 0.18 150);
+    --chart-3: oklch(0.68 0.17 65);
+    --chart-4: oklch(0.55 0.20 300);
+    --chart-5: oklch(0.58 0.22 27);
+
+    --tb-font-ui: "Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, monospace;
+    --tb-font-heading: "Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, monospace;
+    --tb-font-mono: "Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, monospace;
+}
+
+:root.dark[data-site-theme="developer"] {
+    --background: oklch(0.19 0.015 255);
+    --foreground: oklch(0.92 0.01 250);
+    --card: oklch(0.23 0.018 255);
+    --card-foreground: oklch(0.92 0.01 250);
+    --popover: oklch(0.23 0.018 255);
+    --popover-foreground: oklch(0.92 0.01 250);
+
+    --primary: oklch(0.78 0.13 195);
+    --primary-foreground: oklch(0.19 0.015 255);
+    --secondary: oklch(0.28 0.02 255);
+    --secondary-foreground: oklch(0.92 0.01 250);
+    --muted: oklch(0.28 0.02 255);
+    --muted-foreground: oklch(0.70 0.015 250);
+    --accent: oklch(0.32 0.04 195);
+    --accent-foreground: oklch(0.92 0.02 195);
+    /* REQ-UI-033: 0.70 rendered destructive/danger TEXT at only 4.30:1 on --accent (the tinted
+       surface used by hovered rows and active nav items) — REQ-NFR-007 tuned these against
+       --background (6.37:1) and never against the raised surfaces. 0.74 gives 4.65:1 on --accent,
+       5.46:1 on --muted and 6.88:1 for --destructive-foreground sitting on it. */
+    --destructive: oklch(0.74 0.19 22);
+    --destructive-foreground: oklch(0.19 0.015 255);
+
+    --border: oklch(1 0 0 / 14%);
+    /* REQ-NFR-007 / WCAG 1.4.11 — 18% white over the dark page is 1.6:1; 36% gives 3.3:1. */
+    --input: oklch(1 0 0 / 36%);
+    --ring: oklch(0.78 0.13 195);
+
+    --sidebar: oklch(0.23 0.018 255);
+    --sidebar-foreground: oklch(0.92 0.01 250);
+    --sidebar-primary: oklch(0.78 0.13 195);
+    --sidebar-primary-foreground: oklch(0.19 0.015 255);
+    --sidebar-accent: oklch(0.32 0.04 195);
+    --sidebar-accent-foreground: oklch(0.92 0.02 195);
+    --sidebar-border: oklch(1 0 0 / 14%);
+    --sidebar-ring: oklch(0.78 0.13 195);
+
+    --alert-success: oklch(0.75 0.17 150);
+    --alert-info: oklch(0.78 0.13 195);
+    --alert-warning: oklch(0.82 0.16 75);
+    /* REQ-UI-033: matched to --destructive above — same colour, same 4.30:1 failure on --accent. */
+    --alert-danger: oklch(0.74 0.19 22);
+
+    --chart-1: oklch(0.78 0.13 195);
+    --chart-2: oklch(0.75 0.17 150);
+    --chart-3: oklch(0.82 0.16 75);
+    --chart-4: oklch(0.72 0.17 300);
+    --chart-5: oklch(0.70 0.19 22);
+}
+
+/* -----------------------------------------------------------------------------
+   3. THEME: Minimal Clean — typography-first, warm neutral, near-black primary
+   -------------------------------------------------------------------------- */
+
+:root[data-site-theme="minimal"] {
+    --background: oklch(0.995 0.003 85);
+    --foreground: oklch(0.18 0.005 85);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.18 0.005 85);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.18 0.005 85);
+
+    --primary: oklch(0.24 0.008 85);
+    --primary-foreground: oklch(0.99 0.003 85);
+    --secondary: oklch(0.96 0.006 85);
+    --secondary-foreground: oklch(0.24 0.008 85);
+    --muted: oklch(0.96 0.006 85);
+    --muted-foreground: oklch(0.52 0.008 85);
+    --accent: oklch(0.94 0.012 85);
+    --accent-foreground: oklch(0.24 0.008 85);
+    --destructive: oklch(0.55 0.20 27);
+    --destructive-foreground: oklch(0.99 0 0);
+
+    --border: oklch(0.90 0.006 85);
+    /* REQ-NFR-007 / WCAG 1.4.11 — form-control boundary needs 3:1 against --background. */
+    --input: oklch(0.655 0.006 85);
+    --ring: oklch(0.40 0.008 85);
+    --radius: 0.25rem;
+
+    --sidebar: oklch(0.975 0.005 85);
+    --sidebar-foreground: oklch(0.18 0.005 85);
+    --sidebar-primary: oklch(0.24 0.008 85);
+    --sidebar-primary-foreground: oklch(0.99 0.003 85);
+    --sidebar-accent: oklch(0.94 0.012 85);
+    --sidebar-accent-foreground: oklch(0.24 0.008 85);
+    --sidebar-border: oklch(0.90 0.006 85);
+    --sidebar-ring: oklch(0.40 0.008 85);
+
+    --alert-success: oklch(0.52 0.16 150);
+    --alert-info: oklch(0.48 0.14 250);
+    /* REQ-NFR-007 — warning renders as text and was only 3.16:1 on --background. */
+    --alert-warning: oklch(0.56 0.15 70);
+    --alert-danger: oklch(0.55 0.20 27);
+
+    --chart-1: oklch(0.30 0.008 85);
+    --chart-2: oklch(0.45 0.010 85);
+    --chart-3: oklch(0.60 0.012 85);
+    --chart-4: oklch(0.72 0.014 85);
+    --chart-5: oklch(0.84 0.010 85);
+
+    --tb-font-ui: Georgia, Cambria, "Times New Roman", Times, serif;
+    --tb-font-heading: Georgia, Cambria, "Times New Roman", Times, serif;
+    --tb-font-mono: "Iosevka", "SF Mono", Consolas, "Courier New", monospace;
+}
+
+:root.dark[data-site-theme="minimal"] {
+    --background: oklch(0.16 0.004 85);
+    --foreground: oklch(0.94 0.004 85);
+    --card: oklch(0.21 0.005 85);
+    --card-foreground: oklch(0.94 0.004 85);
+    --popover: oklch(0.21 0.005 85);
+    --popover-foreground: oklch(0.94 0.004 85);
+
+    --primary: oklch(0.93 0.005 85);
+    --primary-foreground: oklch(0.18 0.005 85);
+    --secondary: oklch(0.27 0.006 85);
+    --secondary-foreground: oklch(0.94 0.004 85);
+    --muted: oklch(0.27 0.006 85);
+    --muted-foreground: oklch(0.71 0.006 85);
+    --accent: oklch(0.30 0.008 85);
+    --accent-foreground: oklch(0.94 0.004 85);
+    --destructive: oklch(0.70 0.18 25);
+    --destructive-foreground: oklch(0.16 0.004 85);
+
+    --border: oklch(1 0 0 / 13%);
+    /* REQ-NFR-007 / WCAG 1.4.11 — 17% white over the dark page is 1.6:1; 36% gives 3.3:1. */
+    --input: oklch(1 0 0 / 36%);
+    --ring: oklch(0.80 0.006 85);
+
+    --sidebar: oklch(0.21 0.005 85);
+    --sidebar-foreground: oklch(0.94 0.004 85);
+    --sidebar-primary: oklch(0.93 0.005 85);
+    --sidebar-primary-foreground: oklch(0.18 0.005 85);
+    --sidebar-accent: oklch(0.30 0.008 85);
+    --sidebar-accent-foreground: oklch(0.94 0.004 85);
+    --sidebar-border: oklch(1 0 0 / 13%);
+    --sidebar-ring: oklch(0.80 0.006 85);
+
+    --alert-success: oklch(0.74 0.16 150);
+    --alert-info: oklch(0.72 0.13 250);
+    --alert-warning: oklch(0.81 0.15 75);
+    --alert-danger: oklch(0.70 0.18 25);
+
+    --chart-1: oklch(0.92 0.005 85);
+    --chart-2: oklch(0.78 0.008 85);
+    --chart-3: oklch(0.64 0.010 85);
+    --chart-4: oklch(0.50 0.010 85);
+    --chart-5: oklch(0.38 0.008 85);
+}
+
+/* =============================================================================
+   4. LEGACY VARIABLE BRIDGE
+   =============================================================================
+   Maps the Fluent-era custom-property names still used by the hand-written
+   stylesheets onto the OKLCH tokens above. Because these are derived with
+   var(), they follow the active site theme AND light/dark automatically —
+   which is what closes the dark-mode readability defects in REQ-UI-033.
+
+   NOTE: --sidebar-width is deliberately NOT redefined here; TrBlazeUI owns it.
+   ========================================================================== */
+
+:root {
+    /* --- Colour ------------------------------------------------------------ */
+    --color-background: var(--background);
+    --color-surface: var(--card);
+    --color-surface-hover: var(--accent);
+    --color-border: var(--border);
+    --color-neutral: var(--foreground);
+    --color-neutral-light: var(--muted-foreground);
+    --color-primary: var(--primary);
+    --color-primary-hover: var(--primary);
+    --color-primary-dark: var(--primary);
+    /* REQ-UI-033: the readable pair for anything sitting ON --color-primary. Legacy rules
+       hardcoded `white`, which is invisible in the Minimal dark theme where --primary is
+       oklch(0.93) — near-white. Deriving it keeps the pair correct in all 6 combinations. */
+    --color-primary-foreground: var(--primary-foreground);
+    --color-accent: var(--accent-foreground);
+    --color-link: var(--primary);
+    --color-success: var(--alert-success);
+    --color-warning: var(--alert-warning);
+    --color-error: var(--destructive);
+    --color-danger: var(--destructive);
+
+    /* Fluent component-era aliases still referenced by MarkdownEditor/ImagePicker. */
+    --neutral-layer-1: var(--card);
+    --neutral-layer-2: var(--muted);
+    --neutral-layer-3: var(--secondary);
+    --neutral-stroke-rest: var(--border);
+    --neutral-foreground-rest: var(--foreground);
+    --neutral-foreground-hint: var(--muted-foreground);
+    --accent-fill-rest: var(--primary);
+
+    /* --- Radius ------------------------------------------------------------ */
+    --border-radius: var(--radius);
+    --border-radius-lg: calc(var(--radius) + 4px);
+
+    /* --- Spacing scale ----------------------------------------------------- */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --spacing-2xl: 48px;
+    --spacing-3xl: 64px;
+
+    /* --- Typography -------------------------------------------------------- */
+    --font-family: var(--tb-font-ui);
+    --font-family-ui: var(--tb-font-ui);
+    --font-family-heading: var(--tb-font-heading);
+    --font-family-mono: var(--tb-font-mono);
+
+    --font-size-xs: 0.75rem;
+    --font-size-small: 0.875rem;
+    --font-size-body: 1rem;
+    --font-size-h3: 1.25rem;
+    --font-size-h2: 1.5rem;
+    --font-size-h1: 2rem;
+
+    --font-weight-regular: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+
+    --line-height-tight: 1.25;
+    --line-height-normal: 1.6;
+
+    /* --- Motion ------------------------------------------------------------ */
+    --transition-fast: 150ms ease;
+    --transition-normal: 250ms ease;
+
+    /* --- Elevation --------------------------------------------------------- */
+    --shadow-sm: 0 1px 2px 0 oklch(0 0 0 / 8%);
+    --shadow-md: 0 4px 8px -2px oklch(0 0 0 / 12%);
+    --shadow-lg: 0 12px 24px -6px oklch(0 0 0 / 16%);
+
+    /* --- Layout metrics ---------------------------------------------------- */
+    --header-height: 60px;
+    --max-content-width: 1200px;
+    --article-max-width: 760px;
+
+    /* [REQ-NFR-007] Smallest square pointer target the site ships. The BRD-84 acceptance
+       names 44x44 px; that figure is WCAG 2.5.5 Target Size, level AAA (the AA-level rule,
+       2.5.8, is WCAG 2.2 and asks for 24x24). Kept as a token so the number lives in one
+       place instead of being retyped into components. */
+    --tb-target-min: 44px;
+
+    /* --- Syntax highlighting (code blocks) --------------------------------- */
+    --syntax-comment: var(--muted-foreground);
+    --syntax-function: var(--chart-1);
+    --syntax-variable: var(--chart-4);
+}
+
+/* Shadows need more punch on dark surfaces to stay perceptible. */
+:root.dark {
+    --shadow-sm: 0 1px 2px 0 oklch(0 0 0 / 40%);
+    --shadow-md: 0 4px 8px -2px oklch(0 0 0 / 50%);
+    --shadow-lg: 0 12px 24px -6px oklch(0 0 0 / 60%);
+}

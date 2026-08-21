@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<!-- ============================================================
+  Screen: Post editor  ·  Route: /ManagePost/{id}
+  Roles: AuthorOrAbove  ·  BRD: BRD-14..17, BRD-20  ·  REQ: REQ-UI-016
+  Component map (region → TrBlazeUI control):
+    Admin shell        → TbSidebar (inset, NO identity foot) + TbBreadcrumb topbar;
+                         the signed-in identity is a topbar TbDropdownMenu
+                         (avatar trigger → My Profile / Log Out)
+    Title              → TbInput (large)
+    Slug row           → TbInput (mono, auto-generated from title, editable)
+    Editor             → MarkdownEditor (toolbar: B/I/H2/link/code/image/list/quote;
+                         split markdown textarea + live rendered preview)
+    Publish card       → TbBadge (status) + TbButton (Save Draft / Publish)
+                         + TbDatePicker + TbTimePicker (schedule)
+    Category card      → TbSelect
+    Tags card          → TbMultiSelect (chips + type-ahead input)
+    Series card        → TbSelect + TbNumericInput (part number)
+    Featured image     → ImagePicker (thumbnail + "Choose from library" → media library;
+                         authors upload via picker, browsing library itself is AdminOnly)
+    SEO card           → TbInput (title) + TbTextarea (description)
+  States: new post ({id} absent) → empty fields, status Draft, slug placeholder;
+          save → Toast "Draft saved"; publish w/ schedule set → status Scheduled;
+          validation → title required, slug unique (inline destructive hint);
+          preview pane re-renders on debounce (loading shimmer TbSkeleton).
+============================================================ -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edit post · TechieBlog Admin</title>
+<link rel="stylesheet" href="trblazeui.css">
+</head>
+<body>
+
+<div class="shell">
+  <!-- TbSidebar (inset) — CANONICAL ADMIN SHELL -->
+<aside class="sidebar">
+  <a class="sidebar__brand" href="26-admin-dashboard.html">
+    <svg class="icon icon-lg" viewBox="0 0 24 24" style="color:var(--primary)"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Z"/><path d="M12 6v6l4 2"/></svg>
+    <span class="brand-text">TechieBlog Admin</span>
+  </a>
+
+  <a class="nav-item" data-label="Dashboard" href="26-admin-dashboard.html">
+    <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+    <span class="nav-label">Dashboard</span></a>
+
+  <div class="sidebar__group">Content</div>
+  <a class="nav-item" data-label="All Posts" href="22-posts-list.html">
+    <svg class="icon" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
+    <span class="nav-label">All Posts</span></a>
+  <a class="nav-item active" data-label="New Post" href="21-post-editor.html">
+    <svg class="icon" viewBox="0 0 24 24"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.4 2.6a2 2 0 0 1 2.8 2.8L12 14.6l-3.6.9.9-3.6Z"/></svg>
+    <span class="nav-label">New Post</span></a>
+  <a class="nav-item" data-label="Series" href="24-series-admin.html">
+    <svg class="icon" viewBox="0 0 24 24"><path d="m12.8 2.2 8.6 3.9a1 1 0 0 1 0 1.8l-8.6 3.9a2 2 0 0 1-1.6 0L2.6 7.9a1 1 0 0 1 0-1.8l8.6-3.9a2 2 0 0 1 1.6 0Z"/><path d="m2.3 12.2 8.9 4a2 2 0 0 0 1.6 0l8.9-4"/><path d="m2.3 17.2 8.9 4a2 2 0 0 0 1.6 0l8.9-4"/></svg>
+    <span class="nav-label">Series</span></a>
+  <a class="nav-item" data-label="Comments" href="28-admin-comments.html">
+    <svg class="icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>
+    <span class="nav-label">Comments</span></a>
+
+  <div class="sidebar__group">Taxonomy</div>
+  <a class="nav-item" data-label="Categories" href="29-admin-categories.html">
+    <svg class="icon" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+    <span class="nav-label">Categories</span></a>
+  <a class="nav-item" data-label="Tags" href="30-admin-tags.html">
+    <svg class="icon" viewBox="0 0 24 24"><path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4Z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg>
+    <span class="nav-label">Tags</span></a>
+
+  <div class="sidebar__group">Media</div>
+  <a class="nav-item" data-label="Images" href="25-media-library.html">
+    <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>
+    <span class="nav-label">Images</span></a>
+
+  <div class="sidebar__group">Resume</div>
+  <a class="nav-item" data-label="Profile" href="35-manage-profile.html">
+    <svg class="icon" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    <span class="nav-label">Profile</span></a>
+  <a class="nav-item" data-label="Experience" href="36-manage-experience.html">
+    <svg class="icon" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+    <span class="nav-label">Experience</span></a>
+  <a class="nav-item" data-label="Skills" href="37-manage-skills.html">
+    <svg class="icon" viewBox="0 0 24 24"><path d="M12 2.5 13.9 8a2 2 0 0 0 1.3 1.3L20.7 11a.5.5 0 0 1 0 1l-5.5 1.8A2 2 0 0 0 13.9 15L12 20.5a.5.5 0 0 1-1 0L9.2 15a2 2 0 0 0-1.3-1.3L2.4 12a.5.5 0 0 1 0-1L7.9 9.2A2 2 0 0 0 9.2 8Z"/></svg>
+    <span class="nav-label">Skills</span></a>
+  <a class="nav-item" data-label="Awards" href="38-manage-awards.html">
+    <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1"/></svg>
+    <span class="nav-label">Awards</span></a>
+
+  <div class="sidebar__group">Audience</div>
+  <a class="nav-item" data-label="Subscribers" href="31-admin-subscribers.html">
+    <svg class="icon" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-9 5.7a2 2 0 0 1-2 0L2 7"/></svg>
+    <span class="nav-label">Subscribers</span></a>
+  <a class="nav-item" data-label="Newsletter" href="33-newsletter-composer.html">
+    <svg class="icon" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+    <span class="nav-label">Newsletter</span></a>
+  <a class="nav-item" data-label="Analytics" href="34-analytics-dashboard.html">
+    <svg class="icon" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><rect x="15" y="5" width="4" height="12" rx="1"/><rect x="7" y="9" width="4" height="8" rx="1"/></svg>
+    <span class="nav-label">Analytics</span></a>
+
+  <div class="sidebar__group">System</div>
+  <a class="nav-item" data-label="Users" href="27-admin-users.html">
+    <svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>
+    <span class="nav-label">Users</span></a>
+  <a class="nav-item" data-label="Settings" href="32-admin-settings.html">
+    <svg class="icon" viewBox="0 0 24 24"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
+    <span class="nav-label">Settings</span></a>
+
+  <!-- NOTE: no sidebar__foot — the signed-in identity lives in the topbar account menu (2026-08-06) -->
+</aside>
+
+  <div class="shell__main">
+  <div class="topbar">
+    <!-- TbSidebar collapse trigger (icon-rail mode) -->
+    <button class="btn btn-ghost btn-icon" title="Collapse sidebar" aria-label="Collapse sidebar"
+            onclick="document.querySelector('.shell').classList.toggle('collapsed')">
+      <svg class="icon icon-lg" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/></svg>
+    </button>
+    <div class="breadcrumb">Admin <span>/</span> <b>Post editor</b></div>
+    <div class="spacer"></div>
+    <a class="btn btn-ghost btn-sm" href="01-home.html">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6"/></svg>
+      View site</a>
+    <button class="btn btn-ghost btn-icon" title="Toggle dark mode"
+            onclick="document.documentElement.classList.toggle('dark')">
+      <svg class="icon icon-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/></svg>
+    </button>
+
+    <!-- TbDropdownMenu — signed-in identity + account actions (topbar, NOT the sidebar) -->
+    <div class="usermenu">
+      <button class="usermenu__trigger" aria-haspopup="menu" aria-expanded="false" title="Account"
+              onclick="var p=this.nextElementSibling;p.hidden=!p.hidden;this.setAttribute('aria-expanded',String(!p.hidden))">
+        <img class="avatar avatar-sm" src="profile-photo.svg" alt="Ravi Rathore">
+        <svg class="icon" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="usermenu__panel" role="menu" hidden>
+        <div class="usermenu__head">
+          <div style="font-weight:600;font-size:13.5px">Ravi Rathore</div>
+          <div class="muted" style="font-size:12.5px">ravi@techieblog.dev · Admin</div>
+        </div>
+        <a class="menu-item" role="menuitem" href="35-manage-profile.html">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          My Profile</a>
+        <div class="menu-sep"></div>
+        <a class="menu-item danger" role="menuitem" href="13-login.html">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+          Log Out</a>
+      </div>
+    </div>
+  </div>
+
+    <main class="page">
+      <h1 class="page-title">Edit post</h1>
+      <p class="page-sub">Draft last saved 4 minutes ago · <a class="mono" href="23-draft-preview.html" style="color:var(--primary);display:inline-flex;align-items:center;gap:5px">open draft preview
+        <svg class="icon" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6"/></svg></a></p>
+
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start">
+
+        <!-- ===== Main column ===== -->
+        <div style="min-width:0">
+          <!-- Title — TbInput (large) -->
+          <div class="field">
+            <input class="input" style="font-size:19px;font-weight:600;padding:12px 14px"
+                   value="Migrating a Blazor app from Fluent UI to TrBlazeUI">
+          </div>
+          <!-- Slug — auto-generated, editable -->
+          <div class="field" style="flex-direction:row;align-items:center;gap:10px">
+            <span class="label" style="flex:none">Slug</span>
+            <span class="muted mono" style="font-size:13px;flex:none">/post/</span>
+            <input class="input mono" style="font-size:13px" value="migrating-blazor-fluent-ui-to-trblazeui">
+            <button class="btn btn-ghost btn-sm" title="Regenerate from title" style="flex:none">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+              Auto</button>
+          </div>
+
+          <!-- MarkdownEditor — toolbar + split edit/preview -->
+          <div class="card">
+            <div style="display:flex;gap:2px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+              <button class="btn btn-ghost btn-sm" title="Bold" aria-label="Bold"><svg class="icon" viewBox="0 0 24 24"><path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8"/></svg></button>
+              <button class="btn btn-ghost btn-sm" title="Italic" aria-label="Italic"><svg class="icon" viewBox="0 0 24 24"><path d="M19 4h-9M14 20H5M15 4 9 20"/></svg></button>
+              <button class="btn btn-ghost btn-sm" title="Heading 2" aria-label="Heading 2"><svg class="icon" viewBox="0 0 24 24"><path d="M4 12h8M4 18V6M12 18V6"/><path d="M17 10c.7-1.3 2-1.5 3-1a1.9 1.9 0 0 1 .5 3L17 18h4"/></svg></button>
+              <button class="btn btn-ghost btn-sm" title="Link" aria-label="Link"><svg class="icon" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></button>
+              <button class="btn btn-ghost btn-sm" title="Code" aria-label="Code"><svg class="icon" viewBox="0 0 24 24"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg></button>
+              <button class="btn btn-ghost btn-sm" title="Image" aria-label="Image"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg></button>
+              <button class="btn btn-ghost btn-sm" title="Bulleted list" aria-label="Bulleted list"><svg class="icon" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
+              <button class="btn btn-ghost btn-sm" title="Blockquote" aria-label="Blockquote"><svg class="icon" viewBox="0 0 24 24"><path d="M10 11H6a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v7c0 2.2-1.3 3.6-3 4"/><path d="M19 11h-4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v7c0 2.2-1.3 3.6-3 4"/></svg></button>
+              <span style="flex:1"></span>
+              <span class="hint">Markdown · 1,840 words</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;min-height:440px">
+              <!-- markdown source -->
+              <textarea class="textarea mono" style="border:none;border-right:1px solid var(--border);border-radius:0;min-height:440px;font-size:13px;line-height:1.7">## Why migrate at all?
+
+Fluent UI Blazor served us well, but TrBlazeUI's shadcn-style
+tokens give us **dark mode for free** and a far smaller CSS payload.
+
+### The plan
+
+1. Swap the app shell (`FluentLayout` → `TbSidebar`)
+2. Replace form controls page by page
+3. Delete the old theme provider
+
+> Rule of thumb: migrate leaf components first — shells last.
+
+```csharp
+builder.Services.AddTrBlazeUI();
+```
+
+The rest of this post walks each component pair in detail.</textarea>
+              <!-- rendered preview -->
+              <div style="padding:20px 24px;overflow:auto;font-size:14.5px">
+                <h2 style="font-size:20px;margin-bottom:8px">Why migrate at all?</h2>
+                <p style="margin-bottom:14px">Fluent UI Blazor served us well, but TrBlazeUI's shadcn-style tokens give us <b>dark mode for free</b> and a far smaller CSS payload.</p>
+                <h3 style="font-size:16.5px;margin-bottom:8px">The plan</h3>
+                <ol style="margin:0 0 14px 20px">
+                  <li>Swap the app shell (<span class="mono" style="font-size:13px">FluentLayout</span> → <span class="mono" style="font-size:13px">TbSidebar</span>)</li>
+                  <li>Replace form controls page by page</li>
+                  <li>Delete the old theme provider</li>
+                </ol>
+                <blockquote style="border-left:3px solid var(--primary);padding:4px 14px;color:var(--muted-foreground);margin-bottom:14px">Rule of thumb: migrate leaf components first — shells last.</blockquote>
+                <pre class="mono" style="background:var(--muted);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:12.5px;margin-bottom:14px">builder.Services.AddTrBlazeUI();</pre>
+                <p>The rest of this post walks each component pair in detail.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Sidebar column (320px) ===== -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+
+          <!-- Publish -->
+          <div class="card">
+            <div class="card-header"><div class="card-title">Publish</div></div>
+            <div class="card-content" style="padding-top:12px">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+                <span class="label">Status</span><span class="badge badge-secondary">Draft</span>
+              </div>
+              <div class="field" style="margin-bottom:0">
+                <span class="label">Schedule (optional)</span>
+                <div style="display:flex;gap:8px">
+                  <input class="input" type="text" placeholder="dd-MM-yyyy" value="12-08-2026" style="flex:1.4">
+                  <input class="input" type="text" placeholder="hh:mm" value="09:00" style="flex:1">
+                </div>
+                <span class="hint">Leave empty to publish immediately.</span>
+              </div>
+            </div>
+            <div class="card-footer">
+              <button class="btn btn-secondary" style="flex:1">Save Draft</button>
+              <button class="btn btn-primary" style="flex:1">Publish</button>
+            </div>
+          </div>
+
+          <!-- Category -->
+          <div class="card">
+            <div class="card-header"><div class="card-title">Category</div></div>
+            <div class="card-content" style="padding-top:12px">
+              <select class="select">
+                <option selected>Blazor</option>
+                <option>PostgreSQL</option>
+                <option>MAUI</option>
+                <option>Architecture</option>
+                <option>DevOps</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Tags — TbMultiSelect chips -->
+          <div class="card">
+            <div class="card-header"><div class="card-title">Tags</div></div>
+            <div class="card-content" style="padding-top:12px">
+              <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+                <span class="chip">blazor <a href="#" class="muted" title="Remove" aria-label="Remove tag"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></a></span>
+                <span class="chip">trblazeui <a href="#" class="muted" title="Remove" aria-label="Remove tag"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></a></span>
+                <span class="chip">migration <a href="#" class="muted" title="Remove" aria-label="Remove tag"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></a></span>
+              </div>
+              <input class="input" placeholder="Add tag…">
+              <span class="hint">Enter to add · suggestions from existing tags</span>
+            </div>
+          </div>
+
+          <!-- Series -->
+          <div class="card">
+            <div class="card-header"><div class="card-title">Series</div></div>
+            <div class="card-content" style="padding-top:12px">
+              <div class="field" style="margin-bottom:10px">
+                <select class="select">
+                  <option>— none —</option>
+                  <option selected>TrBlazeUI Migration Diary</option>
+                  <option>Blazor UI Deep Dives</option>
+                  <option>PostgreSQL for .NET Devs</option>
+                </select>
+              </div>
+              <div class="field" style="flex-direction:row;align-items:center;gap:10px;margin-bottom:0">
+                <span class="label" style="flex:1">Part number</span>
+                <input class="input" type="number" value="4" style="width:80px;text-align:center">
+              </div>
+            </div>
+          </div>
+
+          <!-- Featured image — ImagePicker -->
+          <div class="card">
+            <div class="card-header"><div class="card-title">Featured image</div></div>
+            <div class="card-content" style="padding-top:12px">
+              <div class="thumb" style="height:120px;border-radius:8px;border:1px solid var(--border);
+                background:linear-gradient(135deg,color-mix(in srgb,var(--chart-1) 30%,var(--muted)),color-mix(in srgb,var(--chart-3) 25%,var(--muted)));
+                display:flex;align-items:center;justify-content:center;color:var(--muted-foreground);font-size:12px;margin-bottom:10px">
+                fluentui-to-trblazeui-hero.webp · 800×400</div>
+              <div style="display:flex;gap:8px">
+                <a class="btn btn-outline btn-sm" href="25-media-library.html" style="flex:1;justify-content:center">Choose from library</a>
+                <button class="btn btn-ghost btn-sm" title="Remove" aria-label="Remove featured image"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- SEO -->
+          <div class="card">
+            <div class="card-header"><div class="card-title">SEO</div></div>
+            <div class="card-content" style="padding-top:12px">
+              <div class="field">
+                <span class="label">SEO title</span>
+                <input class="input" value="Migrating Blazor from Fluent UI to TrBlazeUI — field guide">
+                <span class="hint">56 / 60 characters</span>
+              </div>
+              <div class="field" style="margin-bottom:0">
+                <span class="label">Meta description</span>
+                <textarea class="textarea" style="min-height:72px">A component-by-component field guide to swapping Blazor UI libraries without a big-bang rewrite — themes, portals and all.</textarea>
+                <span class="hint">124 / 160 characters</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Toast (save feedback state) -->
+<div class="toast" style="display:flex;align-items:center;gap:8px">
+  <svg class="icon" viewBox="0 0 24 24" style="color:#16a34a"><path d="M22 11.1V12a10 10 0 1 1-5.9-9.1"/><path d="m9 11 3 3L22 4"/></svg>
+  Draft saved · 14:32</div>
+
+</body>
+</html>

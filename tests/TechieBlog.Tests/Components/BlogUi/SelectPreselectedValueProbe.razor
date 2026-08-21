@@ -1,0 +1,59 @@
+@*
+    SelectPreselectedValueProbe.razor
+
+    Renders a real TrBlazeUI Select exactly the way the admin pages do — a value already bound, its
+    matching SelectItem inside a SelectContent that has never been opened, and NO DisplayTextSelector
+    — so a bUnit test can assert what the trigger says on the FIRST paint.
+
+    This probe is deliberately selector-free. TrBlazeUI 2.0.2 fixed TR-049/TR-058 (a SelectItem now
+    registers its Text while the listbox is closed), which is what let this solution delete
+    BlogUI.Common.SelectFirstPaintLabel and the eighteen DisplayTextSelector attributes that went
+    with it. SelectPreselectedValueRenderTests uses this probe to keep that fix honest: if a future
+    library version goes back to echoing the raw bound value, the trigger renders "1" instead of the
+    user's name and the suite fails here rather than on a user's screen.
+*@
+@using TrBlazeUI.Components.Select
+
+@* ValueChanged is what puts the library's Select into controlled mode; without it the bound Value
+   is ignored entirely and the trigger always shows the placeholder (TR-068). Every real call site
+   binds it, via @bind-Value or an explicit Value/ValueChanged pair. *@
+<Select TValue="string" Value="@Value" ValueChanged="@OnValueChanged">
+    <SelectTrigger data-testid="probe-select">
+        <SelectValue Placeholder="@Placeholder" />
+    </SelectTrigger>
+    <SelectContent>
+        @foreach (var option in Options)
+        {
+            <SelectItem TValue="string" Value="@option.Key" Text="@option.Value">@option.Value</SelectItem>
+        }
+    </SelectContent>
+</Select>
+
+@code {
+    /// <summary>The pre-selected value, as an admin page binds it.</summary>
+    [Parameter]
+    public string Value { get; set; } = string.Empty;
+
+    /// <summary>Placeholder shown when the bound value is empty.</summary>
+    [Parameter]
+    public string Placeholder { get; set; } = "Select an option";
+
+    /// <summary>The options offered, keyed by bound value.</summary>
+    [Parameter]
+    public IReadOnlyList<KeyValuePair<string, string>> Options { get; set; } = [];
+
+    /// <summary>Raised when the probe's Select reports a new value.</summary>
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    /// <summary>
+    /// Keeps the probe's own value in step and forwards the change to the test.
+    /// </summary>
+    /// <param name="value">The newly selected value.</param>
+    /// <returns>A task that completes when the test's handler has run.</returns>
+    private Task OnValueChanged(string value)
+    {
+        Value = value;
+        return ValueChanged.InvokeAsync(value);
+    }
+}

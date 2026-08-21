@@ -1,0 +1,127 @@
+@*
+    Newsletters.razor
+    Purpose: Public newsletter archive — subscribe card plus every past issue,
+    newest send first, with paging.
+
+    REQ-UI-053 (BRD-100) — only SENT, public, slugged issues are listed; each links to
+    its own issue page at /newsletter/{slug}. Subscribing creates a PENDING subscriber
+    until the mailed confirmation link is clicked (BRD-98).
+
+    Dependencies: INewsletterService (published archive queries, REQ-FN-050),
+                  ISubscriberRepo (confirmed-subscriber count),
+                  NewsletterSubscribeCard, BlogBreadcrumb, BlogPagination.
+    Layout: FullWidthLayout — content-focused, no blog sidebar (matches mockup 42).
+    Mockup: docs/mockups/42-newsletter-archive.html
+*@
+
+@page "/newsletters"
+@layout FullWidthLayout
+
+<PageTitle>Newsletter — past issues · TechieBlog</PageTitle>
+
+<div class="mx-auto w-full max-w-[900px]" data-testid="newsletter-archive">
+
+    <BlogBreadcrumb Items="@breadcrumbItems" />
+
+    @* ---- Page header ---------------------------------------------------- *@
+    <header class="mb-6 mt-6 flex flex-col gap-2">
+        @* [REQ-UI-060] 2026-08-11 — back on TypographyH1. This was a plain <h1> with the
+           component's own token classes copied onto it because 2.0.1's Typography* declared no
+           CaptureUnmatchedValues, so the test hook had nowhere to live (TR-021), and because
+           its font size was baked in with no way to override it (TR-020). Both are fixed:
+           Typography* splats, and `Size` REPLACES the component's own size classes — including
+           the responsive text-4xl lg:text-5xl step — which is why the size is passed as `Size`
+           and not through `Class`. *@
+        <TypographyH1 Size="TypographySize.Xl4"
+                      Class="text-balance tracking-tight text-foreground"
+                      data-testid="newsletter-archive-title">Newsletter</TypographyH1>
+        <p class="max-w-[40rem] text-muted-foreground" data-testid="newsletter-archive-intro">
+            A monthly note on .NET, Blazor and things I have been building.
+            No spam, unsubscribe any time.
+        </p>
+    </header>
+
+    @* ---- Subscribe (double opt-in + self-hosted captcha) ------------------ *@
+    <div class="mb-8">
+        <NewsletterSubscribeCard ConfirmedSubscriberCount="@confirmedSubscriberCount"
+                                 TestId="newsletter-subscribe" />
+    </div>
+
+    <Separator />
+
+    @* ---- Past issues ------------------------------------------------------ *@
+    <section class="mt-8" aria-label="Past issues">
+        <TypographyH2 Size="TypographySize.Xl"
+                      Class="mb-4 tracking-tight text-foreground"
+                      data-testid="newsletter-issues-heading">Past issues</TypographyH2>
+
+        @if (isLoading)
+        {
+            <div class="flex flex-col gap-4" data-testid="newsletter-issues-loading">
+                @for (var placeholder = 0; placeholder < 3; placeholder++)
+                {
+                    <Skeleton Class="h-32 w-full rounded-lg" />
+                }
+            </div>
+        }
+        else if (issues.Count == 0)
+        {
+            <Empty Title="No issues published yet"
+                   Description="The first issue is being written. Subscribe above and it will land in your inbox."
+                   Class="py-12"
+                   data-testid="newsletter-issues-empty">
+                <Icon><LucideIcon Name="mail" Size="48" /></Icon>
+            </Empty>
+        }
+        else
+        {
+            <div class="flex flex-col gap-4" data-testid="newsletter-issues-list">
+                @foreach (var issue in issues)
+                {
+                    var issueNumber = GetIssueNumber(issue);
+                    <Card data-testid="newsletter-issue-card">
+                        <CardContent Class="flex flex-col gap-2 p-6">
+
+                            <div class="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                                <Badge data-testid="newsletter-issue-number">Issue #@issueNumber</Badge>
+                                <span class="inline-flex items-center gap-2" data-testid="newsletter-issue-date">
+                                    <LucideIcon Name="calendar" Size="16" />
+                                    @FormatSentOn(issue)
+                                </span>
+                            </div>
+
+                            <h3 class="text-lg font-semibold leading-snug">
+                                <a href="/newsletter/@issue.Slug"
+                                   class="text-foreground no-underline hover:text-primary hover:underline"
+                                   data-testid="newsletter-issue-title">@issue.Title</a>
+                            </h3>
+
+                            <p class="text-sm text-muted-foreground" data-testid="newsletter-issue-excerpt">
+                                @GetExcerpt(issue)
+                            </p>
+
+                            <div>
+                                <Button Href="@($"/newsletter/{issue.Slug}")"
+                                        Variant="ButtonVariant.Link"
+                                        Size="ButtonSize.Small"
+                                        Class="px-0"
+                                        data-testid="newsletter-issue-read">
+                                    Read issue
+                                    <LucideIcon Name="arrow-right" Size="16" />
+                                </Button>
+                            </div>
+
+                        </CardContent>
+                    </Card>
+                }
+            </div>
+
+            <div class="mt-8">
+                <BlogPagination CurrentPage="@currentPage"
+                                TotalPages="@totalPages"
+                                OnPageChanged="GoToPageAsync" />
+            </div>
+        }
+    </section>
+
+</div>

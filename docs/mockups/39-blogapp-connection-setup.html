@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<!-- ============================================================
+  Screen: BlogApp — Connection setup (first run)  ·  Route: (MAUI window · first-run page)
+  Roles: local desktop user (pre-auth)  ·  BRD: BRD-96  ·  REQ: REQ-FN-047
+  NOTE: BlogApp is the MAUI Blazor Hybrid DESKTOP head hosting the SAME BlogUI pages as the website.
+        It requires network reach to the site's PostgreSQL — no local DB, no offline sync (BRD-96).
+  Component map (region → TrBlazeUI control):
+    Window chrome      → desktop mock chrome (not a TrBlazeUI control)
+    Brand + heading    → Typography + TbAvatar-style dot brand
+    Connection form    → TbInput (Host/Database/Username), TbNumericInput (Port), TbInput[password], TbSelect (SSL mode)
+    Test connection    → TbButton(outline) + TbAlert (success) — failure state: TbAlert(destructive)
+    Save & continue    → TbButton(primary) → 40-blogapp-login.html
+  States: untested → Save disabled; testing → button loading; test failed → destructive TbAlert with driver error;
+          success → info TbAlert "Connection OK — TechieBlog schema found".
+  Data: PostgreSQL connection parameters, persisted to the OS credential store (never plain text).
+============================================================ -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Connection Setup · BlogApp (TechieBlog Desktop)</title>
+<link rel="stylesheet" href="trblazeui.css">
+</head>
+<body>
+<div class="desktop-bg">
+  <div class="window window--sm">
+    <div class="window__title">● TechieBlog — BlogApp <div class="window__controls"><span>—</span><span>▢</span><span>✕</span></div></div>
+
+    <div style="padding:36px 34px 30px">
+      <!-- Brand -->
+      <div style="text-align:center;margin-bottom:22px">
+        <div style="display:inline-flex;align-items:center;gap:9px;font-weight:700;font-size:18px">
+          <span style="width:12px;height:12px;border-radius:50%;background:var(--primary);display:inline-block"></span> TechieBlog · BlogApp
+        </div>
+        <h1 style="font-size:21px;margin:14px 0 6px">Connect to your blog</h1>
+        <p class="muted" style="font-size:13.5px">BlogApp connects directly to your site's PostgreSQL database — nothing is stored locally.</p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 120px;gap:0 14px">
+        <div class="field"><label class="label">Host</label><input class="input mono" value="db.ravirathore.dev"></div>
+        <div class="field"><label class="label">Port</label>
+          <input class="input mono" value="5432" style="text-align:center">
+        </div>
+      </div>
+      <div class="field"><label class="label">Database</label><input class="input mono" value="techieblog"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
+        <div class="field"><label class="label">Username</label><input class="input mono" value="techieblog_app"></div>
+        <div class="field"><label class="label">Password</label><input class="input mono" type="password" value="••••••••••••"></div>
+      </div>
+      <div class="field">
+        <label class="label">SSL mode</label>
+        <div class="input" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
+          <span>Require</span>
+          <svg class="icon" viewBox="0 0 24 24" style="color:var(--muted-foreground)"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;margin:6px 0 14px">
+        <button class="btn btn-outline">Test connection</button>
+        <span class="hint">Runs a read-only probe against the server.</span>
+      </div>
+
+      <!-- Success TbAlert (failure state would be .alert-destructive with the Npgsql error) -->
+      <div class="alert alert-info" style="margin-bottom:18px">
+        <svg class="icon icon-lg" viewBox="0 0 24 24" style="color:#16a34a"><path d="M22 11.1V12a10 10 0 1 1-5.9-9.1"/><path d="m9 11 3 3 9-9"/></svg>
+        <div><b>Connection OK</b> — TechieBlog schema found (migration 041, PostgreSQL 17.2).</div>
+      </div>
+
+      <a class="btn btn-primary btn-lg" style="width:100%" href="40-blogapp-login.html">Save &amp; continue</a>
+      <p class="hint" style="display:flex;gap:6px;align-items:center;justify-content:center;margin-top:12px">
+        <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Stored securely in this device's credential store.</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

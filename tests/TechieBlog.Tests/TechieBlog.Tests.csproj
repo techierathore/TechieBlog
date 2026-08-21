@@ -1,0 +1,190 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!--
+    TechieBlog.Tests — REQ-NFR-016
+    ================================================================================
+    xUnit (v3) for engine services, bUnit for Blazor components, NSubstitute for
+    mocking, coverlet for coverage (80% line target on BlogEngine — see
+    coverlet.runsettings), Testcontainers.PostgreSql for opt-in integration tests.
+
+    SDK: Microsoft.NET.Sdk.Razor so that bUnit test components authored in .razor
+    syntax compile alongside plain C# tests.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>TechieBlog.Tests</RootNamespace>
+    <AssemblyName>TechieBlog.Tests</AssemblyName>
+    <!-- xUnit v3 ships its own in-process runner; keep VSTest mode so that
+         dotnet test with collect XPlat Code Coverage (coverlet.collector) works. -->
+    <UseMicrosoftTestingPlatformRunner>false</UseMicrosoftTestingPlatformRunner>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!--
+    ============================================================================
+    GLOB STRATEGY (deliberate choice — see REQ-NFR-016 notes)
+    ============================================================================
+    The csproj lives at tests/TechieBlog.Tests/ (project folder named after the
+    project, per repo convention) so the SDK's default globbing does NOT reach
+    the sibling-authored suites under tests/unit/**. The explicit include below
+    pulls in EVERY .cs file anywhere under tests/ except this project's own
+    folder (already covered by the default glob) and any bin/obj output.
+
+    That means tests/unit/Engagement, tests/unit/Newsletter, tests/unit/Analytics,
+    tests/unit/Settings, tests/unit/Storage, tests/unit/Security, tests/unit/Ops —
+    and any folder added later — are compiled into this assembly automatically,
+    with no csproj edit required. Zero matches today is expected and harmless.
+
+    ..\.artifacts\** IS EXCLUDED, AND REMOVING THAT EXCLUSION KILLS THE WHOLE SUITE.
+    tests/.artifacts/ is the gitignored scratch area for throwaway smoke harnesses, and
+    those harnesses are frequently standalone console projects. A console project uses
+    TOP-LEVEL STATEMENTS, which the compiler turns into a Program.Main — and that Main
+    then wins the entry-point race against the one xunit v3 generates for this assembly.
+    The result is not a compile error, which is what makes it so expensive: the test
+    executable builds clean, then runs the scratch harness instead of the tests and exits
+    0, while `dotnet test` fails with "Test process did not return valid JSON" because
+    the harness's Console.WriteLine output lands where the runner protocol expected its
+    handshake. Measured 2026-08-11 (cluster F, REQ-UI-060): tests/.artifacts/harness/
+    logbound/Program.cs had taken over the entry point and EVERY test in the repository
+    was silently not running. Scratch files must never be compiled into a real assembly.
+  -->
+  <ItemGroup>
+    <Compile Include="..\**\*.cs"
+             Exclude="..\TechieBlog.Tests\**\*.cs;..\.artifacts\**\*.cs;..\**\bin\**\*.cs;..\**\obj\**\*.cs"
+             LinkBase="SiblingSuites" />
+    <Content Include="..\**\*.razor"
+             Exclude="..\TechieBlog.Tests\**\*.razor;..\.artifacts\**\*.razor;..\**\bin\**\*.razor;..\**\obj\**\*.razor"
+             LinkBase="SiblingSuites" />
+  </ItemGroup>
+
+  <!--
+    Every PackageReference is pinned to an exact version (BRD-91 / REQ-NFR-016).
+    Floating ranges such as 4.* are banned repo-wide — one already broke BlogUI.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="bunit" Version="2.9.0" />
+    <PackageReference Include="NSubstitute" Version="6.0.0" />
+    <PackageReference Include="coverlet.collector" Version="10.0.1">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <!--
+      4.14.0, not 4.13.0: Testcontainers 4.13.0 dragged in SSH.NET 2025.1.0, which NuGet Audit
+      flags as NU1903 / GHSA-q939-rpr3-3284 (CVE-2026-48798, high, published 2026-08-12) —
+      ScpClient recursive download lets a hostile SCP server write outside the target directory.
+      Testcontainers 4.14.0 depends on the patched SSH.NET 2026.0.0, so bumping the direct
+      reference clears the advisory without pinning a transitive package by hand.
+    -->
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.14.0" />
+    <PackageReference Include="Dapper" Version="2.1.35" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.0" />
+    <!--
+      REQ-NFR-013: the observability tests configure a real Serilog logger with a real rolling file
+      sink and assert the crash handlers actually put bytes on disk. Same versions the heads use.
+    -->
+    <PackageReference Include="Serilog" Version="4.2.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+  </ItemGroup>
+
+  <!--
+    REQ-NFR-013: the web head's global exception handlers are compiled into the test assembly as
+    SOURCE rather than pulled in by a ProjectReference. Referencing source/TechieBlog would drag in
+    BlogUI - which is transiently RED during the TrBlazeUI migration (REQ-FN-043) - and take the
+    whole suite down with it. Linking the one file keeps the tests running against the real
+    production code with no dependency on the host's UI graph.
+  -->
+  <ItemGroup>
+    <Compile Include="..\..\source\TechieBlog\Observability\GlobalExceptionLogging.cs"
+             Link="LinkedSource\GlobalExceptionLogging.cs" />
+    <!--
+      REQ-NFR-028: same reasoning for the forwarded-headers allow-list. The tests assert against the
+      real production type, but a ProjectReference to source/TechieBlog would pull in BlogUI.
+    -->
+    <Compile Include="..\..\source\TechieBlog\Middleware\ForwardedHeadersSetup.cs"
+             Link="LinkedSource\ForwardedHeadersSetup.cs" />
+    <!--
+      REQ-NFR-030: the deployment-settings gate decides whether the host starts at all, so its rules
+      are asserted against the real production type. Same linked-source reasoning as above - a
+      ProjectReference to source/TechieBlog would pull the whole host graph into the test assembly.
+    -->
+    <Compile Include="..\..\source\TechieBlog\Configuration\DeploymentConfiguration.cs"
+             Link="LinkedSource\DeploymentConfiguration.cs" />
+    <!--
+      REQ-NFR-029 / REQ-NFR-013 / REQ-FN-025 (cluster H): the deployment contract itself. The
+      PascalCase environment-variable map IS the list a compose file is written against, the log
+      path decides whether one application writes to one folder or two, and the Seq switch decides
+      whether a developer machine needs a Seq server. All three are pure and configuration-only, so
+      they are linked in for the same reason as the three types above — a ProjectReference to
+      source/TechieBlog would drag the whole host graph into the test assembly.
+    -->
+    <Compile Include="..\..\source\TechieBlog\Configuration\AppEnvironmentVariables.cs"
+             Link="LinkedSource\AppEnvironmentVariables.cs" />
+    <Compile Include="..\..\source\TechieBlog\Configuration\LogFileSettings.cs"
+             Link="LinkedSource\LogFileSettings.cs" />
+    <Compile Include="..\..\source\TechieBlog\Configuration\SeqSettings.cs"
+             Link="LinkedSource\SeqSettings.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\source\BlogEngine\BlogEngine.csproj" />
+    <ProjectReference Include="..\..\source\BlogModel\BlogModels.csproj" />
+  </ItemGroup>
+
+  <!--
+    BlogUI reference and the bUnit component suites — ON BY DEFAULT since 2026-08-09.
+
+    History: this was introduced OFF because the UI layer was mid-rewrite (Fluent UI -> TrBlazeUI)
+    and BlogUI was transiently RED with NU1605 (REQ-FN-043). The reference had to be optional or
+    TechieBlog.Tests would have been un-buildable through no fault of its own.
+
+    Why it is now on (REQ-NFR-016, cluster M): REQ-FN-043 is CLOSED and the solution has been GREEN
+    across all 7 projects since 2026-08-08. Verified before flipping — `dotnet build` of this project
+    with the flag set returns 0 errors, and the five PostCard bUnit tests pass. Left off, those tests
+    were dead weight: the conditional Compile Remove below meant they never ran in CI and therefore
+    proved nothing about any real BlogUI component.
+
+    Set -p:IncludeBlogUiTests=false to get the old behaviour back if BlogUI ever goes red again while
+    an urgent engine fix has to ship.
+  -->
+  <PropertyGroup>
+    <IncludeBlogUiTests Condition="'$(IncludeBlogUiTests)' == ''">true</IncludeBlogUiTests>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IncludeBlogUiTests)' == 'true'">
+    <ProjectReference Include="..\..\source\BlogUI\BlogUI.csproj" />
+  </ItemGroup>
+
+  <!--
+    Suites under Components\BlogUi\ render REAL BlogUI components, so they cannot compile
+    without the reference above. They are removed from the default compile so the flag is
+    the single switch that turns BlogUI testing on, rather than the reference and the files
+    having to be kept in step by hand.
+  -->
+  <ItemGroup Condition="'$(IncludeBlogUiTests)' != 'true'">
+    <Compile Remove="Components\BlogUi\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="coverlet.runsettings" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

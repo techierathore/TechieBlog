@@ -3,7 +3,9 @@
     Purpose: Category archive page showing posts filtered by category.
     Displays category header, filtered post grid, and pagination.
 
-    Dependencies: Breadcrumb, PostCard, Pagination components
+    REQ-UI-048 — migrated from Microsoft Fluent UI to TrBlazeUI.
+
+    Dependencies: BlogBreadcrumb, PostCard, BlogPagination components
     Layout: Uses MainLayout (with sidebar for category navigation)
 *@
 
@@ -15,84 +17,127 @@
 @inject BlogEngine.Services.BlogSvc BlogService
 @inject NavigationManager Navigation
 
+@* REQ-NFR-007 / WCAG 2.4.2 Page Titled. *@
+<PageTitle>@(category == null ? "Categories · TechieBlog" : $"{category.CategoryName} · TechieBlog")</PageTitle>
+
 @if (isLoading)
 {
-    <div class="loading-container" style="display: flex; justify-content: center; padding: 48px;">
-        <FluentProgressRing />
-        <span style="margin-left: 12px;">Loading...</span>
+    <div class="flex items-center justify-center gap-3 py-12" data-testid="category-loading">
+        <Spinner />
+        <span class="text-muted-foreground">Loading...</span>
     </div>
 }
 else if (notFound)
 {
-    <div class="not-found" style="text-align: center; padding: 48px;">
-        <FluentIcon Value="@(new Icons.Regular.Size48.Folder())" />
-        <h1>Category Not Found</h1>
-        <p>The category you're looking for doesn't exist.</p>
-        <FluentAnchor Href="/categories" Appearance="Appearance.Accent">
-            View All Categories
-        </FluentAnchor>
-    </div>
+    <Empty Title="Category not found"
+           Description="The category you're looking for doesn't exist."
+           Class="py-12"
+           data-testid="category-not-found">
+        <Icon><LucideIcon Name="folder" Size="48" /></Icon>
+        <ChildContent>
+            <Button Href="/categories" data-testid="category-not-found-all">View all categories</Button>
+        </ChildContent>
+    </Empty>
 }
 else if (showCategoryList)
 {
     @* All Categories View *@
-    <Breadcrumb Items="@breadcrumbItems" />
+    <BlogBreadcrumb Items="@breadcrumbItems" />
 
-    <div class="category-header">
-        <h1>All Categories</h1>
-        <p class="category-header__description">Browse all blog post categories.</p>
-    </div>
+    <header class="my-6 flex flex-col gap-2">
+        <TypographyH1>All Categories</TypographyH1>
+        <p class="text-muted-foreground">Browse all blog post categories.</p>
+    </header>
 
-    <div class="post-grid">
-        @foreach (var cat in allCategories)
-        {
-            <article class="card">
-                <div class="card__body">
-                    <h3 class="card__title">
-                        <a href="/category/@cat.Slug">@cat.CategoryName</a>
-                    </h3>
-                    <p class="card__excerpt">@(string.IsNullOrEmpty(cat.Description) ? "Browse posts in this category." : cat.Description)</p>
-                    <FluentBadge Appearance="Appearance.Neutral">@cat.PostCount posts</FluentBadge>
-                </div>
-            </article>
-        }
-    </div>
+    @if (allCategories.Count == 0)
+    {
+        <Empty Title="No categories yet"
+               Description="Categories appear here once posts are filed under them."
+               Class="py-12"
+               data-testid="categories-empty">
+            <Icon><LucideIcon Name="folder" Size="48" /></Icon>
+        </Empty>
+    }
+    else
+    {
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="categories-grid">
+            @foreach (var cat in allCategories)
+            {
+                <Card Class="h-full" data-testid="category-card">
+                    <CardContent Class="flex flex-col gap-2 p-4">
+                        <h3 class="text-lg font-semibold leading-snug">
+                            <a href="/category/@cat.Slug"
+                               class="text-foreground no-underline hover:text-primary hover:underline"
+                               data-testid="category-card-title">@cat.CategoryName</a>
+                        </h3>
+                        <p class="text-sm text-muted-foreground" data-testid="category-card-description">
+                            @(string.IsNullOrEmpty(cat.Description) ? "Browse posts in this category." : cat.Description)
+                        </p>
+                        <div>
+                            <Badge Variant="BadgeVariant.Secondary" data-testid="category-card-count">@cat.PostCount posts</Badge>
+                        </div>
+                    </CardContent>
+                </Card>
+            }
+        </div>
+    }
 }
 else
 {
     @* Category Detail View *@
-    <Breadcrumb Items="@breadcrumbItems" />
+    <BlogBreadcrumb Items="@breadcrumbItems" />
 
-    <div class="category-header">
-        <h1>@category.CategoryName</h1>
-        <p class="category-header__description">@(string.IsNullOrEmpty(category.Description) ? "Browse posts in this category." : category.Description)</p>
-        <FluentBadge Appearance="Appearance.Neutral">@totalPosts posts</FluentBadge>
-    </div>
+    <header class="my-6 flex flex-col gap-2">
+        <TypographyH1>@category.CategoryName</TypographyH1>
+        <p class="text-muted-foreground" data-testid="category-description">
+            @(string.IsNullOrEmpty(category.Description) ? "Browse posts in this category." : category.Description)
+        </p>
+        <div>
+            <Badge Variant="BadgeVariant.Secondary" data-testid="category-post-count">@totalPosts posts</Badge>
+        </div>
+    </header>
 
     @if (posts.Count == 0)
     {
-        <FluentMessageBar Intent="MessageIntent.Info" Style="margin: 24px 0;">
-            No posts found in this category.
-        </FluentMessageBar>
+        <Empty Title="No posts in this category yet"
+               Description="New articles land here as soon as they are published."
+               Class="py-12"
+               data-testid="category-posts-empty">
+            <Icon><LucideIcon Name="inbox" Size="48" /></Icon>
+            <ChildContent>
+                <Button Href="/categories" Variant="ButtonVariant.Outline">Browse other categories</Button>
+            </ChildContent>
+        </Empty>
     }
     else
     {
-        <div class="post-grid">
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="posts-grid">
             @foreach (var post in posts)
             {
+                @* [REQ-UI-045] 2026-08-09 — ImageUrl/ImagePlaceholder were missing here, so every
+                   card on this page fell back to PostCard's grey placeholder even though the
+                   category projection selects FeaturedImage and every published post has one.
+                   The acceptance is that PostCard renders IDENTICALLY on home, archive and search;
+                   this matches what HomeLatestArticles already passes. *@
+                @* [REQ-FN-057] Date is the PUBLICATION date, not the creation date —
+                   SelectByCategorySql selects PublishedOn for exactly this card. *@
                 <PostCard Category="@category.CategoryName"
                           Title="@post.Title"
                           Excerpt="@(string.IsNullOrEmpty(post.Abstract) ? GetExcerpt(post.PostContent) : post.Abstract)"
                           PostUrl="@($"/post/{post.Slug}")"
                           AuthorName="@(string.IsNullOrEmpty(post.BlogWriter) ? "Unknown" : post.BlogWriter)"
-                          Date="@post.CreatedOn.ToString("MMM dd")"
-                          ReadTime="@GetReadingTime(post.PostContent)" />
+                          Date="@((post.PublishedOn ?? post.CreatedOn).ToString("MMM dd"))"
+                          ReadTime="@GetReadingTime(post.PostContent)"
+                          ImageUrl="@post.FeaturedImage"
+                          ImagePlaceholder="@post.Title" />
             }
         </div>
 
         @if (totalPages > 1)
         {
-            <Pagination CurrentPage="@currentPage" TotalPages="@totalPages" OnPageChanged="HandlePageChanged" />
+            <div class="mt-8">
+                <BlogPagination CurrentPage="@currentPage" TotalPages="@totalPages" OnPageChanged="HandlePageChanged" />
+            </div>
         }
     }
 }
@@ -104,7 +149,7 @@ else
     [Parameter]
     public string Slug { get; set; } = string.Empty;
 
-    private List<Breadcrumb.BreadcrumbItem> breadcrumbItems = new();
+    private List<BlogBreadcrumbItem> breadcrumbItems = new();
     private Category category;
     private List<Category> allCategories = new();
     private List<BlogModels.BlogPost> posts = new();
@@ -133,18 +178,18 @@ else
             {
                 // Show all categories
                 showCategoryList = true;
-                allCategories = CategoryService.GetAllWithCounts().ToList();
+                allCategories = (await CategoryService.GetAllWithCountsAsync()).ToList();
 
-                breadcrumbItems = new List<Breadcrumb.BreadcrumbItem>
+                breadcrumbItems = new List<BlogBreadcrumbItem>
                 {
-                    new Breadcrumb.BreadcrumbItem { Label = "Home", Url = "/" },
-                    new Breadcrumb.BreadcrumbItem { Label = "Categories", Url = "" }
+                    new BlogBreadcrumbItem { Label = "Home", Url = "/" },
+                    new BlogBreadcrumbItem { Label = "Categories", Url = "" }
                 };
             }
             else
             {
                 // Show specific category
-                category = CategoryService.GetCategoryBySlug(Slug);
+                category = await CategoryService.GetCategoryBySlugAsync(Slug);
 
                 if (category == null)
                 {
@@ -152,18 +197,18 @@ else
                 }
                 else
                 {
-                    breadcrumbItems = new List<Breadcrumb.BreadcrumbItem>
+                    breadcrumbItems = new List<BlogBreadcrumbItem>
                     {
-                        new Breadcrumb.BreadcrumbItem { Label = "Home", Url = "/" },
-                        new Breadcrumb.BreadcrumbItem { Label = "Categories", Url = "/categories" },
-                        new Breadcrumb.BreadcrumbItem { Label = category.CategoryName, Url = "" }
+                        new BlogBreadcrumbItem { Label = "Home", Url = "/" },
+                        new BlogBreadcrumbItem { Label = "Categories", Url = "/categories" },
+                        new BlogBreadcrumbItem { Label = category.CategoryName, Url = "" }
                     };
 
-                    totalPosts = BlogService.GetPostCountByCategory(category.CategoryId);
+                    totalPosts = await BlogService.GetPostCountByCategoryAsync(category.CategoryId);
                     totalPages = Math.Max(1, (int)Math.Ceiling(totalPosts / (double)PageSize));
 
                     var offset = (currentPage - 1) * PageSize;
-                    posts = BlogService.GetPostsByCategory(category.CategoryId, PageSize, offset).ToList();
+                    posts = (await BlogService.GetPostsByCategoryAsync(category.CategoryId, PageSize, offset)).ToList();
                 }
             }
         }
@@ -176,6 +221,10 @@ else
         StateHasChanged();
     }
 
+    /// <summary>
+    /// Reloads the archive for the requested page.
+    /// </summary>
+    /// <param name="page">1-based page number.</param>
     private async Task HandlePageChanged(int page)
     {
         currentPage = page;

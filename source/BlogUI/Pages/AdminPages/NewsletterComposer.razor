@@ -1,0 +1,314 @@
+@*
+    NewsletterComposer.razor
+    Purpose: Compose a newsletter issue in Markdown, preview it exactly as subscribers
+             will receive it, choose the audience, dispatch it with live progress, and
+             read back the send history.
+
+    Route: /admin/newsletter
+    REQ:   REQ-UI-043 (BRD-59) — mockup docs/mockups/33-newsletter-composer.html
+    Authorization: AdminOnly policy required.
+
+    Send progress is REAL, not decorative: NewsletterSvc writes one send-history row
+    per recipient as it goes, so the page polls that count while the dispatch task runs
+    and reports "n of m" from the database rather than from a timer.
+
+    Dependencies: TrBlazeUI.Components (MarkdownEditor/Tabs/RadioGroup/Progress/
+                  AlertDialog/Toast), INewsletterService for draft/send/history,
+                  SubscriberSvc for the audience estimate.
+*@
+@page "/admin/newsletter"
+@attribute [Authorize(Policy = AppPolicies.AdminOnly)]
+@layout BlogUI.Layouts.AdminLayout
+
+<PageTitle>Newsletter · TechieBlog Admin</PageTitle>
+
+<div class="mx-auto max-w-[1400px] space-y-6">
+
+    @* ---- Page header ----------------------------------------------------- *@
+    <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-semibold tracking-tight text-foreground">Newsletter composer</h1>
+            <p class="text-sm text-muted-foreground">
+                Write in Markdown, preview live, send to your subscribers (BRD-59).
+            </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            <Badge Variant="@StatusBadgeVariant" data-testid="newsletter-status-badge">@StatusLabel</Badge>
+            <Button Variant="ButtonVariant.Outline"
+                    OnClick="StartNewIssue"
+                    Disabled="@IsBusy"
+                    data-testid="newsletter-new">
+                <LucideIcon Name="plus" Size="16" />
+                <span class="ml-2">New issue</span>
+            </Button>
+            <Button OnClick="SaveDraftAsync" Disabled="@(IsBusy || IsSent)" data-testid="newsletter-save-draft">
+                <LucideIcon Name="check" Size="16" />
+                <span class="ml-2">Save draft</span>
+            </Button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(StatusMessage))
+    {
+        <Alert Variant="@(IsError ? AlertVariant.Danger : AlertVariant.Success)"
+               data-testid="newsletter-status-message">
+            <LucideIcon Name="@(IsError ? "circle-alert" : "circle-check")" Size="16" />
+            <AlertDescription>@StatusMessage</AlertDescription>
+        </Alert>
+    }
+
+    @* ---- Compose --------------------------------------------------------- *@
+    <Card data-testid="newsletter-compose-card">
+        <CardHeader>
+            <CardTitle>Compose</CardTitle>
+            <CardDescription>The subject line doubles as the archive title.</CardDescription>
+        </CardHeader>
+        <CardContent Class="space-y-6">
+
+            <div class="space-y-2">
+                <Label For="newsletter-subject">Subject</Label>
+                <Input Id="newsletter-subject"
+                       @bind-Value="Subject"
+                       Placeholder="August 2026 — what you may have missed"
+                       Disabled="@(IsBusy || IsSent)"
+                       AriaLabel="Newsletter subject"
+                       data-testid="newsletter-subject" />
+            </div>
+
+            <div class="space-y-2">
+                <Label For="newsletter-summary">Summary <span class="text-muted-foreground">(archive teaser, optional)</span></Label>
+                <Input Id="newsletter-summary"
+                       @bind-Value="Summary"
+                       Placeholder="One line shown in the public newsletter archive"
+                       Disabled="@(IsBusy || IsSent)"
+                       AriaLabel="Newsletter summary"
+                       data-testid="newsletter-summary" />
+            </div>
+
+            @*
+                Test ids sit on the components themselves. Up to TrBlazeUI 2.0.1 TabsList /
+                TabsTrigger / TabsContent / RadioGroup / RadioGroupItem / Label declared no
+                CaptureUnmatchedValues, so a data-testid on any of them threw at render and the
+                hooks had to ride on plain inner elements (TR-040). 2.0.2 splats on all 344
+                components, so those wrappers are gone.
+            *@
+            <Tabs Value="@EditorTab" ValueChanged="@((string value) => EditorTab = value)"
+                  data-testid="newsletter-editor-tabs">
+                <TabsList>
+                    <TabsTrigger Value="write" data-testid="newsletter-tab-write">Write</TabsTrigger>
+                    <TabsTrigger Value="preview" data-testid="newsletter-tab-preview">Email preview</TabsTrigger>
+                </TabsList>
+                <TabsContent Value="write">
+                    <MarkdownEditor @bind-Value="Body"
+                                    Disabled="@(IsBusy || IsSent)"
+                                    Placeholder="## Hey there"
+                                    AriaLabel="Newsletter body in Markdown"
+                                    data-testid="newsletter-body" />
+                </TabsContent>
+                <TabsContent Value="preview">
+                    <div class="min-h-[400px] rounded-md border border-border bg-card p-4"
+                         data-testid="newsletter-preview">
+                        @if (string.IsNullOrWhiteSpace(Body))
+                        {
+                            <p class="text-sm text-muted-foreground">Nothing to preview yet — write some Markdown first.</p>
+                        }
+                        else
+                        {
+                            @* Exactly what a subscriber receives, unsubscribe footer included —
+                               the editor's own toggle previews the Markdown, this previews the mail. *@
+                            @* markdown-content is the shared long-form typography from base.css,
+                               so the preview reads exactly like the post body and the archive page. *@
+                            <article class="markdown-content">@((MarkupString)PreviewHtml)</article>
+                            <Separator Class="my-4" />
+                            <p class="text-xs text-muted-foreground" data-testid="newsletter-preview-footer">
+                                You are receiving this because you subscribed to the newsletter.
+                                <span class="underline">Unsubscribe</span>
+                            </p>
+                        }
+                    </div>
+                </TabsContent>
+            </Tabs>
+        </CardContent>
+    </Card>
+
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+
+        @* ---- Recipients -------------------------------------------------- *@
+        <Card data-testid="newsletter-recipients-card">
+            <CardHeader>
+                <CardTitle>Recipients</CardTitle>
+                <CardDescription>Every message carries the subscriber's own unsubscribe link.</CardDescription>
+            </CardHeader>
+            <CardContent Class="space-y-3">
+                <RadioGroup TValue="string" Value="@AudienceMode"
+                            ValueChanged="@((string value) => OnAudienceChanged(value))"
+                            data-testid="newsletter-audience">
+                    <div class="flex items-center gap-2">
+                        <RadioGroupItem TValue="string" Value="@("active")" Id="audience-active" />
+                        <Label For="audience-active" data-testid="audience-active-label">All active subscribers (@ActiveSubscriberCount)</Label>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <RadioGroupItem TValue="string" Value="@("everyone")" Id="audience-everyone" />
+                        <Label For="audience-everyone" data-testid="audience-everyone-label">Everyone, including unconfirmed (@TotalSubscriberCount)</Label>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <RadioGroupItem TValue="string" Value="@("segment")" Id="audience-segment" />
+                        <Label For="audience-segment" data-testid="audience-segment-label">Segment — email contains</Label>
+                    </div>
+                </RadioGroup>
+
+                <Input @bind-Value="EmailFilter"
+                       @bind-Value:after="RefreshAudienceEstimate"
+                       Placeholder="@SegmentPlaceholder"
+                       Disabled="@(IsBusy || AudienceMode != "segment")"
+                       AriaLabel="Email segment filter"
+                       data-testid="newsletter-segment-filter" />
+
+                <p class="text-sm text-muted-foreground" data-testid="newsletter-recipient-count">
+                    @EstimatedRecipients recipient(s) will receive this issue.
+                </p>
+            </CardContent>
+        </Card>
+
+        @* ---- Send -------------------------------------------------------- *@
+        <Card data-testid="newsletter-send-card">
+            <CardHeader>
+                <CardTitle>Send</CardTitle>
+                <CardDescription>A send cannot be undone, so it always asks for confirmation.</CardDescription>
+            </CardHeader>
+            <CardContent Class="space-y-3">
+                <Button OnClick="OpenSendDialog"
+                        Disabled="@(IsBusy || IsSent || EstimatedRecipients == 0)"
+                        Class="w-full"
+                        data-testid="newsletter-send">
+                    <LucideIcon Name="send" Size="16" />
+                    <span class="ml-2">Send newsletter</span>
+                </Button>
+
+                @if (IsSending)
+                {
+                    <div class="space-y-2" data-testid="newsletter-send-progress">
+                        <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Spinner />
+                            <span data-testid="newsletter-send-progress-text">
+                                Sending… @SentSoFar / @EstimatedRecipients
+                            </span>
+                        </div>
+                        <Progress Value="@SendProgressPercent" Class="h-2" aria-label="Send progress" />
+                    </div>
+                }
+
+                @if (LastReport != null)
+                {
+                    <div class="space-y-1 text-sm" data-testid="newsletter-send-outcome">
+                        <p class="font-medium text-foreground">
+                            Sent to @LastReport.SentCount of @LastReport.TargetedCount subscribers.
+                        </p>
+                        <p class="text-muted-foreground">
+                            @LastReport.FailedCount failed · dispatched @LastReport.SentOn.ToString("dd MMM yyyy HH:mm") UTC
+                        </p>
+                    </div>
+                }
+
+                <p class="text-xs text-muted-foreground">
+                    Delivery goes through the configured email transport; in this environment that is the
+                    logging sender, so every message is recorded rather than posted to the internet.
+                </p>
+            </CardContent>
+        </Card>
+    </div>
+
+    @* ---- History --------------------------------------------------------- *@
+    <Card data-testid="newsletter-history-card">
+        <CardHeader>
+            <CardTitle>History</CardTitle>
+            <CardDescription>Every issue, newest first.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            @if (Issues.Count == 0)
+            {
+                <Empty Title="No newsletters yet"
+                       Description="Compose an issue above and it will appear here once saved."
+                       data-testid="newsletter-history-empty">
+                    <Icon><LucideIcon Name="mail" Size="48" /></Icon>
+                </Empty>
+            }
+            else
+            {
+                <div class="divide-y divide-border" data-testid="newsletter-history-list">
+                    @foreach (var issue in Issues)
+                    {
+                        <div class="flex flex-wrap items-center justify-between gap-3 py-3 last:border-b-0">
+                            <div>
+                                <p class="font-medium text-foreground" data-testid="history-row-title">@issue.Title</p>
+                                <p class="text-xs text-muted-foreground" data-testid="history-row-meta">
+                                    @FormatIssueDate(issue) · @issue.RecipientCount sent
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <Badge Variant="@IssueBadgeVariant(issue)" data-testid="history-row-status">
+                                    @IssueStatusLabel(issue)
+                                </Badge>
+                                <Button Variant="ButtonVariant.Ghost"
+                                        Size="ButtonSize.Small"
+                                        OnClick="@(() => LoadIssueAsync(issue.NewsletterId))"
+                                        Disabled="@IsBusy"
+                                        data-testid="history-row-open">
+                                    <LucideIcon Name="eye" Size="16" />
+                                    <span class="ml-2">Open</span>
+                                </Button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+            @if (SendHistory.Count > 0)
+            {
+                <div class="mt-6 space-y-2">
+                    <p class="text-sm font-medium text-foreground" data-testid="newsletter-delivery-heading">
+                        Delivery log for “@Subject” (@SendHistory.Count row(s))
+                    </p>
+                    <div class="divide-y divide-border" data-testid="newsletter-delivery-list">
+                        @foreach (var delivery in SendHistory)
+                        {
+                            <div class="flex flex-wrap items-center justify-between gap-3 py-2 text-sm last:border-b-0">
+                                <span data-testid="delivery-row-email">@delivery.Email</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-muted-foreground" data-testid="delivery-row-date">
+                                        @(delivery.SentOn.HasValue ? delivery.SentOn.Value.ToString("dd MMM yyyy HH:mm") : "—")
+                                    </span>
+                                    <Badge Variant="@(delivery.SendStatus == NewsletterRecipient.StatusSent ? BadgeVariant.Default : BadgeVariant.Destructive)"
+                                           data-testid="delivery-row-status">
+                                        @delivery.SendStatus
+                                    </Badge>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </CardContent>
+    </Card>
+</div>
+
+@* Send confirmation — a dispatch cannot be recalled. *@
+<AlertDialog Open="@ShowSendDialog" OpenChanged="@OnSendDialogOpenChanged">
+    <AlertDialogContent data-testid="newsletter-send-dialog">
+        <AlertDialogHeader>
+            <AlertDialogTitle>Send this newsletter?</AlertDialogTitle>
+            <AlertDialogDescription>
+                “<strong>@Subject</strong>” will be mailed to <strong>@EstimatedRecipients</strong>
+                subscriber(s). A newsletter that has been sent can no longer be edited.
+            </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+            <Button Variant="ButtonVariant.Outline" OnClick="CancelSend" data-testid="newsletter-send-cancel">
+                Cancel
+            </Button>
+            <Button OnClick="ConfirmSendAsync" data-testid="newsletter-send-confirm">
+                Send now
+            </Button>
+        </AlertDialogFooter>
+    </AlertDialogContent>
+</AlertDialog>

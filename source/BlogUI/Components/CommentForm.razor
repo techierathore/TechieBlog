@@ -1,0 +1,352 @@
+@*
+    CommentForm.razor
+    Purpose: The anonymous "leave a comment" form for a blog post — name, email, body,
+    captcha, submit.
+
+    REQ-UI-029 / BRD-36 — no account and no sign-in prompt. The email address identifies the
+    commenter for double opt-in and moderation and is NEVER published.
+    REQ-UI-056 / BRD-99 — the captcha is required on this public write surface.
+
+    What happens after submit is entirely BlogEngine.Services.CommentSvc's business:
+      captcha  -> spam screen -> insert in an INVISIBLE state -> double opt-in email
+                -> moderation queue -> administrator approval -> public.
+    Nothing this form writes is visible on the page until confirmed AND approved.
+
+    Dependencies: BlogEngine.Services.CommentSvc, CaptchaWidget, TrBlazeUI Card/Field/Input/
+    Textarea/Alert/Button, Lucide icons.
+    Usage: <CommentForm PostId="@post.PostID" OnSubmitted="ReloadComments" />
+*@
+
+@inject BlogEngine.Services.CommentSvc CommentService
+
+<Card data-testid="comment-form">
+    <CardHeader>
+        <CardTitle>Leave a comment</CardTitle>
+        <CardDescription>No account needed — just your name and email.</CardDescription>
+    </CardHeader>
+
+    <CardContent Class="flex flex-col gap-4">
+
+        @if (!string.IsNullOrEmpty(statusMessage))
+        {
+            <Alert Variant="@(isStatusError ? AlertVariant.Danger : AlertVariant.Success)"
+                   AccentBorder="true"
+                   data-testid="@(isStatusError ? "comment-form-error" : "comment-form-success")">
+                <LucideIcon Name="@(isStatusError ? "circle-alert" : "mail-check")" Size="16" />
+                <AlertTitle>@(isStatusError ? "Your comment was not posted" : "Thank you")</AlertTitle>
+                <AlertDescription>@statusMessage</AlertDescription>
+            </Alert>
+        }
+
+        <div class="flex flex-wrap gap-4">
+            <Field Class="flex-1 min-w-[200px]" IsInvalid="@(nameError != null)">
+                <FieldLabel For="@nameElementId">Name</FieldLabel>
+                <FieldContent>
+                    <Input Id="@nameElementId"
+                           @bind-Value="authorName"
+                           Placeholder="Your name"
+                           Class="w-full"
+                           AriaInvalid="@(nameError == null ? (bool?)null : true)"
+                           autocomplete="name"
+                           data-testid="comment-name" />
+                    @if (nameError != null)
+                    {
+                        <FieldError data-testid="comment-name-error">@nameError</FieldError>
+                    }
+                </FieldContent>
+            </Field>
+
+            <Field Class="flex-1 min-w-[200px]" IsInvalid="@(emailError != null)">
+                <FieldLabel For="@emailElementId">Email</FieldLabel>
+                <FieldContent>
+                    <Input Id="@emailElementId"
+                           Type="InputType.Email"
+                           @bind-Value="authorEmail"
+                           Placeholder="you@example.com"
+                           Class="w-full"
+                           AriaInvalid="@(emailError == null ? (bool?)null : true)"
+                           autocomplete="email"
+                           data-testid="comment-email" />
+                    <FieldDescription>
+                        Your email is never published — it is used only for confirmation and moderation.
+                    </FieldDescription>
+                    @if (emailError != null)
+                    {
+                        <FieldError data-testid="comment-email-error">@emailError</FieldError>
+                    }
+                </FieldContent>
+            </Field>
+        </div>
+
+        <Field IsInvalid="@(bodyError != null)">
+            <FieldLabel For="@bodyElementId">Comment</FieldLabel>
+            <FieldContent>
+                <Textarea Id="@bodyElementId"
+                          @bind-Value="commentText"
+                          Placeholder="Share your thoughts…"
+                          MaxLength="850"
+                          Class="w-full"
+                          AriaInvalid="@(bodyError == null ? (bool?)null : true)"
+                          data-testid="comment-input" />
+                @if (bodyError != null)
+                {
+                    <FieldError data-testid="comment-body-error">@bodyError</FieldError>
+                }
+            </FieldContent>
+        </Field>
+
+        @* Honeypot — hidden from people and assistive technology, irresistible to bots.
+           CommentSpamGuard blocks any submission that arrives with this filled in. *@
+        <div class="hidden" aria-hidden="true">
+            <Input @bind-Value="honeypotValue"
+                   Class="w-full"
+                   tabindex="-1"
+                   autocomplete="off"
+                   data-testid="comment-honeypot" />
+        </div>
+
+        <CaptchaWidget @ref="captcha" data-testid="captcha-widget" />
+
+        @* Double opt-in explainer (BRD-98) *@
+        <Alert Variant="AlertVariant.Info" data-testid="comment-verify-note">
+            <LucideIcon Name="mail" Size="16" />
+            <AlertTitle>First time here?</AlertTitle>
+            <AlertDescription>
+                We will email you a one-time confirmation link. Your comment is published only
+                after you click it — and only after moderation. Verify once and future comments
+                from the same address skip this step.
+            </AlertDescription>
+        </Alert>
+    </CardContent>
+
+    <CardFooter Class="flex flex-wrap items-center gap-3">
+        <Button Type="ButtonType.Button"
+                OnClick="OnSubmitAsync"
+                Disabled="@isSubmitting"
+                data-testid="comment-submit">
+            @if (isSubmitting)
+            {
+                <Spinner Size="SpinnerSize.Small" />
+            }
+            Post comment
+        </Button>
+        <span class="text-xs text-muted-foreground">
+            Comments appear after email confirmation and moderation.
+        </span>
+    </CardFooter>
+</Card>
+
+@code {
+    private readonly string nameElementId = $"comment-name-{Guid.NewGuid():N}";
+    private readonly string emailElementId = $"comment-email-{Guid.NewGuid():N}";
+    private readonly string bodyElementId = $"comment-body-{Guid.NewGuid():N}";
+
+    private CaptchaWidget captcha;
+
+    private string authorName = string.Empty;
+    private string authorEmail = string.Empty;
+    private string commentText = string.Empty;
+    private string honeypotValue = string.Empty;
+
+    private string nameError;
+    private string emailError;
+    private string bodyError;
+    private string statusMessage;
+    private bool isStatusError;
+    private bool isSubmitting;
+    private DateTime renderedOn;
+
+    /// <summary>
+    /// The post the comment belongs to.
+    /// </summary>
+    [Parameter]
+    public long PostId { get; set; }
+
+    /// <summary>
+    /// Raised after a submission the service accepted, so the page can reload the thread.
+    /// </summary>
+    [Parameter]
+    public EventCallback OnSubmitted { get; set; }
+
+    /// <summary>
+    /// Records when the form became usable, for the spam guard's "too fast to be human" check.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Stamped on the first INTERACTIVE render, not during the
+    /// static prerender — a prerender timestamp would be minutes stale for a visitor who reads
+    /// the article before commenting. While it is unset, CommentSpamGuard skips the check
+    /// rather than blocking, so the fallback is safe.</para>
+    /// <para><b>Flow:</b> first render only, stamp.</para>
+    /// <para><b>Side Effects:</b> Sets <c>renderedOn</c>.</para>
+    /// </remarks>
+    /// <param name="firstRender">True on the component's first render.</param>
+    /// <returns>A completed task.</returns>
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            renderedOn = DateTime.UtcNow;
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Validates the visitor's input and hands it to the comment service.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The fields are checked here FIRST so a typo does not burn
+    /// the single-use captcha challenge. The captcha itself is validated server-side by
+    /// <c>CommentSvc</c> — this form never calls <c>ValidateAsync</c>, which would consume the
+    /// challenge before the service could see it.</para>
+    /// <para><b>Flow:</b> validate fields, submit, branch on the outcome, always refresh the
+    /// challenge because the service consumed it.</para>
+    /// <para><b>Side Effects:</b> May insert an invisible comment row and send a confirmation
+    /// email; always replaces the captcha challenge.</para>
+    /// </remarks>
+    /// <returns>A task that completes when the outcome has been shown.</returns>
+    private async Task OnSubmitAsync()
+    {
+        statusMessage = null;
+        if (!ValidateFields())
+            return;
+
+        isSubmitting = true;
+        var result = await CommentService.SubmitCommentAsync(BuildSubmission());
+        isSubmitting = false;
+
+        if (result.IsFailure)
+        {
+            ShowFailure(result.ErrorMessage);
+            return;
+        }
+
+        await ShowSuccessAsync(result.Data?.Message);
+    }
+
+    /// <summary>
+    /// Maps the form state onto the service's submission contract.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The captcha id and answer travel with the submission so the
+    /// service can burn the challenge itself; the IP address is left unset because a Blazor
+    /// Server circuit has no per-call request context.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <returns>The populated submission.</returns>
+    private BlogModels.CommentSubmission BuildSubmission()
+    {
+        return new BlogModels.CommentSubmission
+        {
+            PostId = PostId,
+            AuthorName = authorName,
+            AuthorEmail = authorEmail,
+            CommentText = commentText,
+            HoneypotValue = honeypotValue,
+            CaptchaChallengeId = captcha?.ChallengeToken,
+            CaptchaAnswer = captcha?.Answer,
+            RenderedOn = renderedOn
+        };
+    }
+
+    /// <summary>
+    /// Checks the three visitor-supplied fields.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Mirrors the service's own rules so the visitor gets a
+    /// per-field message; the service remains authoritative.</para>
+    /// <para><b>Side Effects:</b> Sets the per-field error strings.</para>
+    /// </remarks>
+    /// <returns>True when every field is acceptable.</returns>
+    private bool ValidateFields()
+    {
+        nameError = string.IsNullOrWhiteSpace(authorName) ? "Please tell us your name." : null;
+        emailError = System.Net.Mail.MailAddress.TryCreate((authorEmail ?? string.Empty).Trim(), out _)
+            ? null
+            : "Please enter a valid email address.";
+        bodyError = string.IsNullOrWhiteSpace(commentText)
+            ? "Please write a comment."
+            : commentText.Trim().Length > 850 ? "Comments are limited to 850 characters." : null;
+
+        return nameError == null && emailError == null && bodyError == null;
+    }
+
+    /// <summary>
+    /// Shows a rejected submission and re-arms the captcha.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> A captcha rejection is reported next to the image, where the
+    /// visitor is looking, and the card-level alert only says the post did not go through. Any
+    /// other rejection carries the service's own message. Either way the challenge has been
+    /// consumed, so a fresh one is issued.</para>
+    /// <para><b>Side Effects:</b> Issues a new captcha challenge.</para>
+    /// </remarks>
+    /// <param name="errorMessage">The service's visitor-safe failure message.</param>
+    private void ShowFailure(string errorMessage)
+    {
+        isStatusError = true;
+
+        if (IsCaptchaFailure(errorMessage))
+        {
+            statusMessage = captcha?.IsQuestionMode == true
+                ? "Please answer the new verification question and try again."
+                : "Please retype the characters from the verification image and try again.";
+            captcha?.ShowError(errorMessage);
+            return;
+        }
+
+        statusMessage = errorMessage;
+        captcha?.Reset();
+    }
+
+    /// <summary>
+    /// Shows an accepted submission, clears the form and tells the page to reload the thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The comment is NOT on the page yet — the message explains
+    /// the confirmation and moderation steps that still stand between it and publication.</para>
+    /// <para><b>Side Effects:</b> Clears the fields, issues a new captcha challenge, invokes
+    /// <see cref="OnSubmitted"/>.</para>
+    /// </remarks>
+    /// <param name="message">The outcome message from the service.</param>
+    /// <returns>A task that completes when the parent has been notified.</returns>
+    private async Task ShowSuccessAsync(string message)
+    {
+        isStatusError = false;
+        statusMessage = string.IsNullOrWhiteSpace(message)
+            ? "Thank you. Your comment is awaiting confirmation and moderation."
+            : message;
+
+        authorName = string.Empty;
+        authorEmail = string.Empty;
+        commentText = string.Empty;
+        nameError = null;
+        emailError = null;
+        bodyError = null;
+        renderedOn = DateTime.UtcNow;
+        captcha?.Reset();
+
+        if (OnSubmitted.HasDelegate)
+            await OnSubmitted.InvokeAsync();
+    }
+
+    /// <summary>
+    /// Tests whether a service failure came from the captcha gate.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> <c>CaptchaSvc</c> owns a small set of visitor-facing messages,
+    /// all of which name the verification image, the verification challenge, the verification
+    /// question or the characters on the image. Matching on those keeps the error next to the
+    /// control that caused it without leaking a status code into the model. The "question"
+    /// wording arrived with the accessible alternative challenge. [REQ-UI-057]</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <param name="message">The failure message under test.</param>
+    /// <returns>True when the message came from the captcha service.</returns>
+    private static bool IsCaptchaFailure(string message)
+    {
+        return !string.IsNullOrEmpty(message)
+            && (message.Contains("verification image", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("verification challenge", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("verification question", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("characters did not match", StringComparison.OrdinalIgnoreCase));
+    }
+}

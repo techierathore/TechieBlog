@@ -1,342 +1,261 @@
 @*
     AdminDashboard.razor
-    Purpose: Main administrative dashboard page.
-    Displays summary information and quick access to admin functions.
+    Purpose: Landing surface of the admin console — headline counters, quick
+    actions, items needing attention, recent activity and popular posts.
 
-    Usage: Navigate to /AdminDashboard
-    Dependencies: Microsoft.FluentUI.AspNetCore.Components
-    Authorization: EditorOrAbove policy required
+    REQ-UI-048 — rebuilt on TrBlazeUI; the previous <style> block is gone and every
+    surface is token-driven, so it reads correctly in dark mode (REQ-UI-033).
+    Authorization: EditorOrAbove (Authors land on /BlogsList instead — REQ-UI-001).
 *@
+
 @page "/AdminDashboard"
 @page "/admin"
 @attribute [Authorize(Policy = "EditorOrAbove")]
 @layout BlogUI.Layouts.AdminLayout
 
-<div class="admin-dashboard">
-    <h1 style="margin-bottom: var(--spacing-lg, 24px);">Dashboard</h1>
+<PageTitle>Dashboard - TechieBlog</PageTitle>
 
-    @* Stats Grid *@
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-card__value">@TotalPosts</div>
-            <div class="stat-card__label">Total Posts</div>
-            <div class="stat-card__change stat-card__change--positive">+@PostsThisMonth this month</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-card__value">@TotalUsers.ToString("N0")</div>
-            <div class="stat-card__label">Total Users</div>
-            <div class="stat-card__change stat-card__change--positive">+@UsersThisMonth this month</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-card__value">@TotalComments.ToString("N0")</div>
-            <div class="stat-card__label">Comments</div>
-            @if (PendingComments > 0)
-            {
-                <div class="stat-card__change stat-card__change--warning">@PendingComments pending</div>
-            }
-            else
-            {
-                <div class="stat-card__change stat-card__change--positive">All reviewed</div>
-            }
-        </div>
-        <div class="stat-card">
-            <div class="stat-card__value">@TotalSubscribers</div>
-            <div class="stat-card__label">Subscribers</div>
-            <div class="stat-card__change stat-card__change--positive">+@SubscribersThisMonth this month</div>
-        </div>
+<div class="flex flex-col gap-6" data-testid="admin-dashboard">
+
+    <div>
+        <h1 class="m-0 text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <p class="mt-1 text-sm text-muted-foreground">An overview of your site's content and audience.</p>
     </div>
 
-    @* Quick Actions & Pending Items *@
-    <div class="dashboard-row">
-        @* Quick Actions *@
-        <div class="dashboard-card">
-            <h2>Quick Actions</h2>
-            <div class="quick-actions">
-                <FluentAnchor Href="/ManagePost" Appearance="Appearance.Accent">+ New Post</FluentAnchor>
-                <FluentAnchor Href="/comments" Appearance="Appearance.Outline">Moderate Comments</FluentAnchor>
-                <FluentAnchor Href="/users" Appearance="Appearance.Outline">Manage Users</FluentAnchor>
-            </div>
-        </div>
+    @* --- Headline counters --------------------------------------------------- *@
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" data-testid="dashboard-stats">
 
-        @* Pending Items *@
-        <div class="dashboard-card">
-            <h2>Needs Attention</h2>
-            <ul class="attention-list">
-                <li>
+        <Card data-testid="stat-posts">
+            <CardHeader Class="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle Class="text-sm font-medium text-muted-foreground">Total Posts</CardTitle>
+                <LucideIcon Name="file-text" Size="16" Class="text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div class="text-3xl font-semibold" data-testid="stat-posts-value">@TotalPosts.ToString("N0")</div>
+                <p class="mt-1 text-xs text-muted-foreground">+@PostsThisMonth this month</p>
+            </CardContent>
+        </Card>
+
+        <Card data-testid="stat-users">
+            <CardHeader Class="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle Class="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
+                <LucideIcon Name="users" Size="16" Class="text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div class="text-3xl font-semibold" data-testid="stat-users-value">@TotalUsers.ToString("N0")</div>
+                <p class="mt-1 text-xs text-muted-foreground">+@UsersThisMonth this month</p>
+            </CardContent>
+        </Card>
+
+        <Card data-testid="stat-comments">
+            <CardHeader Class="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle Class="text-sm font-medium text-muted-foreground">Comments</CardTitle>
+                <LucideIcon Name="message-square" Size="16" Class="text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div class="text-3xl font-semibold" data-testid="stat-comments-value">@TotalComments.ToString("N0")</div>
+                @if (PendingComments > 0)
+                {
+                    <p class="mt-1 text-xs font-medium text-[var(--alert-warning)]">@PendingComments pending</p>
+                }
+                else
+                {
+                    <p class="mt-1 text-xs text-muted-foreground">All reviewed</p>
+                }
+            </CardContent>
+        </Card>
+
+        <Card data-testid="stat-subscribers">
+            <CardHeader Class="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle Class="text-sm font-medium text-muted-foreground">Subscribers</CardTitle>
+                <LucideIcon Name="mail" Size="16" Class="text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div class="text-3xl font-semibold" data-testid="stat-subscribers-value">@TotalSubscribers.ToString("N0")</div>
+                <p class="mt-1 text-xs text-muted-foreground">+@SubscribersThisMonth this month</p>
+            </CardContent>
+        </Card>
+    </div>
+
+    @* --- Quick actions + needs attention ------------------------------------- *@
+    <div class="grid gap-6 lg:grid-cols-2">
+
+        <Card data-testid="quick-actions">
+            <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+                <CardDescription>Jump straight to the things you do most.</CardDescription>
+            </CardHeader>
+            @*
+                Each action is gated by the SAME policy as the page it opens, so an action is never
+                offered to a role that would then be bounced to /access-denied. The gate is an
+                <AuthorizeView> against the registered policy rather than a second copy of the
+                role table — a duplicated policy map is what let this drift in the first place.
+
+                /ManagePost is AuthorOrAbove and /comments is EditorOrAbove; this page already
+                requires EditorOrAbove, so both are satisfied by everyone who can see it and need
+                no gate. /users and /admin/newsletter are AdminOnly and do need one.
+            *@
+            <CardContent Class="flex flex-wrap gap-2">
+                <Button Href="/ManagePost" data-testid="action-new-post">
+                    <LucideIcon Name="plus" Size="16" />
+                    <span class="ml-2">New Post</span>
+                </Button>
+                <Button Href="/comments" Variant="ButtonVariant.Outline" data-testid="action-moderate-comments">
+                    <LucideIcon Name="message-square" Size="16" />
+                    <span class="ml-2">Moderate Comments</span>
+                </Button>
+                <AuthorizeView Policy="@AppPolicies.AdminOnly">
+                    <Authorized>
+                        <Button Href="/admin/newsletter" Variant="ButtonVariant.Outline" data-testid="action-send-newsletter">
+                            <LucideIcon Name="send" Size="16" />
+                            <span class="ml-2">Send Newsletter</span>
+                        </Button>
+                        <Button Href="/users" Variant="ButtonVariant.Outline" data-testid="action-manage-users">
+                            <LucideIcon Name="users" Size="16" />
+                            <span class="ml-2">Manage Users</span>
+                        </Button>
+                    </Authorized>
+                </AuthorizeView>
+            </CardContent>
+        </Card>
+
+        <Card data-testid="needs-attention">
+            <CardHeader>
+                <CardTitle>Needs Attention</CardTitle>
+                <CardDescription>Work waiting on you.</CardDescription>
+            </CardHeader>
+            <CardContent Class="flex flex-col">
+                <a href="/comments"
+                   class="flex items-center justify-between border-b border-border py-2.5 text-sm text-foreground no-underline hover:text-primary"
+                   data-testid="attention-pending-comments">
                     <span>Pending Comments</span>
-                    <FluentAnchor Href="/comments">
-                        <FluentBadge Appearance="@(PendingComments > 0 ? Appearance.Accent : Appearance.Neutral)"
-                                     Style="@(PendingComments > 0 ? "background-color: var(--color-warning, #FFB900); color: #000;" : "")">
-                            @PendingComments
-                        </FluentBadge>
-                    </FluentAnchor>
-                </li>
-                <li>
+                    <Badge Variant="@(PendingComments > 0 ? BadgeVariant.Default : BadgeVariant.Secondary)">
+                        @PendingComments
+                    </Badge>
+                </a>
+                <a href="/BlogsList"
+                   class="flex items-center justify-between border-b border-border py-2.5 text-sm text-foreground no-underline hover:text-primary"
+                   data-testid="attention-scheduled-posts">
                     <span>Scheduled Posts</span>
-                    <FluentAnchor Href="/BlogsList">
-                        <FluentBadge Appearance="Appearance.Neutral">@ScheduledPosts</FluentBadge>
-                    </FluentAnchor>
-                </li>
-                <li class="no-border">
+                    <Badge Variant="BadgeVariant.Secondary">@ScheduledPosts</Badge>
+                </a>
+                <a href="/BlogsList"
+                   class="flex items-center justify-between py-2.5 text-sm text-foreground no-underline hover:text-primary"
+                   data-testid="attention-draft-posts">
                     <span>Draft Posts</span>
-                    <FluentAnchor Href="/BlogsList">
-                        <FluentBadge Appearance="Appearance.Neutral">@DraftPosts</FluentBadge>
-                    </FluentAnchor>
-                </li>
-            </ul>
-        </div>
+                    <Badge Variant="BadgeVariant.Secondary">@DraftPosts</Badge>
+                </a>
+            </CardContent>
+        </Card>
     </div>
 
-    @* Recent Activity & Popular Posts *@
-    <div class="dashboard-row">
-        @* Recent Activity *@
-        <div class="dashboard-card">
-            <h2>Recent Activity</h2>
-            @if (RecentActivities == null || !RecentActivities.Any())
-            {
-                <p style="color: var(--color-neutral-light);">No recent activity</p>
-            }
-            else
-            {
-                <ul class="activity-list">
-                    @foreach (var activity in RecentActivities.Take(5))
-                    {
-                        <li class="@(activity == RecentActivities.Last() ? "no-border" : "")">
-                            <span class="activity-icon activity-icon--@activity.Type.ToLower()">
-                                @GetActivityIcon(activity.Type)
-                            </span>
-                            <div class="activity-content">
-                                <div class="activity-title">@activity.Title</div>
-                                <div class="activity-detail">@activity.Detail</div>
-                            </div>
-                            <span class="activity-time">@GetTimeAgo(activity.Timestamp)</span>
-                        </li>
-                    }
-                </ul>
-            }
-        </div>
+    @* --- Recent activity + popular posts ------------------------------------- *@
+    <div class="grid gap-6 lg:grid-cols-2">
 
-        @* Popular Posts *@
-        <div class="dashboard-card">
-            <h2>Popular Posts (This Month)</h2>
-            @if (PopularPosts == null || !PopularPosts.Any())
-            {
-                <p style="color: var(--color-neutral-light);">No posts yet</p>
-            }
-            else
-            {
-                <table class="data-grid">
-                    <thead>
-                        <tr>
-                            <th>Title</th>
-                            <th style="width: 80px;">Views</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+        <Card data-testid="recent-activity">
+            <CardHeader>
+                <CardTitle>Recent Activity</CardTitle>
+            </CardHeader>
+            <CardContent>
+                @if (RecentActivities is null || RecentActivities.Count == 0)
+                {
+                    <Empty Title="No recent activity"
+                           Description="Publish a post and it will show up here."
+                           Size="EmptySize.Small"
+                           data-testid="recent-activity-empty">
+                        <Icon><LucideIcon Name="inbox" Size="32" /></Icon>
+                    </Empty>
+                }
+                else
+                {
+                    @* [REQ-NFR-007] 2026-08-11 — back on TrBlazeUI's own ItemGroup/Item.
+
+                       This block was a hand-rolled <ul>/<li> because 2.0.1's ItemGroup emitted
+                       `<div role="list">` while Item emitted `<div data-slot="item">` with no
+                       `role="listitem"` — the activity feed declared itself a list and then
+                       declared it EMPTY, so a screen-reader user was told "list, 0 items" on the
+                       admin landing page (axe `aria-required-children`, critical). TR-061 fixes
+                       exactly that: Item now takes `role="listitem"` whenever it is inside an
+                       ItemGroup, and ItemSeparator leaves the accessibility tree.
+
+                       `recent-activity-list` and `recent-activity-item` are carried onto the
+                       library components, which splat since TR-048, so the verification suite's
+                       element ids are unchanged. *@
+                    <ItemGroup Class="gap-0.5" data-testid="recent-activity-list">
+                        @foreach (var activity in RecentActivities.Take(5))
+                        {
+                            <Item data-testid="recent-activity-item">
+                                <ItemMedia Variant="ItemMediaVariant.Icon">
+                                    <LucideIcon Name="@GetActivityIcon(activity.Type)" Size="16" />
+                                </ItemMedia>
+                                @* min-w-0: `ItemContent` is a flex child with the default
+                                   `min-width:auto`, so its min-content width — the longest
+                                   unbreakable run in the activity title — becomes a hard floor
+                                   and pushes the whole card past the viewport. Measured at 390px
+                                   before this class was added: the card ran to x=455 inside a
+                                   390px pane. The hand-rolled markup this replaced carried
+                                   `min-w-0` for the same reason. Logged upstream as TR-071. *@
+                                <ItemContent Class="min-w-0">
+                                    <ItemTitle>@activity.Title</ItemTitle>
+                                    <ItemDescription>@activity.Detail</ItemDescription>
+                                </ItemContent>
+                                <ItemActions>
+                                    <span class="whitespace-nowrap text-xs text-muted-foreground">
+                                        @GetTimeAgo(activity.Timestamp)
+                                    </span>
+                                </ItemActions>
+                            </Item>
+                        }
+                    </ItemGroup>
+                }
+            </CardContent>
+        </Card>
+
+        <Card data-testid="popular-posts">
+            <CardHeader>
+                <CardTitle>Popular Posts</CardTitle>
+                <CardDescription>Ranked by views · last 30 days</CardDescription>
+            </CardHeader>
+            <CardContent>
+                @if (PopularPosts is null || PopularPosts.Count == 0)
+                {
+                    <Empty Title="No posts yet"
+                           Description="Your published posts will be ranked here."
+                           Size="EmptySize.Small"
+                           data-testid="popular-posts-empty">
+                        <Icon><LucideIcon Name="file-text" Size="32" /></Icon>
+                    </Empty>
+                }
+                else
+                {
+                    <div class="flex flex-col" data-testid="popular-posts-list">
+                        <div class="flex items-center justify-between border-b border-border pb-2 text-xs font-medium text-muted-foreground">
+                            <span>Title</span>
+                            <span>Views</span>
+                        </div>
                         @foreach (var post in PopularPosts.Take(5))
                         {
-                            <tr>
-                                <td>@post.Title</td>
-                                <td>@post.Views.ToString("N0")</td>
-                            </tr>
+                            <div class="flex items-center justify-between gap-4 border-b border-border py-2.5 text-sm last:border-b-0"
+                                 data-testid="popular-post-row">
+                                @* [REQ-NFR-010] `w-0 flex-1`, not `min-w-0`. `truncate` sets
+                                   white-space:nowrap, so this box's MIN-CONTENT size is the whole
+                                   untruncated title — and a grid track sized `auto` is floored by
+                                   its items' min-content contributions, which `min-w-0` does not
+                                   reduce (it only lets flexbox shrink the item after the track is
+                                   already that wide). A definite `width:0` plus `flex-1` makes the
+                                   contribution 0 and lets the row grow into whatever space there
+                                   is. Measured at 390px: the admin pane's scrollWidth went 435 ->
+                                   390 and off-viewport elements 38 -> 0, with this card's own
+                                   min-content dropping from 419px to inside the 358px available.
+                                   Both dashboard cards share a grid column, which is why the
+                                   untouched sibling looked equally guilty. *@
+                                <span class="w-0 flex-1 truncate" data-testid="popular-post-title">@post.Title</span>
+                                <span class="shrink-0 tabular-nums text-muted-foreground" data-testid="popular-post-views">@post.TotalViews.ToString("N0")</span>
+                            </div>
                         }
-                    </tbody>
-                </table>
-            }
-        </div>
+                    </div>
+                }
+            </CardContent>
+        </Card>
     </div>
 </div>
-
-<style>
-    .admin-dashboard {
-        max-width: 1400px;
-    }
-
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: var(--spacing-md, 16px);
-        margin-bottom: var(--spacing-xl, 32px);
-    }
-
-    @@media (max-width: 1199px) {
-        .stats-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
-    }
-
-    @@media (max-width: 767px) {
-        .stats-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    .stat-card {
-        padding: var(--spacing-lg, 24px);
-        background-color: var(--color-background, #fff);
-        border: 1px solid var(--color-border, #E1E1E1);
-        border-radius: var(--border-radius-lg, 8px);
-    }
-
-    .stat-card__value {
-        font-size: var(--font-size-h1, 2rem);
-        font-weight: var(--font-weight-semibold, 600);
-        color: var(--color-primary, #0078D4);
-        margin-bottom: var(--spacing-xs, 4px);
-    }
-
-    .stat-card__label {
-        font-size: var(--font-size-small, 0.875rem);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .stat-card__change {
-        font-size: var(--font-size-xs, 0.75rem);
-        margin-top: var(--spacing-xs, 4px);
-    }
-
-    .stat-card__change--positive {
-        color: var(--color-success, #107C10);
-    }
-
-    .stat-card__change--warning {
-        color: var(--color-warning, #FFB900);
-    }
-
-    .dashboard-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: var(--spacing-lg, 24px);
-        margin-top: var(--spacing-xl, 32px);
-    }
-
-    @@media (max-width: 991px) {
-        .dashboard-row {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    .dashboard-card {
-        border: 1px solid var(--color-border, #E1E1E1);
-        border-radius: var(--border-radius-lg, 8px);
-        padding: var(--spacing-lg, 24px);
-        background-color: var(--color-background, #fff);
-    }
-
-    .dashboard-card h2 {
-        font-size: var(--font-size-h3, 1.25rem);
-        margin-bottom: var(--spacing-md, 16px);
-    }
-
-    .quick-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--spacing-sm, 8px);
-    }
-
-    .attention-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-
-    .attention-list li {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: var(--spacing-sm, 8px) 0;
-        border-bottom: 1px solid var(--color-border, #E1E1E1);
-    }
-
-    .attention-list li.no-border {
-        border-bottom: none;
-    }
-
-    .activity-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-
-    .activity-list li {
-        display: flex;
-        gap: var(--spacing-md, 16px);
-        padding: var(--spacing-sm, 8px) 0;
-        border-bottom: 1px solid var(--color-border, #E1E1E1);
-        align-items: flex-start;
-    }
-
-    .activity-list li.no-border {
-        border-bottom: none;
-    }
-
-    .activity-icon {
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 14px;
-        flex-shrink: 0;
-    }
-
-    .activity-icon--post {
-        background: var(--color-success, #107C10);
-    }
-
-    .activity-icon--user {
-        background: var(--color-primary, #0078D4);
-    }
-
-    .activity-icon--comment {
-        background: var(--color-warning, #FFB900);
-    }
-
-    .activity-icon--subscriber {
-        background: var(--color-accent, #107C10);
-    }
-
-    .activity-content {
-        flex: 1;
-    }
-
-    .activity-title {
-        font-size: var(--font-size-small, 0.875rem);
-    }
-
-    .activity-detail {
-        font-size: var(--font-size-xs, 0.75rem);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .activity-time {
-        font-size: var(--font-size-xs, 0.75rem);
-        color: var(--color-neutral-light, #605E5C);
-        white-space: nowrap;
-    }
-
-    .data-grid {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: var(--font-size-small, 0.875rem);
-    }
-
-    .data-grid th,
-    .data-grid td {
-        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
-        text-align: left;
-        border-bottom: 1px solid var(--color-border, #E1E1E1);
-    }
-
-    .data-grid th {
-        font-weight: var(--font-weight-semibold, 600);
-        background-color: var(--color-surface, #F5F5F5);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .data-grid tr:hover td {
-        background-color: var(--color-surface, #F5F5F5);
-    }
-</style>

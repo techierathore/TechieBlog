@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<!--
+    index.html — BlazorWebView host page for the BlogApp desktop head.
+
+    Mirrors source/TechieBlog/Components/App.razor so the shared BlogUI pages render
+    identically in both heads. The CSS load order is significant and must not be reordered:
+        1. theme.css     — TechieBlog OKLCH token sets for the three site themes
+        2. trblazeui.css — the component library (zero-specificity defaults, so theme.css wins)
+        3. utilities.css — utilities the library's tree-shaken bundle omits
+        4. base.css      — app-level element defaults layered on top
+
+    The two script blocks are the same helpers the web head defines: setThemeAttributes,
+    which BlogUI's ThemeProvider calls, and downloadCsv, used by the admin export actions.
+-->
+<html lang="en" data-site-theme="trblaze-modern">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>TechieBlog - BlogApp</title>
+    <base href="/" />
+
+    <link href="_content/BlogUI/css/theme.css" rel="stylesheet" />
+    <link href="_content/TrBlazeUI.Components/trblazeui.css" rel="stylesheet" />
+    <link href="_content/BlogUI/css/utilities.css" rel="stylesheet" />
+    <link href="_content/BlogUI/css/base.css" rel="stylesheet" />
+    <link href="_content/BlogUI/css/layout.css" rel="stylesheet" />
+    <link href="_content/BlogUI/css/resume.css" rel="stylesheet" />
+    <link href="app.css" rel="stylesheet" />
+    <link rel="icon" href="data:," />
+
+    <!-- Flash-of-unstyled-content prevention: apply the persisted theme before paint. -->
+    <script>
+        (function () {
+            try {
+                var root = document.documentElement;
+
+                var theme = localStorage.getItem('techieblog-theme');
+                if (theme) {
+                    theme = theme.replace(/^"|"$/g, '');
+                    if (theme === 'fluent-modern') { theme = 'trblaze-modern'; }
+                    root.setAttribute('data-site-theme', theme);
+                }
+
+                var darkMode = localStorage.getItem('techieblog-dark-mode');
+                var isDark;
+                if (darkMode === null) {
+                    isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                } else {
+                    isDark = darkMode === 'true' || darkMode === true;
+                }
+                root.classList.toggle('dark', !!isDark);
+            } catch (e) { }
+        })();
+    </script>
+</head>
+
+<body>
+
+    <div id="app">Loading BlogApp...</div>
+
+    <div id="blazor-error-ui" data-nosnippet>
+        An unhandled error has occurred.
+        <a href="." class="reload">Reload</a>
+        <span class="dismiss">&times;</span>
+    </div>
+
+    <script src="_framework/blazor.webview.js" autostart="false"></script>
+
+    <script>
+        // Applies the site theme attribute and the dark-mode class to <html>.
+        // Called by BlogUI's ThemeProvider whenever ThemeService raises a change.
+        function setThemeAttributes(siteTheme, isDarkMode) {
+            var root = document.documentElement;
+            if (siteTheme) {
+                root.setAttribute('data-site-theme', siteTheme);
+            }
+            root.classList.toggle('dark', isDarkMode === true || isDarkMode === 'dark' || isDarkMode === 'true');
+        }
+
+        // CSV download used by the admin export actions.
+        function downloadCsv(fileName, csvContent) {
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,133 @@
+@*
+    BlogPagination.razor
+    Purpose: Page navigation for archive, search and list pages.
+
+    REQ-UI-048 — rebuilt over TrBlazeUI's Pagination composite while keeping the
+    CurrentPage / TotalPages / OnPageChanged API the pages already use.
+    Renamed from Pagination.razor: the old name collided with TrBlazeUI's own
+    Pagination component once the library namespaces entered _Imports.
+
+    Long ranges are windowed around the current page with ellipses, so a
+    thousand-page archive still renders a usable control.
+*@
+
+@if (TotalPages > 1)
+{
+    <Pagination data-testid="pagination">
+        <PaginationContent>
+
+            <PaginationItem>
+                <PaginationPrevious Disabled="@(CurrentPage <= 1)"
+                                    OnClick="@(() => GoToPage(CurrentPage - 1))"
+                                    data-testid="pagination-previous" />
+            </PaginationItem>
+
+            @foreach (var slot in BuildPageSlots())
+            {
+                <PaginationItem>
+                    @if (slot is null)
+                    {
+                        <PaginationEllipsis />
+                    }
+                    else
+                    {
+                        var page = slot.Value;
+                        <PaginationLink IsActive="@(page == CurrentPage)"
+                                        OnClick="@(() => GoToPage(page))"
+                                        data-testid="@($"pagination-page-{page}")">
+                            @(page)
+                        </PaginationLink>
+                    }
+                </PaginationItem>
+            }
+
+            <PaginationItem>
+                <PaginationNext Disabled="@(CurrentPage >= TotalPages)"
+                                OnClick="@(() => GoToPage(CurrentPage + 1))"
+                                data-testid="pagination-next" />
+            </PaginationItem>
+
+        </PaginationContent>
+    </Pagination>
+}
+
+@code {
+    /// <summary>Number of page links shown either side of the current page.</summary>
+    private const int WindowRadius = 2;
+
+    /// <summary>
+    /// The page currently being displayed, 1-based.
+    /// </summary>
+    [Parameter]
+    public int CurrentPage { get; set; } = 1;
+
+    /// <summary>
+    /// Total number of pages available. The control hides itself when this is 1 or less.
+    /// </summary>
+    [Parameter]
+    public int TotalPages { get; set; } = 1;
+
+    /// <summary>
+    /// Raised with the requested page number when the visitor picks a different page.
+    /// </summary>
+    [Parameter]
+    public EventCallback<int> OnPageChanged { get; set; }
+
+    /// <summary>
+    /// Produces the ordered sequence of page slots to render, where a null entry
+    /// represents an ellipsis gap.
+    /// </summary>
+    /// <returns>Page numbers interleaved with nulls for elided ranges.</returns>
+    private IEnumerable<int?> BuildPageSlots()
+    {
+        var slots = new List<int?>();
+        var lastEmitted = 0;
+
+        for (var page = 1; page <= TotalPages; page++)
+        {
+            if (!IsVisible(page))
+            {
+                continue;
+            }
+
+            if (page - lastEmitted > 1)
+            {
+                slots.Add(null);
+            }
+
+            slots.Add(page);
+            lastEmitted = page;
+        }
+
+        return slots;
+    }
+
+    /// <summary>
+    /// Decides whether a page number appears in the windowed control.
+    /// </summary>
+    /// <param name="page">Candidate page number.</param>
+    /// <returns>True when the page is an endpoint or near the current page.</returns>
+    private bool IsVisible(int page)
+    {
+        if (page == 1 || page == TotalPages)
+        {
+            return true;
+        }
+
+        return Math.Abs(page - CurrentPage) <= WindowRadius;
+    }
+
+    /// <summary>
+    /// Requests a page change, ignoring out-of-range and no-op targets.
+    /// </summary>
+    /// <param name="page">The page the visitor asked for.</param>
+    private async Task GoToPage(int page)
+    {
+        if (page == CurrentPage || page < 1 || page > TotalPages)
+        {
+            return;
+        }
+
+        await OnPageChanged.InvokeAsync(page);
+    }
+}

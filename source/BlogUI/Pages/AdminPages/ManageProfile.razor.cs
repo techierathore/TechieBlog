@@ -14,6 +14,24 @@ namespace BlogUI.Pages.AdminPages;
 /// </summary>
 public partial class ManageProfile : ComponentBase
 {
+
+    /// <summary>
+    /// Curated messages shown when an unexpected failure is caught on this page (REQ-NFR-033).
+    /// </summary>
+    /// <remarks>
+    /// <para>These assignments previously interpolated <c>ex.Message</c>. The page is gated by
+    /// <c>AppPolicies.AdminOnly</c>, which was the defence offered for the disclosure, but an
+    /// exception's text is not written for an audience and routinely carries a SQL fragment, a
+    /// table name or a file-system path — none of which an administrator can act on and all of
+    /// which end up in a screenshot pasted into a ticket.</para>
+    /// <para>The engine service beneath every one of these calls already logs the exception with
+    /// its own context through <c>ILogger&lt;T&gt;</c>, where the host's
+    /// <c>CorrelationIdMiddleware</c> has stamped the request's correlation id onto the event
+    /// (REQ-NFR-015), so nothing is lost by curating here. This page injects no logger of its own;
+    /// adding one is tracked as a follow-up.</para>
+    /// </remarks>
+    private const string SaveFailureMessage =
+        "Your profile could not be saved. Please try again later.";
     [Inject]
     public IBlogUserRepo UserRepo { get; set; } = default!;
 
@@ -44,7 +62,7 @@ public partial class ManageProfile : ComponentBase
     /// <summary>
     /// Status message to display.
     /// </summary>
-    protected string StatusMessage { get; set; } = string.Empty;
+    protected string? StatusMessage { get; set; }
 
     /// <summary>
     /// Whether the status message is an error.
@@ -74,7 +92,7 @@ public partial class ManageProfile : ComponentBase
     /// <summary>
     /// The original username for comparison.
     /// </summary>
-    private string _originalUsername = string.Empty;
+    private string originalUsername = string.Empty;
 
     /// <summary>
     /// Regex pattern for valid usernames (alphanumeric + hyphens only).
@@ -101,11 +119,11 @@ public partial class ManageProfile : ComponentBase
             if (userIdClaim != null && long.TryParse(userIdClaim.Value, out var userId))
             {
                 CurrentUserId = userId;
-                CurrentUser = UserRepo.GetSingle(userId);
+                CurrentUser = await UserRepo.GetSingleAsync(userId);
 
                 if (CurrentUser != null)
                 {
-                    _originalUsername = CurrentUser.Username ?? string.Empty;
+                    originalUsername = CurrentUser.Username ?? string.Empty;
                     ProfileModel = new ProfileFormModel
                     {
                         FirstName = CurrentUser.FirstName ?? string.Empty,
@@ -117,7 +135,7 @@ public partial class ManageProfile : ComponentBase
                         ProfileImagePath = CurrentUser.ProfileImagePath,
                         LinkedInUrl = CurrentUser.LinkedInUrl ?? string.Empty,
                         GitHubUrl = CurrentUser.GitHubUrl ?? string.Empty,
-                        TwitterUrl = CurrentUser.TwiiterUrl ?? string.Empty,
+                        TwitterUrl = CurrentUser.TwitterUrl ?? string.Empty,
                         InstagramUrl = CurrentUser.InstagramUrl ?? string.Empty,
                         ResumeEnabled = CurrentUser.ResumeEnabled,
                         CVFilePath = CurrentUser.CVFilePath,
@@ -138,17 +156,19 @@ public partial class ManageProfile : ComponentBase
     /// <summary>
     /// Handles username input changes for validation.
     /// </summary>
-    protected void OnUsernameChanged(Microsoft.AspNetCore.Components.ChangeEventArgs e)
+    /// <param name="value">The username typed by the user.</param>
+    /// <returns>A task that completes when the username has been validated.</returns>
+    protected async Task OnUsernameChangedAsync(string? value)
     {
-        var username = e.Value?.ToString() ?? string.Empty;
+        var username = value ?? string.Empty;
         ProfileModel.Username = username;
-        ValidateUsername(username);
+        await ValidateUsernameAsync(username);
     }
 
     /// <summary>
     /// Validates the username format and availability.
     /// </summary>
-    private void ValidateUsername(string username)
+    private async Task ValidateUsernameAsync(string username)
     {
         UsernameValidationMessage = string.Empty;
         IsUsernameValid = true;
@@ -182,9 +202,9 @@ public partial class ManageProfile : ComponentBase
         }
 
         // Check availability only if changed from original
-        if (!string.Equals(username, _originalUsername, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(username, originalUsername, StringComparison.OrdinalIgnoreCase))
         {
-            var isAvailable = UserRepo.IsUsernameAvailable(username);
+            var isAvailable = await UserRepo.IsUsernameAvailableAsync(username);
             if (!isAvailable)
             {
                 UsernameValidationMessage = "This username is already taken";
@@ -209,7 +229,7 @@ public partial class ManageProfile : ComponentBase
         // Validate username if provided
         if (!string.IsNullOrWhiteSpace(ProfileModel.Username))
         {
-            ValidateUsername(ProfileModel.Username);
+            await ValidateUsernameAsync(ProfileModel.Username);
             if (!IsUsernameValid)
             {
                 StatusMessage = UsernameValidationMessage;
@@ -228,19 +248,19 @@ public partial class ManageProfile : ComponentBase
             CurrentUser.LastName = ProfileModel.LastName?.Trim() ?? string.Empty;
             CurrentUser.ProfileImagePath = ProfileModel.ProfileImagePath ?? string.Empty;
             CurrentUser.ProfileDescription = ProfileModel.ProfileDescription?.Trim() ?? string.Empty;
-            CurrentUser.TwiiterUrl = ProfileModel.TwitterUrl?.Trim() ?? string.Empty;
+            CurrentUser.TwitterUrl = ProfileModel.TwitterUrl?.Trim() ?? string.Empty;
             CurrentUser.LinkedInUrl = ProfileModel.LinkedInUrl?.Trim() ?? string.Empty;
             CurrentUser.GitHubUrl = ProfileModel.GitHubUrl?.Trim() ?? string.Empty;
 
             // Update the basic fields via Update method
-            UserRepo.Update(CurrentUser);
+            await UserRepo.UpdateAsync(CurrentUser);
 
             // Update username if changed
             if (!string.IsNullOrWhiteSpace(ProfileModel.Username) &&
-                !string.Equals(ProfileModel.Username, _originalUsername, StringComparison.OrdinalIgnoreCase))
+                !string.Equals(ProfileModel.Username, originalUsername, StringComparison.OrdinalIgnoreCase))
             {
-                UserRepo.UpdateUsername(CurrentUserId, ProfileModel.Username.Trim());
-                _originalUsername = ProfileModel.Username.Trim();
+                await UserRepo.UpdateUsernameAsync(CurrentUserId, ProfileModel.Username.Trim());
+                originalUsername = ProfileModel.Username.Trim();
             }
 
             // Update resume fields separately
@@ -254,14 +274,14 @@ public partial class ManageProfile : ComponentBase
                 ResumeEnabled = ProfileModel.ResumeEnabled,
                 InstagramUrl = ProfileModel.InstagramUrl?.Trim()
             };
-            UserRepo.UpdateResumeFields(CurrentUserId, resumeData);
+            await UserRepo.UpdateResumeFieldsAsync(CurrentUserId, resumeData);
 
             StatusMessage = "Profile saved successfully!";
             IsError = false;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"An error occurred while saving your profile: {ex.Message}";
+            StatusMessage = SaveFailureMessage;
             IsError = true;
         }
         finally

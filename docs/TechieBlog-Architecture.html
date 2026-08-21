@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TechieBlog — Architecture &mdash; TechieBlog</title>
+<script>
+/* Resolve the theme BEFORE first paint (no flash). Saved choice wins; otherwise
+   pick by time of day — light 07:00–19:00 local, softened dark at night. */
+(function(){
+  try{
+    var t = localStorage.getItem('tf-theme');
+    if(t!=='light' && t!=='dark'){ var h = new Date().getHours(); t = (h>=7 && h<19) ? 'light' : 'dark'; }
+    document.documentElement.setAttribute('data-theme', t);
+  }catch(e){ document.documentElement.setAttribute('data-theme','light'); }
+})();
+</script>
+<style>/* LIGHT is the default theme — a warm off-white, easy on the eyes (never bright white). */
+:root{
+  --bg:#f4f1e9; --panel:#efe9db; --panel2:#e7e0cd; --line:#d8cfb6;
+  --ink:#2e2a22; --muted:#6f6857; --accent:#2f6f9f; --accent2:#3f7d54;
+  --warn:#9a6b15; --danger:#b03a52; --ok:#3f7d54;
+  --code-bg:#ece5d3; --code-ink:#332f26; --row-alt:#eae2cf;
+  --h3:#3a352b; --h4:#2f6f9f; --quote:#4a4537; --cta-bg:#e6eef5;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+/* DARK — softened near-black (warmer / less harsh than pure #0f1115). */
+html[data-theme="dark"]{
+  --bg:#11141a; --panel:#171b23; --panel2:#1e2430; --line:#2b3240;
+  --ink:#dfe3ea; --muted:#99a2b1; --accent:#7cc4ff; --accent2:#a6e3a1;
+  --warn:#f9c74f; --danger:#f38ba8; --ok:#a6e3a1;
+  --code-bg:#0c1016; --code-ink:#d8dde8; --row-alt:#141821;
+  --h3:#cfd5e3; --h4:#7cc4ff; --quote:#cfd5e3; --cta-bg:#0d2030;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;font-size:15px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:var(--mono);font-size:13px;background:var(--code-bg);color:var(--code-ink);padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+pre{font-family:var(--mono);font-size:12.5px;background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto;color:var(--code-ink);position:relative}
+pre code{background:none;border:none;padding:0}
+.copy{position:absolute;top:8px;right:8px;background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:11px;font-family:var(--sans);cursor:pointer}
+.copy:hover{color:var(--accent);border-color:var(--accent)}
+/* floating light/dark toggle (top-right) */
+.theme-toggle{position:fixed;top:12px;right:14px;z-index:10000;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12.5px;font-family:var(--sans);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.theme-toggle:hover{color:var(--accent);border-color:var(--accent)}
+
+.layout{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+.layout.no-toc{grid-template-columns:1fr}
+nav.side{position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--line);background:var(--panel);padding:18px 14px}
+nav.side h1{font-size:14px;margin:0 0 4px;letter-spacing:.5px;color:var(--ink)}
+nav.side .sub{font-size:11.5px;color:var(--muted);margin-bottom:14px}
+nav.side ol,nav.side ul{list-style:none;padding:0;margin:0}
+nav.side li{font-size:13px;margin:2px 0}
+nav.side li a{display:block;padding:5px 8px;color:var(--ink);border-radius:6px}
+nav.side li a:hover{background:var(--panel2);text-decoration:none}
+nav.side li.h3 a{padding-left:22px;font-size:12.5px;color:var(--h3)}
+nav.side .group{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin:14px 8px 4px}
+
+main{padding:28px 40px 80px;max-width:1100px}
+.layout.no-toc main{margin:0 auto}
+
+h1{font-size:28px;margin:0 0 6px}
+h2{font-size:22px;margin:32px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);scroll-margin-top:16px}
+h3{font-size:17px;margin:22px 0 6px;color:var(--h3);scroll-margin-top:16px}
+h4{font-size:14px;margin:14px 0 4px;color:var(--h4);scroll-margin-top:16px}
+.subtitle{color:var(--muted);font-size:14px;margin-top:-4px;margin-bottom:18px}
+p{margin:6px 0 10px}
+blockquote{border-left:3px solid var(--accent);background:var(--panel);margin:8px 0;padding:8px 14px;color:var(--quote)}
+ul,ol{padding-left:22px}
+li{margin:2px 0}
+
+table{border-collapse:collapse;width:100%;font-size:13.5px;margin:8px 0}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--panel2);color:var(--h3);font-weight:600}
+tr:nth-child(even) td{background:var(--row-alt)}
+
+hr{border:none;border-top:1px solid var(--line);margin:24px 0}
+.anchor-link{color:var(--muted);font-weight:400;font-size:0.85em;margin-left:8px;opacity:0;transition:opacity .15s;text-decoration:none}
+h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
+
+/* inline TOC at top of main content */
+.toc-inline{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 16px;margin:14px 0 24px}
+.toc-inline > div{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.toc-inline ol,.toc-inline ul{margin:4px 0;padding-left:18px}
+.toc-inline li{font-size:13px;margin:1px 0}
+.toc-inline a{color:var(--h3)}
+
+/* NEXT COMMAND call-to-action box */
+.cta{background:var(--cta-bg);border:1px solid var(--accent);border-radius:8px;padding:12px 16px;margin:18px 0}
+.cta .lbl{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+
+/* mermaid diagram wrapper + toolbar */
+.diagram{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--code-bg);margin:14px 0;overflow:hidden}
+.diagram .mermaid{padding:14px;margin:0;background:transparent;border:none;overflow:auto}
+.diagram .dt{display:flex;gap:6px;justify-content:flex-end;padding:6px 8px;background:var(--row-alt);border-bottom:1px solid var(--line)}
+.diagram .dt button{background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 10px;font-size:12px;font-family:var(--sans);cursor:pointer;min-width:30px}
+.diagram .dt button:hover{color:var(--accent);border-color:var(--accent)}
+.diagram .dt .zlabel{padding:3px 6px;font-size:11px;color:var(--muted);font-family:var(--mono);align-self:center}
+.diagram.fs{position:fixed;inset:0;z-index:9999;border-radius:0;border:none}
+.diagram.fs .mermaid{height:calc(100vh - 40px);display:flex;align-items:center;justify-content:center}
+
+@media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{position:static;height:auto}}</style>
+</head>
+<body>
+<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">&#9782; Dark</button>
+<div class="layout">
+<nav class="side">
+<h1>TechieBlog — Architecture</h1>
+<div class="sub">Architecture · last rendered 2026-08-06</div>
+<div class="group">Contents</div>
+<ol>
+<li><a href="#tech-stack">1. Tech stack</a></li>
+<li><a href="#component-map">2. Component map</a></li>
+<li><a href="#data-flow-primary-path">3. Data flow — primary path</a></li>
+<li><a href="#module-responsibilities">4. Module responsibilities</a></li>
+<li class="h3"><a href="#blogengine-services-what-each-service-owns">4.1 <code>BlogEngine.Services</code> — what each service owns</a></li>
+<li class="h3"><a href="#blogengine-dacore-the-repository-base">4.2 <code>BlogEngine.DaCore</code> — the repository base</a></li>
+<li class="h3"><a href="#blogui-page-families">4.3 <code>BlogUI</code> page families</a></li>
+<li><a href="#cross-cutting-concerns">5. Cross-cutting concerns</a></li>
+<li><a href="#deployment-architecture">6. Deployment architecture</a></li>
+<li><a href="#architectural-decisions-adr-style-log">7. Architectural decisions (ADR-style log)</a></li>
+<li><a href="#target-architecture-planned-deltas">8. Target architecture — planned deltas</a></li>
+<li><a href="#open-questions-risks">9. Open questions / risks</a></li>
+<li><a href="#sources-harvested">10. Sources harvested</a></li>
+</ol>
+</nav>
+  <main>
+    <h1>TechieBlog — Architecture</h1>
+    <div class="subtitle">Architecture · last rendered 2026-08-06</div>
+<div class="toc-inline">
+<div>Contents</div>
+<ol>
+<li><a href="#tech-stack">Tech stack</a></li>
+<li><a href="#component-map">Component map</a></li>
+<li><a href="#data-flow-primary-path">Data flow — primary path</a></li>
+<li><a href="#module-responsibilities">Module responsibilities</a></li>
+<li><a href="#cross-cutting-concerns">Cross-cutting concerns</a></li>
+<li><a href="#deployment-architecture">Deployment architecture</a></li>
+<li><a href="#architectural-decisions-adr-style-log">Architectural decisions (ADR-style log)</a></li>
+<li><a href="#target-architecture-planned-deltas">Target architecture — planned deltas</a></li>
+<li><a href="#open-questions-risks">Open questions / risks</a></li>
+<li><a href="#sources-harvested">Sources harvested</a></li>
+</ol>
+</div>
+<p><strong>Last updated:</strong> 2026-08-06 <strong>Status:</strong> Current (brownfield) — as-built reverse-documentation of the working tree, plus the planned deltas the source docs still call for. Amended 2026-08-06: TrBlazeUI adoption (ADR-010), portfolio home + hidden admin entry (ADR-011), BlogApp MAUI desktop head (ADR-012), anonymous engagement (ADR-013), no public author pages (ADR-014), verification + self-hosted captcha (ADR-015), public newsletter archive (ADR-016) — all planned deltas, not yet built.</p>
+<!-- AGENT-ONLY AUTHORING NOTES. Everything in this comment is an instruction to the DRAFTING
+     AGENT, not content for the document's human reader.
+
+  DEPTH MANDATE: this is a HUMAN document, read as rendered HTML. Module rows in §4 with
+  non-trivial behavior get a prose paragraph beneath the table, and every significant runtime
+  flow beyond §3's primary path gets its own sequenceDiagram/flowchart. When harvesting source
+  docs, preserve their architecture content — superset, never summary.
+
+  MERMAID MANDATE: every diagram MUST follow the authoring rules in
+  .tfcore/templates/v4custom/html-render-shell.md §5.5 — quote every node/edge/subgraph label
+  and never use `end` as a node id.
+-->
+<hr>
+<h2 id="tech-stack">1. Tech stack<a class="anchor-link" href="#tech-stack">#</a></h2>
+<p>Verified from the five <code>.csproj</code> files under <code>source/</code> on 2026-08-02. The migration described in the 2025-12 source docs (MySQL → PostgreSQL, Blazorise → Fluent UI, .NET 9 → .NET 10) is <strong>complete</strong> — every project targets <code>net10.0</code>, Blazorise is gone, and Npgsql/dbup-postgresql are in place.</p>
+<table>
+<thead><tr><th>Layer</th><th>Choice</th><th>Version</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>Runtime</td><td>.NET</td><td><code>net10.0</code> (LTS)</td><td>All 5 projects. Migration from .NET 9 done (Story 1.1).</td></tr>
+<tr><td>UI</td><td>Blazor <strong>Server</strong> (interactive server render mode)</td><td>10.0</td><td><code>AddInteractiveServerComponents</code>, <code>DetailedErrors = true</code> in <code>Program.cs</code>. No WASM head.</td></tr>
+<tr><td>UI component library</td><td>Microsoft.FluentUI.AspNetCore.Components</td><td><code>4.*</code> (floats → 4.14.4)</td><td>Replaced Blazorise (Story 1.4). <strong>The floating <code>4.*</code> is the current build blocker — see §9.</strong> <strong>Being replaced by TrBlazeUI (ADR-010, 2026-08-06) — migration pending (REQ-UI-048); removal also retires the blocker.</strong></td></tr>
+<tr><td>Icons</td><td>Microsoft.FluentUI.AspNetCore.Components.Icons</td><td><code>4.*</code></td><td>Retires with the Fluent UI removal; TrBlazeUI bundles Lucide / Heroicons / Feather icon sets.</td></tr>
+<tr><td>DB</td><td>PostgreSQL</td><td>Npgsql 9.0.2</td><td>Migrated from MySQL 9.1.0 (Story 1.3). MySQL scripts retained read-only for reference.</td></tr>
+<tr><td>ORM</td><td>Dapper</td><td>2.1.35</td><td>Micro-ORM; repositories call PostgreSQL stored functions and parameterised SQL.</td></tr>
+<tr><td>DB migrations</td><td>DbUp (<code>dbup-postgresql</code>)</td><td>6.0.3</td><td>12 numbered scripts in <code>source/BlogDb/PostgresScripts/</code>, run automatically at host startup.</td></tr>
+<tr><td>Auth</td><td>Custom JWT + cookie scheme <code>BlazorServerAuth</code></td><td><code>System.IdentityModel.Tokens.Jwt</code> 8.2.1</td><td>Token issued by <code>AuthSvc</code>, surfaced to Blazor via <code>CustomAuthStateProvider</code>.</td></tr>
+<tr><td>Logging</td><td>Serilog</td><td><code>Serilog.AspNetCore</code> 8.0.3, <code>Serilog.Sinks.File</code> 7.0.0</td><td>Console + daily rolling file <code>logs/techieblog-.log</code>, 7-file retention.</td></tr>
+<tr><td>Markdown</td><td>Markdig</td><td>0.44.0</td><td><code>BlogEngine/Common/MarkdownRenderer.cs</code>, registered as a singleton.</td></tr>
+<tr><td>Client storage</td><td>Blazored.LocalStorage</td><td>4.5.0</td><td>Theme + dark-mode preference (<code>techieblog-theme</code>, <code>techieblog-dark-mode</code>).</td></tr>
+<tr><td>Formatting</td><td>Humanizer.Core</td><td>2.14.1</td><td>Relative dates in listings.</td></tr>
+<tr><td>TrBlazeUI</td><td><code>TrBlazeUI.Components</code> (GitHub Packages feed)</td><td>latest</td><td><strong>Adopted 2026-08-06 (ADR-010), not yet installed.</strong> shadcn/ui-compatible, CSS-variable theming, <code>.dark</code> dark mode, <code>&lt;PortalHost /&gt;</code> required in root layouts. Owner supplies feed credentials in <code>nuget.config</code>. TechieRag remains unused — no AI/RAG features, no <code>REQ-RAG-*</code>.</td></tr>
+</tbody></table>
+<p><strong>Not present despite appearing in the 2025-12 architecture doc as "mandatory":</strong> Polly resilience policies, <code>IMemoryCache</code> caching layer, ASP.NET health checks, and any test project. Those sections were forward-looking design, never built — they are carried into §8 as planned deltas rather than described here as if they exist.</p>
+<h2 id="component-map">2. Component map<a class="anchor-link" href="#component-map">#</a></h2>
+<div class="diagram">
+  <div class="dt">
+    <button data-zout title="Zoom out">−</button>
+    <span class="zlabel">100%</span>
+    <button data-zin title="Zoom in">+</button>
+    <button data-fit title="Fit to width">Fit</button>
+    <button data-one title="Actual size">1:1</button>
+    <button data-fs title="Fullscreen">⬜</button>
+    <button data-pop title="Open in new tab">↗</button>
+  </div>
+<pre class="mermaid">flowchart TB
+  subgraph Host["TechieBlog — Blazor Server host"]
+    Prog["Program.cs — DI, Serilog, auth, migrations"]
+    HostAuth["TechieBlog.Services.AuthService"]
+    Endpoints["Minimal endpoints — /sitemap.xml, /robots.txt"]
+  end
+  subgraph UI["BlogUI — Razor Class Library"]
+    Pages["42 Blazor pages"]
+    Comps["23 components"]
+    Layouts["MainLayout, AdminLayout, AuthLayout, FullWidthLayout"]
+    Theme["ThemeService + ThemeProvider"]
+    AuthState["CustomAuthStateProvider"]
+  end
+  subgraph Engine["BlogEngine — business + data access"]
+    Svcs["14 services — AuthSvc, BlogSvc, TagSvc, ..."]
+    Repos["18 repositories — DbAccess"]
+    DaCore["DaCore — GenericRepository, DbConnectionFactory"]
+    Common["Common — MarkdownRenderer, SlugGenerator, PasswordValidator, ReadingTimeCalculator"]
+  end
+  subgraph Model["BlogModels — contracts"]
+    Entities["23 entity models"]
+    Ifaces["Repository and service interfaces"]
+    Util["AppEncrypt, AppRoles, AppPolicies, Result"]
+  end
+  subgraph Db["BlogDb — migrations"]
+    DbUp["BlogDbSvc — DbUp runner"]
+    Scripts["PostgresScripts — 001 to 013"]
+    DataMig["DataMigrationUtility — MySQL to PostgreSQL"]
+  end
+  Pg[("PostgreSQL")]
+
+  Prog --> UI
+  Prog --> Engine
+  Prog --> Db
+  Pages --> Comps
+  Pages --> Layouts
+  Pages --> Svcs
+  Comps --> Svcs
+  Layouts --> Theme
+  AuthState --> HostAuth
+  HostAuth --> Svcs
+  Svcs --> Repos
+  Repos --> DaCore
+  DaCore --> Pg
+  Engine --> Model
+  UI --> Model
+  DbUp --> Scripts
+  Scripts --> Pg
+  DataMig --> Pg</pre>
+</div>
+<p><strong>Project reference graph</strong> (from <code>&lt;ProjectReference&gt;</code> elements — this is the enforced dependency direction; nothing points "up"):</p>
+<div class="diagram">
+  <div class="dt">
+    <button data-zout title="Zoom out">−</button>
+    <span class="zlabel">100%</span>
+    <button data-zin title="Zoom in">+</button>
+    <button data-fit title="Fit to width">Fit</button>
+    <button data-one title="Actual size">1:1</button>
+    <button data-fs title="Fullscreen">⬜</button>
+    <button data-pop title="Open in new tab">↗</button>
+  </div>
+<pre class="mermaid">flowchart LR
+  TB["TechieBlog — host"] --> BUI["BlogUI — RCL"]
+  TB --> BE["BlogEngine"]
+  TB --> BM["BlogModels"]
+  TB --> BD["BlogDb"]
+  BUI --> BE
+  BUI --> BM
+  BE --> BM
+  BD --> BM</pre>
+</div>
+<p><code>BlogModels</code> has no project references at all — it is the leaf every other project depends on. The <strong>BlogSvc REST API project was removed</strong> (Story 1.2); the UI calls <code>BlogEngine</code> services directly through DI, with no HTTP hop.</p>
+<h2 id="data-flow-primary-path">3. Data flow — primary path<a class="anchor-link" href="#data-flow-primary-path">#</a></h2>
+<p>The dominant request shape is <em>reader opens a published post</em>. Note there is no API layer: the Blazor circuit calls the service in-process.</p>
+<div class="diagram">
+  <div class="dt">
+    <button data-zout title="Zoom out">−</button>
+    <span class="zlabel">100%</span>
+    <button data-zin title="Zoom in">+</button>
+    <button data-fit title="Fit to width">Fit</button>
+    <button data-one title="Actual size">1:1</button>
+    <button data-fs title="Fullscreen">⬜</button>
+    <button data-pop title="Open in new tab">↗</button>
+  </div>
+<pre class="mermaid">sequenceDiagram
+  actor R as "Reader"
+  participant P as "PostView.razor"
+  participant B as "BlogSvc"
+  participant Rp as "BlogPostRepo"
+  participant G as "GenericRepository"
+  participant DB as "PostgreSQL"
+  participant M as "MarkdownRenderer"
+  R->>P: "GET /post/{slug}"
+  P->>B: GetPostBySlug(slug)
+  B->>Rp: GetPostBySlug(slug)
+  Rp->>G: GetOpenConnection + DynamicParameters
+  G->>DB: "SELECT ... FROM GetPostBySlug(@slug)"
+  DB-->>G: row
+  G-->>Rp: BlogPost
+  Rp-->>B: BlogPost
+  B-->>P: BlogPost
+  P->>M: ToHtml(PostContent)
+  M-->>P: MarkupString
+  P-->>R: rendered article, comments, rating, favourite toggle</pre>
+</div>
+<p><strong>Authentication handshake</strong> — the second significant flow. <code>AuthSvc</code> (engine) issues the JWT; <code>TechieBlog.Services.AuthService</code> (host) wraps it; <code>CustomAuthStateProvider</code> (UI) turns it into a Blazor <code>AuthenticationState</code>, and the token is persisted in browser local storage:</p>
+<div class="diagram">
+  <div class="dt">
+    <button data-zout title="Zoom out">−</button>
+    <span class="zlabel">100%</span>
+    <button data-zin title="Zoom in">+</button>
+    <button data-fit title="Fit to width">Fit</button>
+    <button data-one title="Actual size">1:1</button>
+    <button data-fs title="Fullscreen">⬜</button>
+    <button data-pop title="Open in new tab">↗</button>
+  </div>
+<pre class="mermaid">sequenceDiagram
+  actor U as "Visitor"
+  participant L as "LoginPage.razor"
+  participant HS as "AuthService — host"
+  participant AS as "AuthSvc — engine"
+  participant UR as "BlogUserRepo"
+  participant LS as "LocalStorage"
+  participant CP as "CustomAuthStateProvider"
+  U->>L: "email + password"
+  L->>HS: LoginAsync(SvcData)
+  HS->>AS: AppLogin(encrypted credentials)
+  AS->>AS: "AppEncrypt decrypt + CreateHash"
+  AS->>UR: GetLoginUser(email, hash)
+  UR-->>AS: AppUser or null
+  AS->>AS: "issue JWT — PrimarySid, Name, Email, Role"
+  AS-->>HS: SvcData with token
+  HS->>LS: "persist token + profile"
+  HS->>CP: NotifyAuthenticationStateChanged
+  CP-->>L: "ClaimsPrincipal with Role claim"
+  L-->>U: "redirect to intended page"</pre>
+</div>
+<p><strong>Scheduled publishing</strong> — a background <code>IHostedService</code> that promotes scheduled posts without any user request:</p>
+<div class="diagram">
+  <div class="dt">
+    <button data-zout title="Zoom out">−</button>
+    <span class="zlabel">100%</span>
+    <button data-zin title="Zoom in">+</button>
+    <button data-fit title="Fit to width">Fit</button>
+    <button data-one title="Actual size">1:1</button>
+    <button data-fs title="Fullscreen">⬜</button>
+    <button data-pop title="Open in new tab">↗</button>
+  </div>
+<pre class="mermaid">flowchart LR
+  Timer["ScheduledPostPublisher — IHostedService"] --> Poll{"posts with ScheduledFor <= now?"}
+  Poll -->|"yes"| Pub["set Published = true"]
+  Poll -->|"no"| Wait["sleep until next tick"]
+  Pub --> Log["Serilog information entry"]
+  Log --> Wait
+  Wait --> Poll</pre>
+</div>
+<p><strong>Image upload</strong> — the newest subsystem (resume/multi-author epic), with per-category validation and disk storage under the RCL's <code>wwwroot</code>:</p>
+<div class="diagram">
+  <div class="dt">
+    <button data-zout title="Zoom out">−</button>
+    <span class="zlabel">100%</span>
+    <button data-zin title="Zoom in">+</button>
+    <button data-fit title="Fit to width">Fit</button>
+    <button data-one title="Actual size">1:1</button>
+    <button data-fs title="Fullscreen">⬜</button>
+    <button data-pop title="Open in new tab">↗</button>
+  </div>
+<pre class="mermaid">sequenceDiagram
+  actor A as "Author or Admin"
+  participant IP as "ImagePicker.razor"
+  participant IS as "BlogImageService"
+  participant FS as "wwwroot/uploads/{category}"
+  participant IR as "BlogImageRepo"
+  participant DB as "PostgreSQL"
+  A->>IP: "choose file"
+  IP->>IS: UploadImageAsync(file, category, userId)
+  IS->>IS: "validate size + format for category"
+  IS->>FS: "write {category}_{userId}_{timestamp}_{guid}.{ext}"
+  IS->>IR: InsertToGetId(BlogImage)
+  IR->>DB: "INSERT INTO BlogImage"
+  DB-->>IR: ImageId
+  IS-->>IP: BlogImage with public path
+  IP-->>A: "preview + bound path"</pre>
+</div>
+<h2 id="module-responsibilities">4. Module responsibilities<a class="anchor-link" href="#module-responsibilities">#</a></h2>
+<table>
+<thead><tr><th>Module</th><th>Responsibility</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr><td><code>source/TechieBlog</code></td><td>Blazor Server host. DI composition, Serilog bootstrap, cookie auth + 5 authorization policies, automatic DbUp migration at startup, static files, <code>/sitemap.xml</code> and <code>/robots.txt</code> endpoints, host-side <code>AuthService</code> façade.</td><td>BlogUI, BlogEngine, BlogModels, BlogDb</td></tr>
+<tr><td><code>source/BlogUI</code></td><td>Razor Class Library holding <strong>all</strong> UI: 42 pages, 23 components, 4 layouts, 4 CSS themes, <code>ThemeService</code>, <code>CustomAuthStateProvider</code>. Kept as an RCL so a future MAUI Blazor Hybrid desktop head can reuse it — now planned as <code>BlogApp</code> (ADR-012, 2026-08-06).</td><td>BlogEngine, BlogModels</td></tr>
+<tr><td><code>source/BlogEngine</code></td><td>Business logic + data access. 14 services (<code>Services/</code>), 18 Dapper repositories (<code>DbAccess/</code>), the generic data-access core (<code>DaCore/</code>), and shared helpers (<code>Common/</code>). Exposes <code>BlogSvcInitializer.Initialize</code> as the single DI registration entry point.</td><td>BlogModels</td></tr>
+<tr><td><code>source/BlogModel</code> (assembly <code>BlogModels</code>)</td><td>Contracts only: 23 entity models, repository/service interfaces, <code>AppEncrypt</code>, <code>AppRoles</code>/<code>AppPolicies</code>, <code>Result&lt;T&gt;</code>. No project references — the dependency leaf.</td><td>(none)</td></tr>
+<tr><td><code>source/BlogDb</code></td><td>Database lifecycle. <code>BlogDbSvc</code> runs DbUp against <code>PostgresScripts/</code>; <code>DataMigrationUtility</code> + <code>MigrationRunner</code> provide the one-off MySQL → PostgreSQL data copy (also usable as a CLI, <code>OutputType=Exe</code>).</td><td>BlogModels</td></tr>
+<tr><td><code>source/BlogApp</code> <em>(planned, 2026-08-06 — ADR-012)</em></td><td>MAUI Blazor Hybrid desktop head (Windows + macOS) hosting the complete admin experience. Reuses <code>BlogUI</code> pages/layouts and <code>BlogEngine</code> services in-process; first-run connection-setup screen stores the site's PostgreSQL connection string in platform secure storage. No local database, no sync — requires network reach to the site DB.</td><td>BlogUI, BlogEngine, BlogModels</td></tr>
+</tbody></table>
+<h3 id="blogengine-services-what-each-service-owns">4.1 <code>BlogEngine.Services</code> — what each service owns<a class="anchor-link" href="#blogengine-services-what-each-service-owns">#</a></h3>
+<p><code>BlogSvc</code> is the widest surface: post CRUD, slug lookup, publication state, featured/recent selection, category- and tag-filtered listings, paging counts, draft saving, and full-text search (<code>SearchPosts</code> uses PostgreSQL <code>ILIKE</code> across Title/Abstract/PostContent/Tags). It returns <code>Result&lt;BlogPost&gt;</code> for mutations so pages can surface failures without exception handling.</p>
+<p><code>AuthSvc</code> owns the whole identity story — signup, login, token lookup (<code>GetUserByToken</code>), registration with <code>PasswordValidator</code>, password-reset request/validate/reset, profile read/update, and password change. Credentials arrive wrapped in <code>SvcData</code> and are decrypted with <code>AppEncrypt</code> before hashing; the JWT carries <code>PrimarySid</code>, <code>Name</code>, <code>Email</code>, <code>Role</code>.</p>
+<p><code>CommentSvc</code> covers the moderation workflow: per-post comment retrieval, the pending queue, paged admin views (approved and unapproved), add/approve/delete/update, plus <code>GetAdminCounts</code> which feeds the admin dashboard tiles.</p>
+<p><code>TagSvc</code> and <code>CategorySvc</code> are the taxonomy pair. <code>TagSvc</code> additionally owns the post↔tag junction (<code>GetTagsForPost</code> / <code>SetTagsForPost</code>), inline tag creation (<code>GetOrCreateTag</code>) and autocomplete (<code>SearchTags</code>). <code>SeriesSvc</code> groups posts into ordered series and computes previous/next navigation (<code>GetSeriesNavigation</code>, <code>GetNextPartNumber</code>).</p>
+<p><code>RatingSvc</code> and <code>FavoriteSvc</code> implement the engagement features — one rating per user per post with change support and aggregate stats (<code>PostRatingStats</code>), and a toggle-style favourites store with per-user and per-post counts.</p>
+<p><code>SubscriberSvc</code> handles subscribe/unsubscribe, status filtering, search, and export projection. <strong>Newsletter <em>sending</em> is not implemented</strong> — there is no SMTP sender; <code>IEmailService</code> has a single implementation, <code>ConsoleEmailService</code>, which logs the password-reset email instead of sending it.</p>
+<p><code>BlogImageService</code> (interface in <code>BlogModels.Interfaces.IBlogImageService</code>) performs category-scoped upload validation, unique filename generation, disk write under <code>wwwroot/uploads/{category}/</code>, and DB metadata capture. <code>SitemapSvc</code> renders the sitemap XML consumed by the host endpoint. <code>ScheduledPostPublisher</code> is the only <code>IHostedService</code>.</p>
+<h3 id="blogengine-dacore-the-repository-base">4.2 <code>BlogEngine.DaCore</code> — the repository base<a class="anchor-link" href="#blogengine-dacore-the-repository-base">#</a></h3>
+<p><code>GenericRepository&lt;T&gt;</code> supplies <code>GetOpenConnection()</code> plus the CRUD shape every repository inherits (<code>GetSingle</code>, <code>GetAll</code>, <code>Insert</code>, <code>InsertToGetId</code>, <code>Update</code>, <code>GetPagedData</code>). <code>DbConnectionFactory</code> builds <code>NpgsqlConnection</code> instances from the connection string passed to <code>BlogSvcInitializer.Initialize</code>. Every repository is registered as <code>Transient</code> with the connection string closed over in the factory lambda — there is <strong>no</strong> <code>IOptions</code>/config injection inside the engine, which keeps <code>BlogEngine</code> free of a hosting dependency.</p>
+<h3 id="blogui-page-families">4.3 <code>BlogUI</code> page families<a class="anchor-link" href="#blogui-page-families">#</a></h3>
+<table>
+<thead><tr><th>Folder</th><th>Pages</th><th>Access</th></tr></thead>
+<tbody>
+<tr><td><code>Pages/BlogPages</code></td><td>Home, PostView, CategoryArchive, TagArchive, SeriesView, SearchResults, AuthorsPage, AuthorProfilePage, About, RssFeed</td><td>Anonymous</td></tr>
+<tr><td><code>Pages/</code> (root)</td><td>ResumePage (<code>/resume</code>, <code>FullWidthLayout</code>), AccessDenied</td><td>Anonymous</td></tr>
+<tr><td><code>Pages/UserPages</code></td><td>MyFavorites</td><td><code>[Authorize]</code></td></tr>
+<tr><td><code>Pages/AdminPages</code> (auth screens)</td><td>LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage, 404Page</td><td>Anonymous, <code>AuthLayout</code></td></tr>
+<tr><td><code>Pages/AdminPages</code> (authoring)</td><td>ManagePost, PreviewPost, ManageSeries, SeriesList, ManageProfile, ManageExperience, ManageSkills, ManageAwards</td><td><code>AuthorOrAbove</code></td></tr>
+<tr><td><code>Pages/AdminPages</code> (editorial)</td><td>AdminDashboard, BlogsList, CommentsList, ManageComments</td><td><code>EditorOrAbove</code></td></tr>
+<tr><td><code>Pages/AdminPages</code> (admin)</td><td>UsersList, AddUser, CategoriesList, ManageCategory, TagsList, ManageTag, SubscribersList, Settings, ManageImages</td><td><code>AdminOnly</code></td></tr>
+<tr><td><code>Pages/AdminPages</code> (self)</td><td>ProfilePage</td><td><code>[Authorize]</code></td></tr>
+<tr><td><code>Pages/UiElements</code></td><td>FluentDemo</td><td>dev-only sample page</td></tr>
+</tbody></table>
+<h2 id="cross-cutting-concerns">5. Cross-cutting concerns<a class="anchor-link" href="#cross-cutting-concerns">#</a></h2>
+<p><strong>Logging — Serilog, wired at the head (compliant).</strong> <code>Program.cs</code> configures the logger <em>before</em> <code>WebApplication.CreateBuilder</code>, with a console sink and a daily rolling file sink at <code>logs/techieblog-.log</code> (7 files retained), machine/environment enrichers, and per-namespace level overrides. <code>builder.Host.UseSerilog()</code> routes all <code>ILogger&lt;T&gt;</code> output through it, and <code>UseSerilogRequestLogging</code> adds an HTTP access line per request. Startup is wrapped in <code>try/catch → Log.Fatal</code> with <code>Log.CloseAndFlush()</code> in <code>finally</code>. The class libraries correctly reference only <code>Microsoft.Extensions.Logging.Abstractions</code> — Serilog is a host-only dependency. This satisfies the TechieFlow standing observability requirement; the remaining gap is <code>AppDomain.UnhandledException</code> / <code>TaskScheduler.UnobservedTaskException</code> handlers, which are absent.</p>
+<p><strong>Authentication &amp; authorization.</strong> Cookie scheme <code>BlazorServerAuth</code> (login <code>/login</code>, access-denied <code>/access-denied</code>) plus a JWT minted by <code>AuthSvc</code> and cached in browser local storage. <code>CustomAuthStateProvider</code> converts the stored token into a <code>ClaimsPrincipal</code>. Five policies are registered in <code>Program.cs</code> and map to the 5-tier role model in <code>BlogModels.Common.AppRoles</code>:</p>
+<table>
+<thead><tr><th>Policy</th><th>Roles accepted</th><th>Typical pages</th></tr></thead>
+<tbody>
+<tr><td><code>AdminOnly</code></td><td>Admin</td><td>Users, Categories, Tags, Settings, Subscribers, Images</td></tr>
+<tr><td><code>EditorOrAbove</code></td><td>Admin, Editor</td><td>Admin dashboard, all posts, comment moderation</td></tr>
+<tr><td><code>AuthorOrAbove</code></td><td>Admin, Editor, Author</td><td>Post editor, series, own profile/resume data</td></tr>
+<tr><td><code>ContributorOrAbove</code></td><td>Admin, Editor, Author, Contributor</td><td>(declared; no page uses it yet)</td></tr>
+<tr><td><code>Authenticated</code></td><td>any signed-in user</td><td>favourites, profile</td></tr>
+</tbody></table>
+<p><strong>Error handling.</strong> <code>Result</code> / <code>Result&lt;T&gt;</code> (<code>BlogModels.Common</code>) is the service-layer convention for expected failures; exceptions are logged and rethrown at the repository boundary. <code>app.UseExceptionHandler("/Error")</code> + HSTS apply outside Development. There is <strong>no</strong> global ProblemDetails middleware (no API surface to need one).</p>
+<p><strong>Theming.</strong> Two independent axes, both client-persisted: site theme (<code>fluent-modern</code>, <code>developer-dark</code>, <code>minimal-clean</code>) and light/dark mode. <code>ThemeService</code> (scoped, in <code>BlogUI/Common/</code>) reads and writes <code>techieblog-theme</code> / <code>techieblog-dark-mode</code> in local storage and raises <code>OnThemeChanged</code>; <code>ThemeProvider.razor</code> applies the result as <code>data-theme</code> / <code>data-site-theme</code> attributes on the document element. All colour, spacing and typography values live in CSS custom properties under <code>BlogUI/wwwroot/Themes/</code> (<code>_variables.css</code> + one file per theme), with <code>css/fluent-dark-mode.css</code> carrying the Fluent-component dark overrides added by Epic 7.</p>
+<p><strong>Caching, resilience, telemetry.</strong> None implemented. No <code>IMemoryCache</code> registration, no Polly policies, no OpenTelemetry/Application Insights, no <code>/health</code> endpoint. See §8.</p>
+<p><strong>Database migration at startup.</strong> The host resolves <code>PostgresScripts</code> relative to <code>AppContext.BaseDirectory</code> (with a published-layout fallback) and runs DbUp on every boot; a failed migration logs a warning but does <strong>not</strong> stop the application.</p>
+<h2 id="deployment-architecture">6. Deployment architecture<a class="anchor-link" href="#deployment-architecture">#</a></h2>
+<p>No CI/CD exists in the repository — <code>.github/</code> contains no workflow files and there is no <code>Dockerfile</code> at the root (Stories 1.13/1.14 were deferred). <code>docs/deployment.md</code> documents three supported deployment paths in prose, including a Dockerfile to copy in, an Azure App Service CLI recipe, and a Linux/systemd recipe.</p>
+<div class="diagram">
+  <div class="dt">
+    <button data-zout title="Zoom out">−</button>
+    <span class="zlabel">100%</span>
+    <button data-zin title="Zoom in">+</button>
+    <button data-fit title="Fit to width">Fit</button>
+    <button data-one title="Actual size">1:1</button>
+    <button data-fs title="Fullscreen">⬜</button>
+    <button data-pop title="Open in new tab">↗</button>
+  </div>
+<pre class="mermaid">flowchart LR
+  Dev["Developer workstation"] --> Build["dotnet build / dotnet publish"]
+  Build --> Choice{"target"}
+  Choice -->|"Docker"| Img["container image per docs/deployment.md"]
+  Choice -->|"Azure"| App["Azure App Service"]
+  Choice -->|"Linux"| Kes["Kestrel behind nginx, systemd unit"]
+  Img --> Pg[("PostgreSQL")]
+  App --> Pg
+  Kes --> Pg
+  App --> Files["wwwroot/uploads — persistent volume required"]
+  Kes --> Files</pre>
+</div>
+<p>Deployment-relevant facts a reader needs: the connection string is read from configuration key <code>AppDbConString</code> (not <code>ConnectionStrings:Default</code>); uploaded media is written to the <strong>file system</strong> under the RCL's <code>wwwroot/uploads/</code>, so any container or scale-out deployment needs a persistent mount; DbUp runs automatically on boot, so the app account needs DDL rights on first deploy.</p>
+<h2 id="architectural-decisions-adr-style-log">7. Architectural decisions (ADR-style log)<a class="anchor-link" href="#architectural-decisions-adr-style-log">#</a></h2>
+<ul>
+<li><strong>ADR-001 — Current stack as-is (reverse-doc baseline).</strong> .NET 10 / Blazor Server / PostgreSQL / Dapper / Fluent UI, 5 projects under <code>source/</code>. Recorded 2026-08-02 as the day-1 baseline.</li>
+<li><strong>ADR-002 — No REST API layer.</strong> The <code>BlogSvc</code> API project was deleted; <code>BlogUI</code> calls <code>BlogEngine</code> services directly via DI. Reason: a template project gains nothing from an HTTP hop, and removing it halves the moving parts a learner has to understand. Consequence: the engine is reachable only in-process; exposing it externally later means adding a new head, not restoring the old one.</li>
+<li><strong>ADR-003 — <code>BlogUI</code> stays a Razor Class Library.</strong> Reason: keeps a future MAUI Blazor Hybrid desktop writer possible without moving any page.</li>
+<li><strong>ADR-004 — Dapper + PostgreSQL stored functions, not EF Core.</strong> Reason: continuity with the pre-existing data layer and explicit SQL as an educational artifact. Consequence: schema changes are hand-written DbUp scripts; there is no model-first migration.</li>
+<li><strong>ADR-005 — DbUp migrations run automatically at host startup.</strong> Reason: "clone and run" in under five minutes with no separate migration step. Consequence: the runtime DB account needs DDL rights.</li>
+<li><strong>ADR-006 — CSS custom properties are the only theming mechanism.</strong> Reason: a developer must be able to re-skin the site without touching Razor. Consequence: no hardcoded colours are permitted in components; every new component must consume the variables in <code>Themes/_variables.css</code>.</li>
+<li><strong>ADR-007 — Custom JWT + <code>AppEncrypt</code>, no ASP.NET Core Identity.</strong> Reason: inherited from the original codebase and kept to avoid a rewrite. Consequence: password hashing, reset tokens and rate limiting are hand-rolled and carry the risks listed in §9.</li>
+<li><strong>ADR-008 — Password-reset tokens are stored in memory.</strong> <code>PasswordResetTokenRepo</code> is registered as a singleton with an in-memory store (deliberate, per FIX-PLAN). Consequence: tokens do not survive a restart and will not work across multiple instances.</li>
+<li><strong>ADR-009 — Uploaded media on local disk under <code>wwwroot/uploads/</code>, seven fixed categories.</strong> Reason: zero external dependency for the template's default path. Consequence: the "configurable storage backend" promised by the brief (FR19) is <em>not</em> yet an abstraction — see §8.</li>
+<li><strong>ADR-010 — TrBlazeUI replaces Microsoft Fluent UI Blazor as the only component library</strong> (2026-08-06, BRD-92). Reason: owner's own library — full control over components and styling, shadcn/ui-quality visuals, and CSS-variable theming that matches ADR-006 exactly. Consequence: every page, component and layout in <code>BlogUI</code> is migrated; <code>fluent-dark-mode.css</code> and both FluentUI packages are removed (which also retires the NU1605 blocker in §9.1); the GitHub Packages feed requires owner-supplied <code>nuget.config</code> credentials; root layouts gain <code>&lt;PortalHost /&gt;</code>.</li>
+<li><strong>ADR-011 — Portfolio-style home page; no admin entry points on the public site</strong> (2026-08-06, BRD-30 revised + BRD-93). Reason: the site should read as a technology professional's personal site (nitinpandit.com / montemagno.com model), and an open-source blog engine should not advertise its admin door. Consequence: the home page is rebuilt from site-owner resume data (F-RESUME — no new data model); the header loses the login link and user menu on public pages; admin access is by direct <code>/login</code> URL documented in the README; engagement features keep contextual sign-in prompts.</li>
+<li><strong>ADR-013 — Reader accounts are dropped; engagement is anonymous and email-identified</strong> (2026-08-06, BRD-36/40/41 revised, BRD-13/37/43/44 retired). Reason: a personal blog should not ask visitors to register in order to comment or rate. Consequence: <code>BlogComment</code> and <code>PostRating</code> gain commenter-name/email columns and lose their mandatory <code>UserId</code> (a DbUp migration); the <code>Authenticated</code> policy no longer guards any public surface; favourites (<code>UserFavorite</code>, <code>FavoriteSvc</code>, <code>/my-favorites</code>) and the reader <code>/profile</code> are removed; <strong>comment moderation (BRD-38/39) and spam protection become load-bearing</strong> — see §9.14. Sign-in remains for staff roles (Author/Editor/Admin) via the direct <code>/login</code> URL.</li>
+<li><strong>ADR-014 — No public author-browsing surface</strong> (2026-08-06, BRD-53/54/55 retired). Reason: a TechieBlog instance is a personal site; the site owner's <code>/resume</code> is the one public profile. Consequence: <code>/authors</code> and <code>/author/{username}</code> routes plus <code>AuthorsPage.razor</code> / <code>AuthorProfilePage.razor</code> are removed and bylines render as plain text. Multi-author <em>publishing</em> (roles, post ownership, per-author admin resume editors) is untouched, and the <code>IsSiteOwner</code> flag and username column stay because F-RESUME uses them.</li>
+<li><strong>ADR-015 — Anonymous writes are gated by double opt-in verification and a self-hosted captcha</strong> (2026-08-06, BRD-98/99). Reason: ADR-013 opened comments, ratings and subscriptions to unauthenticated visitors, which needs an abuse answer that does not reintroduce accounts; the owner also requires <strong>no third-party library or service</strong>, so the whole mechanism must sit on the .NET base class library. Consequence: (a) a persisted, single-use, 24-hour verification token per address, with a verified-address registry so repeat visitors are not re-challenged — note this contradicts the in-memory token store of ADR-008, so reset tokens should move to the same persisted store (REQ-NFR-019); (b) captcha codes come from <code>RandomNumberGenerator</code>, are rendered <strong>as SVG</strong> (deliberately <em>not</em> <code>System.Drawing.Common</code>, which is Windows-only and unsupported cross-platform), and are validated against an <code>IDataProtector</code>-signed token or a short-lived cache entry so the answer never reaches the client; (c) BRD-98 has a hard dependency on a real SMTP sender (REQ-FN-033) — with the console stub, verification cannot complete outside development.</li>
+<li><strong>ADR-016 — Sent newsletters are published as public content</strong> (2026-08-06, BRD-100/101). Reason: the admin composer had no reader-facing counterpart, so issues were write-only. Consequence: a sent issue gains a slug and becomes a public record served at <code>/newsletters</code> and <code>/newsletter/{slug}</code>; drafts and unsent issues must never be publicly resolvable, which makes send-state the access boundary for that content type.</li>
+<li><strong>ADR-012 — BlogApp: MAUI Blazor Hybrid desktop admin head with a direct database connection</strong> (2026-08-06, BRD-94…97). Reason: manage the blog from an installed desktop app; reusing <code>BlogUI</code> (the standing purpose of ADR-003) guarantees web and desktop admin cannot drift. Consequence: a sixth project <code>source/BlogApp</code> referencing BlogUI/BlogEngine/BlogModels; connection string captured at first run and held in platform secure storage; <strong>no local DB and no sync</strong> — the app needs network reach to the site's PostgreSQL, and the DB must accept remote connections from the admin's machine (a deployment consideration for adopters).</li>
+</ul>
+<h2 id="target-architecture-planned-deltas">8. Target architecture — planned deltas<a class="anchor-link" href="#target-architecture-planned-deltas">#</a></h2>
+<p>Everything below is <strong>designed but not built</strong>. It is carried forward verbatim in intent from <code>docs/architecture.md</code> §8.5 / §10 / §11 and <code>docs/OldDocs/prd.md</code> Epics 5–6 so the design is not lost; each item maps to an open requirement in <code>docs/TechieBlog-Checklist.md</code>.</p>
+<div class="diagram">
+  <div class="dt">
+    <button data-zout title="Zoom out">−</button>
+    <span class="zlabel">100%</span>
+    <button data-zin title="Zoom in">+</button>
+    <button data-fit title="Fit to width">Fit</button>
+    <button data-one title="Actual size">1:1</button>
+    <button data-fs title="Fullscreen">⬜</button>
+    <button data-pop title="Open in new tab">↗</button>
+  </div>
+<pre class="mermaid">flowchart TB
+  subgraph Now["Built today"]
+    Web["TechieBlog host"]
+    Eng["BlogEngine services"]
+    Pg[("PostgreSQL")]
+  end
+  subgraph Planned["Planned additions"]
+    Health["/health endpoint — Npgsql + SMTP + memory checks"]
+    Cache["IMemoryCache layer — settings, taxonomy, listings"]
+    Poll["Polly — retry + circuit breaker"]
+    Smtp["SMTP IEmailService — replaces ConsoleEmailService"]
+    Anal["AnalyticsSvc — PostViews tracking"]
+    Store["IFileStorage abstraction — local, NAS, R2"]
+    Tests["TechieBlog.Tests — xUnit + bUnit"]
+    CI["GitHub Actions — build, test, publish"]
+    TrB["TrBlazeUI migration — replaces Fluent UI across BlogUI"]
+    HomeP["Portfolio home page — resume-driven landing, no public admin entry"]
+    DeskApp["BlogApp — MAUI Blazor Hybrid desktop admin head"]
+  end
+  Web --> TrB
+  Web --> HomeP
+  DeskApp --> Eng
+  DeskApp --> Pg
+  Web --> Health
+  Eng --> Cache
+  Eng --> Poll
+  Eng --> Smtp
+  Eng --> Anal
+  Eng --> Store
+  Tests --> Eng
+  CI --> Tests
+  Poll --> Pg
+  Anal --> Pg</pre>
+</div>
+<p><strong>Resilience (design fixed, unimplemented).</strong> <code>Microsoft.Extensions.Http.Polly</code>: retry 3× with exponential backoff (1s/2s/4s) on <code>NpgsqlException</code> and <code>TimeoutException</code>; circuit breaker opens after 5 consecutive failures for 30s, half-open probe on recovery. Per-dependency intent:</p>
+<table>
+<thead><tr><th>Dependency</th><th>Retry</th><th>Circuit breaker</th><th>Fallback</th></tr></thead>
+<tbody>
+<tr><td>Database (all repos)</td><td>3, exponential</td><td>5 failures → 30s open</td><td>cached data or error</td></tr>
+<tr><td>Email (SMTP)</td><td>2, 5s delay</td><td>3 failures → 60s open</td><td>queue for later, notify admin</td></tr>
+<tr><td>File storage</td><td>2, 2s delay</td><td>5 failures → 30s open</td><td>placeholder image</td></tr>
+</tbody></table>
+<p>Graceful-degradation intent: analytics silently disabled; comments and ratings become read-only; newsletters queue; search falls back to title-only.</p>
+<p><strong>Caching (design fixed, unimplemented).</strong> In-memory for site settings (60 min), categories/tags (30 min), published-post listings (5 min), individual posts (10 min); output caching for public listings and RSS (5 min); optional Redis only if the app is ever scaled out. Invalidation events: post write → <code>Post:{id}</code>, <code>PublishedPosts</code>, <code>RecentPosts</code>, <code>PopularPosts</code>, RSS; taxonomy write → that taxonomy + its filtered listings; settings write → <code>SiteSettings</code>; comment write → <code>Post:{postId}</code> comments.</p>
+<p><strong>Monitoring (design fixed, unimplemented).</strong> <code>/health</code> (detailed) and <code>/health/ready</code> (load balancer) with Npgsql, SMTP and allocated-memory checks. Metric intent: request duration (alert p95 &gt; 2s), request and failure counters (alert &gt; 10 failures/min), connection-pool gauge (alert &gt; 80%), circuit state, active users, post views. Alert rules: HighErrorRate (&gt;5% for 5 min, critical), SlowResponses (p95 &gt; 3s for 10 min), DatabaseDown (1 min, critical), CircuitOpen, HighMemory (&gt;80% for 5 min), EmailQueueBacklog (&gt;100 for 30 min).</p>
+<p><strong>Testing (design fixed, unimplemented).</strong> <code>TechieBlog.Tests</code> with xUnit + bUnit; 80% coverage target for <code>BlogEngine</code>, 60% for <code>BlogUI</code> components; repository integration tests against a PostgreSQL test container; regression pass over login, post CRUD and comments after any migration.</p>
+<p><strong>Storage abstraction.</strong> FR19 ("configurable storage backends") requires promoting the current direct-to-disk write in <code>BlogImageService</code> behind an <code>IFileStorage</code> interface with local/NAS/cloud implementations. Not started.</p>
+<p><strong>UI re-platform + desktop head (added 2026-08-06).</strong> Three amendment deltas, all design-fixed and unbuilt: <strong>(1) TrBlazeUI migration</strong> (ADR-010, REQ-UI-048) — swap both FluentUI packages for <code>TrBlazeUI.Components</code>, migrate every <code>BlogUI</code> page/component/layout, re-express the three site themes as TrBlazeUI/shadcn CSS-variable sets, add <code>&lt;PortalHost /&gt;</code> to the root layouts, retire <code>fluent-dark-mode.css</code>; the swap also removes the NU1605 blocker's cause. <strong>(2) Portfolio home</strong> (ADR-011, REQ-UI-049/050) — rebuild <code>/</code> from the site-owner's resume data with a latest-articles section; strip login/user-menu entry points from the public shell; document the direct <code>/login</code> admin URL in the README. <strong>(3) BlogApp</strong> (ADR-012, REQ-FN-046/047, REQ-UI-051/052) — a <code>source/BlogApp</code> MAUI Blazor Hybrid project hosting the shared admin pages against the live site database, with first-run connection setup in platform secure storage. Runtime verification for the MAUI Windows head will opt in via <code>core-config.yaml</code> <code>runtimeVerification</code> when BlogApp exists (Hard rule 3 then applies).</p>
+<p><strong>Accessibility architecture.</strong> The WCAG 2.1 AA contract from <code>docs/architecture.md</code> §11.4 — semantic-element mapping, per-component ARIA patterns (landmarks, <code>role="switch"</code> on the theme toggle, combobox search, modal dialog, <code>aria-live</code> alerts), keyboard shortcuts (<code>Alt+T</code> theme, <code>/</code> or <code>Ctrl+K</code> search, <code>Escape</code> close), 2px <code>:focus-visible</code> outlines, <code>.visually-hidden</code> utility, and the per-component checklist — remains the standard for new UI. It has never been audited, so its current conformance is unknown (§9).</p>
+<h2 id="open-questions-risks">9. Open questions / risks<a class="anchor-link" href="#open-questions-risks">#</a></h2>
+<ol>
+<li><strong>BUILD IS RED (blocker).</strong> <code>dotnet build TechieBlog.slnx</code> fails on both the WSL SDK (ladder rung #2) and the Windows SDK (rung #4) with <code>NU1605</code>: <code>BlogUI</code> pins <code>Microsoft.AspNetCore.Components.Web 10.0.0</code>, but the floating <code>Microsoft.FluentUI.AspNetCore.Components 4.*</code> now resolves to 4.14.4, which requires ≥ 10.0.9. Fix is one of — bump the pinned <code>Microsoft.AspNetCore.Components.Web</code> and <code>Microsoft.AspNetCore.Components.Authorization</code> references to 10.0.9+, or pin FluentUI to the 4.13.x it was developed against. <strong>Floating <code>4.*</code> version ranges are the root cause and should be pinned regardless.</strong> Until this is fixed the app cannot start, so nothing can be runtime-verified. <em>Amendment 2026-08-06:</em> the strategic fix is the TrBlazeUI migration (ADR-010), which removes both FluentUI packages entirely; the tactical pin remains worthwhile for any runtime work done before the migration lands.</li>
+<li><strong>Standards drift — instance-field naming is mixed.</strong> 250 bare (no-prefix) private fields versus 32 <code>_underscore</code>-prefixed ones across <code>source/</code>, so no style reaches the 80% threshold cleanly for the underscore variant but bare wins at ~89%. §4 of the Coding Standards picks <strong>bare, no prefix</strong>. The 32 underscore fields live in 17 files (<code>BlogEngine/Services/*</code> mostly, plus <code>MarkdownRenderer</code>, <code>DataMigrationUtility</code>, two Resume components and <code>ManageProfile.razor.cs</code>) and are remediated incrementally during implementation, not in a big-bang rename.</li>
+<li><strong>Password hashing strength unverified.</strong> <code>AppEncrypt.CreateHash</code> is a hand-rolled hash, not BCrypt/Argon2/PBKDF2 as NFR7 and the architecture doc's security section assume. Needs review before any production use.</li>
+<li><strong>Seed admin password is stored in plain text.</strong> <code>003-SeedData.sql</code> inserts <code>Ravi@techieblog.com</code> with <code>LoginPass = 'admin_password'</code> and a <code>TODO</code> to hash it. Any deployment from a clean database starts with a known plaintext credential.</li>
+<li><strong>Password-reset tokens are in-memory only</strong> (ADR-008) — they vanish on restart and break under more than one instance.</li>
+<li><strong>No rate limiting on authentication endpoints</strong> (NFR10 unmet); <code>AuthSvc</code> tracks failed attempts but nothing throttles.</li>
+<li><strong>Uploaded media is not covered by any backup or storage abstraction</strong> — a container redeploy without a mounted volume loses every uploaded image and CV.</li>
+<li><strong><code>Nullable</code> is <code>disable</code> in all five projects</strong>, contradicting the coding standard ("nullable reference types enabled") and the models that already use <code>string?</code>. Enabling it will surface a wave of warnings; do it project-by-project.</li>
+<li><strong>No automated tests and no CI</strong> — every regression claim in the migrated plan is manual.</li>
+<li><strong>Duplicate/legacy artifacts.</strong> <code>BlogUI/Pages/AccessDenied.razor</code> and <code>BlogUI/Components/AccessDenied.razor</code> both exist; <code>Pages/UiElements/FluentDemo.razor</code> is a Blazorise-era sample page; <code>BlogDb</code> still carries <code>MySqlScripts/</code> and a <code>MySql.Data</code> package reference. Migration script numbering also skips <code>011</code>.</li>
+<li><strong>Two competing migration guides</strong> (<code>docs/DataMigrationGuide.md</code> and <code>docs/database-migration-guide.md</code>) describe the same MySQL → PostgreSQL move. One should be retired.</li>
+<li><strong>Accessibility conformance is unmeasured</strong> — the WCAG AA contract exists on paper only (§8).</li>
+<li><strong>BlogApp prerequisites (added 2026-08-06).</strong> The GitHub Packages feed needs owner-supplied credentials in <code>nuget.config</code> before any TrBlazeUI build; the Windows build host needs the MAUI workload for <code>source/BlogApp</code>; and the direct-DB model (ADR-012) means the site's PostgreSQL must accept remote connections from the admin's machine — an adopter-facing deployment consideration (firewall / <code>pg_hba.conf</code> / SSL) that the deployment guide must cover when BlogApp ships.</li>
+<li><strong>Anonymous engagement spam defence — now specified (2026-08-06, ADR-013 → ADR-015).</strong> Opening comments and ratings to unauthenticated visitors makes the site a spam target and turns the existing rate-limiting gap (§9.6, BRD-82) from theoretical into live. The answer is fixed as BRD-98 (double opt-in email verification) plus BRD-99 (self-hosted captcha), on top of approval-before-display and per-IP/per-email rate limiting. <strong>Open dependency:</strong> verification cannot work until a real SMTP <code>IEmailService</code> replaces <code>ConsoleEmailService</code> (REQ-FN-033), so BRD-98 and BRD-36/40 cannot ship before it. Rating de-duplication is only as strong as the address supplied, so treat rating counts as indicative, not authoritative.</li>
+</ol>
+<h2 id="sources-harvested">10. Sources harvested<a class="anchor-link" href="#sources-harvested">#</a></h2>
+<table>
+<thead><tr><th>Source file</th><th>What it contributed</th></tr></thead>
+<tbody>
+<tr><td><code>docs/architecture.md</code> (v1.2, 1746 lines)</td><td>Tech-stack tables, data models and PostgreSQL type mappings, component architecture, source tree, resilience/monitoring/caching design (§8), coding standards, testing strategy, security and accessibility architecture</td></tr>
+<tr><td><code>docs/OldDocs/prd.md</code> (v1.2)</td><td>Epic structure, technical assumptions, service architecture decisions</td></tr>
+<tr><td><code>docs/OldDocs/project-brief.md</code></td><td>5-project rationale, key architecture decisions table, integration and security considerations</td></tr>
+<tr><td><code>docs/OldDocs/front-end-spec.md</code></td><td>Theming architecture (two-level), CSS variable structure, component inventory, responsive breakpoints</td></tr>
+<tr><td><code>docs/OldDocs/feature-ideation-images-resume.md</code></td><td>Image category/size matrix, resume data model, <code>IBlogImageService</code> contract</td></tr>
+<tr><td><code>docs/OldDocs/epic-image-resume-multiauthor.md</code></td><td>Migration <code>012</code> schema, repository interfaces, component hierarchy</td></tr>
+<tr><td><code>docs/deployment.md</code></td><td>Docker / Azure / Linux deployment paths (§6)</td></tr>
+<tr><td><code>docs/customization.md</code></td><td>CSS variable reference and theme-authoring workflow</td></tr>
+<tr><td><code>docs/database-migration-guide.md</code>, <code>docs/DataMigrationGuide.md</code></td><td><code>DataMigrationUtility</code> / <code>MigrationRunner</code> roles</td></tr>
+<tr><td><code>README.md</code>, <code>GETTING_STARTED.md</code></td><td>Product framing, prerequisites, configuration keys</td></tr>
+<tr><td>Code scan of <code>source/</code></td><td>Everything marked "as-built": csproj versions, DI registrations, routes, policies, service/repository surfaces, Serilog wiring, absent subsystems</td></tr>
+</tbody></table>
+<hr>
+<p>Last updated: 2026-08-06 (amended: ADR-010…016 — TrBlazeUI, portfolio home, BlogApp, anonymous engagement, no public author pages, verification + self-hosted captcha, public newsletter archive)</p>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+<script>// Light/dark toggle. The initial theme was already applied flash-free by the
+// <head> script (saved choice, else time-of-day). Clicking flips it, saves the
+// choice, and reloads so Mermaid re-renders in the matching theme.
+(function(){
+  var btn = document.getElementById('themeToggle');
+  if(!btn) return;
+  var relabel = function(){
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    btn.textContent = dark ? '☀ Light' : '☾ Dark';
+  };
+  relabel();
+  btn.addEventListener('click', function(){
+    var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    try{ localStorage.setItem('tf-theme', next); }catch(e){}
+    location.reload();
+  });
+})();
+
+// Copy buttons on every code <pre> — but NEVER on a `pre.mermaid`.
+document.querySelectorAll('pre:not(.mermaid)').forEach(pre => {
+  const btn = document.createElement('button');
+  btn.className = 'copy';
+  btn.textContent = 'copy';
+  btn.addEventListener('click', () => {
+    const text = pre.querySelector('code') ? pre.querySelector('code').innerText : pre.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'copied';
+      setTimeout(() => { btn.textContent = 'copy'; }, 1200);
+    });
+  });
+  pre.appendChild(btn);
+});
+
+// Mermaid init — theme follows the resolved light/dark theme
+if (window.mermaid) {
+  var mermaidTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
+  mermaid.initialize({ startOnLoad: true, theme: mermaidTheme, securityLevel: 'loose' });
+}
+
+// Mermaid toolbar wiring — run after mermaid renders
+function wireMermaidToolbars() {
+  document.querySelectorAll('.diagram').forEach(dia => {
+    if (dia.dataset.wired) return;
+    const merm = dia.querySelector('.mermaid');
+    const svg = merm && merm.querySelector('svg');
+    if (!svg) return;
+    dia.dataset.wired = '1';
+    let scale = 1;
+    const label = dia.querySelector('.zlabel');
+    const apply = () => {
+      svg.style.transform = `scale(${scale})`;
+      svg.style.transformOrigin = 'top left';
+      if (label) label.textContent = Math.round(scale * 100) + '%';
+    };
+    const setScale = (s) => { scale = Math.max(0.25, Math.min(4, s)); apply(); };
+    dia.querySelector('[data-zin]').onclick = () => setScale(scale * 1.2);
+    dia.querySelector('[data-zout]').onclick = () => setScale(scale / 1.2);
+    dia.querySelector('[data-fit]').onclick = () => {
+      svg.style.transform = '';
+      svg.removeAttribute('width');
+      svg.style.maxWidth = '100%';
+      svg.style.height = 'auto';
+      scale = 1;
+      if (label) label.textContent = 'Fit';
+    };
+    dia.querySelector('[data-one]').onclick = () => {
+      svg.style.transform = '';
+      svg.style.maxWidth = 'none';
+      svg.style.width = '';
+      svg.style.height = '';
+      scale = 1;
+      if (label) label.textContent = '100%';
+    };
+    dia.querySelector('[data-fs]').onclick = () => {
+      dia.classList.toggle('fs');
+      if (dia.classList.contains('fs')) {
+        document.addEventListener('keydown', escFs);
+      } else {
+        document.removeEventListener('keydown', escFs);
+      }
+    };
+    function escFs(e) { if (e.key === 'Escape') { dia.classList.remove('fs'); document.removeEventListener('keydown', escFs); } }
+    dia.querySelector('[data-pop]').onclick = () => openInNewTab(svg);
+    merm.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setScale(scale * (e.deltaY < 0 ? 1.1 : 1/1.1));
+    }, { passive: false });
+  });
+}
+
+function openInNewTab(svg) {
+  const svgSource = new XMLSerializer().serializeToString(svg);
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Diagram</title>
+<style>
+  html,body{margin:0;height:100%;background:#0f1115;color:#e6e8ee;font-family:system-ui,sans-serif}
+  .bar{position:fixed;top:0;left:0;right:0;padding:8px 12px;background:#161a22;border-bottom:1px solid #2a3142;display:flex;gap:8px;z-index:10}
+  .bar button{background:#1c2230;color:#9aa3b2;border:1px solid #2a3142;border-radius:6px;padding:5px 12px;font-size:13px;cursor:pointer}
+  .bar button:hover{color:#7cc4ff;border-color:#7cc4ff}
+  .bar .hint{margin-left:auto;color:#9aa3b2;font-size:11.5px;align-self:center}
+  #stage{position:absolute;top:42px;bottom:0;left:0;right:0;overflow:hidden}
+  #stage svg{width:100%;height:100%}
+</style>
+</head><body>
+<div class="bar">
+  <button onclick="zpz.zoomIn()">+</button>
+  <button onclick="zpz.zoomOut()">−</button>
+  <button onclick="zpz.fit();zpz.center()">Fit</button>
+  <button onclick="zpz.resetZoom();zpz.center()">1:1</button>
+  <button onclick="window.print()">Print</button>
+  <button onclick="dlPng()">PNG</button>
+  <button onclick="dlSvg()">SVG</button>
+  <span class="hint">Drag to pan · Ctrl+wheel to zoom · + / − keys</span>
+</div>
+<div id="stage">${svgSource}</div>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"><\/script>
+<script>
+  const el = document.querySelector('#stage svg');
+  const zpz = svgPanZoom(el, { zoomScaleSensitivity: .3, minZoom: .2, maxZoom: 10, controlIconsEnabled: false, fit: true, center: true });
+  document.addEventListener('keydown', e => {
+    if (e.key === '+' || e.key === '=') zpz.zoomIn();
+    if (e.key === '-' || e.key === '_') zpz.zoomOut();
+    if (e.key === '0') { zpz.resetZoom(); zpz.center(); }
+  });
+  function dlSvg() {
+    const blob = new Blob([new XMLSerializer().serializeToString(el)], { type: 'image/svg+xml' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'diagram.svg'; a.click();
+  }
+  function dlPng() {
+    const src = new XMLSerializer().serializeToString(el);
+    const img = new Image();
+    const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(src)));
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = el.clientWidth * 2; c.height = el.clientHeight * 2;
+      const ctx = c.getContext('2d'); ctx.scale(2,2); ctx.drawImage(img, 0, 0);
+      c.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'diagram.png'; a.click(); });
+    };
+    img.src = url;
+  }
+<\/script>
+</body></html>`;
+  const w = window.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+if (window.mermaid) {
+  setTimeout(wireMermaidToolbars, 400);
+  setTimeout(wireMermaidToolbars, 1200);
+}</script>
+</body>
+</html>

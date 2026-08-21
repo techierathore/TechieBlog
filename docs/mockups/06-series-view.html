@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<!-- ============================================================
+  Screen: Series view — parts of one series  ·  Route: /series/{slug}
+  Roles: anonymous (public)  ·  BRD: BRD-28, BRD-29  ·  REQ: REQ-UI-055
+  Component map (region → TrBlazeUI control):
+    Top nav          → TbResponsiveNav (public shell; NO login/user menu per BRD-93;
+                       NO Authors entry — personal site, author screens dropped 2026-08-06;
+                       links: Home · Categories · Series · Newsletter · Resume · About)
+    Breadcrumb       → TbBreadcrumb (Home / Series / name)
+    Series hero      → Typography + TbBadge (part count) + TbProgress
+    Parts list       → TbCard ×5 ordered (number chip, title, date, reading time);
+                       current part highlighted via ring border; each → 02-post-view.html
+    Footer           → Typography + TbSeparator
+  States: unknown slug → 09-404.html; series with no published parts → TbEmpty
+          "Parts coming soon"; loading → TbSkeleton list rows.
+  Data: Series (name, description), ordered published parts with post metadata.
+============================================================ -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Series: Blazor Deep Dives · TechieBlog</title>
+<link rel="stylesheet" href="trblazeui.css">
+</head>
+<body>
+
+<!-- TbResponsiveNav — public shell. NOTE: no Login / Sign-up / user menu (BRD-93) -->
+<nav class="tb-nav">
+  <div class="tb-nav__inner">
+    <a class="tb-nav__brand" href="01-home.html"><span class="dot"></span> Ravi Rathore</a>
+    <div class="tb-nav__links">
+      <a href="01-home.html">Home</a>
+      <a href="03-category-archive.html">Categories</a>
+      <a class="active" href="05-series-list.html">Series</a>
+      <a href="42-newsletter-archive.html">Newsletter</a>
+      <a href="10-resume.html">Resume</a>
+      <a href="08-about.html">About</a>
+    </div>
+    <div class="tb-nav__actions">
+      <a class="btn btn-ghost btn-icon" href="07-search-results.html" title="Search">
+        <svg class="icon icon-lg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></a>
+      <button class="btn btn-ghost btn-icon" onclick="document.documentElement.classList.toggle('dark')" title="Toggle dark mode">
+        <svg class="icon icon-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/></svg></button>
+      <button class="btn btn-ghost btn-icon tb-nav__burger" title="Menu">
+        <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    </div>
+  </div>
+</nav>
+
+<main class="container" style="max-width:860px;padding-top:28px">
+
+  <!-- TbBreadcrumb -->
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="01-home.html">Home</a><span>›</span>
+    <a href="05-series-list.html">Series</a><span>›</span>
+    <b>Blazor Deep Dives</b>
+  </nav>
+
+  <!-- Series hero -->
+  <header style="margin:20px 0 30px">
+    <div class="meta-row" style="margin-bottom:8px">
+      <span class="badge badge-default">Series</span>
+      <span class="badge badge-secondary">5 parts</span>
+      <span class="badge badge-success">Complete</span>
+    </div>
+    <h1 style="font-size:clamp(26px,4vw,36px);font-weight:800">Blazor Deep Dives</h1>
+    <p class="muted" style="max-width:640px;margin-top:8px">A five-part tour of the internals of building serious
+      Blazor applications — render modes, component-library migration, dialogs and portals, state management and
+      end-to-end testing. Best read in order; each part builds on the last.</p>
+    <div style="max-width:420px;margin-top:16px">
+      <div class="progress" title="5 of 5 parts published"><i style="width:100%"></i></div>
+      <div class="hint" style="margin-top:6px">5 of 5 parts published · ~49 min total reading time</div>
+    </div>
+  </header>
+
+  <!-- Parts list (ordered) — current part (2) highlighted -->
+  <ol style="list-style:none;display:flex;flex-direction:column;gap:12px" aria-label="Series parts">
+
+    <li class="card">
+      <div class="card-content" style="display:flex;align-items:center;gap:16px">
+        <span class="avatar avatar-md" style="background:var(--muted);color:var(--muted-foreground)">1</span>
+        <div style="flex:1;min-width:0">
+          <a href="02-post-view.html" style="font-size:15.5px;font-weight:600">Blazor render modes, demystified</a>
+          <div class="meta-row" style="margin-top:2px"><span>Jul 24, 2026</span><span>·</span><span>11 min read</span></div>
+        </div>
+        <a class="btn btn-outline btn-sm" href="02-post-view.html">Read</a>
+      </div>
+    </li>
+
+    <li class="card" style="border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in srgb,var(--ring) 20%,transparent)">
+      <div class="card-content" style="display:flex;align-items:center;gap:16px">
+        <span class="avatar avatar-md">2</span>
+        <div style="flex:1;min-width:0">
+          <a href="02-post-view.html" style="font-size:15.5px;font-weight:600">Migrating a Blazor app from Fluent UI to TrBlazeUI</a>
+          <div class="meta-row" style="margin-top:2px"><span>Aug 2, 2026</span><span>·</span><span>9 min read</span>
+            <span class="badge badge-default" style="margin-left:4px">You are here</span></div>
+        </div>
+        <a class="btn btn-primary btn-sm" href="02-post-view.html">Continue</a>
+      </div>
+    </li>
+
+    <li class="card">
+      <div class="card-content" style="display:flex;align-items:center;gap:16px">
+        <span class="avatar avatar-md" style="background:var(--muted);color:var(--muted-foreground)">3</span>
+        <div style="flex:1;min-width:0">
+          <a href="02-post-view.html" style="font-size:15.5px;font-weight:600">Dialogs, toasts and portals: who owns the render tree?</a>
+          <div class="meta-row" style="margin-top:2px"><span>Aug 9, 2026</span><span>·</span><span>10 min read</span></div>
+        </div>
+        <a class="btn btn-outline btn-sm" href="02-post-view.html">Read</a>
+      </div>
+    </li>
+
+    <li class="card">
+      <div class="card-content" style="display:flex;align-items:center;gap:16px">
+        <span class="avatar avatar-md" style="background:var(--muted);color:var(--muted-foreground)">4</span>
+        <div style="flex:1;min-width:0">
+          <a href="02-post-view.html" style="font-size:15.5px;font-weight:600">Cascading parameters without the spaghetti</a>
+          <div class="meta-row" style="margin-top:2px"><span>Aug 16, 2026</span><span>·</span><span>6 min read</span></div>
+        </div>
+        <a class="btn btn-outline btn-sm" href="02-post-view.html">Read</a>
+      </div>
+    </li>
+
+    <li class="card">
+      <div class="card-content" style="display:flex;align-items:center;gap:16px">
+        <span class="avatar avatar-md" style="background:var(--muted);color:var(--muted-foreground)">5</span>
+        <div style="flex:1;min-width:0">
+          <a href="02-post-view.html" style="font-size:15.5px;font-weight:600">Testing Blazor UI with Playwright: a working recipe</a>
+          <div class="meta-row" style="margin-top:2px"><span>Aug 23, 2026</span><span>·</span><span>10 min read</span></div>
+        </div>
+        <a class="btn btn-outline btn-sm" href="02-post-view.html">Read</a>
+      </div>
+    </li>
+
+  </ol>
+
+  <div style="margin:28px 0 8px">
+    <a class="btn btn-ghost" href="05-series-list.html">← All series</a>
+  </div>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container cols">
+    <span>© 2026 Ravi Rathore · Built with <b>TechieBlog</b> (Blazor + TrBlazeUI)</span>
+    <span><a href="02-post-view.html">RSS</a> · <a href="42-newsletter-archive.html">Newsletter</a> · <a href="08-about.html">About</a> · <a href="10-resume.html">Resume</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

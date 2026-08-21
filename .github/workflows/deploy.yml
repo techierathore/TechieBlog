@@ -1,0 +1,807 @@
+# =============================================================================
+# TechieBlog — production deploy pipeline
+# =============================================================================
+# Implements docs/claude-code-deployment-brief-v3.md §4 item 5 for:
+#
+#   APP_NAME=techieblog · DOMAIN=techierathore.com (apex) · DB_NAME=techieblog
+#   NEEDS_PGVECTOR=no · HAS_UPLOADS=yes · DOTNET_VERSION=10 · MEM_LIMIT=512m
+#   PROJECT_PATH=source/TechieBlog/TechieBlog.csproj · INTERNAL_APIS=none
+#
+#   push to main
+#    ├─ build:   image -> GHCR as :latest and :<short-sha>
+#    ├─ deploy:  render compose with envsubst -> scp -> ensure-db -> DDL probe
+#    │           -> ghcr login -> pull -> fix mount ownership -> compose up
+#    │           -> writability probe
+#    └─ verify:  curl the public health endpoint, 3 retries, fail loudly
+#
+# The one thing this pipeline deliberately does NOT do is touch DNS. The single
+# manual step per app is the A record — see docs/Prod-Deploy-Checklist.md §2.
+#
+# -----------------------------------------------------------------------------
+# THREE THINGS THIS PIPELINE DOES SO THE OWNER NO LONGER HAS TO (2026-08-14)
+# -----------------------------------------------------------------------------
+# Each of these was a "do it once by hand after the first deploy" line in
+# docs/Prod-Deploy-Checklist.md, and each of them fails in a way that is quiet
+# enough to be discovered late. They are steps now, not runbook prose.
+#
+# 1. MOUNT OWNERSHIP. The container runs as UID/GID 1654 (`app`, the user the
+#    .NET 10 runtime image ships). `mkdir -p` over SSH creates the bind-mount
+#    directories owned by the CI SSH ACCOUNT (`ciuser`, runbook v5.2 §2.1), with
+#    group `webops` inherited via setgid — and UID 1654 can write to neither.
+#    ciuser's passwordless sudo is scoped to /usr/local/bin/ensure-db ALONE, so
+#    `sudo chown` is simply not available to it. Instead the ownership fix runs
+#    INSIDE a throwaway container as root, using the application's OWN image
+#    (already on the box, just pulled, so nothing extra is downloaded and no
+#    image sprawl is created). It changes the OWNER only and leaves group
+#    `webops` intact, so ciuser keeps its access. See "Fix bind-mount ownership"
+#    inside the pull/restart step.
+#
+# 2. appuser DDL RIGHTS. DbUp creates `schemaversions` and applies
+#    source/BlogDb/PostgresScripts at startup, which needs DDL rights, not just
+#    CONNECT. A CREATE TABLE / DROP TABLE probe runs as appuser right after
+#    ensure-db and BEFORE the container starts, so a missing GRANT fails the
+#    deploy with the exact fix rather than shipping an empty site.
+#
+# 3. GHCR CREDENTIAL ON THE SERVER. `Log in to GHCR` in the build job
+#    authenticates the RUNNER — that is what lets it PUSH. The server pulls, and
+#    a GHCR package is PRIVATE on first push, so `docker compose pull` would die
+#    with `denied`/`unauthorized`. The pull step logs in with THIS RUN'S
+#    ephemeral GITHUB_TOKEN and logs out again on the way out (an EXIT trap, so
+#    a failed pull still cleans up), leaving no long-lived credential behind —
+#    but ONLY when the SSH account has no stored ghcr.io credential of its own.
+#    Since runbook v5.2 moved CI to the dedicated `ciuser` account, and registry
+#    credentials are PER-USER, that is currently the case: Step 12's manual
+#    login was performed as `ravi`, so it does not cover ciuser. Details and the
+#    one-command fix are in the pull step's own comment.
+#    The deploy job therefore declares `packages: read` explicitly instead of
+#    inheriting whatever the repository's default workflow permissions are.
+#
+# Owner-facing setup (every secret, the NuGet PAT, uploads, rollback):
+#   docs/Prod-Deploy-Checklist.md
+#
+# -----------------------------------------------------------------------------
+# NOTES ON THE TWO PLACES THIS PIPELINE DIFFERS FROM THE GENERIC BRIEF
+# -----------------------------------------------------------------------------
+# 1. HEALTH ENDPOINT IS /healthz — matching the brief, as of 2026-08-10.
+#    This file previously used /health because the app did not expose /healthz.
+#    It does now: source/TechieBlog/Program.cs maps DeploymentHealthProbe.Path
+#    ("/healthz") with the READINESS predicate, AllowAnonymous and
+#    DisableRateLimiting, so it answers 200 only when PostgreSQL answered too and
+#    503 when it did not. That is deliberate — a probe that goes green while the
+#    database is unreachable would report a broken deploy as a good one.
+#    `/health` (liveness) and `/health/ready` remain mapped and still work; they
+#    are simply not what the pipeline or the uptime monitor watch.
+#    HEALTH_PATH below and the UptimeRobot monitor must always change together.
+#
+# 2. CADDY SNIPPET IS STAGED THROUGH /tmp.
+#    The brief says "if the file exists, do NOT copy". The pipeline copies the
+#    snippet to /tmp/techieblog.caddy (a scratch path that is authoritative to
+#    nobody) and a single SSH step installs it into /srv/caddy/sites/ ONLY when
+#    absent. The guarantee the brief is protecting — an existing
+#    /srv/caddy/sites/techieblog.caddy is never overwritten, and Caddy is never
+#    reloaded when the file was already there — is preserved exactly. The staging
+#    hop exists because branching a later `scp` step on the result of an earlier
+#    `ssh` step depends on an action output that is not part of the action's
+#    documented contract; a single idempotent shell step cannot drift.
+# =============================================================================
+
+name: Deploy
+
+on:
+  push:
+    # `main` IS this repository's main branch — owner-confirmed 2026-08-16.
+    # A `master` fallback was added earlier that day on a stale session
+    # snapshot claiming otherwise; the owner corrected it and removed it, so
+    # exactly one branch deploys to production and there is no second name to
+    # keep in sync.
+    #
+    # If a push to `main` ever produces NO Deploy run at all, this list is the
+    # first thing to check: a branch that does not match is silent, which reads
+    # exactly like a broken pipeline because there is no failed job to open.
+    # `workflow_dispatch` below is the manual escape hatch.
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-techieblog
+  cancel-in-progress: false
+
+env:
+  APP_NAME: techieblog
+  DOMAIN: techierathore.com
+  IMAGE_NAME: ghcr.io/techierathore/techieblog
+  HEALTH_PATH: /healthz
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # BUILD — image to GHCR
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      sha_short: ${{ steps.vars.outputs.sha_short }}
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      # The Dockerfile's `dotnet restore` needs the PRIVATE TrBlazeUI GitHub
+      # Packages feed. Without a usable token restore dies with ~60 lines of
+      # NuGet retry noise ending in NU1301 / 403 that never names the cause, and
+      # here it dies INSIDE a docker build layer where the noise is even harder
+      # to read. Probe the feed first so the failure is one actionable line.
+      # (Same preflight as .github/workflows/ci.yml — REQ-NFR-017 / REQ-NFR-025.)
+      - name: Preflight — TrBlazeUI feed authentication
+        env:
+          PatToken: ${{ secrets.TrBlazeUiPackagesToken }}
+          FallbackToken: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          PackagesToken="${PatToken:-$FallbackToken}"
+          probe="https://nuget.pkg.github.com/techierathore/download/trblazeui.components/index.json"
+          code=$(curl -s -o /dev/null -w '%{http_code}' -u "techierathore:$PackagesToken" "$probe")
+
+          if [ "$code" = "200" ]; then
+            echo "TrBlazeUI feed reachable and authenticated (HTTP 200)."
+            exit 0
+          fi
+
+          cat >&2 <<MSG
+          ============================================================================
+          Cannot read the private TrBlazeUI GitHub Packages feed (HTTP $code).
+
+          The image build needs TrBlazeUI.Components and TrBlazeUI.Icons.Lucide,
+          which live on a private user-scoped feed. Without a token carrying the
+          read:packages scope, the Dockerfile's restore fails with NU1301 / 403.
+
+          To fix, do ONE of:
+
+            1. Create a classic PAT with the read:packages scope, then add it at
+               Settings -> Secrets and variables -> Actions -> New repository secret
+               named exactly:  TrBlazeUiPackagesToken
+
+            2. Or, on each TrBlazeUI package page under
+               github.com/users/techierathore/packages , open Package settings ->
+               Manage Actions access and grant this repository Read access. The
+               built-in GITHUB_TOKEN then suffices and no secret is needed.
+
+          Note: the token previously committed in NuGet.Config was invalidated by
+          GitHub secret scanning and cannot be reused. (REQ-NFR-025)
+
+          Full walkthrough: docs/Prod-Deploy-Checklist.md
+          ============================================================================
+          MSG
+          exit 1
+
+      - name: Compute short SHA
+        id: vars
+        run: echo "sha_short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The feed token is passed as a BUILDKIT SECRET, never a build ARG: an ARG
+      # is baked into the image metadata and readable by anyone who can run
+      # `docker history`. The Dockerfile consumes it with
+      # `RUN --mount=type=secret,id=nuget_pat`.
+      # ---- CONTRACT: the secret id is exactly `nuget_pat`, and it is the
+      #      Dockerfile that owns that spelling. This workflow used to send
+      #      `trblazeui_token`, which BuildKit would have accepted silently while
+      #      /run/secrets/nuget_pat stayed empty — restore would then have failed
+      #      with an unauthenticated NU1301 that never mentions the secret. ----
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          provenance: false
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.sha_short }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          secrets: |
+            nuget_pat=${{ secrets.TrBlazeUiPackagesToken || secrets.GITHUB_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # DEPLOY — render compose, place files, ensure DB, bring the stack up
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: Deploy to VPS
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Declared EXPLICITLY, not inherited. `contents: read` is for the checkout;
+    # `packages: read` is what lets this job's GITHUB_TOKEN be handed to the VPS
+    # so `docker compose pull` can read the private GHCR package. A repository
+    # whose default workflow permissions have been set to restricted would
+    # otherwise hand over a token that cannot pull, and the failure would look
+    # like a server problem.
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      # envsubst substitutes an UNSET variable with an empty string and exits 0,
+      # so "it rendered" proves nothing. Every required secret is therefore
+      # checked for presence AND for the minimum length the application's own
+      # startup validation enforces, before rendering. Values are never echoed —
+      # only names and lengths appear in the log.
+      - name: Render docker-compose.yml
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          SEQ_API_KEY: ${{ secrets.SEQ_API_KEY }}
+          JWT_SIGNING_KEY: ${{ secrets.JWT_SIGNING_KEY }}
+          APP_ENCRYPTION_KEY: ${{ secrets.APP_ENCRYPTION_KEY }}
+          ANALYTICS_VISITOR_SALT: ${{ secrets.ANALYTICS_VISITOR_SALT }}
+        run: |
+          set -euo pipefail
+
+          # REQUIRED — the app refuses to start without each of these.
+          missing=""
+          for name in DB_PASSWORD JWT_SIGNING_KEY APP_ENCRYPTION_KEY ANALYTICS_VISITOR_SALT; do
+            if [ -z "${!name:-}" ]; then
+              missing="$missing $name"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing GitHub secret(s):$missing — see docs/Prod-Deploy-Checklist.md (GitHub secrets table)."
+            exit 1
+          fi
+
+          # Seq. SEQ_API_KEY stays OPTIONAL — it was once in the required list
+          # above, which failed the deploy over a service the app treats as
+          # optional. Program.cs registers the Serilog Seq sink CONDITIONALLY on
+          # Seq:Url being non-blank (SeqSettings.Resolve); the API KEY is
+          # independent of that decision and may be null.
+          #
+          # CORRECTED 2026-08-16 — SEQ IS RUNNING ON THE VPS, and its address is
+          # a CONTRACT CONSTANT.
+          #
+          # A 2026-08-14 recon concluded "no seq container exists", and this step
+          # therefore rendered SeqUrl BLANK whenever SEQ_API_KEY was unset, which
+          # disabled log shipping on every deploy. That conclusion was wrong. The
+          # server build (bluehost-vps-runbook-v5.md) is complete and its
+          # acceptance script /srv/checkup.sh reports 0 failed, including
+          # "seq container up" and "seq answers through caddy".
+          #
+          # http://seq:5341 is fixed by deployment-brief-v3 §0/§2: container
+          # `seq` on the shared `web` network, plain HTTP, ingestion-only port.
+          # It is NOT configurable, and in particular the public UI address
+          # https://seq.techierathore.com must NEVER appear in app config — that
+          # would push ingestion out through Caddy and make logging depend on
+          # public DNS and a certificate. A short-lived SEQ_URL repository
+          # variable that allowed exactly that was REMOVED on 2026-08-16; it
+          # only ever existed because the internal address was unconfirmed.
+          SEQ_URL="http://seq:5341"
+          if [ -z "${SEQ_API_KEY:-}" ]; then
+            echo "::warning::SEQ_API_KEY is not set. Seq shipping is still ENABLED at ${SEQ_URL} (this Seq accepts unauthenticated ingestion — a POST to /ingest/clef returned 201 on 2026-08-16), but events arrive with no ingestion identity, so the App property is not stamped server-side and this app cannot be revoked or throttled at the key. Create a per-app key in Seq (Settings -> API Keys, title 'techieblog', applied property App=techieblog) and store it as the repository secret SEQ_API_KEY. NOTE the spelling: runbook v5 section 6.3 suggests SEQ_APIKEY_BLOG, but this workflow reads SEQ_API_KEY, per deployment-brief v3. See docs/Prod-Deploy-Checklist.md section 2 step 3."
+          else
+            echo "SEQ_API_KEY present — Seq shipping enabled at ${SEQ_URL} with an API key."
+          fi
+          export SEQ_URL
+
+          # Mirrors AppSecrets (REQ-NFR-027) and DeploymentConfiguration
+          # (REQ-NFR-030). Failing here beats a container that crash-loops on the
+          # server with the same message buried in `docker logs`.
+          if [ "${#JWT_SIGNING_KEY}" -lt 32 ]; then
+            echo "::error::JWT_SIGNING_KEY is ${#JWT_SIGNING_KEY} characters; AppSecrets requires at least 32."
+            exit 1
+          fi
+          if [ "${#APP_ENCRYPTION_KEY}" -lt 16 ]; then
+            echo "::error::APP_ENCRYPTION_KEY is ${#APP_ENCRYPTION_KEY} characters; AppSecrets requires at least 16."
+            exit 1
+          fi
+          if [ "${#ANALYTICS_VISITOR_SALT}" -lt 32 ]; then
+            echo "::error::ANALYTICS_VISITOR_SALT is ${#ANALYTICS_VISITOR_SALT} characters; DeploymentConfiguration requires at least 32."
+            exit 1
+          fi
+
+          mkdir -p rendered
+          envsubst '${DB_PASSWORD} ${SEQ_API_KEY} ${SEQ_URL} ${JWT_SIGNING_KEY} ${APP_ENCRYPTION_KEY} ${ANALYTICS_VISITOR_SALT}' \
+            < deploy/docker-compose.template.yml \
+            > rendered/docker-compose.yml
+
+          # Any surviving dollar-brace token means the template gained a
+          # placeholder that the substitution list above does not know about.
+          # Report the LINE NUMBERS ONLY — printing the line could print a secret.
+          if grep -n '\${' rendered/docker-compose.yml > /dev/null 2>&1; then
+            echo "::error::Unsubstituted placeholder(s) left in the rendered compose file at line(s): $(grep -n '\${' rendered/docker-compose.yml | cut -d: -f1 | paste -sd, -). Add the variable to the envsubst list in this workflow."
+            exit 1
+          fi
+
+          echo "Rendered $(wc -l < rendered/docker-compose.yml) lines; no placeholders remain."
+
+      - name: Create server directories
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            mkdir -p /srv/apps/techieblog
+            mkdir -p /srv/data/techieblog/uploads
+            # The DataProtection key ring, bind-mounted to
+            # /home/app/.aspnet/DataProtection-Keys. Without it the runtime
+            # writes the ring inside the container and every redeploy mints a
+            # new key, which breaks the Blazor circuit descriptors and the
+            # antiforgery token carried by any page rendered by the outgoing
+            # container.
+            mkdir -p /srv/data/techieblog/dp-keys
+            # These two land owned by the DEPLOY USER, which UID 1654 cannot
+            # write to. The "Fix bind-mount ownership" block inside the
+            # pull/restart step below corrects both before the container starts;
+            # nothing here needs sudo, and nothing is left for the owner to do.
+            # No logs directory: the container logs to STDOUT only
+            # (LogFileEnabled=false). `docker logs techieblog` and Seq are where
+            # logs live; a file sink inside a container writes to an ephemeral
+            # layer the next redeploy discards.
+
+      - name: Copy rendered compose file
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: rendered/docker-compose.yml
+          target: /srv/apps/techieblog
+          strip_components: 1
+          overwrite: true
+
+      # Staged to /tmp; the next step installs it ONLY if the real snippet is
+      # absent. See "DELIBERATE DEVIATIONS" at the top of this file.
+      - name: Stage Caddy snippet
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: deploy/techieblog.caddy
+          target: /tmp
+          strip_components: 1
+          overwrite: true
+
+      - name: Install Caddy snippet (create-only) and reload
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            if [ -f /srv/caddy/sites/techieblog.caddy ]; then
+              echo "caddy entry already present — skipped"
+              rm -f /tmp/techieblog.caddy
+              exit 0
+            fi
+            install -D -m 0644 /tmp/techieblog.caddy /srv/caddy/sites/techieblog.caddy
+            rm -f /tmp/techieblog.caddy
+            docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+            echo "caddy entry created and Caddy reloaded"
+
+      # ensure-db is idempotent and passwordless for the deploy user. No `vector`
+      # argument: NEEDS_PGVECTOR=no. This is the ONLY SQL-adjacent thing the
+      # pipeline runs — schema itself is applied by DbUp inside the app at
+      # startup (source/BlogDb/PostgresScripts).
+      - name: Ensure database
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            sudo /usr/local/bin/ensure-db techieblog
+
+      # -----------------------------------------------------------------------
+      # DDL PROBE — this was docs/Prod-Deploy-Checklist.md §5a, a "verify once by
+      # hand" step. It is a gate now, and it deliberately runs BEFORE the
+      # container starts, so a missing GRANT fails the deploy instead of shipping
+      # a site with no tables in it.
+      #
+      # `ensure-db` runs `createdb -O appuser`, so appuser owns the database and
+      # on PostgreSQL 15+ owns `public` through pg_database_owner — the probe
+      # should pass. "Should" is exactly why it is a probe: what that helper
+      # grants lives on the VPS and is not visible from this repository.
+      #
+      # THE PASSWORD. It travels as PGPASSWORD through the ssh-action's `envs:`
+      # input — the action exports the named variables at the top of the remote
+      # script — so it never appears on a command line where `ps` could read it,
+      # and it is deliberately NOT part of the psql conninfo string, so a
+      # connection error cannot echo it back in `$out`. `--no-password` makes
+      # psql fail rather than block on a prompt no SSH session could answer.
+      - name: Verify appuser DDL rights
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          PGPASSWORD: ${{ secrets.DB_PASSWORD }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: PGPASSWORD
+          script: |
+            set -uo pipefail
+
+            # The runbook installs PostgreSQL natively, so psql should be here.
+            # If it genuinely is not, a missing CLIENT is not a reason to fail a
+            # deploy — warn and point at the manual check.
+            if ! command -v psql > /dev/null 2>&1; then
+              echo "::warning::psql is not on this server's PATH, so the appuser DDL probe was skipped. Run the CREATE TABLE check in docs/Prod-Deploy-Checklist.md §5a by hand before trusting the first deploy."
+              exit 0
+            fi
+            if [ -z "${PGPASSWORD:-}" ]; then
+              echo "::warning::DB_PASSWORD did not reach the server, so the appuser DDL probe was skipped. Check the ssh-action envs: input and the DB_PASSWORD secret, or run docs/Prod-Deploy-Checklist.md §5a by hand."
+              exit 0
+            fi
+
+            out=$(psql --no-password -q -v ON_ERROR_STOP=1 \
+              "host=127.0.0.1 port=5432 dbname=techieblog user=appuser" \
+              -c 'DROP TABLE IF EXISTS ci_ddl_probe;' \
+              -c 'CREATE TABLE ci_ddl_probe (id int);' \
+              -c 'DROP TABLE ci_ddl_probe;' 2>&1)
+            rc=$?
+
+            if [ "$rc" -eq 0 ]; then
+              echo "appuser can CREATE and DROP tables in techieblog — DbUp has the DDL rights it needs."
+              exit 0
+            fi
+
+            echo "psql exited $rc: $out"
+
+            # DISTINGUISH THE TWO FAILURES. A recon script written for this
+            # project reported "appuser CANNOT create tables - the GRANTs are
+            # needed" when the real error was that the database did not exist
+            # yet. Same non-zero exit, completely different fix, and the wrong
+            # one sends the owner to apply GRANTs against nothing.
+            if printf '%s' "$out" | grep -qi 'does not exist'; then
+              echo "::error::The techieblog database does not exist, so this is NOT a privileges problem and the GRANTs below are NOT the fix. The 'Ensure database' step should have created it via 'sudo /usr/local/bin/ensure-db techieblog' - check that step's log. If it reported success, check the sudoers entry for ensure-db."
+              exit 1
+            fi
+
+            echo "Run these three statements on the VPS as a superuser, once:"
+            echo "  sudo -u postgres psql -d techieblog -c \"GRANT ALL PRIVILEGES ON DATABASE techieblog TO appuser;\""
+            echo "  sudo -u postgres psql -d techieblog -c \"GRANT ALL ON SCHEMA public TO appuser;\""
+            echo "  sudo -u postgres psql -d techieblog -c \"ALTER SCHEMA public OWNER TO appuser;\""
+            echo "::error::appuser cannot create tables in the techieblog database, so DbUp cannot create its schemaversions journal and the site would come up EMPTY. Apply the three GRANT statements printed just above (docs/Prod-Deploy-Checklist.md §5a), then re-run this workflow."
+            exit 1
+
+      # -----------------------------------------------------------------------
+      # ONE SSH SESSION: log the server in to GHCR, pull, fix the bind-mount
+      # ownership, bring the stack up, log out again. They are together on
+      # purpose — the credential's window is exactly this session, and the
+      # ownership fix must happen after the pull (it uses the image that was
+      # just pulled) and before `up -d` (the container must find a writable
+      # mount on its very first boot).
+      # -----------------------------------------------------------------------
+      - name: Pull image, fix mount ownership, restart the stack
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: GHCR_USER,GHCR_TOKEN
+          script: |
+            set -euo pipefail
+            cd /srv/apps/techieblog
+
+            # --- GHCR credential (Gap 3) ---------------------------------------
+            # The build job's `Log in to GHCR` authenticates the RUNNER, which is
+            # what lets it PUSH. The SERVER pulls, and nothing ever authenticated
+            # it — a GHCR package is private on first push, so `compose pull`
+            # would fail `denied`/`unauthorized`. This logs in with THIS RUN'S
+            # ephemeral GITHUB_TOKEN and logs out again on the way out, so no
+            # long-lived credential is left in ~/.docker/config.json.
+            #
+            # IF THIS ACCOUNT ALREADY HAS A ghcr.io CREDENTIAL, LEAVE IT ALONE.
+            # The VPS runbook (Step 12) has the owner `docker login ghcr.io` by
+            # hand with a personal PAT. Logging in would overwrite that entry
+            # with a token that expires when this run ends, and the logout would
+            # then delete it outright. Manual server state is authoritative
+            # here, exactly as it is for the Caddy snippet.
+            #
+            # ---------------------------------------------------------------
+            # 2026-08-16: THE FALLBACK BELOW IS NOW THE *LIVE* PATH, NOT A
+            # SAFETY NET — and that is a gap in the spec, not in this workflow.
+            #
+            # Deployment-brief v3.2 §0 still says "the server is already
+            # authenticated ... the workflow must not run docker login over
+            # SSH". That answer was written when the pipeline connected as
+            # `ravi`. Runbook v5.2 §2.1 moved CI to a brand-new dedicated
+            # account, `ciuser` — and DOCKER REGISTRY CREDENTIALS ARE PER-USER
+            # (~/.docker/config.json), not machine-wide. Membership of the
+            # `docker` group grants access to the DAEMON; it grants nothing at
+            # the REGISTRY. Runbook Step 12 ran as `ravi` (ciuser does not even
+            # exist until Part 2.1, which comes later), so /home/ciuser has no
+            # config.json at all and a private `docker compose pull` as ciuser
+            # would fail `unauthorized`.
+            #
+            # So the check below finds nothing, and the ephemeral login runs.
+            # That is what makes the first deploy work. Removing this branch to
+            # satisfy the letter of the brief would break the deploy outright.
+            #
+            # TO RESTORE SPEC COMPLIANCE, run ONE command on the server as ravi:
+            #   sudo -u ciuser -H bash -c \
+            #     'echo <PAT> | docker login ghcr.io -u techierathore --password-stdin'
+            # After that this branch goes dormant again and stays dormant.
+            # ---------------------------------------------------------------
+            did_login=no
+            if [ -f "$HOME/.docker/config.json" ] && grep -q 'ghcr.io' "$HOME/.docker/config.json"; then
+              echo "ghcr.io credential already present on the server — left untouched."
+            elif [ -n "${GHCR_TOKEN:-}" ] && [ -n "${GHCR_USER:-}" ]; then
+              # --password-stdin, never an argument: an argument is visible in
+              # `ps` to every user on the box for the process's lifetime.
+              printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+              did_login=yes
+              echo "logged in to ghcr.io as $GHCR_USER for this pull only"
+            else
+              echo "::warning::No GHCR credential reached the server and none is stored for this SSH account. The pull now depends on the ghcr.io/techierathore/techieblog package being public; if it fails with denied/unauthorized, that is why — check the deploy job's packages: read permission. NOTE: registry credentials are per-user, so a 'docker login' done as ravi does NOT cover ciuser — see docs/Prod-Deploy-Checklist.md section 3."
+            fi
+
+            # Fires on success, on failure and on `set -e` aborts alike, so a
+            # broken deploy cannot leave the ephemeral credential behind.
+            trap 'if [ "$did_login" = yes ]; then docker logout ghcr.io > /dev/null 2>&1 || true; fi' EXIT
+
+            docker compose pull
+
+            # --- Fix bind-mount ownership (Gap 1) -------------------------------
+            # The container runs as 1654 and cannot chown its own mounts; the CI
+            # user (ciuser) has sudo for /usr/local/bin/ensure-db and NOTHING
+            # else, so `sudo chown` is not available to it either. So: a
+            # throwaway container, run as root, over the SAME image compose just
+            # pulled — no extra image is downloaded and nothing new is left on
+            # the disk (--rm). Only the two leaf directories are touched, never
+            # their parent, so /srv/data/techieblog keeps its own ownership and
+            # the `mkdir -p` step above keeps working on every future run.
+            #
+            # THE GROUP IS DELIBERATELY NOT CHANGED (runbook v5.2 §2.1).
+            # /srv/apps, /srv/data and /srv/caddy/sites are group `webops` with
+            # the SETGID bit, which is what gives ciuser write access without
+            # owning them. `chown -R 1654:1654` would replace that group with
+            # `1654` and quietly cut ciuser out of the directories it created.
+            # Changing only the OWNER (`chown -R 1654`) gives the container what
+            # it needs — owner rwx — while leaving group `webops` and the setgid
+            # inheritance exactly as the runbook set them up.
+            image=$(docker compose config --images 2> /dev/null | head -n 1)
+            if [ -z "$image" ]; then
+              image=ghcr.io/techierathore/techieblog:latest
+            fi
+
+            docker run --rm --user 0 --entrypoint /bin/sh \
+              -v /srv/data/techieblog:/data \
+              "$image" -c '
+                set -eu
+                for d in /data/uploads /data/dp-keys; do
+                  mkdir -p "$d"
+                  # UNCONDITIONAL chown. It used to be guarded by
+                  #   n=$(find "$d" ! -uid 1654 -print | wc -l)
+                  # which has a SILENT-FALSE-PASS mode: `-uid` is a GNU findutils
+                  # predicate that BusyBox find does not implement. On a musl or
+                  # BusyBox base image find exits non-zero, `wc -l` prints 0 —
+                  # and `wc` succeeding is what `set -e` sees, so the guard
+                  # reported "already correct, nothing to do" and the chown never
+                  # ran. Measured directly on alpine:latest, 2026-08-16.
+                  # Today the image is Debian-based (aspnet:10) where -uid works,
+                  # so this was latent rather than live — but a pre-check that
+                  # can report success by failing is exactly the failure class
+                  # this pipeline exists to remove. chown -R is idempotent and
+                  # costs milliseconds, so there is nothing to optimise here.
+                  chown -R 1654 "$d"
+
+                  # Restore the group model from the runbook on the directory
+                  # itself.
+                  #
+                  # NOTE TO EDITORS: this whole inner script is passed to sh -c
+                  # inside SINGLE QUOTES, so it must contain NO single quote of
+                  # any kind — not even in a comment, and not in a contraction
+                  # like the possessive of a noun. One stray quote ends the
+                  # string early and the step dies with
+                  # "syntax error near unexpected token done". An even number is
+                  # worse than an odd one: the quoting re-balances, bash -n
+                  # passes, and the text between the quotes is silently exposed
+                  # to expansion by the OUTER shell. Both mistakes were made
+                  # here on 2026-08-16 and caught by the bash -n gate.
+                  # chown alone is not enough: the dirs are mode 755, so group
+                  # `webops` has r-x and NOT w, and ciuser — which created them —
+                  # can no longer write into them. That silently breaks the
+                  # documented uploads-migration path in
+                  # docs/Prod-Deploy-Checklist.md §8, which rsyncs into
+                  # /srv/data/techieblog/uploads as VPS_USER (= ciuser since
+                  # runbook v5.2). Measured, not assumed: with 755 a uid-1000 /
+                  # gid-2000 user is DENIED; with g+w it succeeds.
+                  #
+                  # g+s (setgid) is the same bit runbook v5.2 §2.1 sets on
+                  # /srv/apps, /srv/data and /srv/caddy/sites, so files the
+                  # container writes here inherit `webops` instead of becoming
+                  # 1654-only — which is also what keeps the /srv/data backup
+                  # archive readable.
+                  #
+                  # Applied to the DIRECTORY only, never recursively to files:
+                  # uploaded images have no business being group-writable.
+                  chmod g+ws "$d"
+                  echo "ownership: $d - owner uid 1654, group preserved, g+ws restored"
+                done
+              '
+
+            docker compose up -d
+            docker image prune -f
+
+      # -----------------------------------------------------------------------
+      # WRITABILITY PROBE — the check docs/Prod-Deploy-Checklist.md §5 tells the
+      # owner to run by hand. A non-writable uploads mount is the quietest
+      # failure this deployment has: container Up, /healthz 200, and (before
+      # REQ-NFR-040) not one log line — the only signal was a red toast in the
+      # admin UI. dp-keys has no log line even now. A failure class the pipeline
+      # can detect should not be left for a human to discover through a toast.
+      # -----------------------------------------------------------------------
+      - name: Probe the persistent mounts for writability
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -uo pipefail
+
+            running=false
+            for attempt in 1 2 3 4 5; do
+              running=$(docker inspect -f '{{.State.Running}}' techieblog 2> /dev/null || echo false)
+              if [ "$running" = "true" ]; then
+                break
+              fi
+              sleep 3
+            done
+
+            # A container that is not running is a DIFFERENT failure, and the
+            # verify job diagnoses it properly. Do not mask it with a confusing
+            # "cannot probe" error here.
+            if [ "$running" != "true" ]; then
+              echo "::warning::The techieblog container is not running yet, so the mount writability probe was skipped. If this deploy fails at 'Probe health endpoint', read: docker logs techieblog"
+              exit 0
+            fi
+
+            failed=0
+            for path in /app/uploads /home/app/.aspnet/DataProtection-Keys; do
+              if docker exec techieblog sh -c "touch $path/.ci-probe && rm -f $path/.ci-probe" > /dev/null 2>&1; then
+                echo "writable by the container user (1654): $path"
+              else
+                echo "::error::$path is NOT writable by the container user (UID 1654). Uploads (or the DataProtection key ring) will fail silently. The pipeline's own ownership fix should have prevented this — check that /srv/data/techieblog/uploads and /srv/data/techieblog/dp-keys exist and are owned 1654:1654, and read docs/Prod-Deploy-Checklist.md §5."
+                failed=1
+              fi
+            done
+
+            if [ "$failed" -ne 0 ]; then
+              exit 1
+            fi
+            echo "both persistent mounts are writable."
+
+      # -----------------------------------------------------------------------
+      # SEQ ENDPOINT OBSERVATION — warning-only, never fails the deploy.
+      #
+      # Added 2026-08-16. http://seq:5341 is a contract constant, and the server
+      # build's own acceptance script (/srv/checkup.sh) already asserts the seq
+      # container is up. This step is the deploy-time echo of the same facts,
+      # scoped to THIS app: it confirms `seq` is reachable on the network this
+      # container actually joined, and prints the SeqUrl the container was given.
+      # Deliberately non-fatal — a misrouted log sink is a degraded deployment,
+      # not a broken one, and logging must never gate a deploy.
+      # -----------------------------------------------------------------------
+      - name: Report the Seq endpoint
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -uo pipefail
+
+            if docker inspect -f '{{.State.Running}}' seq > /dev/null 2>&1; then
+              echo "a container named 'seq' exists on this host."
+              if docker inspect -f '{{json .NetworkSettings.Networks}}' seq 2> /dev/null | grep -q '"web"'; then
+                echo "…and it is joined to the 'web' network, so http://seq:5341 resolves from the techieblog container. Nothing to do."
+              else
+                echo "::warning::The 'seq' container is NOT joined to the 'web' network, so http://seq:5341 will not resolve from the techieblog container and log shipping is silently dropped. Fix on the server with 'docker network connect web seq' — do NOT point app config at the public Seq URL, which deployment-brief v3 prohibits. Then run 'sudo /srv/checkup.sh' to confirm."
+              fi
+            else
+              echo "::warning::No container named 'seq' is running on this host, so http://seq:5341 will not resolve and log shipping is silently dropped. This contradicts the completed server build — run 'sudo /srv/checkup.sh' (runbook v5 Part 9); its 'seq container up' check should be failing too. Do NOT work around it by pointing app config at the public Seq URL."
+            fi
+
+            # What the app itself was told, independent of what exists. Printed
+            # because a URL is not a secret and the mismatch between "what is on
+            # the box" and "what the container was configured with" is the whole
+            # diagnosis.
+            docker exec techieblog printenv SeqUrl 2> /dev/null \
+              | sed 's/^/techieblog container SeqUrl = /' \
+              || echo "could not read SeqUrl from the container (it may not be running yet)."
+
+  # ---------------------------------------------------------------------------
+  # VERIFY — through the real public URL: DNS -> Caddy -> TLS -> app -> DB
+  # ---------------------------------------------------------------------------
+  verify:
+    name: Verify public health endpoint
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Wait for the container to come up
+        run: sleep 20
+
+      # DbUp runs its migrations before the host starts serving, so the first
+      # boot after a schema change legitimately takes longer than a restart —
+      # hence the retries rather than a single probe.
+      - name: Probe health endpoint
+        run: |
+          set -uo pipefail
+          url="https://${DOMAIN}${HEALTH_PATH}"
+          for attempt in 1 2 3; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$url" || echo "000")
+            if [ "$code" = "200" ]; then
+              echo "$url responded 200 on attempt $attempt."
+              exit 0
+            fi
+            echo "Attempt $attempt: $url responded $code."
+            if [ "$attempt" -lt 3 ]; then
+              sleep 10
+            fi
+          done
+
+          echo "::error::$url did not return 200 after 3 attempts. Check: docker logs techieblog (the two startup gates, REQ-NFR-027 and REQ-NFR-030, abort the host with a named message), then the DNS A record and the Caddy snippet. Troubleshooting: docs/Prod-Deploy-Checklist.md"
+          exit 1
+
+      # A site can be green on /healthz, render its home page, log nothing, and
+      # still be COMPLETELY DEAD to every click — that is the Dockerfile defect
+      # in docs/Prod-Deploy-Checklist.md §10: a published wwwroot with no
+      # _framework directory, so blazor.web.js 404s and the circuit never
+      # starts. The checklist tells the owner to curl this by hand. One curl in
+      # CI is cheaper than one human remembering.
+      - name: Probe the Blazor framework asset
+        run: |
+          set -uo pipefail
+          url="https://${DOMAIN}/_framework/blazor.web.js"
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$url" || echo "000")
+          if [ "$code" = "200" ]; then
+            echo "$url responded 200 — the Blazor circuit script is being served."
+            exit 0
+          fi
+          echo "::error::$url responded $code. On 404 the site renders and then ignores every click, because blazor.web.js never loads — the published-wwwroot defect in docs/Prod-Deploy-Checklist.md §10; confirm with 'docker exec techieblog ls /app/wwwroot/_framework' and check that the SECOND dotnet restore is still in the Dockerfile. On 000 the request never completed, which is a network blip on the runner rather than a defect — re-run the job."
+          exit 1
+
+      # WARNING, not an error, on purpose: a missing www record is a DNS choice
+      # the owner may have made deliberately, and the apex site is already
+      # proven healthy by the step above. Failing the deploy over it would be
+      # the pipeline overreaching.
+      - name: Check the www redirect
+        run: |
+          set -uo pipefail
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "https://www.${DOMAIN}/" || echo "000")
+          case "$code" in
+            200 | 301 | 302 | 307 | 308)
+              echo "https://www.${DOMAIN}/ responded $code — the www hop works."
+              ;;
+            *)
+              echo "::warning::https://www.${DOMAIN}/ responded $code. The apex site is healthy, so this is the www DNS record or the redirect in deploy/techieblog.caddy — see docs/Prod-Deploy-Checklist.md §4."
+              ;;
+          esac

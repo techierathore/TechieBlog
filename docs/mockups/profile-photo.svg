@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="Profile photo placeholder">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#dbeafe"/><stop offset="1" stop-color="#c7d2fe"/>
+    </linearGradient>
+    <linearGradient id="shirt" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e3a5f"/><stop offset="1" stop-color="#122a45"/>
+    </linearGradient>
+    <clipPath id="round"><circle cx="100" cy="100" r="100"/></clipPath>
+  </defs>
+  <g clip-path="url(#round)">
+    <rect width="200" height="200" fill="url(#bg)"/>
+    <!-- shoulders / torso -->
+    <path d="M28 200c0-38 32-58 72-58s72 20 72 58z" fill="url(#shirt)"/>
+    <!-- collar -->
+    <path d="M78 148l22 22 22-22 -10-6-12 12-12-12z" fill="#f8fafc" opacity=".92"/>
+    <!-- neck -->
+    <path d="M84 118h32v30c0 8-32 8-32 0z" fill="#d9a273"/>
+    <!-- head -->
+    <ellipse cx="100" cy="88" rx="36" ry="42" fill="#e8b183"/>
+    <!-- ears -->
+    <ellipse cx="64" cy="90" rx="6" ry="9" fill="#dda875"/>
+    <ellipse cx="136" cy="90" rx="6" ry="9" fill="#dda875"/>
+    <!-- hair -->
+    <path d="M64 84c-2-30 16-42 36-42s38 12 36 42c-4-16-14-22-24-24-12 12-34 8-40 4-4 4-6 12-8 20z" fill="#2b2b31"/>
+    <!-- brows + eyes -->
+    <path d="M80 80h16M104 80h16" stroke="#2b2b31" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="88" cy="92" r="4.5" fill="#3b3b45"/>
+    <circle cx="112" cy="92" r="4.5" fill="#3b3b45"/>
+    <!-- nose + smile -->
+    <path d="M100 96v10l-5 3" stroke="#c98f61" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M88 116c6 6 18 6 24 0" stroke="#a86a45" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>

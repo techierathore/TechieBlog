@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Security.Claims;
 
+using BlogUI.Common;
+
 namespace BlogUI.Pages.AdminPages;
 
 /// <summary>
@@ -13,6 +15,36 @@ namespace BlogUI.Pages.AdminPages;
 /// </summary>
 public partial class ManageSkills
 {
+
+    /// <summary>
+    /// Curated messages shown when an unexpected failure is caught on this page (REQ-NFR-033).
+    /// </summary>
+    /// <remarks>
+    /// <para>These assignments previously interpolated <c>ex.Message</c>. The page is gated by
+    /// <c>AppPolicies.AdminOnly</c>, which was the defence offered for the disclosure, but an
+    /// exception's text is not written for an audience and routinely carries a SQL fragment, a
+    /// table name or a file-system path — none of which an administrator can act on and all of
+    /// which end up in a screenshot pasted into a ticket.</para>
+    /// <para>The engine service beneath every one of these calls already logs the exception with
+    /// its own context through <c>ILogger&lt;T&gt;</c>, where the host's
+    /// <c>CorrelationIdMiddleware</c> has stamped the request's correlation id onto the event
+    /// (REQ-NFR-015), so nothing is lost by curating here. This page injects no logger of its own;
+    /// adding one is tracked as a follow-up.</para>
+    /// </remarks>
+    private const string LoadFailureMessage =
+        "Could not load skills. Please try again later.";
+
+    private const string AddFailureMessage =
+        "Could not add the skill. Please try again later.";
+
+    private const string UpdateFailureMessage =
+        "Could not update the skill. Please try again later.";
+
+    private const string DeleteFailureMessage =
+        "Could not delete the skill. Please try again later.";
+
+    private const string ReorderFailureMessage =
+        "Could not reorder the skills. Please try again later.";
     [Inject]
     public IUserSkillsRepo SkillsRepo { get; set; } = default!;
 
@@ -24,6 +56,11 @@ public partial class ManageSkills
 
     [Inject]
     public NavigationManager NavManager { get; set; } = default!;
+
+    /// <summary>
+    /// Sentinel value used by the category select to mean "create a new category".
+    /// </summary>
+    private const string NewCategorySentinel = "__new__";
 
     // State
     private bool IsLoading = true;
@@ -37,7 +74,7 @@ public partial class ManageSkills
     private List<string> ExistingCategories = new();
 
     // Status messages
-    private string StatusMessage = string.Empty;
+    private string? StatusMessage;
     private bool IsError = false;
 
     // Add Skill Dialog
@@ -81,7 +118,7 @@ public partial class ManageSkills
             if (IsAdmin)
             {
                 // Load all users for admin dropdown
-                AllUsers = UserRepo.GetAll()?.ToList() ?? new List<AppUser>();
+                AllUsers = (await UserRepo.GetAllAsync())?.ToList() ?? new List<AppUser>();
             }
         }
         catch
@@ -91,7 +128,7 @@ public partial class ManageSkills
         }
     }
 
-    private Task LoadSkills()
+    private async Task LoadSkills()
     {
         IsLoading = true;
 
@@ -99,7 +136,7 @@ public partial class ManageSkills
         {
             if (SelectedUserId > 0)
             {
-                AllSkills = SkillsRepo.GetByUserId(SelectedUserId).ToList();
+                AllSkills = (await SkillsRepo.GetByUserIdAsync(SelectedUserId)).ToList();
                 GroupedSkills = AllSkills
                     .GroupBy(s => s.Category ?? "Uncategorized")
                     .OrderBy(g => g.Key);
@@ -133,9 +170,9 @@ public partial class ManageSkills
 
             StatusMessage = string.Empty;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error loading skills: {ex.Message}";
+            StatusMessage = LoadFailureMessage;
             IsError = true;
             AllSkills = new List<UserSkill>();
             GroupedSkills = Enumerable.Empty<IGrouping<string, UserSkill>>();
@@ -144,8 +181,6 @@ public partial class ManageSkills
         {
             IsLoading = false;
         }
-
-        return Task.CompletedTask;
     }
 
     private async Task OnUserSelectionChanged(long userId)
@@ -153,6 +188,18 @@ public partial class ManageSkills
         SelectedUserId = userId;
         await LoadSkills();
         StateHasChanged();
+    }
+
+    /// <summary>
+    /// Handles the admin user picker selecting a different author.
+    /// </summary>
+    /// <param name="value">The selected user id as text.</param>
+    private async Task OnSelectedUserChanged(string value)
+    {
+        if (long.TryParse(value, out var userId))
+        {
+            await OnUserSelectionChanged(userId);
+        }
     }
 
     private void ToggleCategory(string category)
@@ -193,6 +240,18 @@ public partial class ManageSkills
         NewCategoryName = string.Empty;
     }
 
+    /// <summary>
+    /// Keeps the add-skill dialog state in sync when it is dismissed by Escape or an outside click.
+    /// </summary>
+    /// <param name="isOpen">The dialog's requested open state.</param>
+    private void OnAddDialogOpenChanged(bool isOpen)
+    {
+        if (!isOpen)
+        {
+            CancelAddSkill();
+        }
+    }
+
     private async Task SaveNewSkill()
     {
         if (string.IsNullOrWhiteSpace(NewSkillName))
@@ -202,7 +261,7 @@ public partial class ManageSkills
             return;
         }
 
-        var category = NewSkillCategory == "__new__" ? NewCategoryName : NewSkillCategory;
+        var category = NewSkillCategory == NewCategorySentinel ? NewCategoryName : NewSkillCategory;
 
         if (string.IsNullOrWhiteSpace(category))
         {
@@ -226,7 +285,7 @@ public partial class ManageSkills
                 CreatedOn = DateTime.UtcNow
             };
 
-            SkillsRepo.Create(newSkill);
+            await SkillsRepo.CreateAsync(newSkill);
 
             StatusMessage = $"Skill '{NewSkillName}' added successfully.";
             IsError = false;
@@ -241,9 +300,9 @@ public partial class ManageSkills
 
             await LoadSkills();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error adding skill: {ex.Message}";
+            StatusMessage = AddFailureMessage;
             IsError = true;
         }
     }
@@ -277,7 +336,7 @@ public partial class ManageSkills
             return;
         }
 
-        var category = EditSkillCategory == "__new__" ? NewCategoryName : EditSkillCategory;
+        var category = EditSkillCategory == NewCategorySentinel ? NewCategoryName : EditSkillCategory;
 
         if (string.IsNullOrWhiteSpace(category))
         {
@@ -288,7 +347,7 @@ public partial class ManageSkills
 
         try
         {
-            var skill = SkillsRepo.GetById(EditingSkillId);
+            var skill = await SkillsRepo.GetByIdAsync(EditingSkillId);
             if (skill == null)
             {
                 StatusMessage = "Skill not found.";
@@ -299,7 +358,7 @@ public partial class ManageSkills
             skill.SkillName = EditSkillName.Trim();
             skill.Category = category.Trim();
 
-            SkillsRepo.Update(skill);
+            await SkillsRepo.UpdateAsync(skill);
 
             StatusMessage = $"Skill '{EditSkillName}' updated successfully.";
             IsError = false;
@@ -314,9 +373,9 @@ public partial class ManageSkills
             CancelEdit();
             await LoadSkills();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error updating skill: {ex.Message}";
+            StatusMessage = UpdateFailureMessage;
             IsError = true;
         }
     }
@@ -337,13 +396,25 @@ public partial class ManageSkills
         ShowDeleteDialog = false;
     }
 
+    /// <summary>
+    /// Keeps the delete confirmation state in sync when it is dismissed by Escape or an outside click.
+    /// </summary>
+    /// <param name="isOpen">The dialog's requested open state.</param>
+    private void OnDeleteOpenChanged(bool isOpen)
+    {
+        if (!isOpen)
+        {
+            CancelDelete();
+        }
+    }
+
     private async Task DeleteSkill()
     {
         if (SkillToDelete == null) return;
 
         try
         {
-            SkillsRepo.Delete(SkillToDelete.SkillId);
+            await SkillsRepo.DeleteAsync(SkillToDelete.SkillId);
 
             StatusMessage = $"Skill '{SkillToDelete.SkillName}' deleted successfully.";
             IsError = false;
@@ -353,9 +424,9 @@ public partial class ManageSkills
 
             await LoadSkills();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error deleting skill: {ex.Message}";
+            StatusMessage = DeleteFailureMessage;
             IsError = true;
             ShowDeleteDialog = false;
         }
@@ -419,14 +490,14 @@ public partial class ManageSkills
             skill.DisplayOrder = targetSkill.DisplayOrder;
             targetSkill.DisplayOrder = tempOrder;
 
-            SkillsRepo.Update(skill);
-            SkillsRepo.Update(targetSkill);
+            await SkillsRepo.UpdateAsync(skill);
+            await SkillsRepo.UpdateAsync(targetSkill);
 
             await LoadSkills();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error reordering skill: {ex.Message}";
+            StatusMessage = ReorderFailureMessage;
             IsError = true;
         }
     }

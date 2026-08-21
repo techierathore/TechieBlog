@@ -1,1 +1,0 @@
--- Intentionaly Kept Blank as VS doesn;t provide SQL file creationg option. 

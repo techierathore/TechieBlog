@@ -4,397 +4,308 @@
     Provides editing and deletion capabilities for blog post management.
 
     Usage: Navigate to /BlogsList
-    Dependencies: Microsoft.FluentUI.AspNetCore.Components
-    Authorization: EditorOrAbove policy required
+    Dependencies: TrBlazeUI.Components (REQ-UI-048)
+    Authorization: AuthorOrAbove policy required (REQ-UI-017 / BRD-14) — the post
+                   editor is AuthorOrAbove, so the post LIST must be reachable by an
+                   Author too. Row scoping is enforced server-side: BlogSvc.GetAllPosts
+                   returns only the caller's own posts unless they are Editor or Admin.
 *@
 @page "/BlogsList"
-@attribute [Authorize(Policy = "EditorOrAbove")]
+@attribute [Authorize(Policy = AppPolicies.AuthorOrAbove)]
 @layout BlogUI.Layouts.AdminLayout
 
-<div class="posts-list-page">
-    @* Page Header *@
-    <div class="page-header">
-        <h1>All Posts</h1>
-        <FluentAnchor Href="/ManagePost" Appearance="Appearance.Accent">+ New Post</FluentAnchor>
+@* [REQ-NFR-007] WCAG 2.4.2 Page Titled (Level A) — without this the page inherits the
+   shell title and every admin screen announces itself as just the site name. *@
+<PageTitle>Posts - TechieBlog</PageTitle>
+
+<div class="mx-auto max-w-[1400px] space-y-6">
+
+    @* ---- Page header --------------------------------------------------- *@
+    <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-semibold tracking-tight text-foreground">All Posts</h1>
+            <p class="text-sm text-muted-foreground">
+                @PageDescription
+            </p>
+        </div>
+        <Button Href="/ManagePost" data-testid="new-post">
+            <LucideIcon Name="plus" Size="16" />
+            New Post
+        </Button>
     </div>
 
-    @* Status Messages *@
+    @* ---- Status message ------------------------------------------------ *@
     @if (!string.IsNullOrEmpty(StatusMessage))
     {
-        <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
-                          Style="margin-bottom: 16px;">
-            @StatusMessage
-        </FluentMessageBar>
+        <Alert Variant="@(IsError ? AlertVariant.Danger : AlertVariant.Success)"
+               data-testid="posts-status-message">
+            <LucideIcon Name="@(IsError ? "circle-alert" : "circle-check")" Size="16" />
+            <AlertDescription>@StatusMessage</AlertDescription>
+        </Alert>
     }
 
-    @* Filters Row *@
-    <div class="filters-row">
-        @* Status Tabs *@
-        <div class="status-tabs">
-            <span class="tabs__item @(StatusFilter == "all" ? "tabs__item--active" : "")"
-                  @onclick='() => SetFilter("all")'>
-                All (@(ObjectList?.Count ?? 0))
-            </span>
-            <span class="tabs__item @(StatusFilter == "published" ? "tabs__item--active" : "")"
-                  @onclick='() => SetFilter("published")'>
-                Published (@PublishedCount)
-            </span>
-            <span class="tabs__item @(StatusFilter == "draft" ? "tabs__item--active" : "")"
-                  @onclick='() => SetFilter("draft")'>
-                Drafts (@DraftCount)
-            </span>
-            <span class="tabs__item @(StatusFilter == "scheduled" ? "tabs__item--active" : "")"
-                  @onclick='() => SetFilter("scheduled")'>
-                Scheduled (@ScheduledCount)
-            </span>
+    @* ---- Filter row ---------------------------------------------------- *@
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        @*
+            Each trigger's test hook sits on <TabsTrigger> itself. Up to TrBlazeUI 2.0.1
+            TabsList/TabsTrigger declared no CaptureUnmatchedValues, so a data-testid on either
+            threw at render and the ErrorBoundary swallowed the whole page behind an HTTP 200 —
+            this page was unreachable, and every hook had to ride on a span this page owned
+            (TR-030/TR-046). 2.0.2 splats on all 344 components, so the spans are gone.
+        *@
+        @*
+            [REQ-UI-017] 2026-08-09 — the four triggers measure ~411px, so on a 390px phone the
+            "Scheduled (n)" tab used to be CLIPPED: TabsList is `inline-flex` (content-sized) and
+            nothing on the page scrolls horizontally, so the overflowing 21px were simply
+            unreachable and the count digit was cut in half. This wrapper caps the row at the
+            viewport width and makes the overflow SCROLLABLE instead of clipped; at 1280px the
+            row fits and no scrollbar appears. `w-full sm:w-auto` keeps the tabs and the search
+            box side by side on desktop and stacked on a phone.
+        *@
+        <div class="w-full min-w-0 overflow-x-auto sm:w-auto" data-testid="posts-status-tabs-scroller">
+            <Tabs Value="@StatusFilter"
+                  ValueChanged="@((string value) => SetFilter(value))"
+                  data-testid="posts-status-tabs">
+                <TabsList Class="w-max">
+                    <TabsTrigger Value="all" data-testid="posts-tab-all">All (@(ObjectList?.Count ?? 0))</TabsTrigger>
+                    <TabsTrigger Value="published" data-testid="posts-tab-published">Published (@PublishedCount)</TabsTrigger>
+                    <TabsTrigger Value="draft" data-testid="posts-tab-draft">Drafts (@DraftCount)</TabsTrigger>
+                    <TabsTrigger Value="scheduled" data-testid="posts-tab-scheduled">Scheduled (@ScheduledCount)</TabsTrigger>
+                </TabsList>
+            </Tabs>
         </div>
 
-        <span style="flex: 1;"></span>
-
-        @* Search Box *@
-        <div class="search-box">
-            <FluentIcon Value="@(new Icons.Regular.Size16.Search())" Color="Color.Neutral" />
-            <FluentTextField @bind-Value="SearchTerm"
-                             @bind-Value:after="ApplyFilter"
-                             Placeholder="Search posts..."
-                             Style="min-width: 200px;" />
+        <div class="flex items-center gap-2">
+            <LucideIcon Name="search" Size="16" Class="text-muted-foreground" />
+            <Input Type="InputType.Search"
+                   @bind-Value="SearchTerm"
+                   @bind-Value:after="ApplyFilter"
+                   Placeholder="Search posts..."
+                   Class="min-w-[200px]"
+                   AriaLabel="Search posts"
+                   data-testid="posts-search" />
         </div>
     </div>
 
-    @* Posts Table *@
-    <div class="posts-table-container">
-        @if (ObjectList == null)
-        {
-            <div style="padding: 32px; text-align: center;">
-                <FluentProgressRing />
-                <span style="display: block; margin-top: 8px;">Loading...</span>
-            </div>
-        }
-        else if (FilteredList == null || FilteredList.Count == 0)
-        {
-            <div style="padding: 32px; text-align: center; color: var(--color-neutral-light);">
-                @if (StatusFilter == "all" && string.IsNullOrEmpty(SearchTerm))
+    @* ---- Posts table --------------------------------------------------- *@
+    @if (ObjectList == null)
+    {
+        <div class="flex flex-col items-center gap-2 py-8" data-testid="posts-loading">
+            <Spinner />
+            <span class="text-sm text-muted-foreground">Loading...</span>
+        </div>
+    }
+    else if (FilteredList == null || FilteredList.Count == 0)
+    {
+        <Empty Title="@EmptyTitle" Description="@EmptyDescription" data-testid="posts-empty">
+            <Icon><LucideIcon Name="inbox" Size="48" /></Icon>
+            <ChildContent>
+                @if (HasActiveFilters)
                 {
-                    <p>No posts found. Click "+ New Post" to create your first post.</p>
+                    <Button Variant="ButtonVariant.Outline" OnClick="ClearFilters" data-testid="posts-clear-filters">
+                        Clear Filters
+                    </Button>
                 }
                 else
                 {
-                    <p>No posts match your filters.</p>
-                    <FluentButton Appearance="Appearance.Outline" OnClick="ClearFilters">Clear Filters</FluentButton>
+                    <Button Href="/ManagePost" data-testid="posts-empty-new-post">New Post</Button>
                 }
-            </div>
-        }
-        else
-        {
-            <table class="data-grid">
-                <thead>
-                    <tr>
-                        <th style="width: 40px;"><FluentCheckbox @bind-Value="SelectAll" @bind-Value:after="ToggleSelectAll" /></th>
-                        <th>Title</th>
-                        <th style="width: 120px;">Author</th>
-                        <th style="width: 100px;">Status</th>
-                        <th style="width: 100px;">Date</th>
-                        <th style="width: 140px;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var post in FilteredList)
-                    {
-                        var rowClass = post.IsScheduled ? "row-scheduled" : (!post.Published ? "row-draft" : "");
-                        <tr class="@rowClass">
-                            <td><FluentCheckbox @bind-Value="post.IsSelected" /></td>
-                            <td>
-                                <a href="/ManagePost/@post.PostID" class="post-title">@post.Title</a>
-                                @if (!string.IsNullOrEmpty(post.Slug))
-                                {
-                                    <div class="post-slug">/@post.Slug</div>
-                                }
-                            </td>
-                            <td>@(post.BlogWriter ?? "Unknown")</td>
-                            <td>
-                                @if (post.Published)
-                                {
-                                    <span class="badge badge--success">Published</span>
-                                }
-                                else if (post.IsScheduled)
-                                {
-                                    <span class="badge badge--warning">
-                                        @(post.ScheduledPublishOn?.ToLocalTime().ToString("MMM dd") ?? "Scheduled")
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span class="badge">Draft</span>
-                                }
-                            </td>
-                            <td>
-                                @if (post.Published && post.PublishedOn.HasValue)
-                                {
-                                    @post.PublishedOn.Value.ToString("MMM dd, yyyy")
-                                }
-                                else
-                                {
-                                    @post.CreatedOn.ToString("MMM dd, yyyy")
-                                }
-                            </td>
-                            <td>
-                                <div class="action-buttons">
-                                    <FluentButton Appearance="Appearance.Stealth"
-                                                  OnClick="@(() => NavigateToPreview(post))"
-                                                  Title="Preview">
-                                        <FluentIcon Value="@(new Icons.Regular.Size16.Eye())" />
-                                    </FluentButton>
-                                    <FluentAnchor Href="@($"/ManagePost/{post.PostID}")"
-                                                  Appearance="Appearance.Stealth"
-                                                  Title="Edit">
-                                        <FluentIcon Value="@(new Icons.Regular.Size16.Edit())" />
-                                    </FluentAnchor>
-                                    @if (post.IsScheduled)
-                                    {
-                                        <FluentButton Appearance="Appearance.Stealth"
-                                                      OnClick="@(() => QuickPublish(post))"
-                                                      Title="Publish Now"
-                                                      Disabled="@IsProcessing">
-                                            <FluentIcon Value="@(new Icons.Regular.Size16.Send())" Color="Color.Success" />
-                                        </FluentButton>
-                                        <FluentButton Appearance="Appearance.Stealth"
-                                                      OnClick="@(() => CancelSchedule(post))"
-                                                      Title="Cancel Schedule"
-                                                      Disabled="@IsProcessing">
-                                            <FluentIcon Value="@(new Icons.Regular.Size16.CalendarCancel())" Color="Color.Warning" />
-                                        </FluentButton>
-                                    }
-                                    else if (!post.Published)
-                                    {
-                                        <FluentButton Appearance="Appearance.Stealth"
-                                                      OnClick="@(() => QuickPublish(post))"
-                                                      Title="Publish"
-                                                      Disabled="@IsProcessing">
-                                            <FluentIcon Value="@(new Icons.Regular.Size16.Send())" Color="Color.Success" />
-                                        </FluentButton>
-                                    }
-                                    else
-                                    {
-                                        <FluentButton Appearance="Appearance.Stealth"
-                                                      OnClick="@(() => QuickUnpublish(post))"
-                                                      Title="Unpublish"
-                                                      Disabled="@IsProcessing">
-                                            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowUndo())" Color="Color.Warning" />
-                                        </FluentButton>
-                                    }
-                                    <FluentButton Appearance="Appearance.Stealth"
-                                                  OnClick="@(() => ShowDeleteDialog(post))"
-                                                  Title="Delete">
-                                        <FluentIcon Value="@(new Icons.Regular.Size16.Delete())" Color="Color.Error" />
-                                    </FluentButton>
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        }
-    </div>
-
-    @* Bulk Actions & Pagination Footer *@
-    @if (FilteredList != null && FilteredList.Count > 0)
-    {
-        <div class="table-footer">
-            <div class="bulk-actions">
-                <FluentSelect TOption="string" @bind-Value="BulkAction" Style="width: 150px;">
-                    <FluentOption TOption="string" Value="">Bulk Actions</FluentOption>
-                    <FluentOption TOption="string" Value="publish">Publish</FluentOption>
-                    <FluentOption TOption="string" Value="unpublish">Unpublish</FluentOption>
-                    <FluentOption TOption="string" Value="delete">Delete</FluentOption>
-                </FluentSelect>
-                <FluentButton Appearance="Appearance.Outline"
-                              OnClick="ApplyBulkAction"
-                              Disabled="@(string.IsNullOrEmpty(BulkAction) || !HasSelectedPosts)">
-                    Apply
-                </FluentButton>
-            </div>
-
-            <div class="pagination-info">
-                Showing @FilteredList.Count of @(ObjectList?.Count ?? 0) posts
-            </div>
-        </div>
+            </ChildContent>
+        </Empty>
     }
-
-    @* Delete Confirmation Dialog *@
-    @if (ShowDeleteConfirm)
+    else
     {
-        <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
-            <FluentDialogHeader>
-                <FluentLabel Typo="Typography.PaneHeader">Confirm Delete</FluentLabel>
-            </FluentDialogHeader>
-            <FluentDialogBody>
-                <p>Are you sure you want to delete the post "<strong>@PostToDelete?.Title</strong>"?</p>
-                <p style="color: var(--color-neutral-light, #605E5C);">This action cannot be undone.</p>
-            </FluentDialogBody>
-            <FluentDialogFooter>
-                <FluentButton Appearance="Appearance.Neutral" OnClick="@CancelDelete">
-                    Cancel
-                </FluentButton>
-                <FluentButton Appearance="Appearance.Accent"
-                              OnClick="@ConfirmDelete"
-                              Style="background-color: var(--color-error, #D13438);">
-                    Delete
-                </FluentButton>
-            </FluentDialogFooter>
-        </FluentDialog>
+        <DataTable TData="BlogPost"
+                   Data="@FilteredList"
+                   InitialPageSize="20"
+                   AriaLabel="Posts"
+                   data-testid="posts-grid">
+            <Columns>
+                <DataTableColumn TData="BlogPost" TValue="bool" Property="@(p => p.IsSelected)" Header="" Width="48px">
+                    <CellTemplate Context="row">
+                        <Checkbox @bind-Checked="row.IsSelected"
+                                  AriaLabel="Select post"
+                                  data-testid="post-row-select" />
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="BlogPost" TValue="string" Property="@(p => p.Title)" Header="Title" Sortable Filterable>
+                    <CellTemplate Context="row">
+                        <a href="/ManagePost/@row.PostID"
+                           class="font-semibold text-foreground hover:text-primary hover:underline"
+                           data-testid="post-row-title">@row.Title</a>
+                        @if (!string.IsNullOrEmpty(row.Slug))
+                        {
+                            <div class="text-xs text-muted-foreground" data-testid="post-row-slug">/@row.Slug</div>
+                        }
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="BlogPost" TValue="string" Property="@(p => p.BlogWriter)" Header="Author" Sortable>
+                    <CellTemplate Context="row">
+                        <span data-testid="post-row-author">@(row.BlogWriter ?? "Unknown")</span>
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="BlogPost" TValue="bool" Property="@(p => p.Published)" Header="Status" Sortable>
+                    <CellTemplate Context="row">
+                        @if (row.Published)
+                        {
+                            <Badge data-testid="post-row-status">Published</Badge>
+                        }
+                        else if (row.IsScheduled)
+                        {
+                            <Badge Variant="BadgeVariant.Outline" data-testid="post-row-status">
+                                @(row.ScheduledPublishOn?.ToLocalTime().ToString("MMM dd") ?? "Scheduled")
+                            </Badge>
+                        }
+                        else
+                        {
+                            <Badge Variant="BadgeVariant.Secondary" data-testid="post-row-status">Draft</Badge>
+                        }
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="BlogPost" TValue="DateTime" Property="@(p => p.CreatedOn)" Header="Date" Sortable>
+                    <CellTemplate Context="row">
+                        <span data-testid="post-row-date">
+                            @((row.Published && row.PublishedOn.HasValue
+                                ? row.PublishedOn.Value
+                                : row.CreatedOn).ToString("MMM dd, yyyy"))
+                        </span>
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="BlogPost" TValue="long" Property="@(p => p.PostID)" Header="Actions" Width="180px">
+                    <CellTemplate Context="row">
+                        <div class="flex flex-nowrap items-center gap-1">
+                            <Button Size="ButtonSize.IconSmall"
+                                    Variant="ButtonVariant.Ghost"
+                                    OnClick="@(() => NavigateToPreview(row))"
+                                    AriaLabel="Preview post"
+                                    data-testid="post-preview">
+                                <LucideIcon Name="eye" Size="16" />
+                            </Button>
+
+                            <Button Size="ButtonSize.IconSmall"
+                                    Variant="ButtonVariant.Ghost"
+                                    Href="@($"/ManagePost/{row.PostID}")"
+                                    AriaLabel="Edit post"
+                                    data-testid="post-edit">
+                                <LucideIcon Name="pencil" Size="16" />
+                            </Button>
+
+                            @if (row.IsScheduled)
+                            {
+                                <Button Size="ButtonSize.IconSmall"
+                                        Variant="ButtonVariant.Ghost"
+                                        OnClick="@(() => QuickPublishAsync(row))"
+                                        Disabled="@IsProcessing"
+                                        AriaLabel="Publish now"
+                                        data-testid="post-publish">
+                                    <LucideIcon Name="send" Size="16" />
+                                </Button>
+                                <Button Size="ButtonSize.IconSmall"
+                                        Variant="ButtonVariant.Ghost"
+                                        OnClick="@(() => CancelScheduleAsync(row))"
+                                        Disabled="@IsProcessing"
+                                        AriaLabel="Cancel schedule"
+                                        data-testid="post-cancel-schedule">
+                                    <LucideIcon Name="calendar-x" Size="16" />
+                                </Button>
+                            }
+                            else if (!row.Published)
+                            {
+                                <Button Size="ButtonSize.IconSmall"
+                                        Variant="ButtonVariant.Ghost"
+                                        OnClick="@(() => QuickPublishAsync(row))"
+                                        Disabled="@IsProcessing"
+                                        AriaLabel="Publish post"
+                                        data-testid="post-publish">
+                                    <LucideIcon Name="send" Size="16" />
+                                </Button>
+                            }
+                            else
+                            {
+                                <Button Size="ButtonSize.IconSmall"
+                                        Variant="ButtonVariant.Ghost"
+                                        OnClick="@(() => QuickUnpublishAsync(row))"
+                                        Disabled="@IsProcessing"
+                                        AriaLabel="Unpublish post"
+                                        data-testid="post-unpublish">
+                                    <LucideIcon Name="undo-2" Size="16" />
+                                </Button>
+                            }
+
+                            <Button Size="ButtonSize.IconSmall"
+                                    Variant="ButtonVariant.Ghost"
+                                    Class="text-destructive"
+                                    OnClick="@(() => ShowDeleteDialog(row))"
+                                    AriaLabel="Delete post"
+                                    data-testid="post-delete">
+                                <LucideIcon Name="trash-2" Size="16" />
+                            </Button>
+                        </div>
+                    </CellTemplate>
+                </DataTableColumn>
+            </Columns>
+        </DataTable>
+
+        @* ---- Bulk actions footer --------------------------------------- *@
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
+                    <Checkbox Id="posts-select-all"
+                              Checked="@SelectAll"
+                              CheckedChanged="@OnSelectAllChanged"
+                              data-testid="posts-select-all" />
+                    <Label For="posts-select-all">Select all</Label>
+                </div>
+
+                <Select TValue="string" @bind-Value="BulkAction" Class="w-[170px]">
+                    <SelectTrigger data-testid="posts-bulk-action">
+                        <SelectValue Placeholder="Bulk Actions" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem TValue="string" Value="@("publish")" Text="Publish">Publish</SelectItem>
+                        <SelectItem TValue="string" Value="@("unpublish")" Text="Unpublish">Unpublish</SelectItem>
+                        <SelectItem TValue="string" Value="@("delete")" Text="Delete">Delete</SelectItem>
+                    </SelectContent>
+                </Select>
+
+                <Button Variant="ButtonVariant.Outline"
+                        OnClick="ApplyBulkActionAsync"
+                        Disabled="@(string.IsNullOrEmpty(BulkAction) || !HasSelectedPosts)"
+                        data-testid="posts-bulk-apply">
+                    Apply
+                </Button>
+            </div>
+
+            <span class="text-sm text-muted-foreground" data-testid="posts-count">
+                Showing @FilteredList.Count of @(ObjectList?.Count ?? 0) posts
+            </span>
+        </div>
     }
 </div>
 
-<style>
-    .posts-list-page {
-        max-width: 1400px;
-    }
+@* ---- Delete confirmation ------------------------------------------------ *@
+<Dialog @bind-Open="ShowDeleteConfirm">
+    <DialogContent data-testid="post-delete-dialog">
+        <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+            <DialogDescription>This action cannot be undone.</DialogDescription>
+        </DialogHeader>
+        <p class="text-sm text-foreground">
+            Are you sure you want to delete the post "<strong data-testid="post-delete-title">@PostToDelete?.Title</strong>"?
+        </p>
+        <DialogFooter>
+            <Button Variant="ButtonVariant.Outline" OnClick="@CancelDelete" data-testid="post-delete-cancel">
+                Cancel
+            </Button>
+            <Button Variant="ButtonVariant.Destructive" OnClick="@ConfirmDeleteAsync" data-testid="post-delete-confirm">
+                Delete
+            </Button>
+        </DialogFooter>
+    </DialogContent>
+</Dialog>
 
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: var(--spacing-lg, 24px);
-    }
-
-    .page-header h1 {
-        margin: 0;
-    }
-
-    .filters-row {
-        display: flex;
-        gap: var(--spacing-md, 16px);
-        margin-bottom: var(--spacing-lg, 24px);
-        flex-wrap: wrap;
-        align-items: center;
-    }
-
-    .status-tabs {
-        display: flex;
-        border-bottom: 1px solid var(--color-border, #E1E1E1);
-    }
-
-    .tabs__item {
-        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
-        font-size: var(--font-size-small, 0.875rem);
-        color: var(--color-neutral-light, #605E5C);
-        border-bottom: 2px solid transparent;
-        margin-bottom: -1px;
-        cursor: pointer;
-        transition: all var(--transition-fast, 150ms ease);
-    }
-
-    .tabs__item:hover {
-        color: var(--color-neutral, #323130);
-    }
-
-    .tabs__item--active {
-        color: var(--color-primary, #0078D4);
-        border-bottom-color: var(--color-primary, #0078D4);
-    }
-
-    .search-box {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-sm, 8px);
-    }
-
-    .posts-table-container {
-        border: 1px solid var(--color-border, #E1E1E1);
-        border-radius: var(--border-radius-lg, 8px);
-        overflow: hidden;
-        background-color: var(--color-background, #fff);
-    }
-
-    .data-grid {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: var(--font-size-small, 0.875rem);
-    }
-
-    .data-grid th,
-    .data-grid td {
-        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
-        text-align: left;
-        border-bottom: 1px solid var(--color-border, #E1E1E1);
-    }
-
-    .data-grid th {
-        font-weight: var(--font-weight-semibold, 600);
-        background-color: var(--color-surface, #F5F5F5);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .data-grid tr:hover td {
-        background-color: var(--color-surface, #F5F5F5);
-    }
-
-    .data-grid tr.row-scheduled td {
-        background-color: rgba(255, 185, 0, 0.05);
-    }
-
-    .data-grid tr.row-draft td {
-        background-color: rgba(0, 120, 212, 0.05);
-    }
-
-    .post-title {
-        font-weight: var(--font-weight-semibold, 600);
-        color: var(--color-neutral, #323130);
-        text-decoration: none;
-    }
-
-    .post-title:hover {
-        color: var(--color-primary, #0078D4);
-        text-decoration: underline;
-    }
-
-    .post-slug {
-        font-size: var(--font-size-xs, 0.75rem);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 2px var(--spacing-sm, 8px);
-        font-size: var(--font-size-xs, 0.75rem);
-        font-weight: var(--font-weight-semibold, 600);
-        border-radius: var(--border-radius, 4px);
-        background-color: var(--color-surface, #F5F5F5);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .badge--success {
-        background-color: var(--color-success, #107C10);
-        color: white;
-    }
-
-    .badge--warning {
-        background-color: var(--color-warning, #FFB900);
-        color: var(--color-neutral, #323130);
-    }
-
-    .action-buttons {
-        display: flex;
-        gap: 2px;
-        flex-wrap: nowrap;
-    }
-
-    .table-footer {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: var(--spacing-md, 16px);
-    }
-
-    .bulk-actions {
-        display: flex;
-        gap: var(--spacing-sm, 8px);
-        align-items: center;
-    }
-
-    .pagination-info {
-        font-size: var(--font-size-small, 0.875rem);
-        color: var(--color-neutral-light, #605E5C);
-    }
-</style>

@@ -96,8 +96,8 @@
     /// </summary>
     /// <remarks>
     /// Uses JavaScript interop to set:
-    /// - data-site-theme: The theme identifier (fluent-modern, developer, minimal)
-    /// - data-theme: Light/dark mode setting (light or dark)
+    /// - data-site-theme: the theme identifier (trblaze-modern, developer, minimal)
+    /// - the `dark` class on &lt;html&gt;: light/dark mode (REQ-UI-033, BRD-66)
     /// </remarks>
     /// <param name="theme">The theme identifier to apply.</param>
     /// <param name="isDarkMode">Whether to apply dark mode.</param>
@@ -105,8 +105,7 @@
     {
         try
         {
-            var darkModeValue = isDarkMode ? "dark" : "light";
-            await JSRuntime.InvokeVoidAsync("setThemeAttributes", theme, darkModeValue);
+            await JSRuntime.InvokeVoidAsync("setThemeAttributes", theme, isDarkMode);
         }
         catch (JSDisconnectedException)
         {

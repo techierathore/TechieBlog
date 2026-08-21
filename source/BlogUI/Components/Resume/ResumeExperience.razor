@@ -1,79 +1,97 @@
 @*
     ResumeExperience.razor
-    Purpose: Displays work experience in a vertical timeline layout.
-    Shows experience entries in reverse chronological order with company logos,
-    role titles, date ranges, and markdown-rendered descriptions.
+    Purpose: Work experience shown as a reverse-chronological vertical timeline —
+    company logo, role, company link, date range and a markdown description.
 
-    Dependencies: IUserEventRepo for data access, MarkdownRenderer for descriptions, resume.css for styling
-    Usage: Used on resume/portfolio pages to display professional work history
+    REQ-UI-036 / REQ-UI-048 — TrBlazeUI (Card / Badge / Spinner / LucideIcon).
+    TrBlazeUI 2.0.1 has no Timeline component (gap TR-004), so the rail and dots
+    come from the token-driven .resume-timeline rules in wwwroot/css/resume.css.
+
+    Dependencies: IUserEventRepo for data access, MarkdownRenderer for descriptions.
 *@
 
 @using BlogModels
 @inject IUserEventRepo EventRepo
 @inject BlogEngine.Common.MarkdownRenderer MarkdownRenderer
 
-<section class="resume-section">
-    <h2>Experience</h2>
+@if (isLoading)
+{
+    <div class="flex items-center gap-2 text-muted-foreground" data-testid="experience-loading">
+        <Spinner Size="SpinnerSize.Small" />
+        <span class="text-sm">Loading experience...</span>
+    </div>
+}
+else if (experiences is not null && experiences.Count > 0)
+{
+    <Card id="experience" Class="resume-section" data-testid="experience-section">
+        <CardHeader>
+            <CardTitle Class="text-2xl">Experience</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <div class="resume-timeline" data-testid="experience-list">
+                @foreach (var experience in experiences)
+                {
+                    <div class="resume-timeline-item" data-testid="experience-item">
+                        <div class="flex items-start gap-3">
+                            @if (!string.IsNullOrWhiteSpace(experience.LogoIconPath))
+                            {
+                                <img src="@experience.LogoIconPath"
+                                     alt="@experience.EventTitle logo"
+                                     class="resume-logo" />
+                            }
+                            else
+                            {
+                                <span class="resume-logo flex items-center justify-center text-sm font-semibold text-muted-foreground">
+                                    @GetInitials(experience.EventTitle)
+                                </span>
+                            }
 
-    @if (_isLoading)
-    {
-        <p>Loading experience...</p>
-    }
-    else if (_experiences == null || !_experiences.Any())
-    {
-        <p>No experience available.</p>
-    }
-    else
-    {
-        <div class="experience-timeline">
-            @foreach (var experience in _experiences)
-            {
-                <div class="experience-item">
-                    <div class="experience-header">
-                        @if (!string.IsNullOrEmpty(experience.LogoIconPath))
-                        {
-                            <img src="@experience.LogoIconPath"
-                                 alt="@experience.EventTitle logo"
-                                 class="company-logo" />
-                        }
-                        else
-                        {
-                            <div class="company-logo" style="display: flex; align-items: center; justify-content: center; background: var(--color-surface-hover); color: var(--color-neutral-light); font-size: 1.5rem; font-weight: 600;">
-                                @GetInitials(experience.EventTitle)
-                            </div>
-                        }
-                        <div class="experience-info">
-                            <div class="role-title">
-                                @experience.SessionTitle
-                                @if (!string.IsNullOrEmpty(experience.EventTitle))
-                                {
-                                    <span> @@ </span>
-                                    @if (!string.IsNullOrEmpty(experience.EventUrl))
+                            <div class="min-w-0 flex-1">
+                                <div class="font-semibold text-foreground" data-testid="experience-role">
+                                    @experience.SessionTitle
+                                    @if (!string.IsNullOrWhiteSpace(experience.EventTitle))
                                     {
-                                        <a href="@experience.EventUrl" class="company-name" target="_blank" rel="noopener noreferrer">@experience.EventTitle</a>
+                                        <span class="text-muted-foreground"> @@ </span>
+                                        @* REQ-NFR-007 / WCAG 1.4.1: this company link sits inside the role
+                                           line's text block, so it must not be identified by colour alone —
+                                           it stays underlined rather than underlining only on hover. *@
+                                        @if (!string.IsNullOrWhiteSpace(experience.EventUrl))
+                                        {
+                                            <a href="@experience.EventUrl"
+                                               target="_blank"
+                                               rel="noopener noreferrer"
+                                               class="text-primary underline"
+                                               data-testid="experience-company">@experience.EventTitle</a>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-primary" data-testid="experience-company">@experience.EventTitle</span>
+                                        }
                                     }
-                                    else
-                                    {
-                                        <span class="company-name">@experience.EventTitle</span>
-                                    }
-                                }
+                                </div>
+                                <div class="text-sm text-muted-foreground" data-testid="experience-dates">
+                                    @FormatDateRange(experience.StartDate, experience.EventDate, experience.IsCurrent)
+                                </div>
                             </div>
-                            <div class="date-range">
-                                @FormatDateRange(experience.StartDate, experience.EventDate, experience.IsCurrent)
-                            </div>
+
+                            @if (experience.IsCurrent)
+                            {
+                                <Badge Variant="BadgeVariant.Secondary" data-testid="experience-current">Current</Badge>
+                            }
                         </div>
+
+                        @if (!string.IsNullOrWhiteSpace(experience.Description))
+                        {
+                            <div class="markdown-content mt-4 text-sm" data-testid="experience-description">
+                                @((MarkupString)RenderDescription(experience.Description))
+                            </div>
+                        }
                     </div>
-                    @if (!string.IsNullOrEmpty(experience.Description))
-                    {
-                        <div class="description">
-                            @((MarkupString)RenderDescription(experience.Description))
-                        </div>
-                    }
-                </div>
-            }
-        </div>
-    }
-</section>
+                }
+            </div>
+        </CardContent>
+    </Card>
+}
 
 @code {
     /// <summary>
@@ -82,8 +100,8 @@
     [Parameter]
     public long UserId { get; set; }
 
-    private List<UserEvent>? _experiences;
-    private bool _isLoading = true;
+    private List<UserEvent>? experiences;
+    private bool isLoading = true;
 
     /// <summary>
     /// Loads experience events for the specified user.
@@ -106,26 +124,25 @@
     /// </summary>
     private async Task LoadExperienceAsync()
     {
-        _isLoading = true;
+        isLoading = true;
 
         try
         {
-            // Run synchronous repo call on a background thread
-            var allEvents = await Task.Run(() => EventRepo.GetAllById(UserId));
+            var allEvents = await EventRepo.GetAllByIdAsync(UserId);
 
             // Filter for Experience type and order by EventDate descending (newest first)
-            _experiences = allEvents
+            experiences = allEvents
                 .Where(e => e.EventType?.Equals("Experience", StringComparison.OrdinalIgnoreCase) == true)
                 .OrderByDescending(e => e.EventDate)
                 .ToList();
         }
         catch (Exception)
         {
-            _experiences = new List<UserEvent>();
+            experiences = new List<UserEvent>();
         }
         finally
         {
-            _isLoading = false;
+            isLoading = false;
         }
     }
 
@@ -147,18 +164,21 @@
     }
 
     /// <summary>
-    /// Gets the initials from a company name for placeholder display.
+    /// Gets the initials from a company name, used when no company logo is available.
     /// </summary>
     private string GetInitials(string companyName)
     {
         if (string.IsNullOrWhiteSpace(companyName))
+        {
             return "?";
+        }
 
         var words = companyName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (words.Length >= 2)
         {
             return $"{words[0][0]}{words[1][0]}".ToUpper();
         }
+
         return companyName.Length >= 2 ? companyName.Substring(0, 2).ToUpper() : companyName.ToUpper();
     }
 
@@ -168,7 +188,9 @@
     private string RenderDescription(string description)
     {
         if (string.IsNullOrWhiteSpace(description))
+        {
             return string.Empty;
+        }
 
         return MarkdownRenderer.ToHtml(description);
     }

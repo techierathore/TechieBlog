@@ -4,7 +4,7 @@
     Displays full article content with preview banner and edit/publish actions.
 
     Usage: Navigate to /admin/preview/{PostId}
-    Dependencies: BlogSvc, AdminLayout
+    Dependencies: BlogSvc, AdminLayout, TrBlazeUI (REQ-UI-048)
     Authorization: AuthorOrAbove policy required
 *@
 @page "/admin/preview/{PostId:long}"
@@ -14,202 +14,207 @@
 @inject BlogEngine.Common.MarkdownRenderer MarkdownRenderer
 @inject NavigationManager Navigation
 
+@* [REQ-NFR-007] WCAG 2.4.2 Page Titled (Level A) — without this the page inherits the
+   shell title and every admin screen announces itself as just the site name. *@
+<PageTitle>Post preview - TechieBlog</PageTitle>
+
 @if (isLoading)
 {
-    <div class="loading-container" style="display: flex; justify-content: center; padding: 48px;">
-        <FluentProgressRing />
-        <span style="margin-left: 12px;">Loading preview...</span>
+    <div class="flex items-center justify-center gap-3 py-12" data-testid="preview-loading">
+        <Spinner />
+        <span class="text-muted-foreground">Loading preview...</span>
     </div>
 }
 else if (blogPost == null)
 {
-    <div class="not-found" style="text-align: center; padding: 48px;">
-        <FluentIcon Value="@(new Icons.Regular.Size48.ShieldError())" Color="Color.Error" />
-        <h1>Post Not Found</h1>
-        <p>The post you're trying to preview doesn't exist or has been deleted.</p>
-        <FluentAnchor Href="/BlogsList" Appearance="Appearance.Accent">
-            Back to Posts
-        </FluentAnchor>
-    </div>
+    <Empty Title="Post not found"
+           Description="The post you're trying to preview doesn't exist or has been deleted."
+           data-testid="preview-not-found">
+        <Icon><LucideIcon Name="file-x" Size="48" /></Icon>
+        <ChildContent>
+            <Button Href="/BlogsList" data-testid="preview-back-to-posts">
+                <LucideIcon Name="arrow-left" Size="16" />
+                Back to Posts
+            </Button>
+        </ChildContent>
+    </Empty>
 }
 else
 {
     @* Preview Banner *@
-    <div style="background: var(--warning); color: #000; padding: 12px 24px; margin-bottom: 24px; border-radius: 4px; display: flex; align-items: center; gap: 12px;">
-        <FluentIcon Value="@(new Icons.Regular.Size20.Eye())" Color="Color.Neutral" />
-        <span style="font-weight: 600;">
-            PREVIEW MODE
-            @if (!blogPost.Published)
-            {
-                <span> - This post is not published</span>
-            }
-            else
-            {
-                <span> - This post is published</span>
-            }
-        </span>
-    </div>
+    <Alert Variant="@(blogPost.Published ? AlertVariant.Info : AlertVariant.Warning)"
+           AccentBorder="true"
+           Class="sticky top-0 z-10 mb-4"
+           data-testid="preview-banner">
+        <LucideIcon Name="eye" Size="16" />
+        <AlertTitle>Preview mode</AlertTitle>
+        <AlertDescription>
+            @(blogPost.Published ? "This post is published." : "This post is not published.")
+        </AlertDescription>
+    </Alert>
 
     @* Preview Actions *@
-    <div style="margin-bottom: 24px; display: flex; gap: 8px; flex-wrap: wrap;">
-        <FluentAnchor Href="@($"/ManagePost/{PostId}")" Appearance="Appearance.Outline">
-            <FluentIcon Value="@(new Icons.Regular.Size16.Edit())" />
+    <div class="mb-4 flex flex-wrap items-center gap-2" data-testid="preview-actions">
+        <Button Href="@($"/ManagePost/{PostId}")"
+                Variant="ButtonVariant.Outline"
+                data-testid="preview-edit-post">
+            <LucideIcon Name="square-pen" Size="16" />
             <span>Edit Post</span>
-        </FluentAnchor>
+        </Button>
         @if (!blogPost.Published)
         {
-            <FluentButton Appearance="Appearance.Accent"
-                          OnClick="@HandlePublish"
-                          Disabled="@isPublishing">
+            <Button OnClick="@HandlePublish" Disabled="@isPublishing" data-testid="preview-publish-post">
                 @if (isPublishing)
                 {
-                    <FluentIcon Value="@(new Icons.Regular.Size16.ArrowSync())" />
+                    <Spinner Size="SpinnerSize.Small" />
                     <span>Publishing...</span>
                 }
                 else
                 {
-                    <FluentIcon Value="@(new Icons.Regular.Size16.Send())" />
+                    <LucideIcon Name="send" Size="16" />
                     <span>Publish Now</span>
                 }
-            </FluentButton>
+            </Button>
         }
         else
         {
-            <FluentAnchor Href="@($"/post/{blogPost.Slug}")" Appearance="Appearance.Accent">
-                <FluentIcon Value="@(new Icons.Regular.Size16.Open())" />
+            <Button Href="@($"/post/{blogPost.Slug}")" data-testid="preview-view-live-post">
+                <LucideIcon Name="external-link" Size="16" />
                 <span>View Live Post</span>
-            </FluentAnchor>
+            </Button>
         }
-        <FluentAnchor Href="/BlogsList" Appearance="Appearance.Outline">
+        <Button Href="/BlogsList" Variant="ButtonVariant.Outline" data-testid="preview-back-to-list">
             Back to Posts
-        </FluentAnchor>
+        </Button>
     </div>
 
     @* Status Message *@
     @if (!string.IsNullOrEmpty(statusMessage))
     {
-        <FluentMessageBar Intent="@(isError ? MessageIntent.Error : MessageIntent.Success)"
-                          Style="margin-bottom: 16px;">
-            @statusMessage
-        </FluentMessageBar>
+        <Alert Variant="@(isError ? AlertVariant.Danger : AlertVariant.Success)"
+               Class="mb-4"
+               data-testid="preview-status-message">
+            <LucideIcon Name="@(isError ? "circle-alert" : "circle-check")" Size="16" />
+            <AlertDescription>@statusMessage</AlertDescription>
+        </Alert>
     }
 
     @* Article Preview *@
-    <article style="background: var(--neutral-layer-1); padding: 32px; border-radius: 8px; max-width: 800px;">
-        @* Article Header *@
-        <header style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--neutral-stroke-rest);">
+    <Card data-testid="preview-article">
+        <CardHeader Class="border-b border-border">
             @if (!string.IsNullOrWhiteSpace(blogPost.Tags))
             {
-                <span style="color: var(--accent-fill-rest); font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">
+                <span class="text-xs font-semibold tracking-wider text-primary" data-testid="preview-category">
                     @GetCategory(blogPost.Tags)
                 </span>
             }
-            <h1 style="margin: 8px 0 16px 0; font-size: 2rem; line-height: 1.2;">@blogPost.Title</h1>
-            <div style="display: flex; flex-wrap: wrap; gap: 16px; color: var(--neutral-foreground-hint); font-size: 0.9rem;">
-                <span>
-                    <strong>Author:</strong> @(string.IsNullOrEmpty(blogPost.BlogWriter) ? "Unknown" : blogPost.BlogWriter)
-                </span>
-                <span>
-                    <strong>Created:</strong> @blogPost.CreatedOn.ToString("MMMM dd, yyyy")
-                </span>
-                @if (blogPost.PublishedOn.HasValue)
-                {
-                    <span>
-                        <strong>Published:</strong> @blogPost.PublishedOn.Value.ToString("MMMM dd, yyyy")
+            <CardTitle Class="text-3xl leading-tight" data-testid="preview-title">@blogPost.Title</CardTitle>
+            <CardDescription>
+                <span class="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                    <span data-testid="preview-author">
+                        <strong>Author:</strong> @(string.IsNullOrEmpty(blogPost.BlogWriter) ? "Unknown" : blogPost.BlogWriter)
                     </span>
-                }
-                <span>
-                    @GetReadingTime(blogPost.PostContent)
-                </span>
-            </div>
-        </header>
-
-        @* Abstract *@
-        @if (!string.IsNullOrEmpty(blogPost.Abstract))
-        {
-            <div style="margin-bottom: 24px; padding: 16px; background: var(--neutral-layer-2); border-radius: 4px; font-style: italic;">
-                @blogPost.Abstract
-            </div>
-        }
-
-        @* Featured Image *@
-        @if (!string.IsNullOrEmpty(blogPost.FeaturedImage))
-        {
-            <div style="margin-bottom: 24px;">
-                <img src="@blogPost.FeaturedImage" alt="@blogPost.Title"
-                     style="max-width: 100%; height: auto; border-radius: 4px;"
-                     onerror="this.style.display='none'" />
-            </div>
-        }
-
-        @* Article Content *@
-        <div class="article__content" style="line-height: 1.7;">
-            @((MarkupString)RenderContent(blogPost.PostContent))
-        </div>
-
-        @* Tags *@
-        @if (!string.IsNullOrWhiteSpace(blogPost.Tags))
-        {
-            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--neutral-stroke-rest);">
-                <strong>Tags:</strong>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
-                    @foreach (var tag in GetTags(blogPost.Tags))
+                    <span data-testid="preview-created">
+                        <strong>Created:</strong> @blogPost.CreatedOn.ToString("MMMM dd, yyyy")
+                    </span>
+                    @if (blogPost.PublishedOn.HasValue)
                     {
-                        <FluentBadge Appearance="Appearance.Neutral">@tag</FluentBadge>
+                        <span data-testid="preview-published">
+                            <strong>Published:</strong> @blogPost.PublishedOn.Value.ToString("MMMM dd, yyyy")
+                        </span>
                     }
-                </div>
-            </div>
-        }
+                    <span data-testid="preview-reading-time">@GetReadingTime(blogPost.PostContent)</span>
+                </span>
+            </CardDescription>
+        </CardHeader>
 
-        @* Post Metadata *@
-        <div style="margin-top: 24px; padding: 16px; background: var(--neutral-layer-2); border-radius: 4px; font-size: 0.85rem;">
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
-                <div>
-                    <strong>Post ID:</strong> @blogPost.PostID
+        <CardContent Class="pt-4">
+            @* Abstract *@
+            @if (!string.IsNullOrEmpty(blogPost.Abstract))
+            {
+                <div class="mb-4 rounded-md bg-muted p-4 italic text-muted-foreground" data-testid="preview-abstract">
+                    @blogPost.Abstract
                 </div>
-                <div>
-                    <strong>Slug:</strong> @blogPost.Slug
+            }
+
+            @* Featured Image *@
+            @if (!string.IsNullOrEmpty(blogPost.FeaturedImage))
+            {
+                <div class="mb-4">
+                    <img src="@blogPost.FeaturedImage" alt="@blogPost.Title"
+                         class="h-auto w-full rounded-md"
+                         data-testid="preview-featured-image" />
                 </div>
-                <div>
+            }
+
+            @* Article Content *@
+            <div class="markdown-content" data-testid="preview-content">
+                @((MarkupString)RenderContent(blogPost.PostContent))
+            </div>
+
+            @* Tags *@
+            @if (!string.IsNullOrWhiteSpace(blogPost.Tags))
+            {
+                <div class="mt-6 border-t border-border pt-4" data-testid="preview-tags">
+                    <strong>Tags:</strong>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                        @foreach (var tag in GetTags(blogPost.Tags))
+                        {
+                            <Badge Variant="BadgeVariant.Secondary" data-testid="preview-tag">@tag</Badge>
+                        }
+                    </div>
+                </div>
+            }
+        </CardContent>
+
+        <CardFooter>
+            <div class="flex w-full flex-wrap gap-4 rounded-md bg-muted p-4 text-sm"
+                 data-testid="preview-metadata">
+                <div><strong>Post ID:</strong> <span data-testid="preview-post-id">@blogPost.PostID</span></div>
+                <div><strong>Slug:</strong> <span data-testid="preview-slug">@blogPost.Slug</span></div>
+                <div class="flex items-center gap-2">
                     <strong>Status:</strong>
                     @if (blogPost.Published)
                     {
-                        <FluentBadge Appearance="Appearance.Accent" Style="background-color: #107c10;">Published</FluentBadge>
+                        <Badge data-testid="preview-status">Published</Badge>
                     }
                     else
                     {
-                        <FluentBadge Appearance="Appearance.Neutral">Draft</FluentBadge>
+                        <Badge Variant="BadgeVariant.Secondary" data-testid="preview-status">Draft</Badge>
                     }
                 </div>
-                <div>
-                    <strong>Updated:</strong> @blogPost.UpdatedOn.ToString("MMM dd, yyyy h:mm tt")
-                </div>
+                <div><strong>Updated:</strong> <span data-testid="preview-updated">@blogPost.UpdatedOn.ToString("MMM dd, yyyy h:mm tt")</span></div>
             </div>
-        </div>
-    </article>
+        </CardFooter>
+    </Card>
 }
 
 @code {
+    /// <summary>
+    /// Identifier of the post being previewed.
+    /// </summary>
     [Parameter]
     public long PostId { get; set; }
 
     private BlogModels.BlogPost blogPost;
     private bool isLoading = true;
-    private bool isPublishing = false;
+    private bool isPublishing;
     private string statusMessage = string.Empty;
-    private bool isError = false;
+    private bool isError;
 
+    /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
         await LoadPost();
     }
 
+    /// <summary>Loads the post to preview.</summary>
     private async Task LoadPost()
     {
         isLoading = true;
         try
         {
-            blogPost = BlogService.GetSinglePost(PostId);
+            blogPost = await BlogService.GetSinglePostAsync(PostId);
         }
         catch
         {
@@ -218,6 +223,7 @@ else
         isLoading = false;
     }
 
+    /// <summary>Publishes the previewed post and redirects to the public post URL.</summary>
     private async Task HandlePublish()
     {
         if (isPublishing || blogPost == null) return;
@@ -227,7 +233,7 @@ else
 
         try
         {
-            var result = BlogService.QuickPublish(blogPost.PostID);
+            var result = await BlogService.QuickPublishAsync(blogPost.PostID);
             if (result.IsSuccess)
             {
                 statusMessage = "Post published successfully! Redirecting...";
@@ -235,14 +241,13 @@ else
                 StateHasChanged();
                 await Task.Delay(1000);
                 Navigation.NavigateTo($"/post/{blogPost.Slug}");
+                return;
             }
-            else
-            {
-                statusMessage = result.ErrorMessage;
-                isError = true;
-            }
+
+            statusMessage = result.ErrorMessage;
+            isError = true;
         }
-        catch (Exception ex)
+        catch
         {
             statusMessage = "An error occurred while publishing.";
             isError = true;
@@ -253,6 +258,7 @@ else
         }
     }
 
+    /// <summary>Gets the first tag, used as the display category.</summary>
     private string GetCategory(string tags)
     {
         if (string.IsNullOrWhiteSpace(tags))
@@ -262,6 +268,7 @@ else
         return string.IsNullOrEmpty(firstTag) ? "General" : firstTag;
     }
 
+    /// <summary>Splits the comma-separated tag string into individual tag names.</summary>
     private List<string> GetTags(string tags)
     {
         if (string.IsNullOrWhiteSpace(tags))
@@ -273,11 +280,13 @@ else
             .ToList();
     }
 
+    /// <summary>Calculates the estimated reading time for the post body.</summary>
     private string GetReadingTime(string content)
     {
         return BlogEngine.Common.ReadingTimeCalculator.Calculate(content);
     }
 
+    /// <summary>Renders the markdown body to HTML.</summary>
     private string RenderContent(string content)
     {
         if (string.IsNullOrWhiteSpace(content))

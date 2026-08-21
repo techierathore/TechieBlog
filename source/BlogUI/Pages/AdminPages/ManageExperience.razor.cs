@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Components.Authorization;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 
+using BlogUI.Common;
+
 namespace BlogUI.Pages.AdminPages;
 
 /// <summary>
@@ -13,6 +15,30 @@ namespace BlogUI.Pages.AdminPages;
 /// </summary>
 public partial class ManageExperience : ComponentBase
 {
+
+    /// <summary>
+    /// Curated messages shown when an unexpected failure is caught on this page (REQ-NFR-033).
+    /// </summary>
+    /// <remarks>
+    /// <para>These assignments previously interpolated <c>ex.Message</c>. The page is gated by
+    /// <c>AppPolicies.AdminOnly</c>, which was the defence offered for the disclosure, but an
+    /// exception's text is not written for an audience and routinely carries a SQL fragment, a
+    /// table name or a file-system path — none of which an administrator can act on and all of
+    /// which end up in a screenshot pasted into a ticket.</para>
+    /// <para>The engine service beneath every one of these calls already logs the exception with
+    /// its own context through <c>ILogger&lt;T&gt;</c>, where the host's
+    /// <c>CorrelationIdMiddleware</c> has stamped the request's correlation id onto the event
+    /// (REQ-NFR-015), so nothing is lost by curating here. This page injects no logger of its own;
+    /// adding one is tracked as a follow-up.</para>
+    /// </remarks>
+    private const string LoadFailureMessage =
+        "Could not load the experience entries. Please try again later.";
+
+    private const string SaveFailureMessage =
+        "Could not save the experience entry. Please try again later.";
+
+    private const string DeleteFailureMessage =
+        "Could not delete the experience entry. Please try again later.";
     #region Injected Services
 
     [Inject]
@@ -49,11 +75,20 @@ public partial class ManageExperience : ComponentBase
     private bool IsSaving { get; set; }
     private bool ShowForm { get; set; }
     private bool ShowDeleteDialog { get; set; }
-    private string StatusMessage { get; set; } = string.Empty;
+    private string? StatusMessage { get; set; }
     private bool IsError { get; set; }
 
-    // Edit mode
+    // Edit mode — route-level: the page was deep-linked as /admin/experience/{id}.
     private bool IsEditMode => EventId > 0;
+
+    /// <summary>
+    /// Whether the dialog is editing a persisted row rather than composing a new one.
+    /// </summary>
+    /// <remarks>
+    /// Distinct from <see cref="IsEditMode"/>, which only reports the ROUTE. Editing from the list
+    /// happens in place with no navigation, so the route says "add" while the dialog is editing.
+    /// </remarks>
+    private bool IsExistingEntry => CurrentEvent.EventID > 0;
 
     // Auth state
     private ClaimsPrincipal? LoggedInUser;
@@ -67,7 +102,7 @@ public partial class ManageExperience : ComponentBase
     private UserEvent? EventToDelete { get; set; }
     private List<AppUser>? AllUsers { get; set; }
 
-    // Date handling (FluentDatePicker uses DateTime?)
+    // Date handling (DatePicker binds DateTime?)
     private DateTime? StartDateValue
     {
         get => CurrentEvent.StartDate;
@@ -78,6 +113,42 @@ public partial class ManageExperience : ComponentBase
     {
         get => CurrentEvent.EventDate == default ? null : CurrentEvent.EventDate;
         set => CurrentEvent.EventDate = value ?? DateTime.Today;
+    }
+
+    /// <summary>
+    /// Nullable projection of <see cref="UserEvent.LogoIconPath"/> for the company-logo
+    /// <c>ImagePicker</c> (REQ-UI-037), whose bound value is <see cref="string"/>?.
+    /// </summary>
+    /// <remarks>
+    /// Business Logic: the picker clears a selection by pushing <c>null</c>, but
+    /// <see cref="UserEvent.LogoIconPath"/> is non-nullable, so a cleared logo is stored as
+    /// <see cref="string.Empty"/> - the same value the column already uses for "no logo".
+    /// Side Effects: none beyond the field assignment.
+    /// </remarks>
+    private string? LogoIconPath
+    {
+        get => string.IsNullOrEmpty(CurrentEvent.LogoIconPath) ? null : CurrentEvent.LogoIconPath;
+        set => CurrentEvent.LogoIconPath = value ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Non-null projection of <see cref="UserEvent.LogoIconPath"/> for the manual path Input,
+    /// kept alongside the picker so both controls drive one property.
+    /// </summary>
+    private string LogoIconPathText
+    {
+        get => CurrentEvent.LogoIconPath ?? string.Empty;
+        set => CurrentEvent.LogoIconPath = value ?? string.Empty;
+    }
+
+    /// <summary>
+    /// String projection of <see cref="UserEvent.DisplayOrder"/> for the numeric Input,
+    /// whose Value parameter is a string.
+    /// </summary>
+    private string DisplayOrderText
+    {
+        get => CurrentEvent.DisplayOrder.ToString();
+        set => CurrentEvent.DisplayOrder = int.TryParse(value, out var order) && order >= 0 ? order : 0;
     }
 
     /// <summary>
@@ -129,7 +200,7 @@ public partial class ManageExperience : ComponentBase
         {
             try
             {
-                AllUsers = UserRepo.GetAll()?.ToList() ?? new List<AppUser>();
+                AllUsers = (await UserRepo.GetAllAsync())?.ToList() ?? new List<AppUser>();
             }
             catch
             {
@@ -145,12 +216,12 @@ public partial class ManageExperience : ComponentBase
 
         try
         {
-            ExperienceList = EventRepo.GetByUserAndType(EffectiveUserId, ExperienceEventType)?.ToList()
+            ExperienceList = (await EventRepo.GetByUserAndTypeAsync(EffectiveUserId, ExperienceEventType))?.ToList()
                 ?? new List<UserEvent>();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error loading experience: {ex.Message}";
+            StatusMessage = LoadFailureMessage;
             IsError = true;
             ExperienceList = new List<UserEvent>();
         }
@@ -158,8 +229,6 @@ public partial class ManageExperience : ComponentBase
         {
             IsLoading = false;
         }
-
-        await Task.CompletedTask;
     }
 
     private async Task LoadEventForEdit()
@@ -169,7 +238,7 @@ public partial class ManageExperience : ComponentBase
 
         try
         {
-            var eventData = EventRepo.GetSingle(EventId);
+            var eventData = await EventRepo.GetSingleAsync(EventId);
             if (eventData == null)
             {
                 StatusMessage = "Experience entry not found.";
@@ -188,9 +257,9 @@ public partial class ManageExperience : ComponentBase
                 ShowForm = true;
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error loading experience: {ex.Message}";
+            StatusMessage = LoadFailureMessage;
             IsError = true;
             CurrentEvent = new UserEvent();
         }
@@ -205,6 +274,16 @@ public partial class ManageExperience : ComponentBase
     private async Task OnUserChanged()
     {
         await LoadData();
+    }
+
+    /// <summary>
+    /// Handles the admin user picker selecting a different author.
+    /// </summary>
+    /// <param name="value">The selected user id, or an empty string for "my experience".</param>
+    private async Task OnSelectedUserChanged(string value)
+    {
+        SelectedUserId = string.IsNullOrEmpty(value) ? null : long.Parse(value);
+        await OnUserChanged();
     }
 
     #endregion
@@ -224,22 +303,80 @@ public partial class ManageExperience : ComponentBase
         StatusMessage = string.Empty;
     }
 
+    /// <summary>
+    /// Opens an existing entry in the add/edit dialog.
+    /// </summary>
+    /// <param name="eventId">The identifier of the entry to edit.</param>
+    /// <remarks>
+    /// Business Logic: edits happen IN PLACE rather than by navigating to
+    /// <c>/admin/experience/{id}</c>. The navigation form left the page unusable after a save -
+    /// returning to <c>/admin/experience</c> reuses the same component instance, so
+    /// <see cref="EventId"/> reset to 0 while <c>ShowForm</c> stayed true and the dialog hung open
+    /// over a stale list. The <c>{EventId:long}</c> route still works for deep links via
+    /// <see cref="OnParametersSetAsync"/>.
+    /// Side Effects: opens the dialog; clears any status message.
+    /// </remarks>
     private void EditExperience(long eventId)
     {
-        NavManager.NavigateTo($"/admin/experience/{eventId}");
+        var entry = ExperienceList?.FirstOrDefault(item => item.EventID == eventId);
+        if (entry is null)
+        {
+            NavManager.NavigateTo($"/admin/experience/{eventId}");
+            return;
+        }
+
+        // Edit a COPY: binding the list item itself would let a cancelled edit leave its
+        // half-typed values on the card behind the dialog.
+        CurrentEvent = new UserEvent
+        {
+            EventID = entry.EventID,
+            UserID = entry.UserID,
+            EventType = entry.EventType,
+            EventTitle = entry.EventTitle,
+            SessionTitle = entry.SessionTitle,
+            LogoIconPath = entry.LogoIconPath,
+            EventUrl = entry.EventUrl,
+            EventDate = entry.EventDate,
+            StartDate = entry.StartDate,
+            Description = entry.Description,
+            DisplayOrder = entry.DisplayOrder,
+            IsCurrent = entry.IsCurrent
+        };
+        StatusMessage = string.Empty;
+        IsError = false;
+        ShowForm = true;
     }
 
+    /// <summary>
+    /// Keeps the add/edit dialog state in sync when it is dismissed by Escape or an outside click.
+    /// </summary>
+    /// <param name="isOpen">The dialog's requested open state.</param>
+    private void OnFormOpenChanged(bool isOpen)
+    {
+        if (!isOpen)
+        {
+            CancelEdit();
+        }
+    }
+
+    /// <summary>
+    /// Closes the add/edit dialog and discards the in-progress entry.
+    /// </summary>
+    /// <remarks>
+    /// Business Logic: the dialog state is ALWAYS reset, including on the deep-linked
+    /// <c>/admin/experience/{id}</c> route. Navigating without resetting left <c>ShowForm</c> true,
+    /// and because the destination reuses the same component instance the dialog stayed on screen.
+    /// Side Effects: navigates back to the list route when the page was deep-linked.
+    /// </remarks>
     private void CancelEdit()
     {
+        ShowForm = false;
+        CurrentEvent = new UserEvent();
+        StatusMessage = string.Empty;
+
         if (IsEditMode)
         {
             NavManager.NavigateTo("/admin/experience");
-        }
-        else
-        {
-            ShowForm = false;
-            CurrentEvent = new UserEvent();
-            StatusMessage = string.Empty;
         }
     }
 
@@ -285,33 +422,33 @@ public partial class ManageExperience : ComponentBase
             if (CurrentEvent.EventID > 0)
             {
                 // Update existing
-                EventRepo.Update(CurrentEvent);
+                await EventRepo.UpdateAsync(CurrentEvent);
                 StatusMessage = "Experience updated successfully.";
             }
             else
             {
                 // Insert new
-                var newId = EventRepo.InsertToGetId(CurrentEvent);
+                var newId = await EventRepo.InsertToGetIdAsync(CurrentEvent);
                 CurrentEvent.EventID = newId;
                 StatusMessage = "Experience added successfully.";
             }
 
             IsError = false;
 
-            // Navigate back to list
+            // Always close the dialog and refresh the list; only the deep-linked
+            // /admin/experience/{id} route additionally returns to the list URL.
+            ShowForm = false;
+            CurrentEvent = new UserEvent();
+            await LoadData();
+
             if (IsEditMode)
             {
                 NavManager.NavigateTo("/admin/experience");
             }
-            else
-            {
-                ShowForm = false;
-                await LoadData();
-            }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error saving experience: {ex.Message}";
+            StatusMessage = SaveFailureMessage;
             IsError = true;
         }
         finally
@@ -336,20 +473,32 @@ public partial class ManageExperience : ComponentBase
         ShowDeleteDialog = false;
     }
 
+    /// <summary>
+    /// Keeps the delete confirmation state in sync when it is dismissed by Escape or an outside click.
+    /// </summary>
+    /// <param name="isOpen">The dialog's requested open state.</param>
+    private void OnDeleteOpenChanged(bool isOpen)
+    {
+        if (!isOpen)
+        {
+            CancelDelete();
+        }
+    }
+
     private async Task DeleteExperience()
     {
         if (EventToDelete == null) return;
 
         try
         {
-            EventRepo.Delete(EventToDelete.EventID);
+            await EventRepo.DeleteAsync(EventToDelete.EventID);
             StatusMessage = "Experience deleted successfully.";
             IsError = false;
             await LoadData();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error deleting experience: {ex.Message}";
+            StatusMessage = DeleteFailureMessage;
             IsError = true;
         }
         finally

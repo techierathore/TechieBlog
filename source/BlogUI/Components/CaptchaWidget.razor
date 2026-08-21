@@ -1,0 +1,450 @@
+@*
+    CaptchaWidget.razor
+    Purpose: Self-hosted "prove you are human" control for every public write surface —
+    the comment form, the rating step and the newsletter subscribe form.
+
+    REQ-UI-056 / BRD-99 — challenge image + reload button + answer input, no third-party
+    service and no third-party script.
+
+    Two security properties this component is responsible for:
+      1. The expected answer NEVER reaches the browser. ICaptchaService keeps it in a
+         server-side cache; only an opaque challenge id and the rendered image cross the wire.
+         The image itself is drawn by CaptchaSvgRenderer as anonymous <path> geometry — there is
+         no <text> node, no character literal, no font reference and no id/class/transform that
+         maps back to a glyph, so base64-decoding the data URI and parsing the SVG yields nothing
+         but unlabelled strokes. Reading it back requires shape recognition, same as a human.
+      2. The challenge is generated in OnAfterRenderAsync(firstRender), which runs only in the
+         interactive circuit — never during the static server prerender. A GET of the page
+         therefore carries no challenge at all.
+
+    REQ-UI-057 — ACCESSIBLE ALTERNATIVE (WCAG 2.1 AA 1.1.1). A purely visual challenge locks
+    blind and low-vision visitors out of commenting, rating and subscribing entirely. This widget
+    therefore offers a second, equally valid form of the same challenge:
+
+      * A real <button> ("Can't see the image? Answer a question instead") sits in the natural tab
+        order right under the control, so the alternative is reachable with the keyboard alone and
+        is announced as a button — it is NOT a hover-only or pointer-only affordance.
+      * In question mode the challenge is short prose ("What is seven plus two?"). That prose is
+        the <label for> of the answer box, so every screen reader speaks the question when focus
+        lands on the input, and it is ALSO pushed through a visually-hidden role="status"
+        aria-live="polite" region so switching mode or asking for a new question is announced
+        without moving focus.
+      * The question is numeric on purpose. A multiple-choice question would print the answer in
+        the page source — the very defect REQ-FN-049 had to fix for the image. Here the number the
+        visitor works out appears nowhere in the DOM, nowhere in an aria-label, nowhere in a data
+        attribute and nowhere in the circuit payload; CaptchaQuestionSet asserts that before the
+        question is issued.
+      * The alternative shares the visual challenge's lifecycle exactly — same server-side store,
+        same 5-minute absolute expiry, same burn-before-compare single use — so the accessible
+        route is not a cheaper one to replay.
+
+    Public contract (consumed by PostView and the newsletter subscribe page):
+        <CaptchaWidget @ref="captcha" data-testid="captcha-widget" />
+        Task<bool> ValidateAsync()   -> true when the typed answer is correct
+        void Reset()                 -> issues a fresh challenge in the CURRENT mode
+        string ChallengeToken        -> the id to hand to a service that validates server-side
+        string Answer                -> what the visitor typed, for the same purpose
+        void ShowError(string)       -> surface a server-returned captcha failure inline
+
+    IMPORTANT — a challenge is SINGLE USE. Call ValidateAsync() only when the receiving
+    service does NOT validate the captcha itself. CommentSvc and RatingSvc DO validate, so
+    those callers pass ChallengeToken + Answer straight through and never call ValidateAsync().
+
+    Dependencies: BlogEngine.Services.ICaptchaService, TrBlazeUI Label/Input/Button, Lucide icons.
+*@
+
+@using System.Text
+@inject BlogEngine.Services.ICaptchaService CaptchaService
+
+<div class="flex flex-col gap-2 @Class" @attributes="AdditionalAttributes">
+
+    @*
+        In question mode the label IS the question, so the input's accessible name carries it.
+        The test hook sits on <Label> directly — TrBlazeUI 2.0.1 threw on an unmatched
+        data-testid (TR-030) and forced a wrapper <span>; 2.0.2 splats it onto the <label>.
+    *@
+    <Label For="@inputElementId" data-testid="captcha-prompt">@PromptText</Label>
+
+    <div class="flex flex-wrap items-center gap-2">
+        @if (!IsQuestionMode)
+        {
+            @if (challenge == null)
+            {
+                @* Reserves the image box so the row does not jump when the challenge arrives. *@
+                <div class="h-16 w-[200px] rounded-md border border-border bg-muted"
+                     aria-hidden="true"
+                     data-testid="captcha-image-placeholder"></div>
+            }
+            else
+            {
+                <img src="@ImageDataUri"
+                     width="190"
+                     height="60"
+                     alt="Verification image. Type the characters you see."
+                     class="rounded-md border border-border"
+                     data-testid="captcha-image" />
+            }
+        }
+
+        <Button Variant="ButtonVariant.Ghost"
+                Size="ButtonSize.Icon"
+                Type="ButtonType.Button"
+                OnClick="OnReloadClicked"
+                AriaLabel="@ReloadLabel"
+                title="@ReloadLabel"
+                data-testid="captcha-reload">
+            <LucideIcon Name="refresh-cw" Size="16" />
+        </Button>
+
+        <Input Id="@inputElementId"
+               Value="@answer"
+               ValueChanged="OnAnswerChanged"
+               Placeholder="@AnswerPlaceholder"
+               Class="@(IsQuestionMode ? "w-48" : "w-40")"
+               AriaDescribedBy="@hintElementId"
+               AriaInvalid="@(string.IsNullOrEmpty(errorMessage) ? (bool?)null : true)"
+               autocomplete="off"
+               autocapitalize="off"
+               autocorrect="off"
+               spellcheck="false"
+               data-testid="captcha-answer" />
+    </div>
+
+    <span id="@hintElementId" class="text-xs text-muted-foreground" data-testid="captcha-hint">
+        @CurrentHintText
+    </span>
+
+    @* The alternative is a real, focusable button in the natural tab order — never pointer-only. *@
+    <div>
+        <Button Variant="ButtonVariant.Link"
+                Size="ButtonSize.Small"
+                Type="ButtonType.Button"
+                Class="h-auto px-0 text-xs"
+                OnClick="OnModeToggleClicked"
+                data-testid="captcha-mode-toggle">
+            @ModeToggleText
+        </Button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <span class="text-xs text-destructive" role="alert" aria-live="polite" data-testid="captcha-error">
+            @errorMessage
+        </span>
+    }
+
+    @* Announces a mode switch or a fresh question without stealing focus. *@
+    <span class="sr-only" role="status" aria-live="polite" data-testid="captcha-status">
+        @statusMessage
+    </span>
+</div>
+
+@code {
+    private readonly string inputElementId = $"captcha-answer-{Guid.NewGuid():N}";
+    private readonly string hintElementId = $"captcha-hint-{Guid.NewGuid():N}";
+
+    private BlogModels.CaptchaChallenge challenge;
+    private string answer = string.Empty;
+    private string errorMessage;
+    private bool isQuestionMode;
+    private string statusMessage = string.Empty;
+
+    /// <summary>
+    /// Label shown above the challenge, telling the visitor what to do.
+    /// </summary>
+    [Parameter]
+    public string LabelText { get; set; } = "Type the characters shown";
+
+    /// <summary>
+    /// Reassurance text shown under the challenge and referenced by <c>aria-describedby</c>.
+    /// </summary>
+    [Parameter]
+    public string HintText { get; set; } = "Generated and checked by this site — no third-party service.";
+
+    /// <summary>
+    /// Hint shown while the accessible question challenge is on screen. [REQ-UI-057]
+    /// </summary>
+    /// <remarks>
+    /// Deliberately contains no digit and no number word. A worked example would have been
+    /// friendlier, but a constant number sitting next to the answer box makes "does the answer
+    /// appear on the page?" impossible to check cleanly — and one day the constant would be the
+    /// answer.
+    /// </remarks>
+    [Parameter]
+    public string QuestionHintText { get; set; } = "Answer with digits or with the word — either is accepted.";
+
+    /// <summary>
+    /// Extra CSS classes applied to the widget's outer element.
+    /// </summary>
+    [Parameter]
+    public string Class { get; set; }
+
+    /// <summary>
+    /// Arbitrary attributes (<c>data-testid</c>, <c>aria-*</c>) forwarded to the outer element.
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object> AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// The opaque id of the challenge currently on screen.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Hand this to a service that validates the captcha itself
+    /// (<c>CommentSvc</c>, <c>RatingSvc</c>) together with <see cref="Answer"/>. It carries no
+    /// information about the expected answer.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    public string ChallengeToken => challenge?.ChallengeId;
+
+    /// <summary>
+    /// What the visitor typed into the answer box.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Passed through to a validating service unchanged; the
+    /// service normalises whitespace and case.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    public string Answer => answer;
+
+    /// <summary>
+    /// True when the visitor has typed something into the answer box.
+    /// </summary>
+    public bool HasAnswer => !string.IsNullOrWhiteSpace(answer);
+
+    /// <summary>
+    /// True while the accessible text question is on screen instead of the image. [REQ-UI-057]
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Exposed so a host page or a test can assert which form the
+    /// visitor is being shown. It says nothing about the answer.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    public bool IsQuestionMode => isQuestionMode;
+
+    /// <summary>
+    /// The text of the <c>&lt;label for&gt;</c> above the answer box.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> In question mode this is the question itself, which makes the
+    /// question the accessible name of the input — a screen reader speaks it the moment focus
+    /// lands there, with no extra markup and no reliance on <c>aria-describedby</c> support.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    private string PromptText =>
+        !isQuestionMode
+            ? LabelText
+            : string.IsNullOrEmpty(challenge?.QuestionText)
+                ? "Loading the verification question…"
+                : challenge.QuestionText;
+
+    /// <summary>The accessible label and tooltip of the reload button in the current mode.</summary>
+    private string ReloadLabel => isQuestionMode
+        ? "Get a different verification question"
+        : "Get a new verification image";
+
+    /// <summary>The answer box placeholder in the current mode.</summary>
+    private string AnswerPlaceholder => isQuestionMode ? "Your answer" : "Characters";
+
+    /// <summary>The hint shown under the control in the current mode.</summary>
+    private string CurrentHintText => isQuestionMode ? QuestionHintText : HintText;
+
+    /// <summary>The label of the button that swaps between the two challenge forms.</summary>
+    private string ModeToggleText => isQuestionMode
+        ? "Show the verification image instead"
+        : "Can't see the image? Answer a question instead";
+
+    /// <summary>
+    /// The current challenge image as a base64 <c>data:</c> URI.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The SVG is encoded rather than inlined so the picture cannot
+    /// be walked as DOM. It carries no character text either way — the renderer emits stroke
+    /// geometry only — so the encoding is defence in depth, not the defence itself.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    private string ImageDataUri =>
+        string.IsNullOrEmpty(challenge?.SvgMarkup)
+            ? null
+            : "data:image/svg+xml;base64," + Convert.ToBase64String(Encoding.UTF8.GetBytes(challenge.SvgMarkup));
+
+    /// <summary>
+    /// Issues the first challenge once the interactive circuit is live.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Deliberately NOT <c>OnInitialized</c>: that also runs during
+    /// the static prerender, which would put a challenge into the served HTML and burn a
+    /// server-side cache entry for a visitor who may never connect.</para>
+    /// <para><b>Flow:</b> first render only, generate, re-render.</para>
+    /// <para><b>Side Effects:</b> Adds one short-lived server-side cache entry.</para>
+    /// </remarks>
+    /// <param name="firstRender">True on the component's first render.</param>
+    /// <returns>A task that completes when the challenge has been issued.</returns>
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || challenge != null)
+            return Task.CompletedTask;
+
+        IssueChallenge();
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Checks the typed answer against the server-held expected value.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Use this ONLY on a surface whose service does not validate
+    /// the captcha itself — a challenge is single use and this call burns it. A wrong answer
+    /// sets an inline error and issues a fresh challenge, because the old one is gone.</para>
+    /// <para><b>Flow:</b> validate, on failure show the message and re-issue, on success clear.</para>
+    /// <para><b>Side Effects:</b> Consumes the current challenge; issues a new one.</para>
+    /// </remarks>
+    /// <returns>True when the typed answer was correct.</returns>
+    public Task<bool> ValidateAsync()
+    {
+        var result = CaptchaService.Validate(ChallengeToken, answer);
+        if (result.IsFailure)
+        {
+            ShowError(result.ErrorMessage);
+            return Task.FromResult(false);
+        }
+
+        errorMessage = null;
+        answer = string.Empty;
+        IssueChallenge();
+        StateHasChanged();
+        return Task.FromResult(true);
+    }
+
+    /// <summary>
+    /// Issues a fresh challenge and clears the answer box and any error.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Call this after a successful submission, or whenever the
+    /// current challenge has been consumed elsewhere.</para>
+    /// <para><b>Flow:</b> clear state, generate, re-render.</para>
+    /// <para><b>Side Effects:</b> Adds one short-lived server-side cache entry.</para>
+    /// </remarks>
+    public void Reset()
+    {
+        errorMessage = null;
+        answer = string.Empty;
+        IssueChallenge();
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Shows a captcha failure returned by a validating service, and issues a fresh challenge.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> A service that validated and rejected the answer has already
+    /// burned the challenge, so the visitor must be given a new image or every retry would fail
+    /// with "expired".</para>
+    /// <para><b>Flow:</b> keep the message, clear the answer, generate, re-render.</para>
+    /// <para><b>Side Effects:</b> Adds one short-lived server-side cache entry.</para>
+    /// </remarks>
+    /// <param name="message">The visitor-safe message to show under the control.</param>
+    public void ShowError(string message)
+    {
+        errorMessage = !string.IsNullOrWhiteSpace(message)
+            ? message
+            : isQuestionMode
+                ? "That was not the right answer. Please try the new verification question."
+                : "The characters did not match. Please try the new image.";
+        answer = string.Empty;
+        IssueChallenge();
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Replaces the on-screen challenge with a new one from the service.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> A failure to generate is swallowed into a visitor-safe
+    /// message rather than taking the whole page down with it.</para>
+    /// <para><b>Side Effects:</b> Adds one short-lived server-side cache entry.</para>
+    /// </remarks>
+    private void IssueChallenge()
+    {
+        try
+        {
+            challenge = isQuestionMode
+                ? CaptchaService.GenerateQuestion()
+                : CaptchaService.Generate();
+
+            Announce();
+        }
+        catch (BlogEngine.Common.CaptchaRateLimitedException rateLimited)
+        {
+            // REQ-NFR-024: the per-client issuance / failure caps refused this challenge. That is
+            // an expected outcome, not a fault, and the visitor is told how long to wait rather
+            // than being shown a blank control or a generic "could not be loaded".
+            challenge = null;
+            errorMessage = rateLimited.VisitorMessage;
+            statusMessage = errorMessage;
+        }
+        catch
+        {
+            challenge = null;
+            errorMessage = "The verification challenge could not be loaded. Please reload the page.";
+            statusMessage = errorMessage;
+        }
+    }
+
+    /// <summary>
+    /// Puts the current challenge into the visually-hidden live region.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Swapping mode or asking for a new question changes the
+    /// challenge without moving focus, so nothing would be spoken unless it is written into a
+    /// <c>role="status" aria-live="polite"</c> region. The announcement repeats the question,
+    /// never the answer. [REQ-UI-057]</para>
+    /// <para><b>Side Effects:</b> None beyond the announced text.</para>
+    /// </remarks>
+    private void Announce()
+    {
+        statusMessage = isQuestionMode
+            ? $"Verification question: {challenge?.QuestionText}"
+            : "Verification image challenge. Type the characters you see, or use the button to answer a question instead.";
+    }
+
+    /// <summary>
+    /// Handles the reload button.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> A visitor who cannot read the image — or cannot work out the
+    /// question — gets a different one; the abandoned challenge simply expires.</para>
+    /// <para><b>Side Effects:</b> Issues a new challenge.</para>
+    /// </remarks>
+    private void OnReloadClicked()
+    {
+        Reset();
+    }
+
+    /// <summary>
+    /// Swaps between the visual image challenge and the accessible question challenge.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> WCAG 2.1 AA 1.1.1 — a visitor who cannot see the image must
+    /// have an equally valid way through. The new challenge is a fresh one on the same
+    /// server-side lifecycle, so nothing about switching makes the gate easier to defeat; the
+    /// abandoned challenge is simply left to expire. [REQ-UI-057]</para>
+    /// <para><b>Flow:</b> flip the mode, issue a challenge of the new kind, announce it.</para>
+    /// <para><b>Side Effects:</b> Issues a new challenge and clears the answer box.</para>
+    /// </remarks>
+    private void OnModeToggleClicked()
+    {
+        isQuestionMode = !isQuestionMode;
+        Reset();
+    }
+
+    /// <summary>
+    /// Records what the visitor typed and clears a stale error.
+    /// </summary>
+    /// <param name="value">The new answer text.</param>
+    private void OnAnswerChanged(string value)
+    {
+        answer = value ?? string.Empty;
+        errorMessage = null;
+    }
+}

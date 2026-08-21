@@ -4,8 +4,8 @@
     Allows users to update their profile information, social links, and resume settings.
 
     Usage: Navigate to /admin/profile
-    Dependencies: AdminLayout, UserRepo, AuthSvc, ImagePicker, FluentUI components
-    Authorization: AuthorOrAdmin policy (any logged in user)
+    Dependencies: AdminLayout, UserRepo, AuthSvc, ImagePicker, TrBlazeUI (REQ-UI-040 / REQ-UI-048)
+    Authorization: AuthorOrAbove policy (any logged in user)
 *@
 @page "/admin/profile"
 @attribute [Authorize(Policy = "AuthorOrAbove")]
@@ -14,252 +14,310 @@
 
 <PageTitle>My Profile - TechieBlog</PageTitle>
 
-<ContentPanel PanelTitle="My Profile">
-    <RightSection>
-        <FluentButton Appearance="Appearance.Accent"
-                      OnClick="@SaveProfile"
-                      Disabled="@IsSaving">
+<div class="mx-auto flex max-w-4xl flex-col gap-6" data-testid="manage-profile-page">
+
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <h1 class="text-2xl font-semibold tracking-tight">My Profile</h1>
+        <Button OnClick="@SaveProfile" Disabled="@IsSaving" data-testid="save-profile">
             @if (IsSaving)
             {
-                <FluentIcon Value="@(new Icons.Regular.Size16.ArrowSync())" />
+                <Spinner Size="SpinnerSize.Small" />
                 <span>Saving...</span>
             }
             else
             {
-                <FluentIcon Value="@(new Icons.Regular.Size16.Save())" />
+                <LucideIcon Name="save" Size="16" />
                 <span>Save</span>
             }
-        </FluentButton>
-    </RightSection>
-    <PanelContent>
-        @if (IsLoading)
-        {
-            <div style="display: flex; justify-content: center; padding: 48px;">
-                <FluentProgressRing />
-                <span style="margin-left: 12px;">Loading profile...</span>
-            </div>
-        }
-        else if (CurrentUser == null)
-        {
-            <FluentMessageBar Intent="MessageIntent.Error" Style="margin-bottom: 16px;">
-                Unable to load profile. Please try logging in again.
-            </FluentMessageBar>
-            <FluentAnchor Href="/admin/login" Appearance="Appearance.Accent">
-                Go to Login
-            </FluentAnchor>
-        }
-        else
-        {
-            @if (!string.IsNullOrEmpty(StatusMessage))
-            {
-                <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
-                                  Style="margin-bottom: 16px;">
-                    @StatusMessage
-                </FluentMessageBar>
-            }
+        </Button>
+    </div>
 
-            <EditForm Model="@ProfileModel" OnValidSubmit="@SaveProfile">
-                <DataAnnotationsValidator />
+    @if (IsLoading)
+    {
+        <div class="flex items-center justify-center gap-3 py-12" data-testid="profile-loading">
+            <Spinner />
+            <span class="text-muted-foreground">Loading profile...</span>
+        </div>
+    }
+    else if (CurrentUser is null)
+    {
+        <Alert Variant="AlertVariant.Danger" data-testid="profile-load-error">
+            <LucideIcon Name="circle-alert" Size="16" />
+            <AlertTitle>Profile unavailable</AlertTitle>
+            <AlertDescription>Unable to load profile. Please try logging in again.</AlertDescription>
+        </Alert>
+        <div>
+            <Button Href="/admin/login" data-testid="go-to-login">Go to Login</Button>
+        </div>
+    }
+    else
+    {
+        @if (!string.IsNullOrEmpty(StatusMessage))
+        {
+            <Alert Variant="@(IsError ? AlertVariant.Danger : AlertVariant.Success)" data-testid="profile-status">
+                <LucideIcon Name="@(IsError ? "circle-alert" : "circle-check")" Size="16" />
+                <AlertTitle>@(IsError ? "Something went wrong" : "Saved")</AlertTitle>
+                <AlertDescription>@StatusMessage</AlertDescription>
+            </Alert>
+        }
 
-                @* Main Layout: Two Column Grid *@
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 32px;">
-                    @* Left Column: Basic Info *@
-                    <div>
-                        <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 0.875rem; font-weight: 600; color: var(--neutral-foreground-hint); text-transform: uppercase; letter-spacing: 0.5px;">
-                            BASIC INFO
-                        </h3>
-                        <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px;">
-                            @* Avatar Picker *@
-                            <div>
-                                <label style="display: block; margin-bottom: 8px; font-weight: 500;">Avatar</label>
+        <EditForm Model="@ProfileModel" OnValidSubmit="@SaveProfile">
+            <DataAnnotationsValidator />
+
+            <div class="flex flex-col gap-6">
+
+                @* ---------- Basic info ---------- *@
+                <Card data-testid="basic-info-card">
+                    <CardHeader>
+                        <CardTitle>Basic info</CardTitle>
+                        <CardDescription>How you appear across the blog and your public resume.</CardDescription>
+                    </CardHeader>
+                    <CardContent Class="flex flex-col gap-5">
+
+                        <Field>
+                            <FieldLabel>Avatar</FieldLabel>
+                            <FieldContent>
                                 <ImagePicker Category="profiles"
                                              @bind-SelectedImagePath="ProfileModel.ProfileImagePath"
                                              UserId="@CurrentUserId" />
-                            </div>
+                            </FieldContent>
+                        </Field>
 
-                            @* First Name *@
-                            <div>
-                                <FluentTextField Label="First Name"
-                                                 @bind-Value="ProfileModel.FirstName"
-                                                 Required="true"
-                                                 Style="width: 100%;"
-                                                 Disabled="@IsSaving" />
-                            </div>
+                        <div class="grid gap-5 sm:grid-cols-2">
+                            <Field>
+                                <FieldLabel For="first-name">First Name</FieldLabel>
+                                <FieldContent>
+                                    <Input Id="first-name"
+                                           @bind-Value="ProfileModel.FirstName"
+                                           Required="true"
+                                           Disabled="@IsSaving"
+                                           data-testid="first-name-input" />
+                                </FieldContent>
+                            </Field>
 
-                            @* Last Name *@
-                            <div>
-                                <FluentTextField Label="Last Name"
-                                                 @bind-Value="ProfileModel.LastName"
-                                                 Required="true"
-                                                 Style="width: 100%;"
-                                                 Disabled="@IsSaving" />
-                            </div>
+                            <Field>
+                                <FieldLabel For="last-name">Last Name</FieldLabel>
+                                <FieldContent>
+                                    <Input Id="last-name"
+                                           @bind-Value="ProfileModel.LastName"
+                                           Required="true"
+                                           Disabled="@IsSaving"
+                                           data-testid="last-name-input" />
+                                </FieldContent>
+                            </Field>
+                        </div>
 
-                            @* Username *@
-                            <div>
-                                <FluentTextField Label="Username"
-                                                 @bind-Value="ProfileModel.Username"
-                                                 Placeholder="e.g., john-doe"
-                                                 Style="width: 100%;"
-                                                 Disabled="@IsSaving"
-                                                 @oninput="OnUsernameChanged" />
-                                <small style="color: var(--neutral-foreground-hint);">
-                                    URL-safe: letters, numbers, and hyphens only
-                                </small>
+                        <Field IsInvalid="@(!IsUsernameValid)">
+                            <FieldLabel For="username">Username</FieldLabel>
+                            <FieldContent>
+                                <Input Id="username"
+                                       Value="@ProfileModel.Username"
+                                       ValueChanged="@OnUsernameChangedAsync"
+                                       Placeholder="e.g., john-doe"
+                                       Disabled="@IsSaving"
+                                       Class="font-mono"
+                                       data-testid="username-input" />
+                                <FieldDescription>URL-safe: letters, numbers, and hyphens only</FieldDescription>
                                 @if (!string.IsNullOrEmpty(UsernameValidationMessage))
                                 {
-                                    <div style="margin-top: 4px;">
-                                        <small style="color: @(IsUsernameValid ? "var(--success)" : "var(--error)");">
-                                            @UsernameValidationMessage
-                                        </small>
-                                    </div>
+                                    @if (IsUsernameValid)
+                                    {
+                                        <FieldDescription data-testid="username-hint">@UsernameValidationMessage</FieldDescription>
+                                    }
+                                    else
+                                    {
+                                        <FieldError data-testid="username-hint">@UsernameValidationMessage</FieldError>
+                                    }
                                 }
-                            </div>
+                            </FieldContent>
+                        </Field>
 
-                            @* Title *@
-                            <div>
-                                <FluentTextField Label="Title"
-                                                 @bind-Value="ProfileModel.Title"
-                                                 Placeholder="e.g., Senior Software Engineer"
-                                                 Style="width: 100%;"
-                                                 Disabled="@IsSaving" />
-                            </div>
+                        <div class="grid gap-5 sm:grid-cols-2">
+                            <Field>
+                                <FieldLabel For="title">Title</FieldLabel>
+                                <FieldContent>
+                                    <Input Id="title"
+                                           @bind-Value="ProfileModel.Title"
+                                           Placeholder="e.g., Senior Software Engineer"
+                                           Disabled="@IsSaving"
+                                           data-testid="title-input" />
+                                </FieldContent>
+                            </Field>
 
-                            @* Tagline *@
-                            <div>
-                                <FluentTextField Label="Tagline"
-                                                 @bind-Value="ProfileModel.Tagline"
-                                                 Placeholder="e.g., Building the future, one line at a time"
-                                                 Style="width: 100%;"
-                                                 Disabled="@IsSaving" />
-                            </div>
+                            <Field>
+                                <FieldLabel For="tagline">Tagline</FieldLabel>
+                                <FieldContent>
+                                    <Input Id="tagline"
+                                           @bind-Value="ProfileModel.Tagline"
+                                           Placeholder="e.g., Building the future, one line at a time"
+                                           Disabled="@IsSaving"
+                                           data-testid="tagline-input" />
+                                </FieldContent>
+                            </Field>
+                        </div>
 
-                            @* Bio *@
-                            <div>
-                                <FluentTextArea Label="Bio"
-                                                @bind-Value="ProfileModel.ProfileDescription"
-                                                Placeholder="Tell us about yourself..."
-                                                Rows="4"
-                                                Style="width: 100%;"
-                                                Disabled="@IsSaving" />
-                            </div>
-                        </FluentStack>
-                    </div>
+                        <Field>
+                            <FieldLabel For="bio">Bio</FieldLabel>
+                            <FieldContent>
+                                <Textarea Id="bio"
+                                          @bind-Value="ProfileModel.ProfileDescription"
+                                          Placeholder="Tell us about yourself..."
+                                          Disabled="@IsSaving"
+                                          Class="min-h-28"
+                                          data-testid="bio-input" />
+                            </FieldContent>
+                        </Field>
 
-                    @* Right Column: Social Links *@
-                    <div>
-                        <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 0.875rem; font-weight: 600; color: var(--neutral-foreground-hint); text-transform: uppercase; letter-spacing: 0.5px;">
-                            SOCIAL LINKS
-                        </h3>
-                        <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px;">
-                            @* LinkedIn *@
-                            <div>
-                                <FluentTextField Label="LinkedIn"
-                                                 @bind-Value="ProfileModel.LinkedInUrl"
-                                                 Placeholder="https://linkedin.com/in/username"
-                                                 Style="width: 100%;"
-                                                 Disabled="@IsSaving" />
-                            </div>
+                    </CardContent>
+                </Card>
 
-                            @* GitHub *@
-                            <div>
-                                <FluentTextField Label="GitHub"
-                                                 @bind-Value="ProfileModel.GitHubUrl"
-                                                 Placeholder="https://github.com/username"
-                                                 Style="width: 100%;"
-                                                 Disabled="@IsSaving" />
-                            </div>
+                @* ---------- Social links ---------- *@
+                <Card data-testid="social-links-card">
+                    <CardHeader>
+                        <CardTitle>Social links</CardTitle>
+                        <CardDescription>Leave a field blank to hide that icon on the public site.</CardDescription>
+                    </CardHeader>
+                    <CardContent Class="grid gap-5 sm:grid-cols-2">
 
-                            @* Twitter *@
-                            <div>
-                                <FluentTextField Label="Twitter"
-                                                 @bind-Value="ProfileModel.TwitterUrl"
-                                                 Placeholder="https://twitter.com/username"
-                                                 Style="width: 100%;"
-                                                 Disabled="@IsSaving" />
-                            </div>
+                        <Field>
+                            <FieldLabel For="linkedin">LinkedIn</FieldLabel>
+                            <FieldContent>
+                                <Input Id="linkedin"
+                                       Type="InputType.Url"
+                                       @bind-Value="ProfileModel.LinkedInUrl"
+                                       Placeholder="https://linkedin.com/in/username"
+                                       Disabled="@IsSaving"
+                                       Class="font-mono"
+                                       data-testid="linkedin-input" />
+                            </FieldContent>
+                        </Field>
 
-                            @* Instagram *@
-                            <div>
-                                <FluentTextField Label="Instagram"
-                                                 @bind-Value="ProfileModel.InstagramUrl"
-                                                 Placeholder="https://instagram.com/username"
-                                                 Style="width: 100%;"
-                                                 Disabled="@IsSaving" />
-                            </div>
-                        </FluentStack>
-                    </div>
-                </div>
+                        <Field>
+                            <FieldLabel For="github">GitHub</FieldLabel>
+                            <FieldContent>
+                                <Input Id="github"
+                                       Type="InputType.Url"
+                                       @bind-Value="ProfileModel.GitHubUrl"
+                                       Placeholder="https://github.com/username"
+                                       Disabled="@IsSaving"
+                                       Class="font-mono"
+                                       data-testid="github-input" />
+                            </FieldContent>
+                        </Field>
 
-                @* Resume Settings Section *@
-                <div style="border-top: 1px solid var(--neutral-stroke-rest); padding-top: 24px; margin-bottom: 24px;">
-                    <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 0.875rem; font-weight: 600; color: var(--neutral-foreground-hint); text-transform: uppercase; letter-spacing: 0.5px;">
-                        RESUME SETTINGS
-                    </h3>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
-                        <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px;">
-                            @* Resume Enabled Checkbox *@
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <FluentCheckbox @bind-Value="ProfileModel.ResumeEnabled"
-                                                Disabled="@IsSaving" />
-                                <span>Show resume on profile</span>
-                            </div>
+                        <Field>
+                            <FieldLabel For="twitter">Twitter</FieldLabel>
+                            <FieldContent>
+                                <Input Id="twitter"
+                                       Type="InputType.Url"
+                                       @bind-Value="ProfileModel.TwitterUrl"
+                                       Placeholder="https://twitter.com/username"
+                                       Disabled="@IsSaving"
+                                       Class="font-mono"
+                                       data-testid="twitter-input" />
+                            </FieldContent>
+                        </Field>
 
-                            @* Phone Number *@
-                            <div>
-                                <FluentTextField Label="Phone"
-                                                 @bind-Value="ProfileModel.PhoneNumber"
-                                                 Placeholder="+1 (555) 123-4567"
-                                                 Style="width: 100%;"
-                                                 Disabled="@IsSaving" />
-                            </div>
-                        </FluentStack>
+                        <Field>
+                            <FieldLabel For="instagram">Instagram</FieldLabel>
+                            <FieldContent>
+                                <Input Id="instagram"
+                                       Type="InputType.Url"
+                                       @bind-Value="ProfileModel.InstagramUrl"
+                                       Placeholder="https://instagram.com/username"
+                                       Disabled="@IsSaving"
+                                       Class="font-mono"
+                                       data-testid="instagram-input" />
+                            </FieldContent>
+                        </Field>
 
-                        <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px;">
-                            @* CV File Picker *@
-                            <div>
-                                <label style="display: block; margin-bottom: 8px; font-weight: 500;">CV</label>
+                    </CardContent>
+                </Card>
+
+                @* ---------- Resume settings ---------- *@
+                <Card data-testid="resume-settings-card">
+                    <CardHeader>
+                        <CardTitle>Resume settings</CardTitle>
+                        <CardDescription>Controls the public resume page at /resume/{username}.</CardDescription>
+                    </CardHeader>
+                    <CardContent Class="flex flex-col gap-5">
+
+                        <div class="flex items-center gap-3">
+                            <Checkbox Id="resume-enabled"
+                                      @bind-Checked="ProfileModel.ResumeEnabled"
+                                      Disabled="@IsSaving"
+                                      data-testid="resume-enabled-checkbox" />
+                            <Label For="resume-enabled">Show resume on profile</Label>
+                        </div>
+
+                        <div class="grid gap-5 sm:grid-cols-2">
+                            <Field>
+                                <FieldLabel For="phone">Phone</FieldLabel>
+                                <FieldContent>
+                                    <Input Id="phone"
+                                           Type="InputType.Tel"
+                                           @bind-Value="ProfileModel.PhoneNumber"
+                                           Placeholder="+1 (555) 123-4567"
+                                           Disabled="@IsSaving"
+                                           data-testid="phone-input" />
+                                </FieldContent>
+                            </Field>
+
+                            <Field>
+                                <FieldLabel For="location">Location</FieldLabel>
+                                <FieldContent>
+                                    <Input Id="location"
+                                           @bind-Value="ProfileModel.Location"
+                                           Placeholder="e.g., San Francisco, CA"
+                                           Disabled="@IsSaving"
+                                           data-testid="location-input" />
+                                </FieldContent>
+                            </Field>
+                        </div>
+
+                        <Field>
+                            <FieldLabel>CV</FieldLabel>
+                            <FieldContent>
                                 <ImagePicker Category="cv"
                                              @bind-SelectedImagePath="ProfileModel.CVFilePath"
                                              UserId="@CurrentUserId" />
-                            </div>
+                            </FieldContent>
+                        </Field>
 
-                            @* Location *@
-                            <div>
-                                <FluentTextField Label="Location"
-                                                 @bind-Value="ProfileModel.Location"
-                                                 Placeholder="e.g., San Francisco, CA"
-                                                 Style="width: 100%;"
-                                                 Disabled="@IsSaving" />
-                            </div>
-                        </FluentStack>
-                    </div>
-                </div>
+                    </CardContent>
+                </Card>
 
-                @* Quick Links Section *@
-                <div style="border-top: 1px solid var(--neutral-stroke-rest); padding-top: 24px; padding-bottom: 8px;">
-                    <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 0.875rem; font-weight: 600; color: var(--neutral-foreground-hint); text-transform: uppercase; letter-spacing: 0.5px;">
-                        Quick Links
-                    </h3>
-                    <FluentStack Orientation="Orientation.Horizontal" Style="gap: 12px; flex-wrap: wrap;">
-                        <FluentAnchor Href="/admin/experience" Appearance="Appearance.Outline" Style="display: inline-flex; align-items: center; gap: 8px;">
-                            <FluentIcon Value="@(new Icons.Regular.Size16.Briefcase())" />
-                            <span>Manage Experience</span>
-                            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowRight())" />
-                        </FluentAnchor>
-                        <FluentAnchor Href="/admin/skills" Appearance="Appearance.Outline" Style="display: inline-flex; align-items: center; gap: 8px;">
-                            <FluentIcon Value="@(new Icons.Regular.Size16.Code())" />
-                            <span>Manage Skills</span>
-                            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowRight())" />
-                        </FluentAnchor>
-                        <FluentAnchor Href="/admin/awards" Appearance="Appearance.Outline" Style="display: inline-flex; align-items: center; gap: 8px;">
-                            <FluentIcon Value="@(new Icons.Regular.Size16.Trophy())" />
-                            <span>Manage Awards</span>
-                            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowRight())" />
-                        </FluentAnchor>
-                    </FluentStack>
-                </div>
-            </EditForm>
-        }
-    </PanelContent>
-</ContentPanel>
+                @* ---------- Quick links ---------- *@
+                <Card data-testid="quick-links-card">
+                    <CardHeader>
+                        <CardTitle>Quick links</CardTitle>
+                        <CardDescription>Manage the sections that make up your resume.</CardDescription>
+                    </CardHeader>
+                    <CardContent Class="flex flex-wrap gap-3">
+                        <Button Href="/admin/experience" Variant="ButtonVariant.Outline" data-testid="manage-experience-link">
+                            <LucideIcon Name="briefcase" Size="16" />
+                            Manage Experience
+                            <LucideIcon Name="arrow-right" Size="16" />
+                        </Button>
+                        <Button Href="/admin/skills" Variant="ButtonVariant.Outline" data-testid="manage-skills-link">
+                            <LucideIcon Name="code" Size="16" />
+                            Manage Skills
+                            <LucideIcon Name="arrow-right" Size="16" />
+                        </Button>
+                        <Button Href="/admin/awards" Variant="ButtonVariant.Outline" data-testid="manage-awards-link">
+                            <LucideIcon Name="award" Size="16" />
+                            Manage Awards
+                            <LucideIcon Name="arrow-right" Size="16" />
+                        </Button>
+                        <Button Href="/admin/stats" Variant="ButtonVariant.Outline" data-testid="manage-stats-link">
+                            <LucideIcon Name="trending-up" Size="16" />
+                            Manage Statistics
+                            <LucideIcon Name="arrow-right" Size="16" />
+                        </Button>
+                    </CardContent>
+                </Card>
+
+            </div>
+        </EditForm>
+    }
+</div>

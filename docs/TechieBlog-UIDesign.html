@@ -1,0 +1,1063 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TechieBlog — UI Design Spec (TrBlazeUI) — TechieBlog</title>
+<script>
+/* Resolve the theme BEFORE first paint (no flash). Saved choice wins; otherwise
+   pick by time of day — light 07:00–19:00 local, softened dark at night. */
+(function(){
+  try{
+    var t = localStorage.getItem('tf-theme');
+    if(t!=='light' && t!=='dark'){ var h = new Date().getHours(); t = (h>=7 && h<19) ? 'light' : 'dark'; }
+    document.documentElement.setAttribute('data-theme', t);
+  }catch(e){ document.documentElement.setAttribute('data-theme','light'); }
+})();
+</script>
+<style>
+/* LIGHT is the default theme — a warm off-white, easy on the eyes (never bright white). */
+:root{
+  --bg:#f4f1e9; --panel:#efe9db; --panel2:#e7e0cd; --line:#d8cfb6;
+  --ink:#2e2a22; --muted:#6f6857; --accent:#2f6f9f; --accent2:#3f7d54;
+  --warn:#9a6b15; --danger:#b03a52; --ok:#3f7d54;
+  --code-bg:#ece5d3; --code-ink:#332f26; --row-alt:#eae2cf;
+  --h3:#3a352b; --h4:#2f6f9f; --quote:#4a4537; --cta-bg:#e6eef5;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+/* DARK — softened near-black (warmer / less harsh than pure #0f1115). */
+html[data-theme="dark"]{
+  --bg:#11141a; --panel:#171b23; --panel2:#1e2430; --line:#2b3240;
+  --ink:#dfe3ea; --muted:#99a2b1; --accent:#7cc4ff; --accent2:#a6e3a1;
+  --warn:#f9c74f; --danger:#f38ba8; --ok:#a6e3a1;
+  --code-bg:#0c1016; --code-ink:#d8dde8; --row-alt:#141821;
+  --h3:#cfd5e3; --h4:#7cc4ff; --quote:#cfd5e3; --cta-bg:#0d2030;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;font-size:15px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:var(--mono);font-size:13px;background:var(--code-bg);color:var(--code-ink);padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+pre{font-family:var(--mono);font-size:12.5px;background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto;color:var(--code-ink);position:relative}
+pre code{background:none;border:none;padding:0}
+.copy{position:absolute;top:8px;right:8px;background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:11px;font-family:var(--sans);cursor:pointer}
+.copy:hover{color:var(--accent);border-color:var(--accent)}
+/* floating light/dark toggle (top-right) */
+.theme-toggle{position:fixed;top:12px;right:14px;z-index:10000;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12.5px;font-family:var(--sans);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.theme-toggle:hover{color:var(--accent);border-color:var(--accent)}
+
+.layout{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+.layout.no-toc{grid-template-columns:1fr}
+nav.side{position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--line);background:var(--panel);padding:18px 14px}
+nav.side h1{font-size:14px;margin:0 0 4px;letter-spacing:.5px;color:var(--ink)}
+nav.side .sub{font-size:11.5px;color:var(--muted);margin-bottom:14px}
+nav.side ol,nav.side ul{list-style:none;padding:0;margin:0}
+nav.side li{font-size:13px;margin:2px 0}
+nav.side li a{display:block;padding:5px 8px;color:var(--ink);border-radius:6px}
+nav.side li a:hover{background:var(--panel2);text-decoration:none}
+nav.side li.h3 a{padding-left:22px;font-size:12.5px;color:var(--h3)}
+nav.side .group{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin:14px 8px 4px}
+
+main{padding:28px 40px 80px;max-width:1100px}
+.layout.no-toc main{margin:0 auto}
+
+h1{font-size:28px;margin:0 0 6px}
+h2{font-size:22px;margin:32px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);scroll-margin-top:16px}
+h3{font-size:17px;margin:22px 0 6px;color:var(--h3);scroll-margin-top:16px}
+h4{font-size:14px;margin:14px 0 4px;color:var(--h4);scroll-margin-top:16px}
+.subtitle{color:var(--muted);font-size:14px;margin-top:-4px;margin-bottom:18px}
+p{margin:6px 0 10px}
+blockquote{border-left:3px solid var(--accent);background:var(--panel);margin:8px 0;padding:8px 14px;color:var(--quote)}
+ul,ol{padding-left:22px}
+li{margin:2px 0}
+
+table{border-collapse:collapse;width:100%;font-size:13.5px;margin:8px 0}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--panel2);color:var(--h3);font-weight:600}
+tr:nth-child(even) td{background:var(--row-alt)}
+
+hr{border:none;border-top:1px solid var(--line);margin:24px 0}
+.anchor-link{color:var(--muted);font-weight:400;font-size:0.85em;margin-left:8px;opacity:0;transition:opacity .15s;text-decoration:none}
+h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
+
+/* inline TOC at top of main content */
+.toc-inline{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 16px;margin:14px 0 24px}
+.toc-inline > div{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.toc-inline ol,.toc-inline ul{margin:4px 0;padding-left:18px}
+.toc-inline li{font-size:13px;margin:1px 0}
+.toc-inline a{color:var(--h3)}
+
+/* mermaid diagram wrapper + toolbar */
+.diagram{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--code-bg);margin:14px 0;overflow:hidden}
+.diagram .mermaid{padding:14px;margin:0;background:transparent;border:none;overflow:auto}
+.diagram .dt{display:flex;gap:6px;justify-content:flex-end;padding:6px 8px;background:var(--row-alt);border-bottom:1px solid var(--line)}
+.diagram .dt button{background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 10px;font-size:12px;font-family:var(--sans);cursor:pointer;min-width:30px}
+.diagram .dt button:hover{color:var(--accent);border-color:var(--accent)}
+.diagram .dt .zlabel{padding:3px 6px;font-size:11px;color:var(--muted);font-family:var(--mono);align-self:center}
+.diagram.fs{position:fixed;inset:0;z-index:9999;border-radius:0;border:none}
+.diagram.fs .mermaid{height:calc(100vh - 40px);display:flex;align-items:center;justify-content:center}
+
+@media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{position:static;height:auto}}
+</style>
+</head>
+<body>
+<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">☾ Dark</button>
+<div class="layout no-toc">
+  <main>
+    <h1>TechieBlog — UI Design Spec (TrBlazeUI)</h1>
+    <div class="subtitle">Visual contract for the TrBlazeUI rebuild — 38 screens · Last rendered: 2026-08-06</div>
+
+<div class="toc-inline">
+<div>Contents</div>
+<ul style="list-style:none;padding-left:4px">
+<li><a href="#design-system">Design system</a></li>
+<li><a href="#screens">Screens</a></li>
+</ul>
+<div style="font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:10px 0 2px">Public</div>
+<ul style="columns:2 300px;column-gap:32px">
+<li><a href="#screen-home-portfolio-landing">Home — portfolio landing (/)</a></li>
+<li><a href="#screen-post-view-post-slug">Post view (/post/{slug})</a></li>
+<li><a href="#screen-category-archive-category-slug">Category archive (/category/{slug})</a></li>
+<li><a href="#screen-tag-archive-tag-slug">Tag archive (/tag/{slug})</a></li>
+<li><a href="#screen-series-list-series">Series list (/series)</a></li>
+<li><a href="#screen-series-view-series-slug">Series view (/series/{slug})</a></li>
+<li><a href="#screen-search-results-search">Search results (/search)</a></li>
+<li><a href="#screen-about-about">About (/about)</a></li>
+<li><a href="#screen-not-found-404">Not found (/404)</a></li>
+</ul>
+<div style="font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:10px 0 2px">Identity</div>
+<ul style="columns:2 300px;column-gap:32px">
+<li><a href="#screen-resume-resume">Resume (/resume)</a></li>
+</ul>
+<div style="font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:10px 0 2px">Auth</div>
+<ul style="columns:2 300px;column-gap:32px">
+<li><a href="#screen-sign-in-login">Sign in (/login)</a></li>
+<li><a href="#screen-forgot-password-forgot-password">Forgot password (/forgot-password)</a></li>
+<li><a href="#screen-reset-password-reset-password-token">Reset password (/reset-password/{token})</a></li>
+<li><a href="#screen-access-denied-access-denied">Access denied (/access-denied)</a></li>
+</ul>
+<div style="font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:10px 0 2px">Authoring</div>
+<ul style="columns:2 300px;column-gap:32px">
+<li><a href="#screen-post-editor-managepost-id">Post editor (/ManagePost/{id})</a></li>
+<li><a href="#screen-posts-list-blogslist">Posts list (/BlogsList)</a></li>
+<li><a href="#screen-draft-preview-admin-preview-id">Draft preview (/admin/preview/{id})</a></li>
+<li><a href="#screen-series-admin-admin-series">Series admin (/admin/series)</a></li>
+<li><a href="#screen-media-library-admin-images">Media library (/admin/images)</a></li>
+</ul>
+<div style="font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:10px 0 2px">Admin console</div>
+<ul style="columns:2 300px;column-gap:32px">
+<li><a href="#screen-admin-dashboard-admin">Admin Dashboard (/admin)</a></li>
+<li><a href="#screen-user-management-users">User Management (/users)</a></li>
+<li><a href="#screen-comment-moderation-commentslist">Comment Moderation (/CommentsList)</a></li>
+<li><a href="#screen-category-management-admin-categories">Category Management (/admin/categories)</a></li>
+<li><a href="#screen-tag-management-admin-tags">Tag Management (/admin/tags)</a></li>
+<li><a href="#screen-subscribers-admin-subscribers">Subscribers (/admin/subscribers)</a></li>
+<li><a href="#screen-site-settings-settings">Site Settings (/settings)</a></li>
+<li><a href="#screen-newsletter-composer-admin-newsletter">Newsletter Composer (/admin/newsletter)</a></li>
+<li><a href="#screen-analytics-dashboard-admin-analytics">Analytics Dashboard (/admin/analytics)</a></li>
+</ul>
+<div style="font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:10px 0 2px">Resume management</div>
+<ul style="columns:2 300px;column-gap:32px">
+<li><a href="#screen-manage-profile-admin-profile">Manage Profile (/admin/profile)</a></li>
+<li><a href="#screen-manage-experience-admin-experience">Manage Experience (/admin/experience)</a></li>
+<li><a href="#screen-manage-skills-admin-skills">Manage Skills (/admin/skills)</a></li>
+<li><a href="#screen-manage-awards-admin-awards">Manage Awards (/admin/awards)</a></li>
+</ul>
+<div style="font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:10px 0 2px">BlogApp desktop</div>
+<ul style="columns:2 300px;column-gap:32px">
+<li><a href="#screen-blogapp-connection-setup-desktop-first-run">BlogApp Connection Setup ((desktop first-run))</a></li>
+<li><a href="#screen-blogapp-login-desktop-login">BlogApp Login ((desktop login))</a></li>
+<li><a href="#screen-blogapp-shell-desktop-main-window-admin-dashboard">BlogApp Shell ((desktop main window · /admin/dashboard))</a></li>
+</ul>
+<div style="font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:10px 0 2px">Newsletter &amp; verification</div>
+<ul style="columns:2 300px;column-gap:32px">
+<li><a href="#screen-newsletter-archive-newsletters">Newsletter archive (/newsletters)</a></li>
+<li><a href="#screen-newsletter-issue-newsletter-slug">Newsletter issue (/newsletter/{slug})</a></li>
+<li><a href="#screen-email-confirmation-landing-verify-token">Email confirmation landing (/verify/{token})</a></li>
+</ul>
+</div>
+
+<!-- Produced by *mockups on 2026-08-06 per the amended BRD (BRD-92 TrBlazeUI adoption, BRD-30 revised
+     portfolio home, BRD-93 no public admin entry, BRD-94…97 BlogApp desktop). This spec + the rendered
+     docs/mockups/*.html are the visual contract the build matches and the verifier's visual-truth gate
+     diffs against. The legacy Fluent-styled set at repo-root mockups/ (28 files) is superseded and kept
+     read-only for history. -->
+<p><strong>Component library:</strong> TrBlazeUI (<code>TrBlazeUI.Components</code>, GitHub Packages feed) — shadcn/ui-compatible, CSS-variable theming, dark mode via <code>.dark</code> on <code>&lt;html&gt;</code>, <code>&lt;PortalHost /&gt;</code> required in root layouts. <strong>Catalog source:</strong> the TrBlazeUI GitHub repository (github.com/techierathore/TrBlazeUI) — the local <code>.trblazeui/TrBlazeUI-AI-Reference.md</code> is not yet deployed because the package is not installed (REQ-UI-048 prerequisite); re-check component names against the AI reference when the feed is wired.</p>
+<h2 id="design-system">Design system<a class="anchor-link" href="#design-system">#</a></h2>
+<ul><li><strong>Shells:</strong> public pages use <strong>TbResponsiveNav</strong> (sticky top bar; brand + Home/Categories/Series/ Resume/About + theme toggle — <strong>no login/user-menu entry points</strong>, BRD-93, and <strong>no Authors entry</strong> since the author-browsing screens were dropped). Admin pages (web + BlogApp) use the <strong>TbSidebar</strong> inset shell: grouped navigation (Content · Taxonomy · Media · Resume · Audience · System), topbar with a <strong>collapse trigger</strong> (icon-rail mode, <code>.collapsed</code>), TbBreadcrumb and theme toggle. The signed-in identity lives <strong>in the topbar</strong>, as a TbDropdownMenu on the avatar offering <em>My Profile</em> and <em>Log Out</em> — the sidebar has no footer identity block, because a name with no actions attached earns no permanent space. BlogApp screens wrap the same shell in desktop window chrome (MAUI head) and their menu logs out to the desktop login screen. Auth screens are a bare centered TbCard (reached by direct URL only).</li><li><strong>Icons:</strong> Lucide (bundled with TrBlazeUI), rendered as inline 24×24 stroke SVGs at 16 px (<code>.icon</code>) / 20 px (<code>.icon-lg</code>) — one identical icon set across every admin screen. Social links use the real brand marks (LinkedIn, GitHub, X, YouTube, RSS) as filled SVGs with brand-coloured hover. No emoji or text glyphs are used as UI icons anywhere.</li><li><strong>Identity:</strong> the site owner is shown with a real <strong>profile photograph</strong> (<code>profile-photo.svg</code> placeholder in the mockups), never initials. Other people (commenters, staff rows) use initials TbAvatars.</li><li><strong>Anonymous engagement:</strong> commenting and rating need <strong>no account</strong> — the visitor supplies a name and email (BRD-36, BRD-40/41 revised). No public screen offers sign-in, registration or a reader account area; public self-service registration is retired (<del>BRD-1</del>).</li><li><strong>Rating is a real control:</strong> TbRating renders five focusable star buttons (not display-only text). Choosing a star reveals the email + captcha step; an already-verified address rates in one click.</li><li><strong>Anti-abuse on every public write surface</strong> (comment, rating, subscribe): a <strong>self-hosted captcha</strong> — challenge image, reload button, answer input, generated and validated in-process with no third-party service (BRD-99) — plus <strong>double opt-in email verification</strong>, explained inline by the <code>.verify-note</code> panel and landing on <code>/verify/{token}</code> (BRD-98).</li><li><strong>Dialogs:</strong> every TbDialog is <strong>closed on load</strong> (<code>hidden</code>) and opened by its row action; list pages always render the list first.</li><li><strong>Theme:</strong> neutral shadcn palette, blue primary (<code>--primary</code>), radius <code>0.625rem</code>; the three site themes (TrBlaze Modern default · Developer Dark · Minimal Clean) are CSS-variable sets over the same tokens (BRD-67 revised). Light/dark via <code>.dark</code> class, toggle in every shell header (BRD-66).</li><li><strong>Mockup stylesheet:</strong> <code>docs/mockups/trblazeui.css</code> — a visual approximation of TrBlazeUI's tokens and component shapes shared by every mockup; the build uses the real library, not this file.</li><li><strong>Controls inventory used:</strong> TbResponsiveNav, TbSidebar, TbBreadcrumb, TbCard, TbButton, TbBadge, TbAvatar, TbInput, TbLabel, TbSelect, TbCombobox, TbMultiSelect, TbNumericInput, TbTextarea, TbCheckbox, TbSwitch, TbTabs, TbDataTable, TbPagination, TbDialog, TbDropdownMenu, TbAlert, TbToast, TbEmpty, TbSkeleton, TbProgress, TbSeparator, TbFileUpload, TbDatePicker, TbTimePicker, TbDateRangePicker, Rating, MarkdownEditor, PortalHost, Lucide icons.</li><li><strong>Data conventions:</strong> placeholder persona "Ravi Rathore" (site owner) demonstrates the resume-driven surfaces; all counts/lists are realistic non-zero samples so the data-render gate has a shape to compare against; every screen defines empty/loading/error states in its spec block.</li></ul>
+<h2 id="screens">Screens<a class="anchor-link" href="#screens">#</a></h2>
+<h3 id="screen-home-portfolio-landing">Screen: Home — portfolio landing (<code>/</code>)<a class="anchor-link" href="#screen-home-portfolio-landing">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/01-home.html">mockups/01-home.html</a> · <strong>Roles:</strong> anonymous · <strong>BRD:</strong> BRD-30 (revised), BRD-93 · <strong>REQ:</strong> REQ-UI-049, REQ-UI-050</li><li><strong>Layout:</strong> single-column personal-brand landing — TbResponsiveNav, full-viewport hero, stats, about, latest articles, contact, footer.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Top nav</td><td>TbResponsiveNav</td><td>Brand + Home/Categories/Series/Resume/About links, search icon, theme TbToggle; <strong>no login/user menu</strong> (BRD-93), <strong>no Authors entry</strong></td><td>mobile → burger + TbSheet drawer</td></tr>
+<tr><td>Hero</td><td>TbAvatar (xl, <strong>photo</strong>) + Typography + TbButton</td><td>Site-owner photograph (not initials), "Hi, I'm {FirstName}", title, tagline; Get-In-Touch (primary) + Download-CV (outline) CTAs; brand-icon social row (LinkedIn/GitHub/X/YouTube/RSS)</td><td>no photo set → initials fallback; no site owner flagged → generic brand hero</td></tr>
+<tr><td>Stats row</td><td>TbCard ×4</td><td>Headline stats from <code>UserStats</code></td><td>empty → section hidden</td></tr>
+<tr><td>About summary</td><td>TbCard</td><td>Short bio from owner profile, link to <code>/resume</code></td><td>empty → section hidden</td></tr>
+<tr><td>Latest articles</td><td>TbCard ×3 (post card)</td><td>Recent published posts: featured image, category TbBadge, title, excerpt, author, date, read time, Rating (read-only)</td><td>none → TbEmpty "No posts yet"; loading → TbSkeleton ×3</td></tr>
+<tr><td>Contact</td><td>TbCard + TbButton</td><td>Email, location, socials, mail CTA</td><td>—</td></tr>
+<tr><td>Footer</td><td>Typography + TbSeparator</td><td>© line, RSS/About/Resume links</td><td>—</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> theme toggle persists (local storage); hero CTAs smooth-scroll to <code>#contact</code> / open CV file; article cards navigate to <code>/post/{slug}</code>; no admin affordance renders for any anonymous visitor (BRD-93 acceptance).</li></ul>
+<h3 id="screen-post-view-post-slug">Screen: Post view (<code>/post/{slug}</code>)<a class="anchor-link" href="#screen-post-view-post-slug">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/02-post-view.html">mockups/02-post-view.html</a> · <strong>Roles:</strong> anonymous · <strong>BRD:</strong> BRD-31, BRD-32, BRD-36 <em>(revised)</em>, BRD-40/41 <em>(revised)</em> · <strong>REQ:</strong> REQ-UI-007, REQ-UI-027, REQ-UI-029</li><li><strong>Layout:</strong> Single centered column (max 820px): breadcrumb → title/meta → featured image → body → series card → engagement card → related grid → comments.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Breadcrumb</td><td>TbBreadcrumb</td><td>Home / Category / Post title</td><td>current = plain text</td></tr>
+<tr><td>Title + meta</td><td>Typography + TbAvatar (sm) + TbBadge + tag chips</td><td>Author byline is plain text (public author profiles retired 2026-08-06); category badge → 03-category-archive.html; tags → 04-tag-archive.html</td><td>—</td></tr>
+<tr><td>Featured image</td><td>styled placeholder div</td><td>Post.FeaturedImage 1200×630</td><td>missing image → gradient placeholder</td></tr>
+<tr><td>Article body</td><td>Typography; code → TbCard + <code>.mono</code></td><td>Rendered markdown/HTML incl. H2s and code blocks</td><td>loading → TbSkeleton</td></tr>
+<tr><td>Series navigation</td><td>TbCard + TbButton (outline prev / primary next)</td><td>"Part 2 of 5 · Blazor Deep Dives" → 06-series-view.html</td><td>hidden when post not in a series</td></tr>
+<tr><td>Engagement row</td><td>Rating (interactive)</td><td>"Rate this article" — avg 4.2 / 31 ratings; <strong>anonymous, keyed by email</strong>, one per email per post, changeable (BRD-40/41 revised). <strong>No favourite toggle</strong> — F-FAV retired</td><td>click → email prompt → stored + thanks TbToast; already-rated → shows own rating</td></tr>
+<tr><td>Related posts</td><td>TbCard ×3 (compact)</td><td>Same category/tags, 3 items</td><td>none → section hidden</td></tr>
+<tr><td>Comments</td><td>TbAvatar + Typography per comment</td><td>Approved comments, newest last, flat (no threading)</td><td>0 comments → TbEmpty "Be the first to comment"</td></tr>
+<tr><td>Comment form</td><td>TbCard + TbInput ×2 + TbTextarea + TbButton</td><td><strong>Anonymous</strong> — Name, Email ("never published — moderation and reply notification only"), Comment body, "Post comment"; note that comments appear after moderation (BRD-36 revised)</td><td>validation errors inline; submit → TbToast "Awaiting moderation"; <strong>no sign-in prompt anywhere</strong></td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Unknown slug → 09-404.html. Loading → TbSkeleton blocks for image/body/comments. Rating and commenting work for any visitor with <strong>no account and no sign-in</strong> (BRD-36, BRD-40 revised) — the email identifies the visitor for de-duplication and moderation and is never displayed. The page offers <strong>no</strong> sign-in, registration or favourite affordance. Because input is anonymous, comment moderation (BRD-38/39) and spam protection are load-bearing — see the Architecture open question.</li><li>Author byline renders as plain text (public author profiles retired 2026-08-06).</li></ul>
+<h3 id="screen-category-archive-category-slug">Screen: Category archive (<code>/category/{slug}</code>)<a class="anchor-link" href="#screen-category-archive-category-slug">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/03-category-archive.html">mockups/03-category-archive.html</a> · <strong>Roles:</strong> anonymous · <strong>BRD:</strong> BRD-25 · <strong>REQ:</strong> REQ-UI-052</li><li><strong>Layout:</strong> Full-width container: breadcrumb + header (name, description, count badge) → 3-col post-card grid → pagination → sibling-category chip row.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Page header</td><td>Typography + TbBadge</td><td>Category name, description, "14 posts"</td><td>unknown slug → 09-404.html</td></tr>
+<tr><td>Post grid</td><td>TbCard ×6 (post card as 01-home)</td><td>Thumb, category TbBadge, date, read time, title → 02-post-view.html, excerpt, author TbAvatar, Rating read-only</td><td>empty → TbEmpty "No posts in this category yet"</td></tr>
+<tr><td>Pagination</td><td>TbPagination</td><td>Page 1 of 3; prev/next disabled at bounds</td><td>single page → hidden</td></tr>
+<tr><td>Other categories</td><td>chip row (TbBadge-style links)</td><td>Sibling categories with counts → same route, other slug</td><td>—</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Card click anywhere on title navigates to post. Loading → TbSkeleton card grid. Empty category still shows header + sibling chips so the reader can pivot. Pagination is server-driven (querystring page).</li></ul>
+<h3 id="screen-tag-archive-tag-slug">Screen: Tag archive (<code>/tag/{slug}</code>)<a class="anchor-link" href="#screen-tag-archive-tag-slug">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/04-tag-archive.html">mockups/04-tag-archive.html</a> · <strong>Roles:</strong> anonymous · <strong>BRD:</strong> BRD-26 · <strong>REQ:</strong> REQ-UI-053</li><li><strong>Layout:</strong> Same shell as category archive: header ("#dotnet", description, count) → post-card grid ×6 → pagination → weighted tag-cloud chip row.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Page header</td><td>Typography + TbBadge</td><td>Tag name "#dotnet", accurate "6 posts" count</td><td>unknown slug → 09-404.html</td></tr>
+<tr><td>Post grid</td><td>TbCard ×6 (post card as 01-home)</td><td>Posts carrying the tag, any category; cards link 02-post-view.html</td><td>empty → TbEmpty "Nothing tagged yet"</td></tr>
+<tr><td>Pagination</td><td>TbPagination</td><td>Single page (1) shown; hidden when ≤1 page</td><td>—</td></tr>
+<tr><td>Tag cloud</td><td>chip row</td><td>All tags with counts; current tag emphasized (bold)</td><td>—</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Identical behavior contract to category archive; only the filter dimension differs. Loading → TbSkeleton cards. Tag chips navigate within /tag/{slug}. Post count badge must match actual result count (BRD-26).</li></ul>
+<h3 id="screen-series-list-series">Screen: Series list (<code>/series</code>)<a class="anchor-link" href="#screen-series-list-series">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/05-series-list.html">mockups/05-series-list.html</a> · <strong>Roles:</strong> anonymous · <strong>BRD:</strong> BRD-29 · <strong>REQ:</strong> REQ-UI-054</li><li><strong>Layout:</strong> Container: page header → 2-col grid of 4 series cards (title, part-count badge, description, progress bar, CTA).</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Page header</td><td>Typography</td><td>"Article Series" + explainer</td><td>—</td></tr>
+<tr><td>Series card</td><td>TbCard (header + content + footer)</td><td>Name → 06-series-view.html; description</td><td>—</td></tr>
+<tr><td>Part count</td><td>TbBadge (secondary)</td><td>"5 parts" etc.</td><td>—</td></tr>
+<tr><td>Publish progress</td><td>TbProgress (<code>.progress</code>)</td><td>published/total parts as % + hint line ("4 of 6 · in progress")</td><td>complete → 100%</td></tr>
+<tr><td>CTA</td><td>TbButton (primary)</td><td>"Start reading" → 06-series-view.html (part 1)</td><td>—</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> No series → TbEmpty "No series published yet". Loading → TbSkeleton cards. Progress reflects published parts only (drafts excluded). Card title and CTA both navigate to series view.</li></ul>
+<h3 id="screen-series-view-series-slug">Screen: Series view (<code>/series/{slug}</code>)<a class="anchor-link" href="#screen-series-view-series-slug">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/06-series-view.html">mockups/06-series-view.html</a> · <strong>Roles:</strong> anonymous · <strong>BRD:</strong> BRD-28, BRD-29 · <strong>REQ:</strong> REQ-UI-055</li><li><strong>Layout:</strong> Centered column (max 860px): breadcrumb → series hero (badges, title, description, progress) → ordered part cards 1–5 → back link.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Breadcrumb</td><td>TbBreadcrumb</td><td>Home / Series / name</td><td>unknown slug → 09-404.html</td></tr>
+<tr><td>Series hero</td><td>Typography + TbBadge ×3 + TbProgress</td><td>Name, description, "5 parts", Complete/In-progress badge, total reading time</td><td>—</td></tr>
+<tr><td>Parts list</td><td>TbCard ×5 (ordered, numbered TbAvatar chip)</td><td>Part number, title → 02-post-view.html, date, reading time</td><td>no published parts → TbEmpty "Parts coming soon"</td></tr>
+<tr><td>Current part</td><td>TbCard with ring highlight + TbBadge "You are here"</td><td>Highlighted when navigated from a series post; primary "Continue" TbButton</td><td>default (direct visit) → no highlight</td></tr>
+<tr><td>Part CTA</td><td>TbButton (outline "Read" / primary "Continue")</td><td>Each → 02-post-view.html</td><td>—</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Order is fixed by series part number, unpublished parts omitted. Loading → TbSkeleton rows. "You are here" highlight driven by referring post; falls back to plain list. Progress bar mirrors the series-list card value.</li></ul>
+<h3 id="screen-search-results-search">Screen: Search results (<code>/search</code>)<a class="anchor-link" href="#screen-search-results-search">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/07-search-results.html">mockups/07-search-results.html</a> · <strong>Roles:</strong> anonymous · <strong>BRD:</strong> BRD-34, BRD-35 · <strong>REQ:</strong> REQ-UI-056</li><li><strong>Layout:</strong> Centered column (max 860px): search-bar card (input + category select + button) → results count → stacked result cards ×4 → pagination; TbEmpty variant documented below fold.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Search bar</td><td>TbInput (lg) + TbSelect + TbButton (primary)</td><td>Pre-filled query "blazor"; category filter (All + 6); submit re-queries</td><td>no query → prompt/recent posts</td></tr>
+<tr><td>Results count</td><td>Typography</td><td>"17 results for 'blazor' · sorted by relevance"</td><td>—</td></tr>
+<tr><td>Result card</td><td>TbCard ×4</td><td>Category TbBadge, date, read time, title + excerpt with <code>&lt;mark&gt;</code> term highlight → 02-post-view.html</td><td>loading → TbSkeleton rows</td></tr>
+<tr><td>Pagination</td><td>TbPagination</td><td>Pages 1–5, prev/next</td><td>≤1 page → hidden</td></tr>
+<tr><td>Empty state</td><td>TbEmpty</td><td>"No results for '…'" + Clear filters TbButton</td><td>replaces result list when 0 matches</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Enter or Search button submits; category select narrows server-side. Matched terms highlighted via <code>&lt;mark&gt;</code> in title and excerpt (plain HTML — no TrBlazeUI highlight component). Empty state offers clear-filters recovery. Error (search backend down) → TbAlert (destructive) with retry.</li></ul>
+<h3 id="screen-about-about">Screen: About (<code>/about</code>)<a class="anchor-link" href="#screen-about-about">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/08-about.html">mockups/08-about.html</a> · <strong>Roles:</strong> anonymous · <strong>BRD:</strong> BRD-30 · <strong>REQ:</strong> REQ-UI-057</li><li><strong>Layout:</strong> Narrow centered column (max 760px): avatar + heading → single prose TbCard (site/author/stack) with chip row and footer link buttons.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Header</td><td>TbAvatar (xl) + Typography</td><td>Site identity</td><td>—</td></tr>
+<tr><td>Prose</td><td>TbCard + Typography</td><td>About the site, the author, "site as its own case study"; contact email</td><td>owner-editable content (BRD-30)</td></tr>
+<tr><td>Stack chips</td><td>chip row</td><td>.NET 10, Blazor Server, TrBlazeUI, PostgreSQL, Dapper+DbUp, Serilog, Playwright</td><td>—</td></tr>
+<tr><td>Links</td><td>TbButton (outline) ×2</td><td>"View my resume" → 10-resume.html; "Source on GitHub" → external repo</td><td>—</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Static content page — no empty/error states beyond initial render; loading → TbSkeleton card. External GitHub link opens in new tab in the real build. Contact email mailto in the real build.</li></ul>
+<h3 id="screen-not-found-404">Screen: Not found (<code>/404</code>)<a class="anchor-link" href="#screen-not-found-404">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/09-404.html">mockups/09-404.html</a> · <strong>Roles:</strong> anonymous · <strong>BRD:</strong> — (platform quality) · <strong>REQ:</strong> REQ-UI-058</li><li><strong>Layout:</strong> Vertically centered block: oversized mono "404" → heading + explanation → primary/outline CTA pair → secondary browse links.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>404 code</td><td>Typography (<code>.mono</code>, primary color)</td><td>Static</td><td>—</td></tr>
+<tr><td>Message</td><td>Typography</td><td>Friendly explanation (unpublished / stale link / bad slug)</td><td>—</td></tr>
+<tr><td>CTAs</td><td>TbButton (primary lg + outline lg)</td><td>"Back to home" → 01-home.html; "Search articles" → 07-search-results.html</td><td>—</td></tr>
+<tr><td>Browse links</td><td>Typography links</td><td>Categories → 03, Series → 05</td><td>—</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Single static state; served as catch-all for unknown routes, deleted posts and bad slugs (post/category/tag/series views all redirect here on unknown slug). Full public nav + footer retained so the reader is never dead-ended.</li></ul>
+<h3 id="screen-resume-resume">Screen: Resume (<code>/resume</code>)<a class="anchor-link" href="#screen-resume-resume">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/10-resume.html">mockups/10-resume.html</a> · <strong>Roles:</strong> anonymous (public) · <strong>BRD:</strong> BRD-49, BRD-50, BRD-51, BRD-52 · <strong>REQ:</strong> REQ-UI-036</li><li><strong>Layout:</strong> Single-column public page — sticky anchor-chip row under TbResponsiveNav, then hero / about+stats / experience timeline / skills / awards / community / contact sections, site footer.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Anchor row</td><td>Sticky chip row (TbButton ghost / chip pattern)</td><td>In-page anchors: About · Experience · Skills · Awards · Community · Contact; sticks below 56px nav</td><td>Always visible; horizontal scroll on narrow viewports</td></tr>
+<tr><td>Hero</td><td>TbAvatar (xl) + Typography + TbButton ×2 + social TbButton(ghost) row</td><td>Site-owner name, title, tagline; "Get In Touch" → #contact, "⬇ Download CV" → PDF export</td><td>Loading → TbSkeleton</td></tr>
+<tr><td>About + stats</td><td>TbCard + TbCard ×4 stat tiles</td><td>Bio paragraph + UserStats (years, articles, talks, MVP count)</td><td>Empty field → section hidden</td></tr>
+<tr><td>Experience</td><td>Timeline list (.timeline) + logo-chip</td><td>4 entries newest-first; role, company, date range ("Present" on current), 2 markdown bullets each</td><td>Empty → section hidden</td></tr>
+<tr><td>Skills</td><td>TbCard ×4 in .skill-grid, chip items</td><td>4 category cards (Backend / Frontend / Cloud &amp; DevOps / Data), 4–6 chips each</td><td>Empty → section hidden</td></tr>
+<tr><td>Awards</td><td>TbCard ×3</td><td>Badge icon, award name, year, external link</td><td>Empty → section hidden</td></tr>
+<tr><td>Community</td><td>TbCard ×3 stat tiles</td><td>50+ college sessions, 10+ conferences, 50K+ developers mentored</td><td>Empty → section hidden</td></tr>
+<tr><td>Contact</td><td>TbCard + social links</td><td>Email, phone, location, socials, "Send an email" TbButton (mailto)</td><td>Always shown</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Anchor chips smooth-scroll to sections (html scroll-behavior: smooth); sticky row stays below nav while scrolling.</li><li>Any resume section with no data is hidden entirely — no empty placeholders on the public page.</li><li>Loading → TbSkeleton hero + section blocks; data fetch error → TbAlert(destructive) with retry.</li><li>Site-wide ResumeEnabled=false → route returns 404 and the "Resume" nav link is hidden.</li></ul>
+<!-- REMOVED 2026-08-06 (design review): "Authors" (/authors) and "Author profile" (/author/{username}).
+     TechieBlog instances are personal sites — no public author browsing. BRD-53/54/55 retired,
+     REQ-UI-041/042 marked N/A, mockups 11-authors.html and 12-author-profile.html deleted, and the
+     "Authors" entry removed from the public nav on every screen. Post bylines are plain text. -->
+<h3 id="screen-sign-in-login">Screen: Sign in (<code>/login</code>)<a class="anchor-link" href="#screen-sign-in-login">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/13-login.html">mockups/13-login.html</a> · <strong>Roles:</strong> anonymous (direct URL only — no public link, BRD-93) · <strong>BRD:</strong> BRD-2, BRD-93 · <strong>REQ:</strong> REQ-UI-001</li><li><strong>Layout:</strong> Minimal auth layout — centered brand mark above a single centered TbCard (max-width 420px); fixed theme toggle top-right; no site nav.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Brand mark</td><td>Typography link</td><td>"● TechieBlog" → 01-home.html</td><td>static</td></tr>
+<tr><td>Email / Password</td><td>TbInput + TbLabel</td><td>bound to LoginModel; email autofocus</td><td>default, focus ring, invalid</td></tr>
+<tr><td>Remember me</td><td>TbCheckbox</td><td>persists auth cookie</td><td>checked / unchecked</td></tr>
+<tr><td>Forgot link</td><td>Typography link</td><td>→ 15-forgot-password.html</td><td>static</td></tr>
+<tr><td>Sign in</td><td>TbButton (primary, full-width)</td><td>posts credentials</td><td>default, disabled+spinner while submitting</td></tr>
+<tr><td>Error banner</td><td>TbAlert (destructive)</td><td>"Invalid email or password."</td><td>hidden by default; shown on failed sign-in</td></tr>
+<tr><td>Theme toggle</td><td>TbButton (ghost icon, fixed)</td><td>toggles <code>html.dark</code></td><td>light / dark</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong><ul><li>Failed sign-in shows the destructive TbAlert above the form; fields keep their values (password cleared).</li><li>Client validation: both fields required, email format checked before submit.</li><li>Submit disables the button and shows a spinner; success redirects to the return URL or home.</li><li>Footer hint links to 14-register.html; page itself is never linked from public chrome (BRD-93).</li></ul></li></ul>
+<!-- REMOVED 2026-08-06 (second design-review pass): "Create account" (/register). Public
+     self-service registration is retired — there are no reader accounts; comments, ratings and
+     subscriptions are anonymous + email-verified, and staff accounts are created by an admin.
+     BRD-1 retired; REQ-UI-002 marked N/A; mockup 14-register.html deleted. -->
+<h3 id="screen-forgot-password-forgot-password">Screen: Forgot password (<code>/forgot-password</code>)<a class="anchor-link" href="#screen-forgot-password-forgot-password">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/15-forgot-password.html">mockups/15-forgot-password.html</a> · <strong>Roles:</strong> anonymous (direct URL only, BRD-93) · <strong>BRD:</strong> BRD-4 · <strong>REQ:</strong> REQ-UI-003</li><li><strong>Layout:</strong> Minimal auth layout — centered brand mark above a centered TbCard (max-width 420px); fixed theme toggle; no site nav.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Explanation</td><td>Typography (card-desc)</td><td>one-line instructions</td><td>static</td></tr>
+<tr><td>Success notice</td><td>TbAlert (info)</td><td>"If the address exists, a reset link has been sent."</td><td>hidden → shown after submit</td></tr>
+<tr><td>Email</td><td>TbInput + TbLabel</td><td>account email</td><td>default, invalid format</td></tr>
+<tr><td>Send reset link</td><td>TbButton (primary, full-width)</td><td>triggers reset email</td><td>default, disabled+spinner, disabled after success</td></tr>
+<tr><td>Back link</td><td>Typography link</td><td>→ 13-login.html</td><td>static</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong><ul><li>The success TbAlert wording is identical whether or not the address exists — no account enumeration.</li><li>Email format validated client-side; empty field blocks submit.</li><li>After success the form stays visible but the button is disabled for a cooldown period.</li></ul></li></ul>
+<h3 id="screen-reset-password-reset-password-token">Screen: Reset password (<code>/reset-password/{token}</code>)<a class="anchor-link" href="#screen-reset-password-reset-password-token">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/16-reset-password.html">mockups/16-reset-password.html</a> · <strong>Roles:</strong> anonymous (direct URL from reset email only, BRD-93) · <strong>BRD:</strong> BRD-5 · <strong>REQ:</strong> REQ-UI-003</li><li><strong>Layout:</strong> Minimal auth layout — centered brand mark above a centered TbCard (max-width 420px); fixed theme toggle; no site nav.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Token error</td><td>TbAlert (destructive)</td><td>"This reset link is invalid or has expired." + link to 15-forgot-password.html</td><td>hidden (valid token) / shown (form hidden)</td></tr>
+<tr><td>New password</td><td>TbInput + TbLabel + hint</td><td>strength rules: min 8, mixed case, number</td><td>default, invalid</td></tr>
+<tr><td>Confirm new password</td><td>TbInput + TbLabel</td><td>must match</td><td>default, mismatch error</td></tr>
+<tr><td>Reset password</td><td>TbButton (primary, full-width)</td><td>consumes token, sets new hash</td><td>default, disabled+spinner</td></tr>
+<tr><td>Back link</td><td>Typography link</td><td>→ 13-login.html</td><td>static</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong><ul><li>Token is validated on page load; invalid/expired token replaces the form with the destructive TbAlert.</li><li>Same live strength validation as registration; mismatch blocks submit.</li><li>Success invalidates the token, redirects to 13-login.html with a "Password updated" TbToast.</li></ul></li></ul>
+<h3 id="screen-access-denied-access-denied">Screen: Access denied (<code>/access-denied</code>)<a class="anchor-link" href="#screen-access-denied-access-denied">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/17-access-denied.html">mockups/17-access-denied.html</a> · <strong>Roles:</strong> any user failing an authorization check (redirect target; direct URL only, BRD-93) · <strong>BRD:</strong> BRD-9 · <strong>REQ:</strong> REQ-UI-004</li><li><strong>Layout:</strong> Minimal auth layout — centered brand mark above a centered TbCard (max-width 420px) with icon, message and action; fixed theme toggle; no site nav.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Icon</td><td>Typography (🚫, 44px)</td><td>static glyph</td><td>static</td></tr>
+<tr><td>Title + message</td><td>Typography</td><td>"Access denied" + contact-owner explanation</td><td>static</td></tr>
+<tr><td>Go home</td><td>TbButton (primary)</td><td>→ 01-home.html</td><td>static</td></tr>
+<tr><td>Theme toggle</td><td>TbButton (ghost icon, fixed)</td><td>toggles <code>html.dark</code></td><td>light / dark</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong><ul><li>Single static state; the auth framework redirects here whenever a signed-in user lacks the required role.</li><li>No sign-in link is offered (public chrome never advertises auth routes, BRD-93).</li></ul></li></ul>
+<!-- REMOVED 2026-08-06 (design review): "My profile" (/profile), "My favourites" (/my-favorites)
+     and "My comments" (/my-comments). Reader accounts are dropped — visitors comment and rate
+     anonymously with an email address, so there is no reader-facing account area. BRD-13/37/43/44
+     retired; REQ-UI-013/014/015/028 + REQ-FN-024 marked N/A; mockups 18/19/20 deleted.
+     Staff profile management lives at /admin/profile (see "Manage Profile" below). -->
+<h3 id="screen-post-editor-managepost-id">Screen: Post editor (<code>/ManagePost/{id}</code>)<a class="anchor-link" href="#screen-post-editor-managepost-id">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/21-post-editor.html">mockups/21-post-editor.html</a> · <strong>Roles:</strong> AuthorOrAbove · <strong>BRD:</strong> BRD-14..17, BRD-20 · <strong>REQ:</strong> REQ-UI-016</li><li><strong>Layout:</strong> Admin shell (TbSidebar inset); two-column page — main editor column (title, slug, MarkdownEditor split view) + 320px stacked-card sidebar (Publish, Category, Tags, Series, Featured image, SEO).</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Title</td><td>TbInput (large)</td><td>Post title; edits regenerate slug until slug manually touched</td><td>Required — validation on Save/Publish</td></tr>
+<tr><td>Slug row</td><td>TbInput (mono) + TbButton ghost "↻ Auto"</td><td><code>/post/{slug}</code>; auto-kebab from title, editable</td><td>Uniqueness check → inline destructive hint</td></tr>
+<tr><td>Body</td><td>MarkdownEditor</td><td>Toolbar (B, I, H2, link, code, image, list, quote) over split markdown textarea + live preview pane</td><td>Preview re-renders on debounce; TbSkeleton while rendering</td></tr>
+<tr><td>Publish card</td><td>TbBadge + TbButton ×2 + TbDatePicker + TbTimePicker</td><td>Status badge (Draft/Published/Scheduled); Save Draft (secondary), Publish (primary); optional schedule date+time</td><td>Schedule set → status Scheduled on Publish; save → TbToast "Draft saved"</td></tr>
+<tr><td>Category card</td><td>TbSelect</td><td>Single category from taxonomy</td><td>Required before Publish</td></tr>
+<tr><td>Tags card</td><td>TbMultiSelect (chips + input)</td><td>Existing-tag type-ahead; Enter adds; ✕ removes</td><td>Free-entry creates new tag</td></tr>
+<tr><td>Series card</td><td>TbSelect + TbNumericInput</td><td>Optional series + part number</td><td>"— none —" hides part number</td></tr>
+<tr><td>Featured image</td><td>ImagePicker (thumbnail + TbButton)</td><td>"Choose from library" opens media library picker; Authors can upload here without library-browse rights</td><td>Empty → placeholder tile; ✕ clears</td></tr>
+<tr><td>SEO card</td><td>TbInput + TbTextarea</td><td>SEO title (60-char hint) + meta description (160-char hint)</td><td>Char counters as TbInput hints</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> New post (<code>{id}</code> absent) starts empty in Draft; title is the only hard-required field for Save Draft.</li><li>Publish with future schedule → Scheduled status; without → immediate publish + redirect to public post.</li><li>Save feedback via TbToast; unsaved-changes guard on navigation.</li><li>Slug collision and missing category surface inline destructive hints, blocking Publish only.</li></ul>
+<h3 id="screen-posts-list-blogslist">Screen: Posts list (<code>/BlogsList</code>)<a class="anchor-link" href="#screen-posts-list-blogslist">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/22-posts-list.html">mockups/22-posts-list.html</a> · <strong>Roles:</strong> AuthorOrAbove (policy fixed from EditorOrAbove per REQ-UI-017) · <strong>BRD:</strong> BRD-14 · <strong>REQ:</strong> REQ-UI-017</li><li><strong>Layout:</strong> Admin shell; page header with "New post" primary action, filter row (status TbTabs + search), full-width TbDataTable with pager.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Header action</td><td>TbButton primary</td><td>"＋ New post" → /ManagePost</td><td>—</td></tr>
+<tr><td>Status filter</td><td>TbTabs</td><td>All 24 · Published 18 · Drafts 4 · Scheduled 2 (live counts)</td><td>Active tab filters table server-side</td></tr>
+<tr><td>Search</td><td>TbInput</td><td>Title/slug contains, debounced</td><td>Clears to full list</td></tr>
+<tr><td>Table</td><td>TbDataTable</td><td>Columns: title (link to editor), status TbBadge (success/secondary/warning), category, date, views (mono), rating stars</td><td>Loading → TbSkeleton rows</td></tr>
+<tr><td>Row actions</td><td>TbButton ghost sm ×3</td><td>Edit → editor; Preview → draft preview; Delete → confirm</td><td>Delete → TbDialog confirm then TbToast</td></tr>
+<tr><td>Pager</td><td>TbPagination</td><td>10/page, 24 total</td><td>Hidden when ≤1 page</td></tr>
+<tr><td>Empty</td><td>TbEmpty</td><td>"No posts yet — write your first" + New post CTA</td><td>Shown when filter/search yields none</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Tabs and search combine; counts refresh after delete/publish.</li><li>Scheduled rows show publish date+time and em-dash views/rating (no data yet).</li><li>Delete is a two-step confirm TbDialog; success removes row and toasts.</li><li>Empty and skeleton-loading variants defined; empty differs per active tab ("No drafts" etc.).</li></ul>
+<h3 id="screen-draft-preview-admin-preview-id">Screen: Draft preview (<code>/admin/preview/{id}</code>)<a class="anchor-link" href="#screen-draft-preview-admin-preview-id">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/23-draft-preview.html">mockups/23-draft-preview.html</a> · <strong>Roles:</strong> AuthorOrAbove · <strong>BRD:</strong> BRD-19 · <strong>REQ:</strong> REQ-UI-018</li><li><strong>Layout:</strong> Admin topbar only (no sidebar, no public nav — admin surface that must not leak reader chrome); sticky TbAlert preview banner above an article rendered exactly like the public post page.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Topbar</td><td>TbBreadcrumb + TbButton ghost + theme toggle</td><td>"Admin / Draft preview"; View site ↗</td><td>—</td></tr>
+<tr><td>Preview banner</td><td>TbAlert (info, sticky) + TbButton ×2</td><td>"Draft preview — this post is not published"; Back to editor (outline), Publish (primary)</td><td>Already published → banner swaps to "This post is live" + View public</td></tr>
+<tr><td>Article header</td><td>Typography + TbBadge + meta-row</td><td>Category badge, Draft badge, last-edited date, read time, author avatar</td><td>—</td></tr>
+<tr><td>Featured image</td><td>Rendered image</td><td>Post's featured image at public dimensions</td><td>Missing → hidden (as on public page)</td></tr>
+<tr><td>Body</td><td>MarkdownEditor read-only render</td><td>Same renderer as public post view (headings, quotes, code)</td><td>—</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Publish from banner → confirm TbDialog → publishes, redirects to public post URL, TbToast.</li><li>Banner is sticky beneath the topbar so status stays visible while scrolling.</li><li><code>{id}</code> not found or not owned by the caller → destructive TbAlert with back link (no article body).</li><li>Rendering path is shared with the public post page so preview is pixel-faithful.</li></ul>
+<h3 id="screen-series-admin-admin-series">Screen: Series admin (<code>/admin/series</code>)<a class="anchor-link" href="#screen-series-admin-admin-series">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/24-series-admin.html">mockups/24-series-admin.html</a> · <strong>Roles:</strong> AuthorOrAbove · <strong>BRD:</strong> BRD-27 · <strong>REQ:</strong> REQ-UI-024</li><li><strong>Layout:</strong> Admin shell; TbDataTable of series with "New series" action; Edit opens a TbDialog (mocked open) with fields + orderable parts list.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Header action</td><td>TbButton primary</td><td>"＋ New series" opens the same dialog empty</td><td>—</td></tr>
+<tr><td>Series table</td><td>TbDataTable</td><td>Name, slug (mono), parts count, updated; 3 seeded series</td><td>Loading → TbSkeleton rows</td></tr>
+<tr><td>Row actions</td><td>TbButton ghost sm</td><td>Edit (opens dialog), Delete (destructive)</td><td>Delete w/ parts → confirm TbDialog; posts keep, series link cleared</td></tr>
+<tr><td>Dialog: fields</td><td>TbDialog + TbInput ×2 + TbTextarea</td><td>Name, slug, description</td><td>Slug collision → inline destructive hint</td></tr>
+<tr><td>Dialog: parts list</td><td>Drag list rows (⋮⋮ handle) + TbNumericInput per row</td><td>Reorder by drag or by editing order number; numbers rewrite after drag</td><td>Series w/o parts → row placeholder "No parts yet"</td></tr>
+<tr><td>Dialog: actions</td><td>TbButton outline + primary</td><td>Cancel discards; Save persists name/slug/desc + order</td><td>Save → TbToast + table refresh</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Empty library of series → TbEmpty "No series yet" replacing the table.</li><li>Part order edits are staged in the dialog and persisted only on Save.</li><li>Parts are added from the post editor's Series card, not from this dialog (read/reorder only here).</li><li>Validation: name and slug required; slug unique across series.</li></ul>
+<h3 id="screen-media-library-admin-images">Screen: Media library (<code>/admin/images</code>)<a class="anchor-link" href="#screen-media-library-admin-images">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/25-media-library.html">mockups/25-media-library.html</a> · <strong>Roles:</strong> AdminOnly (Authors upload via ImagePicker but cannot browse here — REQ-UI-034 remark) · <strong>BRD:</strong> BRD-45..48 · <strong>REQ:</strong> REQ-UI-034, REQ-UI-035</li><li><strong>Layout:</strong> Admin shell; TbFileUpload dropzone strip, 7-category TbTabs, responsive tile grid (8/page) with per-tile actions, TbPagination.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Upload strip</td><td>TbFileUpload (dropzone)</td><td>Drag &amp; drop or browse; uploads into the active category</td><td>Rejected (size/format per category) → destructive TbToast; in-flight → TbProgress on tile</td></tr>
+<tr><td>Category tabs</td><td>TbTabs</td><td>profiles 3 · logos 6 · awards 5 · icons 12 · blog 34 (active) · cv 1 · general 4</td><td>Counts live from image_store</td></tr>
+<tr><td>Image grid</td><td>TbCard tiles</td><td>Thumb, filename (mono, ellipsized), size</td><td>Loading → TbSkeleton tiles</td></tr>
+<tr><td>Tile action: copy URL</td><td>TbButton ghost sm (⧉)</td><td>Copies public image URL</td><td>→ TbToast "URL copied"</td></tr>
+<tr><td>Tile action: delete</td><td>TbButton ghost sm destructive (🗑)</td><td>Removes from store</td><td>Confirm TbDialog; blocked with destructive TbToast if referenced by a post</td></tr>
+<tr><td>Pager</td><td>TbPagination</td><td>8/page within active category (34 in "blog")</td><td>Hidden when ≤1 page</td></tr>
+<tr><td>Empty</td><td>TbEmpty</td><td>"No images in this category yet" + upload CTA</td><td>Per-category</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Switching tabs resets pagination and re-scopes the dropzone's limits (blog: webp/png/jpg ≤ 2 MB; cv: pdf ≤ 5 MB).</li><li>Upload success appends the tile to the grid head and toasts; failures name the violated limit.</li><li>Delete is reference-checked: images used as featured/inline in posts cannot be removed.</li><li>Empty, skeleton-loading, and upload-progress variants defined per category.</li></ul>
+<h3 id="screen-admin-dashboard-admin">Screen: Admin Dashboard (<code>/admin</code>)<a class="anchor-link" href="#screen-admin-dashboard-admin">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/26-admin-dashboard.html">mockups/26-admin-dashboard.html</a> · <strong>Roles:</strong> EditorOrAbove · <strong>BRD:</strong> BRD-62 · <strong>REQ:</strong> REQ-UI-019</li><li><strong>Layout:</strong> TbSidebar inset admin shell; 6-tile stat grid, quick-actions card, then Popular posts and Recent comments cards side by side.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Admin shell</td><td>TbSidebar (inset) + TbBreadcrumb + theme TbToggle</td><td>Grouped nav (Content/Taxonomy/Media/Resume/Audience/System); Dashboard active</td><td>Active item highlighted</td></tr>
+<tr><td>Live counts</td><td>TbCard ×6 stat tiles</td><td>Posts 24 / Published 18 / Users 132 / Subscribers 486 / Comments 291 / Pending 7</td><td>Loading → TbSkeleton tiles; pending 0 → no badge</td></tr>
+<tr><td>Pending tile badge</td><td>TbBadge (warning)</td><td>Count of comments awaiting moderation</td><td>Hidden when queue is empty</td></tr>
+<tr><td>Quick actions</td><td>TbButton (primary + outline ×3)</td><td>New post → editor; Moderate comments; Manage images; Site settings</td><td>—</td></tr>
+<tr><td>Popular posts</td><td>TbCard + list rows</td><td>Top 5 published posts by views, count right-aligned .mono</td><td>Empty → TbEmpty "No published posts"</td></tr>
+<tr><td>Recent comments</td><td>TbCard + TbAvatar + TbButton(sm)</td><td>Latest 4 comments: author, excerpt, post link, Approve/Delete</td><td>Empty → TbEmpty "Moderation queue is clear"</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Approve on a recent-comment row approves inline and removes the row with a TbToast; Delete confirms via TbDialog first.</li><li>Counts refresh on load from a single admin-stats query; tiles show TbSkeleton until it resolves; query failure → TbAlert (destructive) with retry.</li><li>Pending tile deep-links to the Comments page's Pending tab.</li></ul>
+<h3 id="screen-user-management-users">Screen: User Management (<code>/users</code>)<a class="anchor-link" href="#screen-user-management-users">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/27-admin-users.html">mockups/27-admin-users.html</a> · <strong>Roles:</strong> AdminOnly · <strong>BRD:</strong> BRD-10 · <strong>REQ:</strong> REQ-UI-020</li><li><strong>Layout:</strong> Admin shell; title + Add user button, search/role filter row, full-width users table with pagination; Change-role TbDialog closed on load, opened by a row action.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Header actions</td><td>TbButton (primary)</td><td>"Add user" opens create-user dialog</td><td>—</td></tr>
+<tr><td>Search</td><td>TbInput</td><td>Filters by name or email, debounced</td><td>No match → TbEmpty "No users found"</td></tr>
+<tr><td>Role filter</td><td>TbSelect</td><td>All roles / Admin / Editor / Author / Contributor / Reader</td><td>Combines with search</td></tr>
+<tr><td>Users table</td><td>TbDataTable</td><td>TbAvatar + name, email, role TbBadge (Admin=default, Editor=success, Author=warning, Reader=secondary), status dot, joined date</td><td>Loading → TbSkeleton rows</td></tr>
+<tr><td>Row actions</td><td>TbButton (ghost sm) ×3</td><td>Change role / Disable (Enable when disabled) / Delete</td><td>Self row (current admin) shows "(you)" — actions suppressed</td></tr>
+<tr><td>Pagination</td><td>TbPagination</td><td>8 rows/page of 132 users</td><td>—</td></tr>
+<tr><td>Change-role dialog</td><td>TbDialog + TbSelect + TbButton</td><td>5 roles (Admin/Editor/Author/Contributor/Reader), role hint text, Save/Cancel</td><td>Save → TbToast "Role updated"</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Delete always confirms via TbDialog naming the user and their content impact.</li><li>Disable is immediate (row status flips, TbToast); a disabled user cannot sign in.</li><li>The signed-in admin cannot disable/delete or demote their own account — actions hidden on the self row.</li><li>Loading → skeleton rows; fetch error → TbAlert with retry.</li></ul>
+<h3 id="screen-comment-moderation-commentslist">Screen: Comment Moderation (<code>/CommentsList</code>)<a class="anchor-link" href="#screen-comment-moderation-commentslist">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/28-admin-comments.html">mockups/28-admin-comments.html</a> · <strong>Roles:</strong> EditorOrAbove · <strong>BRD:</strong> BRD-38, BRD-39 · <strong>REQ:</strong> REQ-UI-021</li><li><strong>Layout:</strong> Admin shell; TbTabs queue switcher, bulk-action bar, comments table, pagination.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Queue tabs</td><td>TbTabs</td><td>Pending 7 (active, warning-badge count) · Approved 284 · All 291</td><td>Tab switch reloads table server-side</td></tr>
+<tr><td>Bulk bar</td><td>TbCheckbox + TbButton (primary sm / destructive sm)</td><td>Select-all checkbox; "Approve selected (n)" / "Delete selected"; selected-count hint</td><td>Buttons disabled until ≥1 row checked</td></tr>
+<tr><td>Comments table</td><td>TbDataTable</td><td>Row: TbCheckbox, TbAvatar + author, excerpt, post link, date, status TbBadge, actions</td><td>Pending empty → TbEmpty "Moderation queue is clear"</td></tr>
+<tr><td>Row actions</td><td>TbButton (outline/ghost sm)</td><td>Approve / Edit (inline excerpt edit) / Delete</td><td>Approve moves row to Approved + TbToast</td></tr>
+<tr><td>Pagination</td><td>TbPagination</td><td>Per-tab paging</td><td>—</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Approve (row or bulk) publishes the comment immediately (BRD-39) and updates the Pending count in tab + sidebar-facing dashboard tile.</li><li>Delete (row or bulk) requires TbDialog confirmation; bulk delete states the count.</li><li>Edit opens the comment text in a small TbDialog with textarea — saving re-approves it as edited.</li><li>Loading → TbSkeleton rows; error → TbAlert with retry.</li></ul>
+<h3 id="screen-category-management-admin-categories">Screen: Category Management (<code>/admin/categories</code>)<a class="anchor-link" href="#screen-category-management-admin-categories">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/29-admin-categories.html">mockups/29-admin-categories.html</a> · <strong>Roles:</strong> AdminOnly · <strong>BRD:</strong> BRD-22 · <strong>REQ:</strong> REQ-UI-022</li><li><strong>Layout:</strong> Admin shell; title + New category button, single table of 6 categories; Edit TbDialog closed on load, opened by the row action or "New category".</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Header actions</td><td>TbButton (primary)</td><td>"New category" opens the same dialog empty</td><td>—</td></tr>
+<tr><td>Categories table</td><td>TbDataTable</td><td>Name, slug (.mono), description, post count (sums to total posts), actions</td><td>Empty → TbEmpty "No categories yet — create the first one"</td></tr>
+<tr><td>Row actions</td><td>TbButton (ghost sm)</td><td>Edit / Delete</td><td>Delete of in-use category → confirm dialog with reassignment TbSelect</td></tr>
+<tr><td>Edit dialog</td><td>TbDialog</td><td>Name TbInput, slug TbInput (.mono, auto-derived but editable), description TbTextarea, Save/Cancel</td><td>Duplicate slug → inline validation error</td></tr>
+<tr><td>Save feedback</td><td>TbToast</td><td>"Category saved"</td><td>—</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Slug auto-derives from name on create; editing the slug shows the resulting URL hint (/category/{slug}).</li><li>Deleting a category with posts forces reassignment to another category before confirming (a post always has exactly one category, BRD-22).</li><li>Loading → TbSkeleton rows; save conflict/validation errors render inline under the field.</li></ul>
+<h3 id="screen-tag-management-admin-tags">Screen: Tag Management (<code>/admin/tags</code>)<a class="anchor-link" href="#screen-tag-management-admin-tags">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/30-admin-tags.html">mockups/30-admin-tags.html</a> · <strong>Roles:</strong> AdminOnly · <strong>BRD:</strong> BRD-24, BRD-26 · <strong>REQ:</strong> REQ-UI-023</li><li><strong>Layout:</strong> Admin shell; title + New tag button, search input, tag table with per-row Edit/Delete/Merge.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Header actions</td><td>TbButton (primary)</td><td>"New tag" opens create dialog (name + slug)</td><td>—</td></tr>
+<tr><td>Search</td><td>TbInput</td><td>Filters tag list client-side</td><td>No match → TbEmpty "No tags match"</td></tr>
+<tr><td>Tags table</td><td>TbDataTable</td><td>Tag chip, slug (.mono), post count, actions</td><td>Empty → TbEmpty "No tags yet"</td></tr>
+<tr><td>Post count</td><td>plain .mono cell</td><td>MUST equal the number of posts on the tag's archive — recomputed on unpublish/delete, never stale (Story 7.5 regression guard, BRD-26)</td><td>—</td></tr>
+<tr><td>Row actions</td><td>TbButton (ghost sm) ×3</td><td>Edit / Merge / Delete</td><td>Merge opens TbDialog to pick target tag</td></tr>
+<tr><td>Merge dialog</td><td>TbDialog + TbSelect</td><td>Re-tags all posts to the target, deletes the source, shows affected count</td><td>Confirm → TbToast "Tags merged"</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Delete on a tag in use shows a confirm dialog with the affected post count; unused tags delete immediately with a toast.</li><li>Merge is the canonical de-duplication path (e.g. fluent-ui → trblazeui); counts recompute after the merge.</li><li>Loading → TbSkeleton rows; counts are computed server-side from published posts only.</li></ul>
+<h3 id="screen-subscribers-admin-subscribers">Screen: Subscribers (<code>/admin/subscribers</code>)<a class="anchor-link" href="#screen-subscribers-admin-subscribers">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/31-admin-subscribers.html">mockups/31-admin-subscribers.html</a> · <strong>Roles:</strong> AdminOnly · <strong>BRD:</strong> BRD-57, BRD-58 · <strong>REQ:</strong> REQ-UI-025</li><li><strong>Layout:</strong> Admin shell; title + Export CSV, 3-tile stat row, search/status filters, subscribers table, pagination.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Header actions</td><td>TbButton (outline)</td><td>"Export CSV" downloads the currently filtered set (BRD-58)</td><td>Export in progress → button spinner</td></tr>
+<tr><td>Stat row</td><td>TbCard ×3 stat tiles</td><td>Total 486 / Active 462 / Unsubscribed 24</td><td>Loading → TbSkeleton</td></tr>
+<tr><td>Search</td><td>TbInput</td><td>Filters by email</td><td>No match → TbEmpty "No subscribers found"</td></tr>
+<tr><td>Status filter</td><td>TbSelect</td><td>All / Active / Unsubscribed</td><td>Combines with search</td></tr>
+<tr><td>Table</td><td>TbDataTable</td><td>Email (.mono), status TbBadge (Active=success, Unsubscribed=outline), subscribed date, source (Footer form / Post CTA / Newsletter landing / Import), Remove</td><td>Empty list → TbEmpty "No subscribers yet"</td></tr>
+<tr><td>Pagination</td><td>TbPagination</td><td>8/page of 486</td><td>—</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Remove confirms via TbDialog (permanent, GDPR-style erase) then TbToast "Subscriber removed"; stat tiles decrement.</li><li>Unsubscribed rows are retained for suppression — Remove is the only way they leave the list.</li><li>Loading → skeleton rows; export failure → TbAlert (destructive).</li></ul>
+<h3 id="screen-site-settings-settings">Screen: Site Settings (<code>/settings</code>)<a class="anchor-link" href="#screen-site-settings-settings">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/32-admin-settings.html">mockups/32-admin-settings.html</a> · <strong>Roles:</strong> AdminOnly · <strong>BRD:</strong> BRD-68, BRD-69 · <strong>REQ:</strong> REQ-UI-026</li><li><strong>Layout:</strong> Admin shell; TbTabs section switcher (General active), 2-column card grid (General, Theme, Comments, SMTP), sticky Save bar, sample success toast.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Section tabs</td><td>TbTabs</td><td>General · Blog · Comments · Email (SMTP) · Theme · Storage</td><td>Active tab drives visible cards</td></tr>
+<tr><td>General card</td><td>TbCard + TbInput ×2 + TbNumericInput</td><td>Site title, tagline, posts-per-page (1–50)</td><td>Numeric out of range → inline validation</td></tr>
+<tr><td>Theme card</td><td>TbCard + TbSelect + swatch row</td><td>Site theme: TrBlaze Modern / Developer Dark / Minimal Clean; preview swatches, selected outlined</td><td>Selection updates swatch highlight</td></tr>
+<tr><td>Comments card</td><td>TbCard + TbSwitch (on)</td><td>Require approval before publishing (BRD-38)</td><td>Toggle is part of the dirty form</td></tr>
+<tr><td>SMTP card</td><td>TbCard + TbInput ×4 + TbButton (outline)</td><td>Host, port, username, password (masked); "Send test email"</td><td>Test → TbToast success/failure; invalid port → field error</td></tr>
+<tr><td>Save bar</td><td>Sticky bar + TbButton (primary)</td><td>"Save changes" + persistence hint (BRD-69)</td><td>Saving → spinner; saved → TbToast "Settings saved"</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Dirty tracking — any edit highlights the sticky bar and navigating away (tab switch or route change) warns about unsaved changes.</li><li>All settings persist to the PostgreSQL settings table and apply without an app restart (BRD-69); theme change re-renders the public site on next load.</li><li>Send test email uses the currently entered (possibly unsaved) SMTP values so they can be verified before saving.</li><li>Save failure → TbAlert (destructive) above the save bar; field-level validation errors block the save.</li></ul>
+<h3 id="screen-newsletter-composer-admin-newsletter">Screen: Newsletter Composer (<code>/admin/newsletter</code>)<a class="anchor-link" href="#screen-newsletter-composer-admin-newsletter">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/33-newsletter-composer.html">mockups/33-newsletter-composer.html</a> · <strong>Roles:</strong> AdminOnly · <strong>BRD:</strong> BRD-59 · <strong>REQ:</strong> REQ-UI-043</li><li><strong>Layout:</strong> Admin shell; two-column — main column subject + split Markdown editor/preview, side column Recipients, Send, and History cards.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Subject</td><td>TbInput</td><td>Newsletter subject line</td><td>Empty → validation blocks send</td></tr>
+<tr><td>Body</td><td>TbMarkdownEditor (split)</td><td>Markdown source left, rendered preview right, kept in sync</td><td>Preview renders same pipeline as email body</td></tr>
+<tr><td>Recipients card</td><td>TbCard + radio rows + TbSelect</td><td>"All active subscribers (462)" (default) or a segment (Post CTA / Footer form / last 30 days)</td><td>Segment select disabled until its radio picked</td></tr>
+<tr><td>Send card</td><td>TbButton (outline) + TbButton (primary) + TbProgress</td><td>"Send test → self", "Send newsletter" (TbDialog confirm — irreversible), live progress n/462</td><td>Sending → buttons disabled + progress advances</td></tr>
+<tr><td>History card</td><td>TbCard + rows + TbBadge</td><td>Last 3 sends: subject, date, sent count, badge Sent</td><td>Empty → TbEmpty "Nothing sent yet"</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> "Send newsletter" always confirms via TbDialog stating the recipient count; a send cannot be undone.</li><li>During a send the progress bar streams n/total; completion fires TbToast "Newsletter sent to N subscribers" and prepends a History row.</li><li>"Send test" mails only the signed-in admin and never touches History.</li><li>Draft (subject + body) is retained if the admin navigates away mid-compose; empty body or subject blocks sending with inline errors.</li></ul>
+<h3 id="screen-analytics-dashboard-admin-analytics">Screen: Analytics Dashboard (<code>/admin/analytics</code>)<a class="anchor-link" href="#screen-analytics-dashboard-admin-analytics">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/34-analytics-dashboard.html">mockups/34-analytics-dashboard.html</a> · <strong>Roles:</strong> EditorOrAbove · <strong>BRD:</strong> BRD-60, BRD-61 · <strong>REQ:</strong> REQ-UI-044</li><li><strong>Layout:</strong> Admin shell; header with From/To date inputs + Apply, 4-tile stat grid, full-width Views-trend bar chart, then Popular-posts table beside Engagement-by-category bars.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Date range</td><td>TbInput (type=date) ×2 + TbButton — <strong>GAP: no TbDateRangePicker</strong></td><td>From/To bound to the query; Apply reloads all widgets</td><td>From &gt; To → inline error, Apply disabled</td></tr>
+<tr><td>Stat row</td><td>TbCard ×4 stat tiles</td><td>Views 30d 12.4K · Unique 8.9K · Avg rating 4.3★ · Comments 291</td><td>Loading → TbSkeleton tiles</td></tr>
+<tr><td>Views trend</td><td>placeholder div bars — <strong>GAP: no TrBlazeUI chart component</strong></td><td>14 daily single-hue (--chart-1) bars, hover tooltip per bar, peak direct-labeled, sparse x-axis labels</td><td>No data in range → TbEmpty "No traffic recorded"</td></tr>
+<tr><td>Popular posts</td><td>TbDataTable</td><td>Title, views, unique, comments, rating (stars + numeric)</td><td>Empty → TbEmpty</td></tr>
+<tr><td>Engagement by category</td><td>TbCard + labeled .progress bars</td><td>5 categories, chart colors --chart-1..5, text label + value on every bar (identity never color-alone)</td><td>Missing category data → row omitted</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Apply refetches all widgets for the selected range; widgets show skeletons independently while loading; a failed widget shows its own TbAlert with retry, others stay live.</li><li>Trend bars expose per-day tooltips (date + views); the trend is a single series so it carries no legend — the card title names it.</li><li>Table rows link to the public post view; ratings render read-only stars with the numeric average for accessibility.</li><li>Build note: the chart areas are visual placeholders — the implementation needs a charting approach (custom SVG or a chart library) because TrBlazeUI ships none.</li></ul>
+<h3 id="screen-manage-profile-admin-profile">Screen: Manage Profile (<code>/admin/profile</code>)<a class="anchor-link" href="#screen-manage-profile-admin-profile">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/35-manage-profile.html">mockups/35-manage-profile.html</a> · <strong>Roles:</strong> AuthorOrAbove · <strong>BRD:</strong> BRD-11 · <strong>REQ:</strong> REQ-UI-040</li><li><strong>Layout:</strong> Admin inset shell (TbSidebar + topbar); single 860px column of stacked cards — user selector (admin only), Basic info, Social links, Resume settings — with a Save row at the bottom.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>User selector (admin only)</td><td>TbCombobox</td><td>Admins pick any author's profile to edit; Authors never see this row</td><td>hidden (Author role); searching; selected "(me)"</td></tr>
+<tr><td>Photo row</td><td>TbAvatar(md) + TbButton "Change photo" (ImagePicker)</td><td>Opens media library picker; square min 400×400</td><td>no photo → initials avatar</td></tr>
+<tr><td>Basic info fields</td><td>TbInput ×4, TbTextarea (bio, markdown)</td><td>DisplayName, Title, Tagline, Bio, Phone, Location on BlogUser</td><td>required-field validation on Save</td></tr>
+<tr><td>Social links</td><td>TbInput ×4 (mono)</td><td>LinkedIn / GitHub / X / Instagram URLs; blank = icon hidden on public site</td><td>invalid URL hint</td></tr>
+<tr><td>Username</td><td>TbInput (mono) + hint</td><td>Public resume slug <code>/resume/{username}</code>; uniqueness checked async</td><td>available ✓ hint / taken → destructive hint + Save disabled</td></tr>
+<tr><td>ResumeEnabled</td><td>TbSwitch</td><td>ON = resume page + Authors listing entry visible</td><td>off → public resume returns 404</td></tr>
+<tr><td>CV file row</td><td>TbFileUpload (Replace)</td><td>Current file name + size + upload date; PDF only</td><td>empty → dropzone instead of file row; uploading → TbProgress</td></tr>
+<tr><td>Section jump-offs</td><td>TbButton(outline) ×3</td><td>Navigate to /admin/experience, /admin/skills, /admin/awards</td><td>—</td></tr>
+<tr><td>Save bar</td><td>TbButton primary + ghost</td><td>Persists all cards in one call</td><td>dirty → sticky; saving → loading; saved → TbToast</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong><ul><li>Username field validates uniqueness on blur; a taken name shows a destructive hint and disables Save.</li><li>"Change photo" and CV "Replace" both route through the shared media/file pickers; CV upload shows progress and replaces the file row on success.</li><li>Admin-only TbCombobox swaps the whole form's data context to the selected author; unsaved changes prompt a confirm dialog first.</li></ul></li></ul>
+<h3 id="screen-manage-experience-admin-experience">Screen: Manage Experience (<code>/admin/experience</code>)<a class="anchor-link" href="#screen-manage-experience-admin-experience">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/36-manage-experience.html">mockups/36-manage-experience.html</a> · <strong>Roles:</strong> AuthorOrAbove · <strong>BRD:</strong> BRD-50 · <strong>REQ:</strong> REQ-UI-037</li><li><strong>Layout:</strong> Admin inset shell; page title + "Add experience" button, vertical list of experience cards ordered by DisplayOrder, edit dialog overlays the page.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Header action</td><td>TbButton(primary) "Add experience"</td><td>Opens the dialog empty</td><td>—</td></tr>
+<tr><td>Experience card</td><td>TbCard (logo-chip + role/company/dates)</td><td>UserExperience row; "Present" TbBadge(success) when IsCurrent</td><td>empty list → TbEmpty "No experience yet"</td></tr>
+<tr><td>Reorder controls</td><td>TbButton(ghost) ↑ ↓</td><td>Swaps DisplayOrder with neighbor, optimistic</td><td>first/last arrow disabled; persist → TbToast</td></tr>
+<tr><td>Row actions</td><td>TbButton(outline) Edit · TbButton(ghost, destructive) Delete</td><td>Delete opens confirm TbDialog</td><td>deleting → loading</td></tr>
+<tr><td>Dialog: role/company</td><td>TbInput ×2</td><td>Required</td><td>validation hints</td></tr>
+<tr><td>Dialog: company logo</td><td>ImagePicker row (logo-chip + "Choose image…")</td><td>Square min 80×80 from media library</td><td>none → placeholder chip</td></tr>
+<tr><td>Dialog: dates</td><td>TbDatePicker ×2 + TbSwitch "Current role"</td><td>IsCurrent ON disables End date and shows "Present" publicly</td><td>end &lt; start → destructive hint</td></tr>
+<tr><td>Dialog: description</td><td>TbTextarea (markdown)</td><td>Rendered as markdown on resume timeline</td><td>—</td></tr>
+<tr><td>Dialog: display order</td><td>TbNumericInput</td><td>Position in timeline (lowest first)</td><td>—</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong><ul><li>"Current role" switch clears and disables End date; turning it off re-enables and requires an end date.</li><li>↑/↓ reorder is optimistic in the list and persisted immediately; a failed persist reverts with a destructive TbToast.</li><li>Delete always passes through a confirm TbDialog naming the role/company.</li></ul></li></ul>
+<h3 id="screen-manage-skills-admin-skills">Screen: Manage Skills (<code>/admin/skills</code>)<a class="anchor-link" href="#screen-manage-skills-admin-skills">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/37-manage-skills.html">mockups/37-manage-skills.html</a> · <strong>Roles:</strong> AuthorOrAbove · <strong>BRD:</strong> BRD-51 · <strong>REQ:</strong> REQ-UI-038</li><li><strong>Layout:</strong> Admin inset shell; title + "New category"/"Add skill" buttons, one TbCard per skill category containing chip rows; Add-skill dialog overlays the page.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Header actions</td><td>TbButton(primary) "Add skill" + TbButton(outline) "New category"</td><td>Dialog / inline category create</td><td>—</td></tr>
+<tr><td>Category card</td><td>TbCard (title + count + Rename ghost)</td><td>UserSkill rows grouped by Category</td><td>empty category → TbEmpty row "No skills yet"</td></tr>
+<tr><td>Skill chip</td><td>chip (Badge-style) + icon placeholder + ✎/× TbButton(ghost)</td><td>Chip order = in-category DisplayOrder</td><td>remove → confirm TbDialog</td></tr>
+<tr><td>Dialog: name</td><td>TbInput</td><td>Required, unique within category</td><td>duplicate → destructive hint</td></tr>
+<tr><td>Dialog: category</td><td>TbSelect with inline-create</td><td>Existing categories + "Create '&lt;typed&gt;'" option</td><td>creating new category inline</td></tr>
+<tr><td>Dialog: icon</td><td>ImagePicker</td><td>Optional 32×32 SVG/PNG from media library</td><td>none → "?" placeholder</td></tr>
+<tr><td>Dialog: order</td><td>TbNumericInput</td><td>Position within the category</td><td>—</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong><ul><li>TbSelect supports inline category creation: typing an unknown name surfaces a "Create '…'" option that adds the category on save.</li><li>Chip ✎ reopens the same dialog pre-filled; × asks for confirmation before removing.</li><li>Renaming a category updates every chip's grouping; deleting the last skill leaves an empty-state row rather than dropping the card.</li></ul></li></ul>
+<h3 id="screen-manage-awards-admin-awards">Screen: Manage Awards (<code>/admin/awards</code>)<a class="anchor-link" href="#screen-manage-awards-admin-awards">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/38-manage-awards.html">mockups/38-manage-awards.html</a> · <strong>Roles:</strong> AuthorOrAbove · <strong>BRD:</strong> BRD-51 · <strong>REQ:</strong> REQ-UI-039</li><li><strong>Layout:</strong> Admin inset shell; title + "Add award" button above a TbDataTable of awards; Edit dialog overlays the page.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Header action</td><td>TbButton(primary) "Add award"</td><td>Opens dialog empty</td><td>—</td></tr>
+<tr><td>Awards table</td><td>TbDataTable</td><td>Columns: badge thumb, name, year, link (mono), order, actions</td><td>empty → TbEmpty "No awards yet"</td></tr>
+<tr><td>Badge thumb</td><td>image cell (logo-chip placeholder)</td><td>BadgeImage from media library</td><td>none → initials chip</td></tr>
+<tr><td>Row actions</td><td>TbButton(outline) Edit · TbButton(ghost, destructive) Delete</td><td>Delete → confirm TbDialog</td><td>—</td></tr>
+<tr><td>Dialog: name</td><td>TbInput</td><td>Required</td><td>validation hint</td></tr>
+<tr><td>Dialog: year</td><td>TbNumericInput</td><td>1990–current year</td><td>out of range → destructive hint</td></tr>
+<tr><td>Dialog: link</td><td>TbInput (mono)</td><td>Optional; award name becomes a link when set</td><td>invalid URL hint</td></tr>
+<tr><td>Dialog: badge image</td><td>ImagePicker</td><td>Square min 80×80</td><td>—</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong><ul><li>Order column drives the resume Awards section sequence (lowest first); edited via the dialog.</li><li>Save closes the dialog and raises TbToast "Award updated"; table row updates in place.</li><li>Delete confirmation names the award to avoid accidental removal.</li></ul></li></ul>
+<h3 id="screen-blogapp-connection-setup-desktop-first-run">Screen: BlogApp Connection Setup (<code>(desktop first-run)</code>)<a class="anchor-link" href="#screen-blogapp-connection-setup-desktop-first-run">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/39-blogapp-connection-setup.html">mockups/39-blogapp-connection-setup.html</a> · <strong>Roles:</strong> local desktop user (pre-auth) · <strong>BRD:</strong> BRD-96 · <strong>REQ:</strong> REQ-FN-047</li><li><strong>Layout:</strong> Small desktop window (window--sm): centered brand + heading, PostgreSQL connection form, Test connection row with result alert, full-width Save &amp; continue.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Host / Database / Username</td><td>TbInput (mono)</td><td>Direct PostgreSQL connection parameters — no local DB, no sync (BRD-96)</td><td>required</td></tr>
+<tr><td>Port</td><td>TbNumericInput</td><td>Default 5432</td><td>non-numeric rejected</td></tr>
+<tr><td>Password</td><td>TbInput (password)</td><td>Stored only in OS credential store</td><td>—</td></tr>
+<tr><td>SSL mode</td><td>TbSelect</td><td>Disable / Prefer / Require (default Require)</td><td>—</td></tr>
+<tr><td>Test connection</td><td>TbButton(outline)</td><td>Read-only probe; verifies server + TechieBlog schema/migration level</td><td>testing → loading</td></tr>
+<tr><td>Result alert</td><td>TbAlert</td><td>Success: "Connection OK — TechieBlog schema found"</td><td>failure → TbAlert(destructive) with Npgsql error; schema missing → destructive "database is not a TechieBlog instance"</td></tr>
+<tr><td>Save &amp; continue</td><td>TbButton(primary, lg)</td><td>Persists to credential store → login screen</td><td>disabled until a successful test</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong><ul><li>Save &amp; continue stays disabled until Test connection succeeds; editing any field after a success invalidates the test.</li><li>Invalid connection error state: destructive TbAlert with the driver message (timeout, auth failed, host unreachable) replaces the success alert.</li><li>A reachable server without the TechieBlog schema is a distinct destructive state — connection is not saved.</li></ul></li></ul>
+<h3 id="screen-blogapp-login-desktop-login">Screen: BlogApp Login (<code>(desktop login)</code>)<a class="anchor-link" href="#screen-blogapp-login-desktop-login">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/40-blogapp-login.html">mockups/40-blogapp-login.html</a> · <strong>Roles:</strong> anonymous → web admin users · <strong>BRD:</strong> BRD-95 · <strong>REQ:</strong> REQ-UI-051</li><li><strong>Layout:</strong> Small desktop window (window--sm): centered brand, connected-to pill, email/password form with full-width Sign in.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Brand + heading</td><td>Typography</td><td>"Sign in to manage your blog"</td><td>—</td></tr>
+<tr><td>Connected-to pill</td><td>TbBadge(success dot) + mono text</td><td>Shows saved target <code>blog.ravirathore.dev · PostgreSQL</code></td><td>unreachable → red ● Disconnected</td></tr>
+<tr><td>Change connection</td><td>TbButton(ghost)</td><td>Returns to connection setup (39)</td><td>—</td></tr>
+<tr><td>Email / Password</td><td>TbInput ×2</td><td>Same BlogUser credentials &amp; roles as the web admin</td><td>required</td></tr>
+<tr><td>Sign in</td><td>TbButton(primary, lg)</td><td>Authenticates directly against the site DB</td><td>signing in → loading</td></tr>
+<tr><td>Error alert</td><td>TbAlert(destructive)</td><td>Bad credentials or role below Author</td><td>—</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong><ul><li>Offline/unreachable-DB state: pill turns red "● Disconnected", Sign in is disabled, and a destructive TbAlert links to Change connection.</li><li>Failed credentials show a destructive TbAlert without revealing which field was wrong.</li><li>Successful sign-in loads the shared admin shell (41) with the user's web role enforced.</li></ul></li></ul>
+<h3 id="screen-blogapp-shell-desktop-main-window-admin-dashboard">Screen: BlogApp Shell (<code>(desktop main window · /admin/dashboard)</code>)<a class="anchor-link" href="#screen-blogapp-shell-desktop-main-window-admin-dashboard">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/41-blogapp-shell.html">mockups/41-blogapp-shell.html</a> · <strong>Roles:</strong> AuthorOrAbove · <strong>BRD:</strong> BRD-94, BRD-97 · <strong>REQ:</strong> REQ-UI-052</li><li><strong>Layout:</strong> Full desktop window containing the SAME admin shell as the web (TbSidebar inset + topbar + page); topbar swaps "View site ↗" for a live connection chip; page shows the admin dashboard.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Window chrome</td><td>desktop mock chrome</td><td>MAUI Blazor Hybrid head hosting the shared BlogUI pages (one RCL, two heads)</td><td>—</td></tr>
+<tr><td>Sidebar</td><td>TbSidebar (inset)</td><td>Identical groups/items to web admin; each item opens the shared BlogUI page in-window</td><td>active item highlight; nav disabled while disconnected</td></tr>
+<tr><td>Topbar status chip</td><td>TbBadge-style chip</td><td>green ● "Connected · blog.ravirathore.dev" — replaces web "View site ↗"</td><td>red ● "Disconnected — retrying…"</td></tr>
+<tr><td>Stat tiles</td><td>TbCard ×5</td><td>Posts 24 · Users 132 · Subscribers 486 · Comments 291 · Pending 7 (live DB queries)</td><td>loading → TbSkeleton tiles</td></tr>
+<tr><td>Quick actions</td><td>TbButton row</td><td>New post, Moderate comments (badge count), Upload image, Compose newsletter</td><td>—</td></tr>
+<tr><td>Popular posts</td><td>TbDataTable</td><td>Title, views (mono), read-only rating — top by views, 30 days</td><td>empty → TbEmpty</td></tr>
+<tr><td>Theme toggle + avatar</td><td>TbToggle + TbAvatar(sm)</td><td>Same dark-mode mechanism as web</td><td>—</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong><ul><li>Offline/unreachable-DB state: status chip turns red, a full-width destructive TbAlert "Connection lost — retrying…" appears, and sidebar navigation is disabled until the connection heals (TbToast "Connection restored").</li><li>All sidebar destinations are the identical shared BlogUI admin pages (mockups 21–38 apply verbatim inside this window).</li><li>No public-site navigation exists in this head; "View site ↗" is intentionally absent (BRD-94/97).</li></ul></li></ul>
+<h3 id="screen-newsletter-archive-newsletters">Screen: Newsletter archive (<code>/newsletters</code>)<a class="anchor-link" href="#screen-newsletter-archive-newsletters">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/42-newsletter-archive.html">mockups/42-newsletter-archive.html</a> · <strong>Roles:</strong> anonymous (public) · <strong>BRD:</strong> BRD-93, BRD-98, BRD-99, BRD-100 · <strong>REQ:</strong> REQ-UI-053</li><li><strong>Layout:</strong> Public nav, centred 900px column — page header, prominent subscribe card, then a single-column list of issue cards with pagination and the site footer.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Top nav</td><td>TbResponsiveNav</td><td>Home · Categories · Series · Newsletter (active) · Resume · About; theme TbToggle, search icon. No login/user menu (BRD-93)</td><td>sticky; burger under 768px</td></tr>
+<tr><td>Page header</td><td>Typography + TbBreadcrumb</td><td>H1 "Newsletter" + subtitle (monthly note, no spam, unsubscribe any time)</td><td>static</td></tr>
+<tr><td>Subscribe box</td><td>TbCard + TbInput (email) + TbButton (primary)</td><td>POST email → creates unconfirmed NewsletterSubscriber, sends opt-in mail</td><td>idle / submitting / pending-confirmation / duplicate-address info alert</td></tr>
+<tr><td>Captcha</td><td>Self-hosted SVG challenge + reload TbButton + TbInput (<code>sub-captcha</code>)</td><td>Server-generated challenge token, checked server-side; no third-party service (BRD-99)</td><td>fresh / wrong answer inline error / reloaded</td></tr>
+<tr><td>Verify note</td><td>TbAlert-style panel (<code>.verify-note</code>)</td><td>"We'll send a confirmation link — your subscription starts once you click it." (BRD-98)</td><td>always visible</td></tr>
+<tr><td>Subscriber count</td><td>Typography (muted) + users icon</td><td>Confirmed-subscriber count ("1,240 subscribers")</td><td>hidden when count is 0</td></tr>
+<tr><td>Issue list</td><td>TbCard ×6</td><td>NewsletterIssue published only, newest first: TbBadge "Issue #24", title, sent date, 2-line excerpt, "Read issue →" → <code>/newsletter/{slug}</code></td><td>loaded / TbSkeleton loading / TbEmpty "No issues published yet"</td></tr>
+<tr><td>Pagination</td><td>TbPagination</td><td>Page size 6, server-side paging over published issues</td><td>single page → hidden</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Subscribe validates the email format client-side and the captcha server-side; a wrong captcha re-renders a fresh challenge with an inline error and never reveals whether the address already exists.</li><li>Successful submit swaps the card for a pending panel ("check your inbox") — the subscription only becomes active when the confirmation link is clicked (<code>/verify/{token}</code>, BRD-98); an already-confirmed address gets an info TbAlert instead of a second mail.</li><li>Empty state: when no issue has been published, the list region is replaced by TbEmpty "No issues published yet" while the subscribe card stays visible.</li><li>Loading renders TbSkeleton issue cards; a failed load renders a destructive TbAlert with a retry TbButton.</li></ul>
+<h3 id="screen-newsletter-issue-newsletter-slug">Screen: Newsletter issue (<code>/newsletter/{slug}</code>)<a class="anchor-link" href="#screen-newsletter-issue-newsletter-slug">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/43-newsletter-view.html">mockups/43-newsletter-view.html</a> · <strong>Roles:</strong> anonymous (public) · <strong>BRD:</strong> BRD-93, BRD-98, BRD-100, BRD-101 · <strong>REQ:</strong> REQ-UI-054</li><li><strong>Layout:</strong> Public nav, centred 820px reading column — breadcrumb, issue header, rendered body, prev/next card, compact subscribe CTA, footer.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Breadcrumb</td><td>TbBreadcrumb</td><td>Home › Newsletter › Issue #24</td><td>static</td></tr>
+<tr><td>Issue header</td><td>TbBadge + Typography + TbAvatar (sm, photo)</td><td>Issue number badge, H1 title, author byline, "Sent Aug 1, 2026", "Sent to 1,240 subscribers"</td><td>recipient count hidden if not recorded</td></tr>
+<tr><td>Issue body</td><td>Typography (15.5px, H2 at 22px)</td><td>Rendered newsletter HTML — paragraphs, one H2 subheading, bulleted list of article links → <code>/post/{slug}</code></td><td>loaded / TbSkeleton loading</td></tr>
+<tr><td>Article links</td><td>Typography links</td><td>3 links into the post view; sanitised outbound HTML</td><td>dead link → 404 handled by target route</td></tr>
+<tr><td>Prev/next nav</td><td>TbCard + TbButton (outline prev / primary next)</td><td>Adjacent issue numbers and slugs; "Issue N of M · Newsletter" plus "All issues" link</td><td>first issue → prev disabled; latest → next disabled</td></tr>
+<tr><td>Subscribe CTA</td><td>TbCard (compact) + TbInput + TbButton (primary)</td><td>Email capture with one-line double-opt-in note and "See all issues" link → archive</td><td>idle / submitting / pending-confirmation</td></tr>
+<tr><td>Footer</td><td>Typography + TbSeparator</td><td>Copyright + RSS · Newsletter · About · Resume</td><td>static</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> Unknown slug or an issue not yet sent renders the 404 route — draft issues are never publicly addressable (BRD-101).</li><li>The CTA reuses the archive's subscribe endpoint, so submitting produces the same pending-confirmation state and the same <code>/verify/{token}</code> landing (BRD-98); captcha is enforced server-side even though the compact form omits the visible challenge until first submit.</li><li>Loading renders TbSkeleton header and body blocks; a body render failure falls back to a destructive TbAlert with a link back to the archive.</li><li>Prev/next buttons render disabled (not hidden) at the ends of the range so the card keeps a stable shape.</li></ul>
+<h3 id="screen-email-confirmation-landing-verify-token">Screen: Email confirmation landing (<code>/verify/{token}</code>)<a class="anchor-link" href="#screen-email-confirmation-landing-verify-token">#</a></h3>
+<ul><li><strong>Mockup:</strong> <a href="mockups/44-verify-email.html">mockups/44-verify-email.html</a> · <strong>Roles:</strong> anonymous (public) · <strong>BRD:</strong> BRD-40, BRD-93, BRD-98, BRD-100 · <strong>REQ:</strong> REQ-UI-055</li><li><strong>Layout:</strong> Public nav and footer with a single vertically-centred TbCard (max-width 520px) holding icon, headline, body copy, two buttons and a muted footnote.</li></ul>
+<table>
+<thead><tr>
+<th>Region</th>
+<th>TrBlazeUI control</th>
+<th>Data / behavior</th>
+<th>States</th>
+</tr></thead>
+<tbody>
+<tr><td>Top nav / footer</td><td>TbResponsiveNav + footer</td><td>Full public shell — this is a public page, not an auth screen</td><td>static</td></tr>
+<tr><td>Result icon</td><td>Lucide SVG (circle-check / circle-alert / info)</td><td>Colour follows outcome: green success, destructive expired, primary already-verified</td><td>one per outcome</td></tr>
+<tr><td>Headline + body</td><td>Typography</td><td>"Email confirmed" + "your comment is now queued for moderation and will appear shortly"</td><td>success / expired / already-verified / subscribed</td></tr>
+<tr><td>Actions</td><td>TbButton primary + TbButton outline</td><td>"Back to the article" → <code>/post/{slug}</code>; "Browse articles" → category archive</td><td>expired swaps primary for "Send a new link"</td></tr>
+<tr><td>Expired alert</td><td>TbAlert destructive</td><td>Token expired (&gt;24h) or already consumed; nothing published</td><td>alternate render</td></tr>
+<tr><td>Already-verified alert</td><td>TbAlert info</td><td>Address verified earlier — idempotent, no state change</td><td>alternate render</td></tr>
+<tr><td>Subscription variant</td><td>Success card, newsletter copy</td><td>"You're subscribed" + link → <code>/newsletters</code>; mentions one-click unsubscribe</td><td>alternate render</td></tr>
+<tr><td>Footnote</td><td>Typography (muted <code>.hint</code>)</td><td>"Confirmation links expire after 24 hours and can be used once."</td><td>always visible</td></tr>
+</tbody></table>
+<ul><li><strong>Interactions &amp; states:</strong> The token is resolved server-side on first render; while it resolves the card shows a TbSkeleton, and the outcome (success / expired / already-verified / subscribed) picks exactly one card variant — the token's <code>purpose</code> field (comment, rating, subscription) selects the copy and the return link.</li><li>Verification is single-use and idempotent: consuming a valid token flips the commenter/rating/subscriber row to verified, a second visit to the same URL lands on the already-verified info variant rather than an error.</li><li>Expired or unknown tokens show the destructive TbAlert and offer "Send a new link", which re-issues a token to the stored address without disclosing whether that address exists.</li><li>Success for a comment means "queued for moderation", never "published" — the copy must not promise immediate visibility (BRD-40); server errors fall back to a destructive TbAlert with a link home.</li></ul>
+<hr>
+<p>Generated by *mockups on 2026-08-06 · <strong>38 screens</strong> · visual contract for REQ-UI-048…056 and all rebuilt UI Revised 2026-08-06 after owner design review (two passes): authors, reader-account and registration screens removed (6 screens); anonymous comments/ratings with an interactive rating control; email verification + self-hosted captcha; public newsletter archive, issue view and confirmation landing added (3 screens); one canonical collapsible admin sidebar with Lucide icons; brand social icons; photo avatars; dialogs closed on load Legacy Fluent mockup set: mockups/ (repo root, 28 files) — superseded, read-only</p>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+<script>
+// Light/dark toggle. The initial theme was already applied flash-free by the
+// <head> script (saved choice, else time-of-day). Clicking flips it, saves the
+// choice, and reloads so Mermaid re-renders in the matching theme.
+(function(){
+  var btn = document.getElementById('themeToggle');
+  if(!btn) return;
+  var relabel = function(){
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    btn.textContent = dark ? '☀ Light' : '☾ Dark';
+  };
+  relabel();
+  btn.addEventListener('click', function(){
+    var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    try{ localStorage.setItem('tf-theme', next); }catch(e){}
+    location.reload();
+  });
+})();
+
+// Copy buttons on every code <pre> — but NEVER on a `pre.mermaid`:
+// mermaid reads the <pre>'s textContent as the diagram source, so a button
+// appended here glues "copy" onto the last line and breaks the parse
+// (flowcharts → "Syntax error"; sequence diagrams silently absorb it).
+// Mermaid blocks get copy/export from their own .diagram toolbar instead.
+document.querySelectorAll('pre:not(.mermaid)').forEach(pre => {
+  const btn = document.createElement('button');
+  btn.className = 'copy';
+  btn.textContent = 'copy';
+  btn.addEventListener('click', () => {
+    const text = pre.querySelector('code') ? pre.querySelector('code').innerText : pre.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'copied';
+      setTimeout(() => { btn.textContent = 'copy'; }, 1200);
+    });
+  });
+  pre.appendChild(btn);
+});
+
+// Mermaid init — theme follows the resolved light/dark theme
+if (window.mermaid) {
+  var mermaidTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
+  mermaid.initialize({ startOnLoad: true, theme: mermaidTheme, securityLevel: 'loose' });
+}
+
+// Mermaid toolbar wiring — run after mermaid renders
+function wireMermaidToolbars() {
+  document.querySelectorAll('.diagram').forEach(dia => {
+    if (dia.dataset.wired) return;
+    const merm = dia.querySelector('.mermaid');
+    const svg = merm && merm.querySelector('svg');
+    if (!svg) return;
+    dia.dataset.wired = '1';
+    let scale = 1;
+    const label = dia.querySelector('.zlabel');
+    const apply = () => {
+      svg.style.transform = `scale(${scale})`;
+      svg.style.transformOrigin = 'top left';
+      if (label) label.textContent = Math.round(scale * 100) + '%';
+    };
+    const setScale = (s) => { scale = Math.max(0.25, Math.min(4, s)); apply(); };
+    dia.querySelector('[data-zin]').onclick = () => setScale(scale * 1.2);
+    dia.querySelector('[data-zout]').onclick = () => setScale(scale / 1.2);
+    dia.querySelector('[data-fit]').onclick = () => {
+      svg.style.transform = '';
+      svg.removeAttribute('width');
+      svg.style.maxWidth = '100%';
+      svg.style.height = 'auto';
+      scale = 1;
+      if (label) label.textContent = 'Fit';
+    };
+    dia.querySelector('[data-one]').onclick = () => {
+      svg.style.transform = '';
+      svg.style.maxWidth = 'none';
+      svg.style.width = '';
+      svg.style.height = '';
+      scale = 1;
+      if (label) label.textContent = '100%';
+    };
+    dia.querySelector('[data-fs]').onclick = () => {
+      dia.classList.toggle('fs');
+      if (dia.classList.contains('fs')) {
+        document.addEventListener('keydown', escFs);
+      } else {
+        document.removeEventListener('keydown', escFs);
+      }
+    };
+    function escFs(e) { if (e.key === 'Escape') { dia.classList.remove('fs'); document.removeEventListener('keydown', escFs); } }
+    dia.querySelector('[data-pop]').onclick = () => openInNewTab(svg);
+    // Ctrl+wheel zoom
+    merm.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setScale(scale * (e.deltaY < 0 ? 1.1 : 1/1.1));
+    }, { passive: false });
+  });
+}
+
+function openInNewTab(svg) {
+  const svgSource = new XMLSerializer().serializeToString(svg);
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Diagram</title>
+<style>
+  html,body{margin:0;height:100%;background:#0f1115;color:#e6e8ee;font-family:system-ui,sans-serif}
+  .bar{position:fixed;top:0;left:0;right:0;padding:8px 12px;background:#161a22;border-bottom:1px solid #2a3142;display:flex;gap:8px;z-index:10}
+  .bar button{background:#1c2230;color:#9aa3b2;border:1px solid #2a3142;border-radius:6px;padding:5px 12px;font-size:13px;cursor:pointer}
+  .bar button:hover{color:#7cc4ff;border-color:#7cc4ff}
+  .bar .hint{margin-left:auto;color:#9aa3b2;font-size:11.5px;align-self:center}
+  #stage{position:absolute;top:42px;bottom:0;left:0;right:0;overflow:hidden}
+  #stage svg{width:100%;height:100%}
+</style>
+</head><body>
+<div class="bar">
+  <button onclick="zpz.zoomIn()">+</button>
+  <button onclick="zpz.zoomOut()">−</button>
+  <button onclick="zpz.fit();zpz.center()">Fit</button>
+  <button onclick="zpz.resetZoom();zpz.center()">1:1</button>
+  <button onclick="window.print()">Print</button>
+  <button onclick="dlPng()">PNG</button>
+  <button onclick="dlSvg()">SVG</button>
+  <span class="hint">Drag to pan · Ctrl+wheel to zoom · + / − keys</span>
+</div>
+<div id="stage">${svgSource}</div>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"><\/script>
+<script>
+  const el = document.querySelector('#stage svg');
+  const zpz = svgPanZoom(el, { zoomScaleSensitivity: .3, minZoom: .2, maxZoom: 10, controlIconsEnabled: false, fit: true, center: true });
+  document.addEventListener('keydown', e => {
+    if (e.key === '+' || e.key === '=') zpz.zoomIn();
+    if (e.key === '-' || e.key === '_') zpz.zoomOut();
+    if (e.key === '0') { zpz.resetZoom(); zpz.center(); }
+  });
+  function dlSvg() {
+    const blob = new Blob([new XMLSerializer().serializeToString(el)], { type: 'image/svg+xml' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'diagram.svg'; a.click();
+  }
+  function dlPng() {
+    const src = new XMLSerializer().serializeToString(el);
+    const img = new Image();
+    const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(src)));
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = el.clientWidth * 2; c.height = el.clientHeight * 2;
+      const ctx = c.getContext('2d'); ctx.scale(2,2); ctx.drawImage(img, 0, 0);
+      c.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'diagram.png'; a.click(); });
+    };
+    img.src = url;
+  }
+<\/script>
+</body></html>`;
+  const w = window.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+// Run wiring after mermaid finishes (it renders async)
+if (window.mermaid) {
+  setTimeout(wireMermaidToolbars, 400);
+  setTimeout(wireMermaidToolbars, 1200);  // safety re-run for slow renders
+}
+</script>
+</body>
+</html>

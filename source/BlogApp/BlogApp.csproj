@@ -1,0 +1,110 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!--
+    BlogApp — the .NET MAUI Blazor Hybrid DESKTOP head for TechieBlog (REQ-FN-046 / BRD-94).
+
+    One RCL, two heads: this project hosts the SAME BlogUI razor pages the web head
+    (source/TechieBlog) hosts, and registers the SAME BlogEngine DI graph. It talks
+    straight to the site's PostgreSQL database — no local database, no sync (BRD-96).
+
+    Targets: Windows (WinUI 3) and macOS (Mac Catalyst). Mac Catalyst can only be built
+    from a macOS host, so the TFM is selected by the build machine's OS; that also keeps
+    a Windows-only build from failing on missing Apple tooling.
+
+    Linux fallback: MAUI heads cannot be built on Linux at all. Rather than break the
+    shared `dotnet build TechieBlog.slnx` that the WSL side of this repo runs, the project
+    degrades to an empty net10.0 library there. Building the real head on Linux is not a
+    supported scenario — use the Windows host (build ladder rung #4).
+  -->
+
+  <PropertyGroup>
+    <BlogAppMauiHost Condition="$([MSBuild]::IsOSPlatform('windows')) OR $([MSBuild]::IsOSPlatform('osx'))">true</BlogAppMauiHost>
+    <BlogAppMauiHost Condition="'$(BlogAppMauiHost)' == ''">false</BlogAppMauiHost>
+    <RootNamespace>BlogApp</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Matches every other project in this solution (REQ-NFR-022 tracks turning this on). -->
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!-- ===================== Real MAUI head (Windows / macOS) ===================== -->
+  <PropertyGroup Condition="'$(BlogAppMauiHost)' == 'true'">
+    <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('osx'))">net10.0-maccatalyst</TargetFrameworks>
+    <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">net10.0-windows10.0.19041.0</TargetFrameworks>
+
+    <OutputType>Exe</OutputType>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <EnableDefaultCssItems>false</EnableDefaultCssItems>
+    <MauiXamlInflator>SourceGen</MauiXamlInflator>
+
+    <!-- Display name -->
+    <ApplicationTitle>TechieBlog BlogApp</ApplicationTitle>
+    <ApplicationId>dev.techierathore.techieblog.blogapp</ApplicationId>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+
+    <!-- Unpackaged desktop app so `dotnet run` works without MSIX deployment. -->
+    <WindowsPackageType>None</WindowsPackageType>
+
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
+    <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(BlogAppMauiHost)' == 'true'">
+    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
+    <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+    <MauiFont Include="Resources\Fonts\*" />
+    <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+
+    <!-- Non-secret defaults; the connection string never lives here (Coding Standards §Security). -->
+    <EmbeddedResource Include="appsettings.json" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(BlogAppMauiHost)' == 'true'">
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+
+    <!-- Local key/value store for the non-secret half of the connection settings (REQ-FN-047). -->
+    <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
+
+    <!-- Direct PostgreSQL reachability probe for the connection-setup screen (REQ-FN-047). -->
+    <PackageReference Include="Npgsql" Version="9.0.2" />
+
+    <!-- DPAPI fallback for unpackaged WinUI builds where SecureStorage is unavailable (REQ-FN-047). -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.0" />
+
+    <!-- REQ-NFR-012 parity with the web head: named retry / circuit-breaker pipelines. -->
+    <PackageReference Include="Polly.Extensions" Version="8.7.0" />
+
+    <!-- REQ-NFR-013 / Coding Standards §Logging: every executable head gets a rolling file sink. -->
+    <PackageReference Include="Serilog" Version="4.2.0" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="8.0.0" />
+    <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
+    <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+
+    <!-- The shared component library the BlogUI pages are written against. -->
+    <PackageReference Include="TrBlazeUI.Components" Version="2.0.2" />
+    <PackageReference Include="TrBlazeUI.Icons.Lucide" Version="2.0.2" />
+  </ItemGroup>
+
+  <!-- ===================== Linux no-op fallback ===================== -->
+  <PropertyGroup Condition="'$(BlogAppMauiHost)' == 'false'">
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableDefaultRazorComponentItems>false</EnableDefaultRazorComponentItems>
+    <NoWarn>$(NoWarn);CS2008</NoWarn>
+  </PropertyGroup>
+
+  <!-- Shared code — identical to the references the web head takes (REQ-FN-046). -->
+  <ItemGroup>
+    <ProjectReference Include="..\BlogModel\BlogModels.csproj" />
+    <ProjectReference Include="..\BlogEngine\BlogEngine.csproj" />
+    <ProjectReference Include="..\BlogUI\BlogUI.csproj" />
+  </ItemGroup>
+
+</Project>

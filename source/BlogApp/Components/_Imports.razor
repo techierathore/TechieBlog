@@ -1,0 +1,49 @@
+@*
+    _Imports.razor (BlogApp)
+    Purpose: Namespace imports for the desktop head's own components.
+
+    Mirrors source/BlogUI/_Imports.razor so a screen written here can use the same
+    TrBlazeUI controls the shared BlogUI screens use, plus BlogApp's desktop services.
+*@
+
+@using System.Net.Http
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@using Microsoft.JSInterop
+
+@* TrBlazeUI component library — same import set as BlogUI (see the note there about
+   importing only TrBlazeUI.Primitives.Services from Primitives). *@
+@using TrBlazeUI.Components
+@using TrBlazeUI.Primitives
+@using TrBlazeUI.Primitives.Services
+@using TrBlazeUI.Components.Alert
+@using TrBlazeUI.Components.Badge
+@using TrBlazeUI.Components.Button
+@using TrBlazeUI.Components.Card
+@using TrBlazeUI.Components.Field
+@using TrBlazeUI.Components.Input
+@using TrBlazeUI.Components.Label
+@using TrBlazeUI.Components.NativeSelect
+@using TrBlazeUI.Components.Select
+@using TrBlazeUI.Components.Separator
+@using TrBlazeUI.Components.Spinner
+@using TrBlazeUI.Components.Toast
+@using TrBlazeUI.Components.Typography
+@using TrBlazeUI.Icons.Lucide.Components
+@using TrBlazeUI.Icons.Lucide.Data
+
+@using BlogModels
+@using BlogUI
+@using BlogUI.Common
+@using BlogUI.Components
+@using BlogUI.Layouts
+
+@using BlogApp
+@using BlogApp.Components
+@using BlogApp.Components.Layout
+@using BlogApp.Components.Pages
+@using BlogApp.Services

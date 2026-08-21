@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+    MainPage.xaml
+    Purpose: The single BlogApp window. Hosts the shared BlogUI screens in a BlazorWebView.
+
+    REQ-UI-051 / REQ-UI-052 — the root component is BlogApp's own Routes, which routes across
+    BOTH assemblies: the BlogUI pages the website uses, plus BlogApp's connection screens.
+-->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:components="clr-namespace:BlogApp.Components"
+             x:Class="BlogApp.MainPage"
+             AutomationId="blogapp-main-page">
+
+    <BlazorWebView x:Name="blazorWebView"
+                   HostPage="wwwroot/index.html"
+                   AutomationId="blogapp-webview">
+        <BlazorWebView.RootComponents>
+            <RootComponent Selector="#app" ComponentType="{x:Type components:Routes}" />
+        </BlazorWebView.RootComponents>
+    </BlazorWebView>
+
+</ContentPage>

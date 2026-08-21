@@ -1,0 +1,104 @@
+@*
+    Routes.razor (BlogApp)
+    Purpose: Router for the desktop head.
+
+    REQ-UI-051 / REQ-UI-052 — routes across TWO assemblies: BlogApp (the connection
+    screens) and BlogUI (every shared page, including the whole admin surface and the
+    AdminLayout shell). One RCL, two heads: nothing is re-implemented here.
+
+    REQ-FN-047 — ConnectionGuard sits above the router so a head that booted without a
+    stored connection can only reach the setup screen.
+
+    The structure below deliberately mirrors source/BlogUI/Routes.razor: the same
+    cascading authentication state, the same ThemeProvider, the same authorization
+    fallbacks and the same error boundary, so a page behaves identically in both heads.
+*@
+
+@using BlogUI.Layouts
+
+<CascadingAuthenticationState>
+    <ThemeProvider>
+        <ErrorBoundary @ref="errorBoundary">
+            <ChildContent>
+                <ConnectionGuard>
+                    <Router AppAssembly="@typeof(MauiProgram).Assembly"
+                            AdditionalAssemblies="@additionalAssemblies">
+                        <Found Context="routeData">
+                            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                                <NotAuthorized>
+                                    @if (context.User.Identity?.IsAuthenticated != true)
+                                    {
+                                        <RedirectToLogin />
+                                    }
+                                    else
+                                    {
+                                        <LayoutView Layout="@typeof(AuthLayout)">
+                                            <BlogUI.Pages.AccessDenied />
+                                        </LayoutView>
+                                    }
+                                </NotAuthorized>
+                                <Authorizing>
+                                    <LayoutView Layout="@typeof(DesktopSetupLayout)">
+                                        <div class="flex h-[60vh] items-center justify-center" data-testid="authorizing">
+                                            <Spinner Size="SpinnerSize.Large" Class="text-primary" />
+                                        </div>
+                                    </LayoutView>
+                                </Authorizing>
+                            </AuthorizeRouteView>
+                            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+                        </Found>
+                        <NotFound>
+                            <LayoutView Layout="@typeof(DesktopSetupLayout)">
+                                <PageTitle>Not found - BlogApp</PageTitle>
+                                <div class="flex flex-col items-center gap-4 py-16 text-center" data-testid="not-found">
+                                    <LucideIcon Name="file-question-mark" Size="48" Class="text-muted-foreground" />
+                                    <h1 class="text-2xl font-semibold">This screen is not available in BlogApp</h1>
+                                    <p class="text-muted-foreground">Use the sidebar to return to a page the desktop app hosts.</p>
+                                    <Button Href="/admin" data-testid="not-found-admin">Go to Dashboard</Button>
+                                </div>
+                            </LayoutView>
+                        </NotFound>
+                    </Router>
+                </ConnectionGuard>
+            </ChildContent>
+            <ErrorContent Context="exception">
+                <LayoutView Layout="@typeof(DesktopSetupLayout)">
+                    <div class="flex flex-col items-center gap-4 py-16 text-center" data-testid="error-boundary">
+                        <LucideIcon Name="circle-alert" Size="48" Class="text-destructive" />
+                        <h1 class="text-2xl font-semibold">Something went wrong</h1>
+                        <p class="text-muted-foreground">
+                            BlogApp hit an unexpected error. If it keeps happening, check the database
+                            connection from the connection settings screen.
+                        </p>
+                        <div class="flex gap-2">
+                            <Button OnClick="RecoverFromError" data-testid="error-retry">Try Again</Button>
+                            <Button Variant="ButtonVariant.Outline"
+                                    Href="@ConnectionSetup.SettingsRoute"
+                                    data-testid="error-connection-settings">Connection settings</Button>
+                        </div>
+                    </div>
+                </LayoutView>
+            </ErrorContent>
+        </ErrorBoundary>
+    </ThemeProvider>
+</CascadingAuthenticationState>
+
+@code {
+    private ErrorBoundary errorBoundary;
+
+    /// <summary>
+    /// The shared page library whose routes the desktop head serves alongside its own.
+    /// </summary>
+    private static readonly System.Reflection.Assembly[] additionalAssemblies =
+    {
+        typeof(BlogUI.Routes).Assembly
+    };
+
+    /// <summary>
+    /// Clears the caught exception so the router can re-render the current route.
+    /// </summary>
+    private void RecoverFromError()
+    {
+        errorBoundary?.Recover();
+    }
+}

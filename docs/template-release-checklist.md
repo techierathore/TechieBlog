@@ -138,7 +138,7 @@ After enabling as template, verify:
 |-------------|-----------------|
 | `docs/stories/` | User stories are project-specific |
 | `docs/qa/` | QA gates are project-specific |
-| `.bmad-core/` | Already gitignored |
+| `.tfcore/` | Already gitignored |
 
 ---
 

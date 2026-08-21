@@ -55,6 +55,78 @@ psql --version
 git --version
 ```
 
+### NuGet feed access (required — the build will not restore without it)
+
+TechieBlog's UI layer depends on two packages that live on a **private** GitHub
+Packages feed, not on nuget.org:
+
+- `TrBlazeUI.Components`
+- `TrBlazeUI.Icons.Lucide`
+
+`nuget.config` at the repo root declares the feed but **contains no credentials
+by design** — anything committed there would be published to every clone and
+fork. Store your own token in your **user-level** NuGet config instead, which
+lives outside the repository:
+
+```bash
+dotnet nuget add source https://nuget.pkg.github.com/techierathore/index.json \
+  --name TrBlazeUI \
+  --username <your-github-username> \
+  --password <a PAT with the read:packages scope> \
+  --store-password-in-clear-text
+```
+
+That writes to `~/.nuget/NuGet/NuGet.Config` (Linux/macOS) or
+`%APPDATA%\NuGet\NuGet.Config` (Windows) and merges with the repo config.
+
+Without it, `dotnet restore` fails with:
+
+```
+error NU1301: Failed to retrieve information about 'TrBlazeUI.Icons.Lucide'
+  from remote source 'https://nuget.pkg.github.com/techierathore/download/...'
+  Response status code does not indicate success: 403 (Forbidden).
+```
+
+#### CI setup — adding the `TrBlazeUiPackagesToken` secret
+
+GitHub Actions does **not** read `nuget.config`. The workflow builds its own
+`nuget.ci.config` at run time from a repository secret. Without that secret,
+restore fails with the same `NU1301 … 403` shown above.
+
+**Option A — dedicated PAT (works in every case).**
+
+1. Go to **https://github.com/settings/tokens** → *Generate new token* →
+   **classic**. Use a *classic* token, not fine-grained: GitHub Packages'
+   NuGet registry authenticates against `read:packages`, which fine-grained
+   tokens do not reliably grant.
+2. Tick exactly one scope: **`read:packages`**. Nothing else is needed — this
+   token only downloads packages. Set whatever expiry your policy requires and
+   note the renewal date, because CI breaks the day it lapses.
+3. *Generate token* and copy the value. GitHub shows it once.
+4. In **this repository** go to **Settings → Secrets and variables → Actions →
+   New repository secret**.
+5. Name it **exactly** `TrBlazeUiPackagesToken` (the workflow reads that literal
+   string; a typo silently falls back to `GITHUB_TOKEN` and fails).
+6. Paste the token as the value and save.
+
+**Option B — grant the repository access to the packages (no secret needed).**
+
+Use this when the packages and this repository share an owner. On each package
+page under **https://github.com/users/techierathore/packages** — for both
+`TrBlazeUI.Components` and `TrBlazeUI.Icons.Lucide` — open
+*Package settings → Manage Actions access → Add repository*, pick this
+repository, and give it **Read**. The built-in `GITHUB_TOKEN` then suffices.
+
+**Verify it worked.** Re-run the failed workflow. The `Preflight — TrBlazeUI
+feed authentication` step runs before restore and prints:
+
+```
+TrBlazeUI feed reachable and authenticated (HTTP 200).
+```
+
+If the credential is still wrong it fails there with the remedy, instead of
+burying the cause in ~60 lines of NuGet retry noise further down.
+
 ---
 
 ## Get the Code
@@ -269,6 +341,33 @@ See [Deployment Guide](docs/deployment.md) for:
 ---
 
 ## Troubleshooting
+
+### NuGet Restore Fails on TrBlazeUI (403 Forbidden)
+
+**Error:** `error NU1301: Failed to retrieve information about 'TrBlazeUI.Icons.Lucide'
+from remote source … Response status code does not indicate success: 403 (Forbidden).`
+Usually preceded by *"Your request could not be authenticated by the GitHub Packages
+service."*
+
+This is the single most common first-build failure: `TrBlazeUI.Components` and
+`TrBlazeUI.Icons.Lucide` live on a **private** feed, and `nuget.config` carries no
+credentials by design.
+
+**Solutions:**
+1. **Locally** — register the feed with your own PAT (`read:packages`) in your
+   *user-level* NuGet config: see [NuGet feed access](#nuget-feed-access-required--the-build-will-not-restore-without-it).
+   Never put the token in the repo's `nuget.config`.
+2. **In CI** — add the `TrBlazeUiPackagesToken` repository secret, or grant the repo
+   Read access on each package: see
+   [CI setup](#ci-setup--adding-the-trblazeuipackagestoken-secret).
+3. Confirm the token really carries `read:packages` — a token without it returns
+   **401/403 on the package**, while still returning 200 on the feed's service index,
+   which makes it look valid at a glance. Check with:
+   ```bash
+   curl -s -o /dev/null -w '%{http_code}\n' -u "<user>:<PAT>" \
+     https://nuget.pkg.github.com/techierathore/download/trblazeui.components/index.json
+   # 200 = good, 401/403 = the token lacks read:packages or the package denies access
+   ```
 
 ### Database Connection Failed
 

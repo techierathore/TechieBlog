@@ -3,6 +3,7 @@ using BlogModels;
 using BlogModels.Interfaces;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
+using TrBlazeUI.Components.FileUpload;
 
 namespace BlogUI.Components;
 
@@ -57,32 +58,9 @@ public partial class ImagePicker : ComponentBase
     protected string? UploadError { get; set; }
 
     /// <summary>
-    /// Category constraints for file validation display.
+    /// Files currently staged in the upload dropzone.
     /// </summary>
-    private static readonly Dictionary<string, (string MaxSize, string Formats)> CategoryInfo = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["profiles"] = ("2MB", "jpg, jpeg, png, webp"),
-        ["logos"] = ("500KB", "jpg, jpeg, png, svg, webp"),
-        ["awards"] = ("500KB", "jpg, jpeg, png, svg, webp"),
-        ["icons"] = ("200KB", "png, svg, webp"),
-        ["blog"] = ("5MB", "jpg, jpeg, png, gif, webp"),
-        ["cv"] = ("10MB", "pdf"),
-        ["general"] = ("5MB", "jpg, jpeg, png, gif, webp")
-    };
-
-    /// <summary>
-    /// File type mappings for the file input accept attribute.
-    /// </summary>
-    private static readonly Dictionary<string, string> AcceptTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["profiles"] = "image/jpeg,image/png,image/webp",
-        ["logos"] = "image/jpeg,image/png,image/svg+xml,image/webp",
-        ["awards"] = "image/jpeg,image/png,image/svg+xml,image/webp",
-        ["icons"] = "image/png,image/svg+xml,image/webp",
-        ["blog"] = "image/jpeg,image/png,image/gif,image/webp",
-        ["cv"] = "application/pdf",
-        ["general"] = "image/jpeg,image/png,image/gif,image/webp"
-    };
+    protected IReadOnlyList<FileUploadItem>? PendingFiles { get; set; }
 
     /// <summary>
     /// Opens the gallery modal and loads images.
@@ -118,6 +96,29 @@ public partial class ImagePicker : ComponentBase
     }
 
     /// <summary>
+    /// Keeps the gallery dialog state in sync when it is dismissed by Escape or an outside click.
+    /// </summary>
+    /// <param name="isOpen">The dialog's requested open state.</param>
+    protected void OnGalleryOpenChanged(bool isOpen)
+    {
+        if (!isOpen)
+        {
+            CloseGallery();
+        }
+    }
+
+    /// <summary>
+    /// Builds the CSS classes for a gallery tile, highlighting the current selection.
+    /// </summary>
+    /// <param name="imagePath">The tile's image path.</param>
+    /// <returns>The tile's Tailwind class list.</returns>
+    protected string GetGalleryTileClass(string imagePath)
+    {
+        var border = imagePath == SelectedImagePath ? "border-primary" : "border-transparent";
+        return $"aspect-square h-auto w-full overflow-hidden rounded-lg border-2 p-0 {border}";
+    }
+
+    /// <summary>
     /// Selects an image from the gallery.
     /// </summary>
     protected async Task SelectImage(string imagePath)
@@ -134,6 +135,7 @@ public partial class ImagePicker : ComponentBase
     {
         ShowUploadModal = true;
         SelectedFile = null;
+        PendingFiles = Array.Empty<FileUploadItem>();
         UploadError = null;
         IsUploading = false;
     }
@@ -145,19 +147,38 @@ public partial class ImagePicker : ComponentBase
     {
         ShowUploadModal = false;
         SelectedFile = null;
+        PendingFiles = Array.Empty<FileUploadItem>();
         UploadError = null;
         IsUploading = false;
     }
 
     /// <summary>
-    /// Handles file selection from the file input.
+    /// Keeps the upload dialog state in sync when it is dismissed by Escape or an outside click.
     /// </summary>
-    protected async Task OnFileSelected(InputFileChangeEventArgs e)
+    /// <param name="isOpen">The dialog's requested open state.</param>
+    protected void OnUploadOpenChanged(bool isOpen)
     {
-        UploadError = null;
-        SelectedFile = e.File;
+        if (!isOpen)
+        {
+            CloseUpload();
+        }
+    }
 
-        // Validate the file immediately
+    /// <summary>
+    /// Handles file selection from the upload dropzone and validates the chosen file.
+    /// </summary>
+    /// <param name="files">Files staged by the dropzone.</param>
+    protected async Task OnFilesChanged(IReadOnlyList<FileUploadItem> files)
+    {
+        PendingFiles = files;
+        UploadError = null;
+        SelectedFile = files.FirstOrDefault()?.File;
+
+        if (SelectedFile is null)
+        {
+            return;
+        }
+
         var validation = await ImageService.ValidateImageAsync(SelectedFile, Category);
         if (!validation.IsValid)
         {
@@ -187,9 +208,15 @@ public partial class ImagePicker : ComponentBase
             await SelectedImagePathChanged.InvokeAsync(uploadedImage.ImagePath);
             CloseUpload();
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException curated)
         {
-            UploadError = ex.Message;
+            // The variable is named `curated`, not `ex`, deliberately: BlogImageService authors this
+            // message and it is always one of its own constants — a category validation rule, or the
+            // REQ-NFR-040 storage-failure sentence that distinguishes "the server cannot write here"
+            // from a retry-able failure. It carries no exception text and no server path, which is
+            // what makes surfacing it compatible with REQ-NFR-033. Every other exception falls to
+            // the generic branch below.
+            UploadError = curated.Message;
         }
         catch (Exception)
         {
@@ -211,29 +238,57 @@ public partial class ImagePicker : ComponentBase
     }
 
     /// <summary>
-    /// Gets the constraint text for the current category.
+    /// Gets the constraint text for the current category, taken from the service that enforces it
+    /// (REQ-FN-025).
     /// </summary>
+    /// <returns>Text such as <c>Max 2 MB, formats: jpg, jpeg, png, webp</c>.</returns>
     protected string GetCategoryConstraintsText()
     {
-        var normalizedCategory = Category?.ToLowerInvariant() ?? "general";
-        if (CategoryInfo.TryGetValue(normalizedCategory, out var info))
-        {
-            return $"Max {info.MaxSize}, formats: {info.Formats}";
-        }
-        return "Max 5MB, formats: jpg, jpeg, png, gif, webp";
+        return ImageService.GetCategoryRule(Category).ConstraintsText;
     }
 
     /// <summary>
-    /// Gets the accepted file types for the file input.
+    /// Gets the accepted file types for the file input, derived from the same allow-list the server
+    /// validates against.
     /// </summary>
+    /// <returns>A comma-separated MIME list for the file input.</returns>
     protected string GetAcceptedFileTypes()
     {
-        var normalizedCategory = Category?.ToLowerInvariant() ?? "general";
-        if (AcceptTypes.TryGetValue(normalizedCategory, out var types))
-        {
-            return types;
-        }
-        return "image/jpeg,image/png,image/gif,image/webp";
+        return ImageService.GetCategoryRule(Category).AcceptAttribute;
+    }
+
+    /// <summary>
+    /// Gets the client-side size ceiling handed to the dropzone for the current category
+    /// (REQ-FN-025).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Unset, <c>FileUpload</c> advertises and enforces its own 10 MB
+    /// default, which contradicts the constraint line this component renders right beside it and
+    /// lets through files the server will refuse.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <returns>The category's maximum upload size in bytes.</returns>
+    protected long GetMaxUploadSize()
+    {
+        return ImageService.GetCategoryRule(Category).MaxSizeBytes;
+    }
+
+    /// <summary>
+    /// Surfaces a file the dropzone itself refused, so the error panel names the same limit the
+    /// component advertised (REQ-FN-025).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> A file rejected by the dropzone never reaches
+    /// <see cref="OnFilesChanged"/>, so without this the dialog would show nothing at all. The text
+    /// is the component's own, built from the ceiling supplied here, and carries no exception
+    /// text.</para>
+    /// <para><b>Side Effects:</b> Sets <see cref="UploadError"/>; nothing is uploaded.</para>
+    /// </remarks>
+    /// <param name="error">The dropzone's validation failure.</param>
+    protected void OnDropzoneValidationError(FileValidationError error)
+    {
+        SelectedFile = null;
+        UploadError = error.Message;
     }
 
     /// <summary>

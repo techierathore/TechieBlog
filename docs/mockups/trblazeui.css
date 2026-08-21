@@ -1,0 +1,300 @@
+/* ============================================================
+   TechieBlog mockup design system — TrBlazeUI (shadcn/ui) look
+   Visual contract only: approximates TrBlazeUI.Components tokens.
+   Light = :root · Dark = html.dark  (TrBlazeUI dark-mode mechanism)
+   ============================================================ */
+:root{
+  --background:#ffffff; --foreground:#09090b;
+  --card:#ffffff; --card-foreground:#09090b;
+  --primary:#2563eb; --primary-foreground:#f8fafc;
+  --secondary:#f4f4f5; --secondary-foreground:#18181b;
+  --muted:#f4f4f5; --muted-foreground:#71717a;
+  --accent:#f4f4f5; --accent-foreground:#18181b;
+  --destructive:#dc2626; --destructive-foreground:#fef2f2;
+  --border:#e4e4e7; --input:#e4e4e7; --ring:#2563eb;
+  --sidebar:#fafafa; --sidebar-accent:#eef2ff;
+  --chart-1:#2563eb; --chart-2:#0ea5e9; --chart-3:#8b5cf6; --chart-4:#f59e0b; --chart-5:#10b981;
+  --radius:0.625rem;
+  --font-sans:'Segoe UI',system-ui,-apple-system,'Inter',Roboto,sans-serif;
+  --font-mono:'Cascadia Code','JetBrains Mono',Consolas,monospace;
+  --shadow-sm:0 1px 2px rgb(0 0 0 / .05);
+  --shadow-md:0 4px 12px rgb(0 0 0 / .08);
+}
+html.dark{
+  --background:#09090b; --foreground:#fafafa;
+  --card:#111113; --card-foreground:#fafafa;
+  --primary:#3b82f6; --primary-foreground:#0b1220;
+  --secondary:#27272a; --secondary-foreground:#fafafa;
+  --muted:#1c1c1f; --muted-foreground:#a1a1aa;
+  --accent:#27272a; --accent-foreground:#fafafa;
+  --destructive:#ef4444; --destructive-foreground:#fef2f2;
+  --border:#27272a; --input:#27272a; --ring:#3b82f6;
+  --sidebar:#0e0e10; --sidebar-accent:#1e2a4a;
+  --shadow-sm:0 1px 2px rgb(0 0 0 / .4);
+  --shadow-md:0 4px 12px rgb(0 0 0 / .5);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--font-sans);background:var(--background);color:var(--foreground);
+  font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;min-height:100vh}
+a{color:inherit;text-decoration:none}
+img{max-width:100%}
+h1,h2,h3,h4{line-height:1.25;letter-spacing:-.02em}
+.container{max-width:1120px;margin:0 auto;padding:0 24px}
+.muted{color:var(--muted-foreground)}
+.mono{font-family:var(--font-mono)}
+
+/* ---------- TbResponsiveNav (public top nav) ---------- */
+.tb-nav{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--background) 85%,transparent);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}
+.tb-nav__inner{max-width:1120px;margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;gap:24px}
+.tb-nav__brand{font-weight:700;font-size:17px;display:flex;align-items:center;gap:8px}
+.tb-nav__brand .dot{width:10px;height:10px;border-radius:50%;background:var(--primary);display:inline-block}
+.tb-nav__links{display:flex;gap:4px;flex:1}
+.tb-nav__links a{padding:6px 12px;border-radius:calc(var(--radius) - 2px);font-size:14px;color:var(--muted-foreground)}
+.tb-nav__links a:hover{background:var(--accent);color:var(--accent-foreground)}
+.tb-nav__links a.active{color:var(--foreground);font-weight:600}
+.tb-nav__actions{display:flex;align-items:center;gap:8px}
+@media(max-width:820px){.tb-nav__links{display:none}.tb-nav__burger{display:inline-flex!important}}
+.tb-nav__burger{display:none}
+
+/* ---------- TbButton ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;
+  font-size:14px;font-weight:500;border-radius:calc(var(--radius) - 2px);border:1px solid transparent;
+  padding:8px 16px;cursor:pointer;transition:.15s;white-space:nowrap}
+.btn-primary{background:var(--primary);color:var(--primary-foreground)}
+.btn-primary:hover{filter:brightness(1.08)}
+.btn-secondary{background:var(--secondary);color:var(--secondary-foreground)}
+.btn-outline{background:transparent;border-color:var(--border);color:var(--foreground)}
+.btn-outline:hover{background:var(--accent)}
+.btn-ghost{background:transparent;color:var(--muted-foreground)}
+.btn-ghost:hover{background:var(--accent);color:var(--accent-foreground)}
+.btn-destructive{background:var(--destructive);color:var(--destructive-foreground)}
+.btn-lg{padding:12px 22px;font-size:15px;border-radius:var(--radius)}
+.btn-sm{padding:4px 10px;font-size:13px}
+.btn-icon{width:36px;height:36px;padding:0;border-radius:calc(var(--radius) - 2px)}
+
+/* ---------- TbCard ---------- */
+.card{background:var(--card);color:var(--card-foreground);border:1px solid var(--border);
+  border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+.card-header{padding:20px 20px 0}
+.card-title{font-size:16px;font-weight:600}
+.card-desc{font-size:13.5px;color:var(--muted-foreground);margin-top:2px}
+.card-content{padding:20px}
+.card-footer{padding:0 20px 20px;display:flex;gap:8px;align-items:center}
+
+/* ---------- TbBadge ---------- */
+.badge{display:inline-flex;align-items:center;border-radius:999px;padding:2px 10px;font-size:12px;
+  font-weight:600;border:1px solid transparent;line-height:1.6}
+.badge-default{background:var(--primary);color:var(--primary-foreground)}
+.badge-secondary{background:var(--secondary);color:var(--secondary-foreground)}
+.badge-outline{border-color:var(--border);color:var(--muted-foreground)}
+.badge-success{background:#16a34a;color:#f0fdf4}
+.badge-warning{background:#d97706;color:#fffbeb}
+.badge-destructive{background:var(--destructive);color:var(--destructive-foreground)}
+
+/* ---------- TbAvatar ---------- */
+.avatar{border-radius:50%;background:linear-gradient(135deg,var(--chart-1),var(--chart-3));
+  color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:600;flex:none}
+.avatar-sm{width:28px;height:28px;font-size:11px}
+.avatar-md{width:40px;height:40px;font-size:14px}
+.avatar-xl{width:148px;height:148px;font-size:40px;border:4px solid var(--card);box-shadow:var(--shadow-md)}
+/* photo avatar — TbAvatar image slot (real profile picture, not initials) */
+img.avatar{object-fit:cover;background:var(--muted);display:block}
+
+/* ---------- Icons (Lucide, bundled with TrBlazeUI) ---------- */
+.icon{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
+.icon-lg{width:20px;height:20px}
+.icon-brand{fill:currentColor;stroke:none}
+
+/* ---------- Social links (brand icons) ---------- */
+.social-row{display:flex;gap:10px;justify-content:center;margin-top:26px}
+.social-row a{width:42px;height:42px;border:1px solid var(--border);border-radius:50%;background:var(--card);
+  display:inline-flex;align-items:center;justify-content:center;color:var(--muted-foreground);
+  transition:.15s;box-shadow:var(--shadow-sm)}
+.social-row a svg{width:19px;height:19px}
+.social-row a:hover{transform:translateY(-2px);color:#fff;border-color:transparent}
+.social-row a.s-linkedin:hover{background:#0a66c2}
+.social-row a.s-github:hover{background:#181717}
+.social-row a.s-x:hover{background:#000}
+.social-row a.s-youtube:hover{background:#f00}
+.social-row a.s-instagram:hover{background:linear-gradient(45deg,#f09433,#dc2743,#bc1888)}
+.social-row a.s-rss:hover{background:#f26522}
+.social-row--sm a{width:34px;height:34px}
+.social-row--sm a svg{width:16px;height:16px}
+
+/* ---------- Form: TbInput / TbLabel / TbSelect / TbTextarea / TbSwitch / TbCheckbox ---------- */
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.label{font-size:13.5px;font-weight:500}
+.input,.select,.textarea{font-family:inherit;font-size:14px;color:var(--foreground);background:transparent;
+  border:1px solid var(--input);border-radius:calc(var(--radius) - 2px);padding:8px 12px;outline:none;width:100%}
+.input:focus,.select:focus,.textarea:focus{border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in srgb,var(--ring) 25%,transparent)}
+.textarea{min-height:96px;resize:vertical}
+.hint{font-size:12.5px;color:var(--muted-foreground)}
+.switch{width:38px;height:22px;border-radius:999px;background:var(--input);position:relative;display:inline-block;flex:none;cursor:pointer}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--background);transition:.15s;box-shadow:var(--shadow-sm)}
+.switch.on{background:var(--primary)}
+.switch.on::after{left:19px}
+.checkbox{width:16px;height:16px;border:1px solid var(--input);border-radius:4px;display:inline-block;flex:none;position:relative;top:2px}
+.checkbox.checked{background:var(--primary);border-color:var(--primary)}
+.checkbox.checked::after{content:"✓";color:var(--primary-foreground);font-size:11px;position:absolute;top:-3px;left:2px}
+
+/* ---------- Rating (TrBlazeUI Rating control) — INTERACTIVE, anonymous ---------- */
+.rate{display:inline-flex;gap:1px;align-items:center}
+.rate button{background:none;border:none;padding:1px;cursor:pointer;line-height:0;color:var(--border);transition:color .1s}
+.rate button svg{width:27px;height:27px;fill:currentColor;stroke:none;display:block}
+.rate button.on{color:#f59e0b}
+.rate button:focus-visible{outline:2px solid var(--ring);outline-offset:2px;border-radius:4px}
+.rate[data-readonly] button{cursor:default}
+
+/* ---------- CAPTCHA (self-hosted, no third-party service) ---------- */
+.captcha{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.captcha__img{border:1px solid var(--input);border-radius:calc(var(--radius) - 2px);background:var(--muted);
+  width:150px;height:52px;flex:none;overflow:hidden}
+.captcha__reload{align-self:center}
+.captcha .input{max-width:170px}
+
+/* ---------- Verification notice ---------- */
+.verify-note{display:flex;gap:10px;align-items:flex-start;border:1px solid color-mix(in srgb,var(--primary) 40%,var(--border));
+  background:color-mix(in srgb,var(--primary) 7%,transparent);border-radius:var(--radius);padding:12px 14px;font-size:13.5px}
+
+/* ---------- TbDataTable ---------- */
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--card)}
+table.tb{width:100%;border-collapse:collapse;font-size:14px}
+table.tb th{text-align:left;font-size:12.5px;font-weight:600;color:var(--muted-foreground);
+  padding:10px 16px;border-bottom:1px solid var(--border);white-space:nowrap}
+table.tb td{padding:11px 16px;border-bottom:1px solid var(--border);vertical-align:middle}
+table.tb tr:last-child td{border-bottom:none}
+table.tb tr:hover td{background:color-mix(in srgb,var(--accent) 55%,transparent)}
+
+/* ---------- TbTabs ---------- */
+.tabs{display:inline-flex;background:var(--muted);border-radius:calc(var(--radius) - 2px);padding:3px;gap:2px}
+.tab{padding:5px 14px;font-size:13.5px;font-weight:500;border-radius:calc(var(--radius) - 4px);
+  color:var(--muted-foreground);cursor:pointer}
+.tab.active{background:var(--background);color:var(--foreground);box-shadow:var(--shadow-sm)}
+
+/* ---------- TbAlert / TbToast ---------- */
+.alert{display:flex;gap:10px;border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;font-size:14px;background:var(--card)}
+.alert-info{border-color:color-mix(in srgb,var(--primary) 40%,var(--border))}
+.alert-destructive{border-color:color-mix(in srgb,var(--destructive) 50%,var(--border));color:var(--destructive)}
+.toast{position:fixed;bottom:20px;right:20px;z-index:60;background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius);box-shadow:var(--shadow-md);padding:12px 16px;font-size:14px;min-width:260px}
+
+/* ---------- TbSeparator / TbBreadcrumb / TbPagination ---------- */
+.separator{height:1px;background:var(--border);border:none;margin:24px 0}
+.breadcrumb{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted-foreground)}
+.breadcrumb b{color:var(--foreground);font-weight:500}
+.pagination{display:flex;gap:4px;align-items:center;justify-content:center;margin:28px 0}
+.page-btn{min-width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;
+  border-radius:calc(var(--radius) - 2px);border:1px solid transparent;font-size:13.5px;color:var(--muted-foreground);cursor:pointer}
+.page-btn:hover{background:var(--accent)}
+.page-btn.active{border-color:var(--border);background:var(--card);color:var(--foreground);font-weight:600}
+
+/* ---------- TbSidebar (admin shell, inset variant) ---------- */
+.shell{display:flex;min-height:100vh}
+.sidebar{width:248px;flex:none;background:var(--sidebar);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sidebar__brand{padding:16px 20px;font-weight:700;font-size:16px;display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--border)}
+.sidebar__group{padding:14px 12px 4px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted-foreground)}
+.sidebar a.nav-item{display:flex;align-items:center;gap:10px;margin:1px 8px;padding:7px 12px;
+  border-radius:calc(var(--radius) - 2px);font-size:13.5px;color:var(--foreground)}
+.sidebar a.nav-item:hover{background:var(--accent)}
+.sidebar a.nav-item.active{background:var(--sidebar-accent);color:var(--primary);font-weight:600}
+.sidebar__foot{margin-top:auto;padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;font-size:13px}
+/* TbSidebar collapsible icon mode — toggled from the topbar rail button */
+.shell.collapsed .sidebar{width:64px}
+.shell.collapsed .sidebar__brand{justify-content:center;padding:16px 0}
+.shell.collapsed .sidebar__brand .brand-text,
+.shell.collapsed .sidebar__group,
+.shell.collapsed .sidebar a.nav-item .nav-label,
+.shell.collapsed .sidebar__foot .who{display:none}
+.shell.collapsed .sidebar a.nav-item{justify-content:center;padding:9px 0}
+.shell.collapsed .sidebar__foot{justify-content:center;padding:14px 0}
+.sidebar a.nav-item{position:relative}
+.shell.collapsed .sidebar a.nav-item:hover::after{content:attr(data-label);position:absolute;left:56px;
+  white-space:nowrap;background:var(--foreground);color:var(--background);font-size:12px;
+  padding:4px 8px;border-radius:6px;z-index:50;box-shadow:var(--shadow-md)}
+.shell__main{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{height:56px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;
+  padding:0 24px;background:var(--background);position:sticky;top:0;z-index:30}
+.topbar .spacer{flex:1}
+.page{padding:28px 24px;max-width:1200px;width:100%;margin:0 auto}
+.page-title{font-size:22px;font-weight:700;margin-bottom:4px}
+.page-sub{color:var(--muted-foreground);font-size:14px;margin-bottom:22px}
+@media(max-width:900px){.sidebar{display:none}}
+
+/* ---------- TbDropdownMenu — topbar account menu ---------- */
+.usermenu{position:relative}
+.usermenu__trigger{display:flex;align-items:center;gap:6px;background:none;border:1px solid transparent;
+  padding:3px 6px 3px 3px;border-radius:999px;cursor:pointer;color:var(--muted-foreground)}
+.usermenu__trigger:hover{background:var(--accent);border-color:var(--border)}
+.usermenu__panel{position:absolute;right:0;top:calc(100% + 8px);min-width:224px;background:var(--card);
+  border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);padding:6px;z-index:60}
+.usermenu__panel[hidden]{display:none}
+.usermenu__head{padding:8px 10px 10px;border-bottom:1px solid var(--border);margin-bottom:6px}
+.menu-item{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;
+  border-radius:calc(var(--radius) - 3px);font-size:13.5px;color:var(--foreground);
+  background:none;border:none;text-align:left;cursor:pointer;font-family:inherit}
+.menu-item:hover{background:var(--accent)}
+.menu-item.danger{color:var(--destructive)}
+.menu-sep{height:1px;background:var(--border);margin:6px 0}
+
+/* ---------- Stat tiles / hero / portfolio sections ---------- */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px}
+.stat b{font-size:26px;font-weight:700;display:block;letter-spacing:-.02em}
+.stat span{font-size:13px;color:var(--muted-foreground)}
+.hero{padding:88px 0 64px;text-align:center}
+.hero h1{font-size:clamp(30px,5vw,46px);font-weight:800;margin:18px 0 6px}
+.hero h1 .accent{color:var(--primary)}
+.hero .role{font-size:17px;font-weight:600;color:var(--muted-foreground)}
+.hero .tagline{max-width:640px;margin:14px auto 26px;color:var(--muted-foreground)}
+.hero .ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+/* .social-row is defined once, in the Social links section above (brand icons + brand hovers) */
+.section{padding:56px 0}
+.section-title{font-size:24px;font-weight:700;text-align:center}
+.section-sub{text-align:center;color:var(--muted-foreground);margin:6px 0 34px;font-size:14.5px}
+.post-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+.post-card .thumb{height:150px;border-radius:var(--radius) var(--radius) 0 0;
+  background:linear-gradient(135deg,color-mix(in srgb,var(--chart-1) 30%,var(--muted)),color-mix(in srgb,var(--chart-3) 25%,var(--muted)));
+  display:flex;align-items:center;justify-content:center;color:var(--muted-foreground);font-size:12px}
+.meta-row{display:flex;gap:10px;align-items:center;font-size:12.5px;color:var(--muted-foreground);flex-wrap:wrap}
+.stars{color:#f59e0b;font-size:13px;letter-spacing:1px}
+.stars .off{color:var(--border)}
+
+/* ---------- Timeline / skills / awards (resume) ---------- */
+.timeline{position:relative;margin-left:10px;padding-left:26px;border-left:2px solid var(--border)}
+.timeline .entry{position:relative;padding-bottom:28px}
+.timeline .entry::before{content:"";position:absolute;left:-33px;top:4px;width:12px;height:12px;
+  border-radius:50%;background:var(--primary);border:2px solid var(--background)}
+.logo-chip{width:40px;height:40px;border-radius:8px;background:var(--muted);border:1px solid var(--border);
+  display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted-foreground);flex:none}
+.skill-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;
+  padding:4px 12px;font-size:13px;background:var(--card)}
+
+/* ---------- TbDialog (static open state) / TbEmpty / TbProgress / TbSkeleton ---------- */
+.dialog-overlay{position:fixed;inset:0;background:rgb(0 0 0 / .5);display:flex;align-items:center;justify-content:center;z-index:50}
+.dialog-overlay[hidden]{display:none}   /* TbDialog is CLOSED by default; opened by a row action */
+.dialog{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow-md);width:min(440px,90vw);padding:24px}
+.empty{padding:48px 24px;text-align:center;color:var(--muted-foreground);border:1px dashed var(--border);border-radius:var(--radius)}
+.empty h4{color:var(--foreground);margin-bottom:4px}
+.progress{height:8px;border-radius:999px;background:var(--muted);overflow:hidden}
+.progress > i{display:block;height:100%;background:var(--primary)}
+.kbd{font-family:var(--font-mono);font-size:11.5px;border:1px solid var(--border);border-bottom-width:2px;
+  border-radius:5px;padding:1px 6px;background:var(--muted)}
+
+/* ---------- Footer ---------- */
+.site-footer{border-top:1px solid var(--border);padding:32px 0;margin-top:40px;font-size:13.5px;color:var(--muted-foreground)}
+.site-footer .cols{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}
+
+/* ---------- BlogApp desktop window chrome (MAUI head mockups) ---------- */
+.desktop-bg{min-height:100vh;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;padding:40px 16px}
+.window{width:min(1160px,96vw);border-radius:10px;overflow:hidden;box-shadow:0 24px 70px rgb(0 0 0 / .5);
+  border:1px solid rgb(255 255 255 / .12);background:var(--background)}
+.window__title{height:38px;background:var(--sidebar);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 14px;gap:10px;font-size:12.5px;color:var(--muted-foreground)}
+.window__controls{margin-left:auto;display:flex;gap:14px;font-size:12px}
+.window--sm{width:min(560px,94vw)}

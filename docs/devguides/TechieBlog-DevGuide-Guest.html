@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TechieBlog — Developer Guide · Guest (anonymous) &mdash; TechieBlog</title>
+<script>
+/* Resolve the theme BEFORE first paint (no flash). Saved choice wins; otherwise
+   pick by time of day — light 07:00–19:00 local, softened dark at night. */
+(function(){
+  try{
+    var t = localStorage.getItem('tf-theme');
+    if(t!=='light' && t!=='dark'){ var h = new Date().getHours(); t = (h>=7 && h<19) ? 'light' : 'dark'; }
+    document.documentElement.setAttribute('data-theme', t);
+  }catch(e){ document.documentElement.setAttribute('data-theme','light'); }
+})();
+</script>
+<style>/* LIGHT is the default theme — a warm off-white, easy on the eyes (never bright white). */
+:root{
+  --bg:#f4f1e9; --panel:#efe9db; --panel2:#e7e0cd; --line:#d8cfb6;
+  --ink:#2e2a22; --muted:#6f6857; --accent:#2f6f9f; --accent2:#3f7d54;
+  --warn:#9a6b15; --danger:#b03a52; --ok:#3f7d54;
+  --code-bg:#ece5d3; --code-ink:#332f26; --row-alt:#eae2cf;
+  --h3:#3a352b; --h4:#2f6f9f; --quote:#4a4537; --cta-bg:#e6eef5;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+/* DARK — softened near-black (warmer / less harsh than pure #0f1115). */
+html[data-theme="dark"]{
+  --bg:#11141a; --panel:#171b23; --panel2:#1e2430; --line:#2b3240;
+  --ink:#dfe3ea; --muted:#99a2b1; --accent:#7cc4ff; --accent2:#a6e3a1;
+  --warn:#f9c74f; --danger:#f38ba8; --ok:#a6e3a1;
+  --code-bg:#0c1016; --code-ink:#d8dde8; --row-alt:#141821;
+  --h3:#cfd5e3; --h4:#7cc4ff; --quote:#cfd5e3; --cta-bg:#0d2030;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;font-size:15px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:var(--mono);font-size:13px;background:var(--code-bg);color:var(--code-ink);padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+pre{font-family:var(--mono);font-size:12.5px;background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto;color:var(--code-ink);position:relative}
+pre code{background:none;border:none;padding:0}
+.copy{position:absolute;top:8px;right:8px;background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:11px;font-family:var(--sans);cursor:pointer}
+.copy:hover{color:var(--accent);border-color:var(--accent)}
+/* floating light/dark toggle (top-right) */
+.theme-toggle{position:fixed;top:12px;right:14px;z-index:10000;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12.5px;font-family:var(--sans);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.theme-toggle:hover{color:var(--accent);border-color:var(--accent)}
+
+.layout{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+.layout.no-toc{grid-template-columns:1fr}
+nav.side{position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--line);background:var(--panel);padding:18px 14px}
+nav.side h1{font-size:14px;margin:0 0 4px;letter-spacing:.5px;color:var(--ink)}
+nav.side .sub{font-size:11.5px;color:var(--muted);margin-bottom:14px}
+nav.side ol,nav.side ul{list-style:none;padding:0;margin:0}
+nav.side li{font-size:13px;margin:2px 0}
+nav.side li a{display:block;padding:5px 8px;color:var(--ink);border-radius:6px}
+nav.side li a:hover{background:var(--panel2);text-decoration:none}
+nav.side li.h3 a{padding-left:22px;font-size:12.5px;color:var(--h3)}
+nav.side .group{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin:14px 8px 4px}
+
+main{padding:28px 40px 80px;max-width:1100px}
+.layout.no-toc main{margin:0 auto}
+
+h1{font-size:28px;margin:0 0 6px}
+h2{font-size:22px;margin:32px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);scroll-margin-top:16px}
+h3{font-size:17px;margin:22px 0 6px;color:var(--h3);scroll-margin-top:16px}
+h4{font-size:14px;margin:14px 0 4px;color:var(--h4);scroll-margin-top:16px}
+.subtitle{color:var(--muted);font-size:14px;margin-top:-4px;margin-bottom:18px}
+p{margin:6px 0 10px}
+blockquote{border-left:3px solid var(--accent);background:var(--panel);margin:8px 0;padding:8px 14px;color:var(--quote)}
+ul,ol{padding-left:22px}
+li{margin:2px 0}
+
+table{border-collapse:collapse;width:100%;font-size:13.5px;margin:8px 0}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--panel2);color:var(--h3);font-weight:600}
+tr:nth-child(even) td{background:var(--row-alt)}
+
+hr{border:none;border-top:1px solid var(--line);margin:24px 0}
+.anchor-link{color:var(--muted);font-weight:400;font-size:0.85em;margin-left:8px;opacity:0;transition:opacity .15s;text-decoration:none}
+h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
+
+/* inline TOC at top of main content */
+.toc-inline{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 16px;margin:14px 0 24px}
+.toc-inline > div{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.toc-inline ol,.toc-inline ul{margin:4px 0;padding-left:18px}
+.toc-inline li{font-size:13px;margin:1px 0}
+.toc-inline a{color:var(--h3)}
+
+/* NEXT COMMAND call-to-action box */
+.cta{background:var(--cta-bg);border:1px solid var(--accent);border-radius:8px;padding:12px 16px;margin:18px 0}
+.cta .lbl{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+
+/* mermaid diagram wrapper + toolbar */
+.diagram{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--code-bg);margin:14px 0;overflow:hidden}
+.diagram .mermaid{padding:14px;margin:0;background:transparent;border:none;overflow:auto}
+.diagram .dt{display:flex;gap:6px;justify-content:flex-end;padding:6px 8px;background:var(--row-alt);border-bottom:1px solid var(--line)}
+.diagram .dt button{background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 10px;font-size:12px;font-family:var(--sans);cursor:pointer;min-width:30px}
+.diagram .dt button:hover{color:var(--accent);border-color:var(--accent)}
+.diagram .dt .zlabel{padding:3px 6px;font-size:11px;color:var(--muted);font-family:var(--mono);align-self:center}
+.diagram.fs{position:fixed;inset:0;z-index:9999;border-radius:0;border:none}
+.diagram.fs .mermaid{height:calc(100vh - 40px);display:flex;align-items:center;justify-content:center}
+
+@media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{position:static;height:auto}}</style>
+</head>
+<body>
+<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">☾ Dark</button>
+<div class="layout">
+  <nav class="side">
+    <h1>TechieBlog — Developer Guide · Guest (anonymous)</h1>
+    <div class="sub">Last rendered: 2026-08-14</div>
+    <div class="group">Contents</div>
+    <ol>
+      <li><a href="#runtime-verification-2026-08-14-req-nfr-001-scope-only">Runtime verification (2026-08-14) — REQ-NFR-001 scope only</a></li>
+      <li><a href="#runtime-verification-2026-08-09">Runtime verification (2026-08-09)</a></li>
+      <li><a href="#guest-home">Guest · Home (`/`)</a></li>
+      <li><a href="#guest-post-view-post-slug-post-slug-pagenumber">Guest · Post view (`/post/{Slug}`, `/post/{Slug}/{PageNumber}`)</a></li>
+      <li><a href="#guest-category-archive-category-slug-categories-categories-slug">Guest · Category archive (`/category/{Slug}`, `/categories`, `/categories/{Slug}`)</a></li>
+      <li><a href="#guest-tag-archive-tag-slug-tags-tags-slug">Guest · Tag archive (`/tag/{Slug}`, `/tags`, `/tags/{Slug}`)</a></li>
+      <li><a href="#guest-series-series-series-slug">Guest · Series (`/series`, `/series/{Slug}`)</a></li>
+      <li><a href="#guest-search-search">Guest · Search (`/search`)</a></li>
+      <li><a href="#guest-authors-authors">Guest · Authors (`/authors`)</a></li>
+      <li><a href="#guest-author-profile-author-username">Guest · Author profile (`/author/{Username}`)</a></li>
+      <li><a href="#guest-resume-resume">Guest · Resume (`/resume`)</a></li>
+      <li><a href="#guest-about-about-and-404-404">Guest · About (`/about`) and 404 (`/404`)</a></li>
+      <li><a href="#guest-rss-rss-sitemap-sitemap-xml-robots-robots-txt">Guest · RSS (`/rss`), sitemap (`/sitemap.xml`), robots (`/robots.txt`)</a></li>
+      <li><a href="#guest-login-register-forgot-reset">Guest · Login / Register / Forgot / Reset</a></li>
+    </ol>
+  </nav>
+  <main>
+    <div class="subtitle">Runtime-verified 2026-08-14 (REQ-NFR-001 scope); full sweep 2026-08-09</div>
+
+<h1>TechieBlog — Developer Guide · Guest (anonymous)</h1>
+<p>&gt; ✅ <strong>Runtime-verified 2026-08-09 as Guest (anonymous)</strong> — supersedes the 2026-08-02 <code>STATIC-ONLY</code> &gt; banner, whose stated reason (solution does not compile, REQ-FN-043) is stale. See &gt; <strong>Runtime verification (2026-08-09)</strong> below for what was actually observed.</p>
+<p>Index: <a href="./TechieBlog-DevGuide.md">TechieBlog-DevGuide.md</a> · Architecture: <code>docs/TechieBlog-Architecture.md</code></p>
+<p>Every screen below is reachable <strong>without signing in</strong>. Signed-in roles see the same pages plus their own.</p>
+<p>&gt; ⚠ <strong>This page's premise is out of date.</strong> It says engagement controls "require authentication". &gt; They do not: reader accounts were retired (BRD-1/13/43/44) and commenting and rating are now &gt; <strong>anonymous and email-keyed</strong> with a captcha and double opt-in. Runtime check found no sign-in gate &gt; and zero <code>/login</code> links anywhere in the comment or rating components. The <strong>Favourite toggle</strong> noted &gt; per screen no longer exists at all (REQ-UI-028 removed).</p>
+<h2 id="runtime-verification-2026-08-14-req-nfr-001-scope-only">Runtime verification (2026-08-14) — REQ-NFR-001 scope only<a class="anchor-link" href="#runtime-verification-2026-08-14-req-nfr-001-scope-only">#</a></h2>
+<p>Runtime-verified 2026-08-14 as <strong>anonymous/guest</strong>, against a genuine <strong>Release + Production</strong> host (<code>--no-launch-profile</code>; see the REQ-NFR-001 checklist row for why a bare <code>dotnet run</code> silently boots Development). This pass exercised only the four screens the performance budget is measured against — <strong>every other row in the 2026-08-09 table below is unchanged and NOT re-observed.</strong></p>
+<table><thead><tr><th>Screen</th><th>Observed 2026-08-14</th><th>Detail</th></tr></thead><tbody><tr><td><code>/</code> (portfolio home)</td><td><strong>renders ✓ (runtime-confirmed 2026-08-14)</strong> · <strong>looks-right ✓</strong></td><td>4 stat tiles with values, featured post, 3 article cards each with image/category/title/excerpt/author/date/star-rating. 0 horizontal overflow at 1280×800 and 390×844; mobile stacks to hamburger + 2-col stat grid</td></tr><tr><td><code>/post/{slug}</code></td><td><strong>renders ✓ (runtime-confirmed 2026-08-14)</strong> · <strong>looks-right ✓ — the 2026-08-09 DEFECT IS FIXED</strong></td><td>title, hero, markdown body with fenced code, series nav ("Part 2 of 3", prev/next), tags, rating 4.5 from 2 ratings, view-count aggregate, comment form + captcha. <strong>The 46px 390px table overflow is GONE:</strong> probed across three posts — <code>the-markdown-kitchen-sink</code> (1 table) <strong>0px</strong>, <code>scaling-signalr-for-blazor-server</code> (1 table) <strong>0px</strong>, <code>blazor-circuits-and-state</code> (0 tables) 0px. The table-vs-no-table comparison that isolated the defect now shows no difference</td></tr><tr><td><code>/category/{slug}</code></td><td><strong>renders ✓ (runtime-confirmed 2026-08-14)</strong> · <strong>looks-right ✓</strong></td><td>header, post list and links render real data; 0 overflow at both widths. <strong>NOTE: the 2026-08-09 <code>renders-empty</code> featured-image defect was NOT re-tested</strong> — this pass asserted list/link/heading data only, not <code>&lt;PostCard ImageUrl&gt;</code>. Treat that defect as still open</td></tr><tr><td><code>/newsletters</code></td><td><strong>renders ✓ (runtime-confirmed 2026-08-14)</strong> · <strong>looks-right ✓</strong></td><td>content and navigable links render; 0 overflow at both widths</td></tr></tbody></table>
+<p>Evidence: <code>tests/verify/req-nfr-001-render-visual.spec.ts</code> 12/12 passed; screenshots inspected in <code>tests/.artifacts/req-nfr-001/</code>. Screens NOT runtime-verified this pass: <code>/tag/{slug}</code>, <code>/series/{slug}</code>, <code>/search</code>, <code>/rss</code>, <code>/authors</code>, <code>/author/{username}</code>, <code>/resume</code>, <code>/about</code>, <code>/404</code>, the auth screens and the sidebar subscribe surface — their 2026-08-09 verdicts stand.</p>
+
+<h2 id="runtime-verification-2026-08-09">Runtime verification (2026-08-09)<a class="anchor-link" href="#runtime-verification-2026-08-09">#</a></h2>
+<p>Observed by <code>*verify all</code> against the running app. Screens not listed rendered their data and looked right at 1280×900 and 390×844.</p>
+<table><thead><tr><th>Screen</th><th>Observed</th><th>Detail</th></tr></thead><tbody><tr><td><code>/</code> (portfolio home)</td><td><strong>renders ✓</strong></td><td>hero, 4 stat tiles, about, 3 latest articles, contact — all from the site-owner row. Visual clean at both widths. <code>Download CV</code> correctly hidden (<strong>NO-DATA</strong>: <code>cvfilepath</code> empty)</td></tr><tr><td><code>/post/{slug}</code></td><td><strong>visual-broken (DEFECT)</strong></td><td>all 11 controls render real data, but at <strong>390px the page scrolls horizontally 46px</strong> — a Markdown-rendered <code>&lt;table&gt;</code> is 420px wide with <code>overflow-x:visible</code> and is not wrapped in a scroll container. Isolated by comparing a post with a table (46px) against one without (0px)</td></tr><tr><td><code>/category/{slug}</code>, <code>/tag/{slug}</code></td><td><strong>renders-empty (DEFECT)</strong></td><td>counts and cards match the DB exactly, but <strong>featured images never render</strong> — <code>CategoryArchive.razor:117</code> and <code>TagArchive.razor:107</code> pass no <code>ImageUrl</code> to <code>&lt;PostCard&gt;</code> although every published post has one</td></tr><tr><td><code>/series/{slug}</code></td><td><strong>renders-empty (DEFECT)</strong></td><td><strong>leaks unpublished parts to anonymous visitors</strong> with title, abstract and a "Coming Soon" badge. <code>BlogPostRepo.cs:246-248</code> filters only on <code>IsDeleted</code>; <code>CountBySeriesSql:250-254</code> correctly filters <code>Published = TRUE</code>, so the list and the badge disagree</td></tr><tr><td><code>/search</code></td><td><strong>renders-empty (DEFECT)</strong></td><td>every result's category badge is the literal <code>"Blog"</code> — hardcoded at <code>SearchResults.razor:244</code>. Highlighting applies to excerpts only, so a title-only match shows no <code>&lt;mark&gt;</code></td></tr><tr><td><code>/rss</code></td><td><strong>unreachable (DEFECT)</strong></td><td>the page advertises <code>/feed.xml</code>, which <strong>404s</strong>; there is no <code>&lt;link rel="alternate"&gt;</code> in <code>&lt;head&gt;</code>. No feed is served anywhere</td></tr><tr><td>unmatched route</td><td><strong>render-error (DEFECT)</strong></td><td>returns HTTP 404 with a <strong>zero-byte body</strong> and a blank white page. <code>/404</code> renders correctly when requested directly, but nothing routes to it</td></tr><tr><td>public shell</td><td><strong>visual-broken (DEFECT)</strong></td><td>5px horizontal overflow at <strong>320px</strong> from the header actions cluster; <code>mobile-nav-trigger</code> clipped past the right edge. Clean at 390 and 1280</td></tr><tr><td>sidebar subscribe</td><td><strong>render-error (DEFECT)</strong></td><td>writes a subscriber with <strong>no captcha and <code>isconfirmed=t</code></strong>, bypassing the double opt-in every other subscribe surface enforces</td></tr><tr><td>comments / rating</td><td><strong>renders ✓</strong></td><td>anonymous, email-keyed, captcha + double opt-in all proven end to end; unapproved comments never appear publicly; the public average counts verified ratings only</td></tr><tr><td><code>/login</code>, <code>/forgot-password</code>, <code>/reset-password</code>, <code>/verify/{token}</code></td><td><strong>renders ✓</strong></td><td>all controls render; anti-enumeration message confirmed; open-redirect guard rejects absolute and protocol-relative URLs</td></tr></tbody></table>
+<p><strong>Cross-cutting artefact (not a screen defect):</strong> the host prerenders and then re-renders interactively, and for ~1.5s <strong>both shells are in the DOM</strong> — a visibly duplicated header over a still-loading page. It self-resolves, but any measurement inside that window reads a doubled shell or phantom zero rows. This is the root cause of the post page's blank flash and its <code>document-title</code> accessibility violation.</p>
+<h2 id="guest-home">Guest · Home (<code>/</code>)<a class="anchor-link" href="#guest-home">#</a></h2>
+<p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/Home.razor</code> · <strong>Layout:</strong> <code>MainLayout</code></p>
+<div class="diagram">
+  <div class="dt">
+    <button data-zout title="Zoom out">−</button>
+    <span class="zlabel">100%</span>
+    <button data-zin title="Zoom in">+</button>
+    <button data-fit title="Fit to width">Fit</button>
+    <button data-one title="Actual size">1:1</button>
+    <button data-fs title="Fullscreen">⛶</button>
+    <button data-pop title="Open in new tab">↗</button>
+  </div>
+  <pre class="mermaid">flowchart LR
+  Home["Home.razor"] --> Blog["BlogSvc"]
+  Blog --> Repo["BlogPostRepo"]
+  Repo --> SQL[("SELECT p.PostID ... FROM BlogPost")]
+  Home --> Calc["ReadingTimeCalculator.Calculate"]</pre>
+</div>
+<table><thead><tr><th>Control</th><th>What it shows</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Featured post</td><td>One highlighted post</td><td><code>BlogService.GetFeaturedPost()</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Recent posts grid</td><td>Published posts, paged</td><td><code>BlogService.GetPublishedPosts(...)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Pagination</td><td>Page count</td><td><code>BlogService.GetPublishedPostCount()</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Reading time per card</td><td>"N min read"</td><td><code>ReadingTimeCalculator.Calculate(...)</code> (static helper, called in the page)</td><td>static-only (unconfirmed)</td></tr><tr><td>Sidebar</td><td>Categories, tags, subscribe form</td><td><code>Components/Sidebar.razor</code></td><td>static-only (unconfirmed)</td></tr></tbody></table>
+<p><strong>Data lineage</strong></p>
+<table><thead><tr><th>Step</th><th>Symbol</th><th>File</th></tr></thead><tbody><tr><td>Page</td><td><code>Home.razor</code> <code>@inject BlogEngine.Services.BlogSvc BlogService</code></td><td><code>Pages/BlogPages/Home.razor</code></td></tr><tr><td>Service</td><td><code>BlogSvc.GetPublishedPosts</code>, <code>GetFeaturedPost</code>, <code>GetPublishedPostCount</code></td><td><code>BlogEngine/Services/BlogSvc.cs</code></td></tr><tr><td>Data access</td><td><code>BlogPostRepo</code> (inherits <code>GenericRepository&lt;BlogPost&gt;</code>)</td><td><code>BlogEngine/DbAccess/BlogPostRepo.cs</code></td></tr><tr><td>SQL</td><td>inline parameterised <code>SELECT p.PostID …</code> / <code>SELECT COUNT …</code> against <code>BlogPost</code></td><td><code>BlogPostRepo.cs</code></td></tr></tbody></table>
+<p><strong>Business rules:</strong> only <code>Published = true</code> posts appear; ordering is by publish date descending.</p>
+<p><strong>Known issues:</strong> none found statically.</p>
+<h2 id="guest-post-view-post-slug-post-slug-pagenumber">Guest · Post view (<code>/post/{Slug}</code>, <code>/post/{Slug}/{PageNumber}</code>)<a class="anchor-link" href="#guest-post-view-post-slug-post-slug-pagenumber">#</a></h2>
+<p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/PostView.razor</code> · <strong>Layout:</strong> <code>FullWidthLayout</code></p>
+<p>This is the densest public screen — seven injected dependencies.</p>
+<div class="diagram">
+  <div class="dt">
+    <button data-zout title="Zoom out">−</button>
+    <span class="zlabel">100%</span>
+    <button data-zin title="Zoom in">+</button>
+    <button data-fit title="Fit to width">Fit</button>
+    <button data-one title="Actual size">1:1</button>
+    <button data-fs title="Fullscreen">⛶</button>
+    <button data-pop title="Open in new tab">↗</button>
+  </div>
+  <pre class="mermaid">flowchart TB
+  PV["PostView.razor"] --> B["BlogSvc.GetPostBySlug"]
+  PV --> S["SeriesSvc.GetSeriesNavigation"]
+  PV --> F["FavoriteSvc.IsFavorited and GetFavoriteCount"]
+  PV --> M["MarkdownRenderer.ToHtml"]
+  PV --> A["AuthenticationStateProvider"]
+  B --> PR["BlogPostRepo"]
+  S --> SR["BlogSeriesRepo"]
+  F --> FR["UserFavoriteRepo"]
+  PR --> DB[("PostgreSQL")]
+  SR --> DB
+  FR --> DB</pre>
+</div>
+<table><thead><tr><th>Control</th><th>What it shows</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Article body</td><td>Markdown rendered to HTML</td><td><code>MarkdownRenderer.ToHtml(post.PostContent)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Title / author / date / category / tags</td><td>Post metadata</td><td><code>BlogService.GetPostBySlug(Slug)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Reading time</td><td>"N min read"</td><td><code>ReadingTimeCalculator.Calculate(...)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Series navigation</td><td>Previous / next part</td><td><code>SeriesService.GetSeriesNavigation(...)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Related posts</td><td>Other published posts</td><td><code>BlogService.GetPublishedPosts(...)</code></td><td>static-only (unconfirmed) — <em>note: this is a generic published-post query, not a category/tag-similarity match; "related" is loosely implemented</em></td></tr><tr><td>Star rating</td><td>Average + user's rating</td><td><code>Components/StarRating.razor</code> → <code>RatingSvc</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Favourite toggle</td><td>Favourited state + count</td><td><code>FavoriteService.IsFavorited</code>, <code>GetFavoriteCount</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Comments</td><td>List + form (sign-in required)</td><td><code>Components/…</code> → <code>CommentSvc</code></td><td>static-only (unconfirmed)</td></tr></tbody></table>
+<p><strong>Data lineage</strong></p>
+<table><thead><tr><th>Step</th><th>Symbol</th><th>File</th></tr></thead><tbody><tr><td>Page</td><td><code>PostView.razor</code></td><td><code>Pages/BlogPages/PostView.razor</code></td></tr><tr><td>Services</td><td><code>BlogSvc</code>, <code>SeriesSvc</code>, <code>FavoriteSvc</code>, <code>MarkdownRenderer</code></td><td><code>BlogEngine/Services/</code>, <code>BlogEngine/Common/</code></td></tr><tr><td>Data access</td><td><code>BlogPostRepo</code>, <code>BlogSeriesRepo</code>, <code>UserFavoriteRepo</code></td><td><code>BlogEngine/DbAccess/</code></td></tr><tr><td>SQL</td><td>inline parameterised SQL on <code>BlogPost</code>, <code>BlogSeries</code>, <code>UserFavorite</code></td><td>as above</td></tr></tbody></table>
+<p><strong>Business rules:</strong> anonymous visitors can read but not engage — the page injects <code>AuthenticationStateProvider</code> and gates the engagement controls on the resulting principal.</p>
+<p><strong>Known issues:</strong> "Related posts" reuses <code>GetPublishedPosts</code> rather than a similarity query (BRD-32 expects category/tag-based relatedness) — <code>{unresolved — TODO: confirm whether a filter is applied inside the page's related-post block}</code>.</p>
+<h2 id="guest-category-archive-category-slug-categories-categories-slug">Guest · Category archive (<code>/category/{Slug}</code>, <code>/categories</code>, <code>/categories/{Slug}</code>)<a class="anchor-link" href="#guest-category-archive-category-slug-categories-categories-slug">#</a></h2>
+<p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/CategoryArchive.razor</code></p>
+<table><thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Category header</td><td><code>CategoryService.GetCategoryBySlug(Slug)</code></td><td>static-only</td></tr><tr><td>Post list</td><td><code>BlogService.GetPostsByCategory(...)</code></td><td>static-only</td></tr><tr><td>Post count / paging</td><td><code>BlogService.GetPostCountByCategory(...)</code></td><td>static-only</td></tr><tr><td>Category list (index mode)</td><td><code>CategoryService.GetAllWithCounts()</code></td><td>static-only</td></tr><tr><td>Reading time</td><td><code>ReadingTimeCalculator.Calculate(...)</code></td><td>static-only</td></tr></tbody></table>
+<p><strong>Lineage:</strong> page → <code>CategorySvc</code> / <code>BlogSvc</code> → <code>CategoryRepo</code> / <code>BlogPostRepo</code> → inline SQL on <code>Category</code>, <code>PostCategory</code>, <code>BlogPost</code>.</p>
+<h2 id="guest-tag-archive-tag-slug-tags-tags-slug">Guest · Tag archive (<code>/tag/{Slug}</code>, <code>/tags</code>, <code>/tags/{Slug}</code>)<a class="anchor-link" href="#guest-tag-archive-tag-slug-tags-tags-slug">#</a></h2>
+<p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/TagArchive.razor</code></p>
+<table><thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Tag header</td><td><code>TagService.GetTagBySlug(Slug)</code></td><td>static-only</td></tr><tr><td>Post list</td><td><code>TagService.GetPostsByTag(...)</code></td><td>static-only</td></tr><tr><td>Post count</td><td><code>TagService.GetPostCountByTag(...)</code></td><td>static-only</td></tr><tr><td>Tag list / cloud</td><td><code>TagService.GetAllWithCounts()</code></td><td>static-only</td></tr><tr><td>Category name per card</td><td><code>CategorySvc.GetAllCategories()</code> cached in a page dictionary</td><td>static-only</td></tr></tbody></table>
+<p><strong>Lineage:</strong> page → <code>TagSvc</code> (+ <code>CategorySvc</code>) → <code>BlogTagRepo</code> → inline SQL joining <code>Tag</code>, <code>PostTag</code>, <code>BlogPost</code>. The per-tag <code>COUNT</code> was the Story 7.5 bug (fixed in <code>BlogTagRepo.cs</code>); the category-name lookup was FIX-009.</p>
+<h2 id="guest-series-series-series-slug">Guest · Series (<code>/series</code>, <code>/series/{Slug}</code>)<a class="anchor-link" href="#guest-series-series-series-slug">#</a></h2>
+<p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/SeriesView.razor</code> · <strong>Layout:</strong> <code>FullWidthLayout</code></p>
+<table><thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Series list (no slug)</td><td><code>SeriesService.GetAllWithCounts()</code></td><td>static-only</td></tr><tr><td>Series header + parts</td><td><code>SeriesService.GetSeriesBySlug(Slug)</code></td><td>static-only</td></tr><tr><td>Reading time per part</td><td><code>ReadingTimeCalculator.Calculate(...)</code></td><td>static-only</td></tr></tbody></table>
+<p><strong>Lineage:</strong> page → <code>SeriesSvc</code> → <code>BlogSeriesRepo</code> → inline SQL on <code>BlogSeries</code> + <code>BlogPost</code>.</p>
+<h2 id="guest-search-search">Guest · Search (<code>/search</code>)<a class="anchor-link" href="#guest-search-search">#</a></h2>
+<p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/SearchResults.razor</code></p>
+<table><thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Result list</td><td><code>BlogSvc.SearchPosts(...)</code></td><td>static-only</td></tr><tr><td>Result count / paging</td><td><code>BlogSvc.GetSearchResultCount(...)</code></td><td>static-only</td></tr><tr><td>Category filter dropdown</td><td><code>CategorySvc.GetAllCategories()</code></td><td>static-only</td></tr></tbody></table>
+<p><strong>Lineage:</strong> page → <code>BlogSvc.SearchPosts</code> (<code>BlogSvc.cs:555-580</code>) → <code>BlogPostRepo.SearchPosts</code> (<code>BlogPostRepo.cs:424-465</code>) → PostgreSQL <code>ILIKE</code> across <code>Title</code>, <code>Abstract</code>, <code>PostContent</code>, <code>Tags</code>.</p>
+<p><strong>Business rules:</strong> search covers published posts only; terms are highlighted in the rendered results.</p>
+<h2 id="guest-authors-authors">Guest · Authors (<code>/authors</code>)<a class="anchor-link" href="#guest-authors-authors">#</a></h2>
+<p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/AuthorsPage.razor</code> (+ <code>.razor.cs</code>)</p>
+<table><thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Author list</td><td><code>UserRepo.GetAllAuthors()</code> (<strong>repository injected directly — no service layer</strong>)</td><td>static-only</td></tr><tr><td>Article count per author</td><td>part of <code>GetAllAuthors()</code>'s projection</td><td>static-only</td></tr></tbody></table>
+<p><strong>Lineage:</strong> page → <code>IBlogUserRepo.GetAllAuthors</code> → <code>BlogUserRepo.cs</code> inline <code>SELECT DISTINCT …</code> over <code>BlogUser</code> joined to <code>BlogPost</code>.</p>
+<h2 id="guest-author-profile-author-username">Guest · Author profile (<code>/author/{Username}</code>)<a class="anchor-link" href="#guest-author-profile-author-username">#</a></h2>
+<p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/AuthorProfilePage.razor</code> (+ <code>.razor.cs</code>)</p>
+<table><thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Author header</td><td><code>UserRepo.GetByUsername(Username)</code></td><td>static-only</td></tr><tr><td>Article list</td><td><code>{unresolved — TODO: the posts-by-author call was not located in AuthorProfilePage.razor.cs}</code></td><td>unresolved</td></tr><tr><td>Resume sections (when <code>ResumeEnabled</code>)</td><td><code>Components/Resume/*</code> fed by the skills/awards/events repositories</td><td>static-only</td></tr></tbody></table>
+<p><strong>Business rules:</strong> an unknown username must 404 (BRD-55); <code>ResumeEnabled</code> gates the resume sections.</p>
+<h2 id="guest-resume-resume">Guest · Resume (<code>/resume</code>)<a class="anchor-link" href="#guest-resume-resume">#</a></h2>
+<p><strong>File:</strong> <code>source/BlogUI/Pages/ResumePage.razor</code> (+ <code>.razor.cs</code>) · <strong>Layout:</strong> <code>FullWidthLayout</code></p>
+<div class="diagram">
+  <div class="dt">
+    <button data-zout title="Zoom out">−</button>
+    <span class="zlabel">100%</span>
+    <button data-zin title="Zoom in">+</button>
+    <button data-fit title="Fit to width">Fit</button>
+    <button data-one title="Actual size">1:1</button>
+    <button data-fs title="Fullscreen">⛶</button>
+    <button data-pop title="Open in new tab">↗</button>
+  </div>
+  <pre class="mermaid">flowchart LR
+  RP["ResumePage.razor.cs"] --> UR["IBlogUserRepo.GetSiteOwner"]
+  UR --> DB[("BlogUser where IsSiteOwner")]
+  RP --> Hero["ResumeHero.razor"]
+  RP --> Exp["ResumeExperience.razor"]
+  RP --> Sk["ResumeSkills.razor"]
+  RP --> Aw["ResumeAwards.razor"]
+  RP --> Ct["ResumeContact.razor"]</pre>
+</div>
+<table><thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Hero (photo, name, title, tagline, CTAs, socials)</td><td><code>UserRepo.GetSiteOwner()</code> → <code>ResumeHero.razor</code></td><td>static-only</td></tr><tr><td>Experience timeline</td><td><code>ResumeExperience.razor</code> → <code>IUserEventRepo.GetByUserAndType(userId, "Experience")</code></td><td>static-only</td></tr><tr><td>Skills grid</td><td><code>ResumeSkills.razor</code> → <code>IUserSkillsRepo.GetByUserId</code></td><td>static-only</td></tr><tr><td>Awards</td><td><code>ResumeAwards.razor</code> → <code>IUserAwardsRepo.GetByUserId</code></td><td>static-only</td></tr><tr><td>Contact</td><td><code>ResumeContact.razor</code> — fields off <code>AppUser</code></td><td>static-only</td></tr><tr><td>Download CV</td><td><code>AppUser.CVFilePath</code> → static file under <code>wwwroot/uploads/cv/</code></td><td>static-only</td></tr></tbody></table>
+<p><strong>Lineage:</strong> <code>ResumePage.razor.cs:47</code> <code>siteOwner = UserRepo.GetSiteOwner();</code> → <code>BlogUserRepo</code> inline SQL on <code>BlogUser</code> filtered by <code>IsSiteOwner</code> (uniqueness enforced by the partial index in migration <code>012</code>).</p>
+<p><strong>Business rules:</strong> if no user has <code>IsSiteOwner = true</code>, the whole page has nothing to render. <strong>Known issue (static):</strong> no fallback/empty state was located for that case — <code>{unresolved — TODO: confirm ResumePage behaviour when GetSiteOwner() returns null}</code>.</p>
+<h2 id="guest-about-about-and-404-404">Guest · About (<code>/about</code>) and 404 (<code>/404</code>)<a class="anchor-link" href="#guest-about-about-and-404-404">#</a></h2>
+<p><strong>Files:</strong> <code>Pages/BlogPages/About.razor</code>, <code>Pages/AdminPages/404Page.razor</code> (uses <code>AuthLayout</code>). Static content; no service calls. Dark-mode styling for About was fixed in Story 7.3.</p>
+<h2 id="guest-rss-rss-sitemap-sitemap-xml-robots-robots-txt">Guest · RSS (<code>/rss</code>), sitemap (<code>/sitemap.xml</code>), robots (<code>/robots.txt</code>)<a class="anchor-link" href="#guest-rss-rss-sitemap-sitemap-xml-robots-robots-txt">#</a></h2>
+<table><thead><tr><th>Endpoint</th><th>Implementation</th><th>Lineage</th></tr></thead><tbody><tr><td><code>/rss</code></td><td><code>Pages/BlogPages/RssFeed.razor</code></td><td>page → <code>BlogSvc.GetPublishedPosts</code> → <code>BlogPostRepo</code></td></tr><tr><td><code>/sitemap.xml</code></td><td>minimal endpoint, <code>source/TechieBlog/Program.cs:169</code></td><td>→ <code>SitemapSvc.GenerateSitemap()</code> → <code>BlogSvc</code> / repositories</td></tr><tr><td><code>/robots.txt</code></td><td>minimal endpoint, <code>Program.cs:176</code></td><td>reads <code>SiteSettings:BaseUrl</code> from configuration</td></tr></tbody></table>
+<h2 id="guest-login-register-forgot-reset">Guest · Login / Register / Forgot / Reset<a class="anchor-link" href="#guest-login-register-forgot-reset">#</a></h2>
+<p>Documented once here because anonymous visitors reach them; see the index §3 <strong>LANDING-TRUTH</strong> section for the post-login redirect defect.</p>
+<table><thead><tr><th>Screen</th><th>File</th><th>Key call</th></tr></thead><tbody><tr><td><code>/login</code></td><td><code>Pages/AdminPages/LoginPage.razor</code> + <code>.razor.cs</code></td><td><code>AuthSvc.LoginAsync(SvcData)</code> → <code>CustomAuthStateProvider.MarkUserAsAuthenticated</code> → <code>NavigateTo("/admin")</code> (<code>:106</code>)</td></tr><tr><td><code>/register</code></td><td><code>Pages/AdminPages/RegisterPage.razor</code></td><td><code>AuthService.RegisterUser(...)</code> → on success <code>NavigateTo("/login")</code> (<code>:160</code>)</td></tr><tr><td><code>/forgot-password</code></td><td><code>Pages/AdminPages/ForgotPasswordPage.razor</code></td><td><code>await AuthService.RequestPasswordReset(...)</code></td></tr><tr><td><code>/reset-password/{Token}</code></td><td><code>Pages/AdminPages/ResetPasswordPage.razor</code></td><td><code>AuthService.ValidateResetToken(...)</code>, <code>AuthService.ResetPassword(...)</code></td></tr><tr><td><code>/access-denied</code></td><td><code>Pages/AccessDenied.razor</code></td><td>static</td></tr></tbody></table>
+<p><strong>Lineage:</strong> page → <code>AuthSvc</code> (<code>BlogEngine/Services/AuthSvc.cs</code>) → <code>BlogUserRepo</code> → PostgreSQL stored functions <code>GetLoginUser</code>, <code>GetUserByEmail</code>, <code>InsertBlogUser</code>, <code>SelectBlogUserById</code>. Reset tokens go to <code>PasswordResetTokenRepo</code>, an <strong>in-memory singleton</strong> (<code>BlogSvcInitializer.cs:19</code>) — they do not survive a restart. The reset "email" is written to the log by <code>ConsoleEmailService</code>, not sent.</p>
+<p><strong>Known issues (static):</strong> 1. <strong>Role-blind redirect</strong> — see index §3 and finding #1. 2. Reset tokens are lost on restart (REQ-NFR-019, by design per FIX-PLAN but a real operational trap). 3. No rate limiting on the login endpoint (REQ-NFR-005).</p>
+<p>--- Generated 2026-08-02 · reflects code as built · ⚠ STATIC-ONLY</p>
+  </main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+<script>// Light/dark toggle. The initial theme was already applied flash-free by the
+// <head> script (saved choice, else time-of-day). Clicking flips it, saves the
+// choice, and reloads so Mermaid re-renders in the matching theme.
+(function(){
+  var btn = document.getElementById('themeToggle');
+  if(!btn) return;
+  var relabel = function(){
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    btn.textContent = dark ? '☀ Light' : '☾ Dark';
+  };
+  relabel();
+  btn.addEventListener('click', function(){
+    var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    try{ localStorage.setItem('tf-theme', next); }catch(e){}
+    location.reload();
+  });
+})();
+
+// Copy buttons on every code <pre> — but NEVER on a `pre.mermaid`.
+document.querySelectorAll('pre:not(.mermaid)').forEach(pre => {
+  const btn = document.createElement('button');
+  btn.className = 'copy';
+  btn.textContent = 'copy';
+  btn.addEventListener('click', () => {
+    const text = pre.querySelector('code') ? pre.querySelector('code').innerText : pre.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'copied';
+      setTimeout(() => { btn.textContent = 'copy'; }, 1200);
+    });
+  });
+  pre.appendChild(btn);
+});
+
+// Mermaid init — theme follows the resolved light/dark theme
+if (window.mermaid) {
+  var mermaidTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
+  mermaid.initialize({ startOnLoad: true, theme: mermaidTheme, securityLevel: 'loose' });
+}
+
+// Mermaid toolbar wiring — run after mermaid renders
+function wireMermaidToolbars() {
+  document.querySelectorAll('.diagram').forEach(dia => {
+    if (dia.dataset.wired) return;
+    const merm = dia.querySelector('.mermaid');
+    const svg = merm && merm.querySelector('svg');
+    if (!svg) return;
+    dia.dataset.wired = '1';
+    let scale = 1;
+    const label = dia.querySelector('.zlabel');
+    const apply = () => {
+      svg.style.transform = `scale(${scale})`;
+      svg.style.transformOrigin = 'top left';
+      if (label) label.textContent = Math.round(scale * 100) + '%';
+    };
+    const setScale = (s) => { scale = Math.max(0.25, Math.min(4, s)); apply(); };
+    dia.querySelector('[data-zin]').onclick = () => setScale(scale * 1.2);
+    dia.querySelector('[data-zout]').onclick = () => setScale(scale / 1.2);
+    dia.querySelector('[data-fit]').onclick = () => {
+      svg.style.transform = '';
+      svg.removeAttribute('width');
+      svg.style.maxWidth = '100%';
+      svg.style.height = 'auto';
+      scale = 1;
+      if (label) label.textContent = 'Fit';
+    };
+    dia.querySelector('[data-one]').onclick = () => {
+      svg.style.transform = '';
+      svg.style.maxWidth = 'none';
+      svg.style.width = '';
+      svg.style.height = '';
+      scale = 1;
+      if (label) label.textContent = '100%';
+    };
+    dia.querySelector('[data-fs]').onclick = () => {
+      dia.classList.toggle('fs');
+      if (dia.classList.contains('fs')) {
+        document.addEventListener('keydown', escFs);
+      } else {
+        document.removeEventListener('keydown', escFs);
+      }
+    };
+    function escFs(e) { if (e.key === 'Escape') { dia.classList.remove('fs'); document.removeEventListener('keydown', escFs); } }
+    dia.querySelector('[data-pop]').onclick = () => openInNewTab(svg);
+    merm.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setScale(scale * (e.deltaY < 0 ? 1.1 : 1/1.1));
+    }, { passive: false });
+  });
+}
+
+function openInNewTab(svg) {
+  const svgSource = new XMLSerializer().serializeToString(svg);
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Diagram</title>
+<style>
+  html,body{margin:0;height:100%;background:#0f1115;color:#e6e8ee;font-family:system-ui,sans-serif}
+  .bar{position:fixed;top:0;left:0;right:0;padding:8px 12px;background:#161a22;border-bottom:1px solid #2a3142;display:flex;gap:8px;z-index:10}
+  .bar button{background:#1c2230;color:#9aa3b2;border:1px solid #2a3142;border-radius:6px;padding:5px 12px;font-size:13px;cursor:pointer}
+  .bar button:hover{color:#7cc4ff;border-color:#7cc4ff}
+  .bar .hint{margin-left:auto;color:#9aa3b2;font-size:11.5px;align-self:center}
+  #stage{position:absolute;top:42px;bottom:0;left:0;right:0;overflow:hidden}
+  #stage svg{width:100%;height:100%}
+</style>
+</head><body>
+<div class="bar">
+  <button onclick="zpz.zoomIn()">+</button>
+  <button onclick="zpz.zoomOut()">−</button>
+  <button onclick="zpz.fit();zpz.center()">Fit</button>
+  <button onclick="zpz.resetZoom();zpz.center()">1:1</button>
+  <button onclick="window.print()">Print</button>
+  <button onclick="dlPng()">PNG</button>
+  <button onclick="dlSvg()">SVG</button>
+  <span class="hint">Drag to pan · Ctrl+wheel to zoom · + / − keys</span>
+</div>
+<div id="stage">${svgSource}</div>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"><\/script>
+<script>
+  const el = document.querySelector('#stage svg');
+  const zpz = svgPanZoom(el, { zoomScaleSensitivity: .3, minZoom: .2, maxZoom: 10, controlIconsEnabled: false, fit: true, center: true });
+  document.addEventListener('keydown', e => {
+    if (e.key === '+' || e.key === '=') zpz.zoomIn();
+    if (e.key === '-' || e.key === '_') zpz.zoomOut();
+    if (e.key === '0') { zpz.resetZoom(); zpz.center(); }
+  });
+  function dlSvg() {
+    const blob = new Blob([new XMLSerializer().serializeToString(el)], { type: 'image/svg+xml' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'diagram.svg'; a.click();
+  }
+  function dlPng() {
+    const src = new XMLSerializer().serializeToString(el);
+    const img = new Image();
+    const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(src)));
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = el.clientWidth * 2; c.height = el.clientHeight * 2;
+      const ctx = c.getContext('2d'); ctx.scale(2,2); ctx.drawImage(img, 0, 0);
+      c.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'diagram.png'; a.click(); });
+    };
+    img.src = url;
+  }
+<\/script>
+</body></html>`;
+  const w = window.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+if (window.mermaid) {
+  setTimeout(wireMermaidToolbars, 400);
+  setTimeout(wireMermaidToolbars, 1200);
+}</script>
+</body>
+</html>

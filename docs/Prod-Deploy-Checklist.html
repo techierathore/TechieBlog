@@ -1,0 +1,1008 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TechieBlog — Production Deployment Checklist</title>
+<script>
+/* Resolve the theme BEFORE first paint (no flash). Saved choice wins; otherwise
+   pick by time of day — light 07:00–19:00 local, softened dark at night. */
+(function(){
+  try{
+    var t = localStorage.getItem('tf-theme');
+    if(t!=='light' && t!=='dark'){ var h = new Date().getHours(); t = (h>=7 && h<19) ? 'light' : 'dark'; }
+    document.documentElement.setAttribute('data-theme', t);
+  }catch(e){ document.documentElement.setAttribute('data-theme','light'); }
+})();
+</script>
+<style>
+/* LIGHT is the default theme — a warm off-white, easy on the eyes (never bright white). */
+:root{
+  --bg:#f4f1e9; --panel:#efe9db; --panel2:#e7e0cd; --line:#d8cfb6;
+  --ink:#2e2a22; --muted:#6f6857; --accent:#2f6f9f; --accent2:#3f7d54;
+  --warn:#9a6b15; --danger:#b03a52; --ok:#3f7d54;
+  --code-bg:#ece5d3; --code-ink:#332f26; --row-alt:#eae2cf;
+  --h3:#3a352b; --h4:#2f6f9f; --quote:#4a4537; --cta-bg:#e6eef5;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+/* DARK — softened near-black (warmer / less harsh than pure #0f1115). */
+html[data-theme="dark"]{
+  --bg:#11141a; --panel:#171b23; --panel2:#1e2430; --line:#2b3240;
+  --ink:#dfe3ea; --muted:#99a2b1; --accent:#7cc4ff; --accent2:#a6e3a1;
+  --warn:#f9c74f; --danger:#f38ba8; --ok:#a6e3a1;
+  --code-bg:#0c1016; --code-ink:#d8dde8; --row-alt:#141821;
+  --h3:#cfd5e3; --h4:#7cc4ff; --quote:#cfd5e3; --cta-bg:#0d2030;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;font-size:15px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:var(--mono);font-size:13px;background:var(--code-bg);color:var(--code-ink);padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+pre{font-family:var(--mono);font-size:12.5px;background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto;color:var(--code-ink);position:relative}
+pre code{background:none;border:none;padding:0}
+.copy{position:absolute;top:8px;right:8px;background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:11px;font-family:var(--sans);cursor:pointer}
+.copy:hover{color:var(--accent);border-color:var(--accent)}
+/* floating light/dark toggle (top-right) */
+.theme-toggle{position:fixed;top:12px;right:14px;z-index:10000;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12.5px;font-family:var(--sans);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.theme-toggle:hover{color:var(--accent);border-color:var(--accent)}
+
+.layout{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+.layout.no-toc{grid-template-columns:1fr}
+nav.side{position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--line);background:var(--panel);padding:18px 14px}
+nav.side h1{font-size:14px;margin:0 0 4px;letter-spacing:.5px;color:var(--ink)}
+nav.side .sub{font-size:11.5px;color:var(--muted);margin-bottom:14px}
+nav.side ol,nav.side ul{list-style:none;padding:0;margin:0}
+nav.side li{font-size:13px;margin:2px 0}
+nav.side li a{display:block;padding:5px 8px;color:var(--ink);border-radius:6px}
+nav.side li a:hover{background:var(--panel2);text-decoration:none}
+nav.side li.h3 a{padding-left:22px;font-size:12.5px;color:var(--h3)}
+nav.side .group{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin:14px 8px 4px}
+
+main{padding:28px 40px 80px;max-width:1100px}
+.layout.no-toc main{margin:0 auto}
+
+h1{font-size:28px;margin:0 0 6px}
+h2{font-size:22px;margin:32px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);scroll-margin-top:16px}
+h3{font-size:17px;margin:22px 0 6px;color:var(--h3);scroll-margin-top:16px}
+h4{font-size:14px;margin:14px 0 4px;color:var(--h4);scroll-margin-top:16px}
+.subtitle{color:var(--muted);font-size:14px;margin-top:-4px;margin-bottom:18px}
+p{margin:6px 0 10px}
+blockquote{border-left:3px solid var(--accent);background:var(--panel);margin:8px 0;padding:8px 14px;color:var(--quote)}
+ul,ol{padding-left:22px}
+li{margin:2px 0}
+
+table{border-collapse:collapse;width:100%;font-size:13.5px;margin:8px 0}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--panel2);color:var(--h3);font-weight:600}
+tr:nth-child(even) td{background:var(--row-alt)}
+
+hr{border:none;border-top:1px solid var(--line);margin:24px 0}
+.anchor-link{color:var(--muted);font-weight:400;font-size:0.85em;margin-left:8px;opacity:0;transition:opacity .15s;text-decoration:none}
+h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
+
+/* inline TOC at top of main content */
+.toc-inline{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 16px;margin:14px 0 24px}
+.toc-inline > div{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.toc-inline ol,.toc-inline ul{margin:4px 0;padding-left:18px}
+.toc-inline li{font-size:13px;margin:1px 0}
+.toc-inline a{color:var(--h3)}
+
+/* mermaid diagram wrapper + toolbar */
+.diagram{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--code-bg);margin:14px 0;overflow:hidden}
+.diagram .mermaid{padding:14px;margin:0;background:transparent;border:none;overflow:auto}
+.diagram .dt{display:flex;gap:6px;justify-content:flex-end;padding:6px 8px;background:var(--row-alt);border-bottom:1px solid var(--line)}
+.diagram .dt button{background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 10px;font-size:12px;font-family:var(--sans);cursor:pointer;min-width:30px}
+.diagram .dt button:hover{color:var(--accent);border-color:var(--accent)}
+.diagram .dt .zlabel{padding:3px 6px;font-size:11px;color:var(--muted);font-family:var(--mono);align-self:center}
+.diagram.fs{position:fixed;inset:0;z-index:9999;border-radius:0;border:none}
+.diagram.fs .mermaid{height:calc(100vh - 40px);display:flex;align-items:center;justify-content:center}
+
+@media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{position:static;height:auto}}
+</style>
+</head>
+<body>
+<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">☾ Dark</button>
+<div class="layout">
+  <nav class="side">
+    <h1>TechieBlog — Production Deployment Checklist</h1>
+    <div class="sub">Last rendered: 2026-08-16</div>
+    <div class="group">Contents</div>
+    <ol>
+      <li><a href="#0-verified-vps-state">0. Verified VPS state</a></li>
+      <li class="h3"><a href="#what-is-now-settled">What is now settled</a></li>
+      <li class="h3"><a href="#what-remains-genuinely-manual-per-app">What remains genuinely manual, per app</a></li>
+      <li class="h3"><a href="#three-contradictions-between-the-source-documents-read-before-acting">Three contradictions between the source documents — read before acting</a></li>
+      <li class="h3"><a href="#the-one-thing-still-unproven">The one thing still unproven</a></li>
+      <li><a href="#1-the-division-of-labour-who-does-what">1. The division of labour — who does what</a></li>
+      <li class="h3"><a href="#the-pipeline-does-all-of-this-on-every-push-with-no-involvement-from-you">The pipeline does all of this, on every push, with no involvement from you</a></li>
+      <li class="h3"><a href="#you-do-this-once-before-the-first-push">You do this — once, before the first push</a></li>
+      <li class="h3"><a href="#you-do-this-only-if-something-specific-happens">You do this only <em>if</em> something specific happens</a></li>
+      <li class="h3"><a href="#nothing-else-in-particular-these-are-no-longer-your-job">Nothing else. In particular, these are <em>no longer</em> your job</a></li>
+      <li><a href="#2-your-setup-list">2. Your setup list</a></li>
+      <li class="h3"><a href="#step-1-the-three-application-secrets">Step 1 — the three application secrets</a></li>
+      <li class="h3"><a href="#step-2-the-trblazeui-package-token">Step 2 — the TrBlazeUI package token</a></li>
+      <li class="h3"><a href="#step-3-the-seq-api-key">Step 3 — the Seq API key</a></li>
+      <li class="h3"><a href="#step-4-the-org-secrets">Step 4 — the org secrets</a></li>
+      <li class="h3"><a href="#step-5-dns-before-the-first-push">Step 5 — DNS, <em>before</em> the first push</a></li>
+      <li class="h3"><a href="#step-6-push">Step 6 — push</a></li>
+      <li class="h3"><a href="#step-7-uptime-monitoring">Step 7 — uptime monitoring</a></li>
+      <li class="h3"><a href="#only-if-something-specific-happens">Only if something specific happens</a></li>
+      <li class="h3"><a href="#what-the-pipeline-now-does-that-you-used-to-have-to-do">What the pipeline now does that you used to have to do</a></li>
+      <li class="h3"><a href="#nothing-else">Nothing else</a></li>
+      <li><a href="#3-every-secret-in-plain-terms">3. Every secret, in plain terms</a></li>
+      <li class="h3"><a href="#first-you-are-not-setting-the-same-secret-twice">First — you are not setting the same secret twice</a></li>
+      <li class="h3"><a href="#what-each-one-is-actually-for">What each one is actually for</a></li>
+      <li class="h3"><a href="#what-breaks-without-each-one">What breaks without each one</a></li>
+      <li class="h3"><a href="#the-three-you-must-never-rotate-casually">The three you must never rotate casually</a></li>
+      <li class="h3"><a href="#where-log-events-go-and-why-the-public-url-must-never-appear-here">Where log events go — and why the public URL must never appear here</a></li>
+      <li><a href="#4-dns-the-two-records">4. DNS — the two records</a></li>
+      <li><a href="#5-the-trblazeui-package-token">5. The TrBlazeUI package token</a></li>
+      <li class="h3"><a href="#remedy-1-a-classic-pat-stored-as-trblazeuipackagestoken-recommended">Remedy 1 — a classic PAT stored as <code>TrBlazeUiPackagesToken</code> (recommended)</a></li>
+      <li class="h3"><a href="#remedy-2-grant-this-repository-package-access-and-use-the-built-in-githubtoken">Remedy 2 — grant this repository package access, and use the built-in <code>GITHUB_TOKEN</code></a></li>
+      <li class="h3"><a href="#how-the-token-reaches-the-build-and-why-it-is-not-a-build-arg">How the token reaches the build — and why it is not a build ARG</a></li>
+      <li class="h3"><a href="#local-development-for-completeness">Local development (for completeness)</a></li>
+      <li><a href="#6-what-the-pipeline-does-step-by-step">6. What the pipeline does, step by step</a></li>
+      <li><a href="#7-after-the-first-deploy-what-to-check">7. After the first deploy — what to check</a></li>
+      <li><a href="#8-the-two-conditional-server-steps">8. The two conditional server steps</a></li>
+      <li class="h3"><a href="#if-the-pipelines-ddl-check-fails">If the pipeline&#x27;s DDL check fails</a></li>
+      <li class="h3"><a href="#if-you-have-existing-local-images-to-migrate">If you have existing local images to migrate</a></li>
+      <li class="h3"><a href="#backups-nothing-to-do">Backups — nothing to do</a></li>
+      <li><a href="#9-how-uploads-and-keys-survive-a-redeploy">9. How uploads and keys survive a redeploy</a></li>
+      <li><a href="#10-rolling-back">10. Rolling back</a></li>
+      <li><a href="#11-routine-operations">11. Routine operations</a></li>
+      <li><a href="#12-troubleshooting">12. Troubleshooting</a></li>
+      <li class="h3"><a href="#nu1301-403-forbidden-during-restore-the-image-will-not-build"><code>NU1301</code> / <code>403 Forbidden</code> during restore — the image will not build</a></li>
+      <li class="h3"><a href="#sudo-a-password-is-required-in-a-deploy-step"><code>sudo: a password is required</code> in a deploy step</a></li>
+      <li class="h3"><a href="#ssh-step-fails-with-permission-denied-publickey">SSH step fails with <code>Permission denied (publickey)</code></a></li>
+      <li class="h3"><a href="#denied-unauthorized-on-docker-compose-pull"><code>denied</code> / <code>unauthorized</code> on <code>docker compose pull</code></a></li>
+      <li class="h3"><a href="#the-container-will-not-start-sitesettingsbaseurl-analyticsvisitorsalt">The container will not start: <code>SiteSettings:BaseUrl</code> / <code>Analytics:VisitorSalt</code></a></li>
+      <li class="h3"><a href="#the-site-renders-once-then-every-click-does-nothing">The site renders once, then every click does nothing</a></li>
+      <li class="h3"><a href="#frameworkblazorwebjs-returns-404-a-dockerfile-defect"><code>/_framework/blazor.web.js</code> returns 404 — a Dockerfile defect</a></li>
+      <li class="h3"><a href="#the-site-is-up-but-completely-empty-no-posts-no-admin-no-tables">The site is up but completely empty — no posts, no admin, no tables</a></li>
+      <li class="h3"><a href="#uploads-fail-with-a-generic-error">Uploads fail with a generic error</a></li>
+      <li class="h3"><a href="#uploads-succeed-but-the-images-404">Uploads succeed but the images 404</a></li>
+      <li class="h3"><a href="#verify-fails-but-the-site-works-in-a-browser"><code>verify</code> fails but the site works in a browser</a></li>
+      <li class="h3"><a href="#ensure-db-fails"><code>ensure-db</code> fails</a></li>
+      <li><a href="#13-what-is-proven-and-what-is-not">13. What is proven and what is not</a></li>
+      <li class="h3"><a href="#actually-executed-and-proven">Actually executed and proven</a></li>
+      <li class="h3"><a href="#established-on-the-real-vps-server-state-not-pipeline-behaviour">Established on the real VPS (server state, not pipeline behaviour)</a></li>
+      <li class="h3"><a href="#still-unverified-and-unverifiable-from-a-development-machine">Still unverified, and unverifiable from a development machine</a></li>
+      <li class="h3"><a href="#unverified-and-cannot-be-verified-from-a-development-machine">Unverified, and cannot be verified from a development machine</a></li>
+    </ol>
+  </nav>
+  <main>
+    <h1>TechieBlog — Production Deployment Checklist</h1>
+    <p><strong>What the pipeline does for you, what you must do yourself, and nothing in between.</strong> Written for the repository owner, not for an agent.</p>
+    <blockquote>
+      <p><strong>Start here.</strong> Your VPS build is <strong>complete</strong> — the whole of <code>docs/bluehost-vps-runbook-v5.2.md</code>, confirmed by its own acceptance script <code>sudo /srv/checkup.sh</code> reporting <strong>0 failed</strong> on 2026-08-16. See <a href="#0-verified-vps-state">§0</a>. What is left for you is <a href="#2-your-setup-list">§2 — your setup list</a>: about twenty-five minutes, <strong>all of it in a browser</strong>. There are no routine steps on the server.</p>
+    </blockquote>
+    <p>Once §2 is done, every deployment forever after is: <strong>push to <code>main</code> → watch Actions go green → the site is live.</strong> Nothing else, ever.</p>
+    <blockquote>
+      <p><strong>This document absorbed <code>docs/Server-Setup.md</code> on 2026-08-16, which no longer exists.</strong> There were two files describing one procedure, and the shorter one had already drifted out of date on both Seq and the <code>appuser</code> privileges question. Its content is <a href="#2-your-setup-list">§2</a>, which is now written to be read on its own — that is the &quot;one page&quot; the deleted file used to be. One procedure, one file.</p>
+    </blockquote>
+    <table>
+      <thead><tr><th></th><th></th></tr></thead>
+      <tbody>
+        <tr><td>App identity (<code>APP_NAME</code>)</td><td><code>techieblog</code></td></tr>
+        <tr><td>Public domain</td><td><code>techierathore.com</code> (apex, plus a <code>www</code> → apex redirect)</td></tr>
+        <tr><td>Database</td><td><code>techieblog</code> on the VPS&#x27;s native Postgres, user <code>appuser</code>, no pgvector</td></tr>
+        <tr><td>Image</td><td><code>ghcr.io/techierathore/techieblog:latest</code> and <code>:&lt;short-sha&gt;</code></td></tr>
+        <tr><td>Compose file on the server</td><td><code>/srv/apps/techieblog/docker-compose.yml</code></td></tr>
+        <tr><td>Uploads on the server</td><td><code>/srv/data/techieblog/uploads</code> → <code>/app/uploads</code> in the container</td></tr>
+        <tr><td>DataProtection keys</td><td><code>/srv/data/techieblog/dp-keys</code> → <code>/home/app/.aspnet/DataProtection-Keys</code></td></tr>
+        <tr><td>Health endpoint</td><td><code>https://techierathore.com/healthz</code></td></tr>
+        <tr><td>Container runs as</td><td>UID/GID <strong>1654</strong> (<code>app</code>) — a deliberate deviation from deployment-brief v3.2, see <a href="#0-verified-vps-state">§0</a></td></tr>
+        <tr><td>Log shipping (app → server)</td><td><code>http://seq:5341</code> — container <code>seq</code> on the <code>web</code> network, plain HTTP. <strong>Never the public URL.</strong></td></tr>
+        <tr><td>Log reading (you → browser)</td><td><code>https://seq.techierathore.com</code>, filter <code>App = &#x27;techieblog&#x27;</code></td></tr>
+        <tr><td>SSH account the pipeline uses</td><td><strong><code>ciuser</code></strong> — dedicated CI robot account (runbook v5.2 §2.1). <code>docker</code> group, <code>webops</code> group on <code>/srv/apps</code> <code>/srv/data</code> <code>/srv/caddy/sites</code>, sudo limited to <code>ensure-db</code>, no access to <code>/srv/backups</code>. Read from the <code>VPS_USER</code> secret, never hardcoded.</td></tr>
+        <tr><td>Pipeline</td><td><code>.github/workflows/deploy.yml</code></td></tr>
+        <tr><td>Server build</td><td><code>docs/bluehost-vps-runbook-v5.2.md</code> — <strong>complete</strong>, <code>sudo /srv/checkup.sh</code> = 0 failed (2026-08-16)</td></tr>
+        <tr><td>Portfolio spec</td><td><code>docs/claude-code-deployment-brief-v3.2.md</code></td></tr>
+      </tbody>
+    </table>
+    <div class="toc-inline">
+      <div>Contents</div>
+      <ol start="0">
+        <li><a href="#0-verified-vps-state">Verified VPS state</a></li>
+        <li><a href="#1-the-division-of-labour-who-does-what">The division of labour — who does what</a></li>
+        <li><a href="#2-your-setup-list">Your setup list</a></li>
+        <li><a href="#3-every-secret-in-plain-terms">Every secret, in plain terms</a></li>
+        <li><a href="#4-dns-the-two-records">DNS — the two records</a></li>
+        <li><a href="#5-the-trblazeui-package-token">The TrBlazeUI package token</a></li>
+        <li><a href="#6-what-the-pipeline-does-step-by-step">What the pipeline does, step by step</a></li>
+        <li><a href="#7-after-the-first-deploy-what-to-check">After the first deploy — what to check</a></li>
+        <li><a href="#8-the-two-conditional-server-steps">The two conditional server steps</a></li>
+        <li><a href="#9-how-uploads-and-keys-survive-a-redeploy">How uploads and keys survive a redeploy</a></li>
+        <li><a href="#10-rolling-back">Rolling back</a></li>
+        <li><a href="#11-routine-operations">Routine operations</a></li>
+        <li><a href="#12-troubleshooting">Troubleshooting</a></li>
+        <li><a href="#13-what-is-proven-and-what-is-not">What is proven and what is not</a></li>
+      </ol>
+    </div>
+    <hr>
+    <h2 id="0-verified-vps-state">0. Verified VPS state<a class="anchor-link" href="#0-verified-vps-state">#</a></h2>
+    <p><strong>The server build is COMPLETE.</strong> On <strong>2026-08-16</strong> the owner finished the whole of <code>docs/bluehost-vps-runbook-v5.2.md</code> and ran its acceptance script, <code>sudo /srv/checkup.sh</code> (runbook Part 9), which reported <strong>0 failed</strong>. That script is not a summary of intentions — it checks swap, ufw, fail2ban, unattended-upgrades, cron, PostgreSQL (running, accepting queries, pgvector available), Docker, the <code>web</code> network, restart-looping containers, Caddy (up and <code>caddy validate</code> clean), <strong>Seq (container up and answering through Caddy)</strong>, every <code>/srv</code> folder, the backup script + its cron registration + a recent backup present on <strong>both</strong> OneDrive and Google Drive.</p>
+    <p><strong>The only thing not done manually is deploying an application container</strong> — that is this pipeline&#x27;s job, deliberately.</p>
+    <p>This section used to be a ledger of assumptions and half-corrections. It is now short, because the questions it tracked are answered.</p>
+    <h3 id="what-is-now-settled">What is now settled<a class="anchor-link" href="#what-is-now-settled">#</a></h3>
+    <table>
+      <thead><tr><th>Question this document used to hedge</th><th>Settled answer</th></tr></thead>
+      <tbody>
+        <tr><td>Is PostgreSQL reachable from a container?</td><td><strong>Yes</strong> — <code>172.17.0.1:5432</code>, user <code>appuser</code>. Runbook Steps 6–7; <code>checkup.sh</code> confirms Postgres runs and answers queries. <strong>Do not modify <code>postgresql.conf</code> or <code>pg_hba.conf</code>.</strong></td></tr>
+        <tr><td>Does <code>appuser</code> have DDL rights?</td><td><strong>Yes</strong> — owner-confirmed. <code>ensure-db</code> runs <code>createdb -O appuser</code>, so <code>appuser</code> owns the database.</td></tr>
+        <tr><td>Does a <code>seq</code> container exist?</td><td><strong>Yes</strong> — container <strong><code>seq</code></strong> on network <strong><code>web</code></strong>, ingestion at <strong><code>http://seq:5341</code></strong> (plain HTTP, no TLS, no port mapping). <code>checkup.sh</code> verifies it is up and answering.</td></tr>
+        <tr><td>Is the internal Seq address really <code>http://seq:5341</code>?</td><td><strong>Yes.</strong> This was the last open unknown; the v5 runbook and the v3 deployment brief both state it as a contract constant, and <code>checkup.sh</code> proves the container exists on the right network.</td></tr>
+        <tr><td>Is the server authenticated to GHCR?</td><td><strong>As <code>ravi</code>, yes. As <code>ciuser</code> — the account the pipeline actually uses — NO.</strong> See the third contradiction below; this one has teeth.</td></tr>
+        <tr><td>Which account does the pipeline SSH in as?</td><td><strong><code>ciuser</code></strong> (runbook v5.2 §2.1), from the <code>VPS_USER</code> secret. In the <code>docker</code> group (so no <code>sudo docker</code>), <code>webops</code> group on <code>/srv/apps</code> <code>/srv/data</code> <code>/srv/caddy/sites</code>, and exactly <strong>one</strong> sudo command: <code>/usr/local/bin/ensure-db</code>. No access to <code>/srv/backups</code> or the main <code>Caddyfile</code>.</td></tr>
+        <tr><td>Do <code>/srv/apps</code> and <code>/srv/data</code> exist?</td><td><strong>Yes</strong>, owned by the deploy user (<code>ravi</code>). Runbook Step 8, which now also creates <code>/srv/caddy/sites</code>.</td></tr>
+        <tr><td>Is swap configured?</td><td><strong>Yes</strong> — runbook Part 7.1, checked by <code>checkup.sh</code>. The earlier &quot;no swap&quot; warning is obsolete.</td></tr>
+        <tr><td>Is <code>ensure-db</code> passwordless for the deploy user?</td><td><strong>Yes</strong> — <code>/etc/sudoers.d/ensure-db</code>. It is the <strong>only</strong> SQL the workflow may run.</td></tr>
+      </tbody>
+    </table>
+    <h3 id="what-remains-genuinely-manual-per-app">What remains genuinely manual, per app<a class="anchor-link" href="#what-remains-genuinely-manual-per-app">#</a></h3>
+    <p>Exactly <strong>two</strong> things, per the deployment brief — plus the ones specific to this repo:</p>
+    <table>
+      <thead><tr><th>#</th><th>Manual step</th><th>Why it cannot be automated</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>The DNS A records</strong></td><td>The pipeline holds no DNS credentials, by design.</td></tr>
+        <tr><td>2</td><td><strong>The Seq API key</strong></td><td>Created in the Seq UI per runbook §6.3, then stored as a GitHub secret. One key <strong>per app</strong> — never shared.</td></tr>
+      </tbody>
+    </table>
+    <p>Plus, for TechieBlog specifically: the three application secrets and the TrBlazeUI package token (§2), because this app refuses to start without the former and cannot build without the latter.</p>
+    <h3 id="three-contradictions-between-the-source-documents-read-before-acting">Three contradictions between the source documents — read before acting<a class="anchor-link" href="#three-contradictions-between-the-source-documents-read-before-acting">#</a></h3>
+    <p>None is a defect in this deployment. Two are places where the upstream documents disagree with each other; <strong>the third is a place where the brief describes the server as it was before the <code>ciuser</code> change, and would have failed your first deploy.</strong> This file records what this repo does about each.</p>
+    <p><strong>0. THE GHCR CREDENTIAL DOES NOT COVER <code>ciuser</code> — the one that bites.</strong></p>
+    <p>Brief v3.2 §0 says <em>&quot;the server is already authenticated as <code>techierathore</code> via a stored PAT (runbook Step 12) … the workflow must not run <code>docker login</code> over SSH.&quot;</em> That answer was written when the pipeline connected as <code>ravi</code>. Runbook v5.2 §2.1 then moved CI onto a brand-new account, and the two facts do not compose:</p>
+    <ul>
+      <li><strong>Docker registry credentials are per-user</strong>, stored in <code>~/.docker/config.json</code>.</li>
+      <li>Membership of the <code>docker</code> group grants access to the <strong>daemon</strong>. It grants nothing at the <strong>registry</strong>.</li>
+      <li>Runbook <strong>Step 12 ran as <code>ravi</code></strong> — <code>ciuser</code> does not exist until Part 2.1, which comes later.</li>
+    </ul>
+    <p>So <code>/home/ciuser/.docker/config.json</code> does not exist, and <code>docker compose pull</code> of a private image as <code>ciuser</code> would fail <strong><code>unauthorized</code></strong>.</p>
+    <p><strong>This repo survives it</strong> because the pull step checks for a stored credential first and falls back to an ephemeral <code>docker login</code> with the run&#x27;s own <code>GITHUB_TOKEN</code>, logging out again via an <code>EXIT</code> trap. That fallback was written as a safety net for a state the brief said could not happen; it is now <strong>the live path</strong>. Deleting it to satisfy the letter of the brief would break the deploy.</p>
+    <p><strong>To make the brief true again</strong>, run one command on the server as <code>ravi</code> — then the fallback goes dormant and stays dormant:</p>
+    <pre><code class="language-bash">sudo -u ciuser -H bash -c \
+  &#x27;echo &lt;YOUR_PAT&gt; | docker login ghcr.io -u techierathore --password-stdin&#x27;</code></pre>
+    <p>Either way the deploy works. The command is worth running because a per-run token is a per-run dependency: it ties every pull to <code>packages: read</code> on the workflow, and it re-authenticates on every deploy rather than once ever.</p>
+    <hr>
+    <p>The remaining two are genuine disagreements between the documents.</p>
+    <p><strong>1. The Seq secret&#x27;s NAME.</strong> Runbook v5.2 §6.3 says to name the GitHub secret <code>SEQ_APIKEY_BLOG</code> (uppercase, app suffix). Deployment brief v3.2 §2 says <strong><code>SEQ_API_KEY</code></strong> — the same name in every repo, different value per app — and explicitly justifies it: <em>&quot;Keeping the secret name identical across repos means the workflow YAML stays byte-identical — only the value differs.&quot;</em></p>
+    <p><strong>This repo follows the brief: the secret is <code>SEQ_API_KEY</code>.</strong> The brief is the newer document, it cites §6.3 as its own source, and its reasoning is the stronger one. <strong>Name the secret <code>SEQ_API_KEY</code></strong> when you create it in §2 — if you name it <code>SEQ_APIKEY_BLOG</code>, the workflow will not see it and logs will ship unattributed.</p>
+    <p><strong>2. The container user.</strong> Brief v3.2 says the container must run as <strong>root</strong> with <strong>no <code>USER</code> directive</strong>, on the grounds that a non-root user cannot write to the <code>ravi</code>-owned uploads bind mount.</p>
+    <p><strong>This repo deliberately deviates: the container runs as non-root UID <code>1654</code>.</strong> The brief&#x27;s premise does not hold here, because this pipeline <strong>fixes ownership on the two bind-mounted leaf directories every deploy and then probes that they are writable</strong>. That mechanism was executed against real directories with real Docker and proven in both directions (§13). Running the public-facing web container as root to avoid a <code>chown</code> the pipeline already performs is the worse trade.</p>
+    <p>The brief v3.2 also adds <em>&quot;never <code>chown</code> or <code>chmod</code> from a workflow — group inheritance is handled by the setgid bit.&quot;</em> That rule exists to stop a workflow destroying the <code>webops</code> group model that gives <code>ciuser</code> its access, and <strong>it caught a real bug here.</strong> The ownership fix used to run <code>chown -R 1654:1654</code>, which replaces group <code>webops</code> with group <code>1654</code> — cutting <code>ciuser</code> out of the very directories it created, and silently breaking §8&#x27;s <code>rsync</code> uploads-migration path, which connects as <code>VPS_USER</code> (= <code>ciuser</code>).</p>
+    <p><strong>Fixed on 2026-08-16, and measured rather than reasoned about.</strong> The step now:</p>
+    <pre><code class="language-sh">chown -R 1654 &quot;$d&quot;     # owner only — group `webops` is left alone
+chmod g+ws  &quot;$d&quot;       # directory only — restores group-write + setgid</code></pre>
+    <p>Verified end to end against real Docker on both a Debian base (what the app image is) and Alpine: resulting mode <code>drwxrwsr-x</code>, owner <code>1654</code>, group unchanged; <strong>container UID 1654 writes, and a <code>webops</code>-group user writes</strong> — so the rsync path still works; a file created by the container inherits group <code>webops</code> via setgid, which is also what keeps the <code>/srv/data</code> backup archive readable; idempotent across three consecutive runs; the parent directory is never touched; and uploaded files stay <code>-rw-r--r--</code> rather than becoming group-writable.</p>
+    <p><strong>What this costs you:</strong> nothing operationally, but it is a knowing departure from the portfolio spec. If you ever adopt the brief&#x27;s shape, delete <code>USER $APP_UID</code> from the <code>Dockerfile</code> <strong>and</strong> the ownership-fix step together — removing only one of the two breaks uploads.</p>
+    <h3 id="the-one-thing-still-unproven">The one thing still unproven<a class="anchor-link" href="#the-one-thing-still-unproven">#</a></h3>
+    <p><strong>No part of this pipeline has ever executed against the real VPS.</strong> The server&#x27;s <em>state</em> is now thoroughly known; the pipeline&#x27;s <em>behaviour against it</em> is not. §13 is the honest ledger.</p>
+    <hr>
+    <h2 id="1-the-division-of-labour-who-does-what">1. The division of labour — who does what<a class="anchor-link" href="#1-the-division-of-labour-who-does-what">#</a></h2>
+    <p>This is the table the rest of the document elaborates. <strong>If you read nothing else, read this.</strong></p>
+    <h3 id="the-pipeline-does-all-of-this-on-every-push-with-no-involvement-from-you">The pipeline does all of this, on every push, with no involvement from you<a class="anchor-link" href="#the-pipeline-does-all-of-this-on-every-push-with-no-involvement-from-you">#</a></h3>
+    <table>
+      <thead><tr><th>#</th><th>What</th><th>Where it happens</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Checks the private TrBlazeUI feed is reachable <strong>before</strong> building, so a credential problem is one readable line instead of sixty lines of NuGet noise</td><td><code>build</code> job</td></tr>
+        <tr><td>2</td><td>Builds the Docker image and pushes it to GHCR as <code>:latest</code> <strong>and</strong> <code>:&lt;short-sha&gt;</code> (that second tag is your rollback history)</td><td><code>build</code> job</td></tr>
+        <tr><td>3</td><td>Checks every required secret is present <strong>and long enough</strong>, before doing anything on the server</td><td><code>deploy</code> job</td></tr>
+        <tr><td>4</td><td>Renders <code>docker-compose.yml</code> from the template with the real secret values, and refuses to continue if any placeholder survived</td><td><code>deploy</code> job</td></tr>
+        <tr><td>5</td><td>Creates <code>/srv/apps/techieblog</code> and <code>/srv/data/techieblog/{uploads,dp-keys}</code> on the server</td><td><code>deploy</code> job</td></tr>
+        <tr><td>6</td><td>Copies the rendered compose file to the server</td><td><code>deploy</code> job</td></tr>
+        <tr><td>7</td><td>Installs the Caddy site snippet <strong>only if it is not already there</strong>, and reloads Caddy</td><td><code>deploy</code> job</td></tr>
+        <tr><td>8</td><td>Creates the <code>techieblog</code> database if it does not exist (<code>ensure-db</code>)</td><td><code>deploy</code> job</td></tr>
+        <tr><td>9</td><td><strong>Verifies <code>appuser</code> can actually create tables</strong>, and fails the deploy with the exact <code>GRANT</code> statements if it cannot</td><td><code>deploy</code> job</td></tr>
+        <tr><td>10</td><td><strong>Logs the server in to GHCR</strong> for the duration of the pull, then logs out again — leaving no credential behind</td><td><code>deploy</code> job</td></tr>
+        <tr><td>11</td><td>Pulls the new image</td><td><code>deploy</code> job</td></tr>
+        <tr><td>12</td><td><strong>Fixes ownership of the uploads and key-ring directories to UID 1654</strong>, every time, idempotently</td><td><code>deploy</code> job</td></tr>
+        <tr><td>13</td><td>Starts the new container and prunes the old image</td><td><code>deploy</code> job</td></tr>
+        <tr><td>14</td><td><strong>Probes that both persistent directories are genuinely writable by the container</strong>, and fails loudly if not</td><td><code>deploy</code> job</td></tr>
+        <tr><td>14a</td><td><strong>Reports where log events are actually going</strong> — checks a <code>seq</code> container exists on the <code>web</code> network and prints the <code>SeqUrl</code> the container was configured with. Warning only; never fails the deploy</td><td><code>deploy</code> job</td></tr>
+        <tr><td>15</td><td>Checks <code>https://techierathore.com/healthz</code> returns 200 — which means DNS, TLS, Caddy, the app <strong>and the database</strong> all worked</td><td><code>verify</code> job</td></tr>
+        <tr><td>16</td><td>Checks <code>/_framework/blazor.web.js</code> returns 200 — catching the defect where the site renders but nothing is clickable</td><td><code>verify</code> job</td></tr>
+        <tr><td>17</td><td>Checks the <code>www</code> → apex redirect answers (warning only, not fatal)</td><td><code>verify</code> job</td></tr>
+      </tbody>
+    </table>
+    <h3 id="you-do-this-once-before-the-first-push">You do this — once, before the first push<a class="anchor-link" href="#you-do-this-once-before-the-first-push">#</a></h3>
+    <table>
+      <thead><tr><th>#</th><th>What</th><th>Where</th><th>Time</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Add three application secrets — §3</td><td>GitHub repo settings</td><td>5 min</td></tr>
+        <tr><td>2</td><td>Add the TrBlazeUI package token — §5</td><td>GitHub repo settings</td><td>5 min</td></tr>
+        <tr><td>3</td><td>Create the Seq API key, store as <code>SEQ_API_KEY</code> — §2</td><td>Seq UI, then GitHub</td><td>3 min</td></tr>
+        <tr><td>4</td><td>Confirm the org secrets reach this repo — §3</td><td>GitHub org settings</td><td>1 min</td></tr>
+        <tr><td>5</td><td>Add two DNS A records — §4</td><td>Your registrar</td><td>2 min</td></tr>
+        <tr><td>6</td><td>Push to <code>main</code></td><td>Your machine</td><td>—</td></tr>
+        <tr><td>7</td><td>Add one UptimeRobot monitor — §7</td><td>UptimeRobot</td><td>2 min</td></tr>
+      </tbody>
+    </table>
+    <h3 id="you-do-this-only-if-something-specific-happens">You do this only <em>if</em> something specific happens<a class="anchor-link" href="#you-do-this-only-if-something-specific-happens">#</a></h3>
+    <table>
+      <thead><tr><th>What</th><th>When</th></tr></thead>
+      <tbody>
+        <tr><td>Run three <code>GRANT</code> statements as a superuser — §8</td><td><strong>Only if</strong> the pipeline&#x27;s DDL check fails and prints them</td></tr>
+        <tr><td><code>rsync</code> your existing local images to the server — §8</td><td><strong>Only if</strong> you have images under your dev copy&#x27;s <code>wwwroot/uploads</code></td></tr>
+      </tbody>
+    </table>
+    <h3 id="nothing-else-in-particular-these-are-no-longer-your-job">Nothing else. In particular, these are <em>no longer</em> your job<a class="anchor-link" href="#nothing-else-in-particular-these-are-no-longer-your-job">#</a></h3>
+    <p>Earlier versions of this document asked you to do all of the following by hand after the first deploy. <strong>The pipeline now does every one of them, on every deploy:</strong></p>
+    <ul>
+      <li><del><code>sudo chown -R 1654:1654</code> on <code>uploads</code> and <code>dp-keys</code></del> → automatic (item 12), and verified (item 14)</li>
+      <li><del><code>docker exec techieblog touch /app/uploads/probe</code></del> → automatic (item 14)</li>
+      <li><del>The <code>CREATE TABLE</code> probe for <code>appuser</code> privileges</del> → automatic, and it now <em>gates</em> the deploy (item 9)</li>
+      <li><del><code>docker login ghcr.io</code> on the server</del> → automatic and ephemeral (item 10)</li>
+      <li><del><code>curl</code> the Blazor script and the <code>www</code> redirect by hand</del> → automatic (items 16, 17)</li>
+    </ul>
+    <hr>
+    <h2 id="2-your-setup-list">2. Your setup list<a class="anchor-link" href="#2-your-setup-list">#</a></h2>
+    <p><strong>This section is the whole job.</strong> It is written to be read on its own — it is what <code>docs/Server-Setup.md</code> used to be, before that file was folded in here on 2026-08-16. Everything else in this document is reference material you consult when something specific happens.</p>
+    <p>Seven things, in this order. <strong>Everything except step 5 happens in a browser.</strong> About twenty-five minutes.</p>
+    <p><strong>There are no routine steps on the server. Not one.</strong> Your VPS build is complete and verified (§0) — nothing below asks you to redo any of <code>docs/bluehost-vps-runbook-v5.2.md</code>.</p>
+    <p>Generated for <code>APP_NAME=techieblog</code> · <code>DOMAIN=techierathore.com</code> (apex) · <code>DB_NAME=techieblog</code> · <code>NEEDS_PGVECTOR=no</code> · <code>HAS_UPLOADS=yes</code>.</p>
+    <table>
+      <thead><tr><th>#</th><th>Step</th><th>Where</th><th>Time</th><th>Done when</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Add the three application secrets</td><td>GitHub repo settings</td><td>5 min</td><td>All three listed under Actions secrets</td></tr>
+        <tr><td>2</td><td>Add the TrBlazeUI package token</td><td>GitHub repo settings</td><td>5 min</td><td>The build job gets past &quot;Preflight — TrBlazeUI feed authentication&quot;</td></tr>
+        <tr><td>3</td><td><strong>Create the Seq API key and store it as <code>SEQ_API_KEY</code></strong></td><td>Seq UI, then GitHub</td><td>3 min</td><td>Key titled <code>techieblog</code> exists in Seq; repo secret <code>SEQ_API_KEY</code> listed</td></tr>
+        <tr><td>4</td><td>Confirm the org secrets reach this repo</td><td>GitHub org settings</td><td>1 min</td><td><code>VPS_HOST</code>, <code>VPS_USER</code>, <code>VPS_SSH_KEY</code>, <code>DB_PASSWORD</code> all listed</td></tr>
+        <tr><td>5</td><td>Add two DNS A records</td><td>Your registrar</td><td>2 min</td><td><code>dig +short techierathore.com</code> returns the VPS IP</td></tr>
+        <tr><td>6</td><td>Push to <code>main</code></td><td>Your machine</td><td>—</td><td><code>build</code> → <code>deploy</code> → <code>verify</code> all green</td></tr>
+        <tr><td>7</td><td>Add one UptimeRobot monitor</td><td>UptimeRobot</td><td>2 min</td><td>Monitor shows &quot;Up&quot;</td></tr>
+      </tbody>
+    </table>
+    <h3 id="step-1-the-three-application-secrets">Step 1 — the three application secrets<a class="anchor-link" href="#step-1-the-three-application-secrets">#</a></h3>
+    <p><strong>Settings → Secrets and variables → Actions → New repository secret.</strong> Each one makes the container <strong>refuse to start</strong> if it is missing — that is deliberate, not a bug.</p>
+    <pre><code class="language-bash">openssl rand -hex 32   # JWT_SIGNING_KEY         signs your sign-in tokens        (&gt;= 32 chars)
+openssl rand -hex 24   # APP_ENCRYPTION_KEY      locks stored SMTP / storage keys (&gt;= 16 chars)
+openssl rand -hex 32   # ANALYTICS_VISITOR_SALT  anonymises visitor IPs           (&gt;= 32 chars)</code></pre>
+    <p><strong>Store all three in your password manager the moment you generate them.</strong> They exist nowhere else — GitHub never shows a secret&#x27;s value again after you save it.</p>
+    <p><strong>Before you generate any key</strong>, decide one thing: does this deployment start from an <strong>empty</strong> database, or restore an <strong>existing</strong> TechieBlog database?</p>
+    <p>⚠ <strong>If you are restoring an existing TechieBlog database, reuse the existing <code>APP_ENCRYPTION_KEY</code>.</strong> A fresh one makes the stored SMTP password and cloud storage key permanently unreadable.</p>
+    <p>⚠ <strong>Treat all three as write-once.</strong> Rotating <code>JWT_SIGNING_KEY</code> signs everyone out; rotating <code>APP_ENCRYPTION_KEY</code> destroys stored credentials; rotating <code>ANALYTICS_VISITOR_SALT</code> resets every visitor pseudonym. Details in §3.</p>
+    <h3 id="step-2-the-trblazeui-package-token">Step 2 — the TrBlazeUI package token<a class="anchor-link" href="#step-2-the-trblazeui-package-token">#</a></h3>
+    <p><code>TrBlazeUiPackagesToken</code> — a <strong>classic</strong> PAT (not fine-grained) with <strong><code>read:packages</code></strong> only. Name it exactly that; it is case-sensitive. Without it the image never builds.</p>
+    <p>Alternative: grant this repository Read access on each TrBlazeUI package page, and the built-in <code>GITHUB_TOKEN</code> suffices. Full steps for both: §5.</p>
+    <h3 id="step-3-the-seq-api-key">Step 3 — the Seq API key<a class="anchor-link" href="#step-3-the-seq-api-key">#</a></h3>
+    <p>One of the <strong>two</strong> genuinely manual per-app steps in the whole portfolio (the other is DNS). Runbook v5.2 §6.3 is emphatic that keys are <strong>per app, never shared</strong> — a per-app key stamps <code>App</code> on every event <em>server-side</em>, so logs stay attributable even if the app&#x27;s own enrichment is wrong; it can be revoked without redeploying every other app; and a noisy app can be throttled at the key.</p>
+    <ol>
+      <li>Open <code>https://seq.techierathore.com</code> and sign in as <code>admin</code>.</li>
+      <li><strong>Settings → API Keys → Add API Key</strong>.</li>
+      <li><strong>Title:</strong> <code>techieblog</code>.</li>
+      <li><strong>Applied properties:</strong> add <code>App</code> = <code>techieblog</code>.</li>
+      <li>Leave <strong>Minimum level</strong> at Information.</li>
+      <li>Save, and <strong>copy the key immediately</strong> — Seq shows it once.</li>
+      <li>In this repository: <strong>Settings → Secrets and variables → Actions → New repository secret</strong>.</li>
+      <li><strong>Name:</strong> <code>SEQ_API_KEY</code> — exactly this.</li>
+    </ol>
+    <blockquote>
+      <p>⚠ <strong>Name it <code>SEQ_API_KEY</code>, not <code>SEQ_APIKEY_BLOG</code>.</strong> Runbook v5.2 §6.3 suggests the latter; the v3 deployment brief specifies the former and this repo&#x27;s workflow reads the former. §0 explains why the brief wins. A mis-named secret does not fail the build — logs simply ship without a key, which you would only notice by looking.</p>
+    </blockquote>
+    <p><strong>If you skip this step</strong>, the deploy still succeeds and logs still ship — that Seq accepts unauthenticated ingestion — but events arrive with no ingestion identity. The pipeline emits a <code>::warning::</code> saying so.</p>
+    <h3 id="step-4-the-org-secrets">Step 4 — the org secrets<a class="anchor-link" href="#step-4-the-org-secrets">#</a></h3>
+    <p>Already exist per the environment contract — just confirm this repo can see them: <code>VPS_HOST</code>, <code>VPS_USER</code>, <code>VPS_SSH_KEY</code>, <code>DB_PASSWORD</code>.</p>
+    <p>You created <code>DB_PASSWORD</code> on the server during the runbook. GitHub holds a <strong>copy</strong> so it can write it into the app&#x27;s configuration — the server is the source. You are not setting it twice.</p>
+    <h3 id="step-5-dns-before-the-first-push">Step 5 — DNS, <em>before</em> the first push<a class="anchor-link" href="#step-5-dns-before-the-first-push">#</a></h3>
+    <p>The pipeline never touches DNS. Caddy provisions the certificate on the first request and cannot do so for a name that does not resolve.</p>
+    <table>
+      <thead><tr><th>Type</th><th>Name</th><th>Value</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td>A</td><td><code>@</code></td><td><em>your VPS IPv4</em></td><td>Apex record. <strong>DNS only — grey cloud</strong> if on Cloudflare.</td></tr>
+        <tr><td>A</td><td><code>www</code></td><td><em>your VPS IPv4</em></td><td>For the <code>www</code> → apex redirect. A <code>CNAME www → techierathore.com</code> also works. <strong>Grey cloud.</strong></td></tr>
+      </tbody>
+    </table>
+    <p>An orange-cloud record terminates TLS at Cloudflare, which breaks both certificate issuance and the Blazor WebSocket. Keep both DNS-only. Full reasoning: §4.</p>
+    <pre><code class="language-bash">dig +short techierathore.com
+dig +short www.techierathore.com   # both must return the VPS IP</code></pre>
+    <h3 id="step-6-push">Step 6 — push<a class="anchor-link" href="#step-6-push">#</a></h3>
+    <p><code>build</code> → <code>deploy</code> → <code>verify</code>, all green. The <code>verify</code> job proves DNS, TLS, Caddy, the app, the database <strong>and</strong> that the Blazor script is being served.</p>
+    <blockquote>
+      <p><strong>Which branch deploys: <code>main</code>, and only <code>main</code>.</strong> Pushing to <code>dev</code> deliberately does <strong>not</strong> deploy — <code>ci.yml</code> still builds and tests it. There is no second production branch.</p>
+      <p>If a push to <code>main</code> ever produces <strong>no Deploy run at all</strong>, check the trigger list first: a branch that does not match is completely silent, which reads exactly like a broken pipeline because there is no failed job to open. The workflow also has <code>workflow_dispatch</code>, so you can always run it by hand from the Actions tab.</p>
+      <p><em>Correction, 2026-08-16: an earlier revision of this document said <code>master</code> was this repo&#x27;s main branch and the workflow briefly accepted both names. That came from a stale session snapshot, not from the repository. Corrected to <code>main</code> only.</em></p>
+    </blockquote>
+    <h3 id="step-7-uptime-monitoring">Step 7 — uptime monitoring<a class="anchor-link" href="#step-7-uptime-monitoring">#</a></h3>
+    <p>UptimeRobot → <strong>Add New Monitor</strong> → <strong>HTTP(s)</strong> → <code>https://techierathore.com/healthz</code> → interval 5 minutes → alert after 2 consecutive failures.</p>
+    <blockquote>
+      <p><code>/healthz</code> is anonymous, exempt from rate limiting, and carries the <strong>readiness</strong> checks — PostgreSQL and the DbUp schema journal included. A green response means the database answered and the migrations applied, not merely that the process is alive. It returns <strong>503</strong> otherwise. Same URL the pipeline probes: one URL, one meaning.</p>
+    </blockquote>
+    <h3 id="only-if-something-specific-happens">Only if something specific happens<a class="anchor-link" href="#only-if-something-specific-happens">#</a></h3>
+    <p><strong>If the pipeline&#x27;s <code>Verify appuser DDL rights</code> step fails</strong>, it prints three <code>GRANT</code> statements. Run them on the VPS as a superuser, once, then re-run the workflow — §8. (You confirmed on 2026-08-16 that <code>appuser</code> already holds these rights, so this should never fire.)</p>
+    <p><strong>If you have images under your dev copy&#x27;s <code>wwwroot/uploads</code></strong>, <code>rsync</code> them to <code>/srv/data/techieblog/uploads</code> — §8. No <code>chown</code> afterwards; the next deploy fixes ownership itself.</p>
+    <h3 id="what-the-pipeline-now-does-that-you-used-to-have-to-do">What the pipeline now does that you used to have to do<a class="anchor-link" href="#what-the-pipeline-now-does-that-you-used-to-have-to-do">#</a></h3>
+    <table>
+      <thead><tr><th>Was your job</th><th>Now</th></tr></thead>
+      <tbody>
+        <tr><td><code>sudo chown -R 1654:1654</code> on <code>uploads</code> and <code>dp-keys</code></td><td>Automatic on every deploy, then <strong>probed</strong> to confirm it worked</td></tr>
+        <tr><td><code>docker exec techieblog touch /app/uploads/probe</code></td><td>Automatic; a non-writable mount fails the deploy</td></tr>
+        <tr><td>The <code>CREATE TABLE</code> probe for <code>appuser</code></td><td>Automatic, and it now <strong>gates</strong> the deploy — before the container starts</td></tr>
+        <tr><td><code>docker login ghcr.io</code> on the server</td><td>Automatic and ephemeral; an existing manual login is detected and left alone</td></tr>
+        <tr><td><code>curl</code> the Blazor script / <code>www</code> redirect</td><td>Automatic in the <code>verify</code> job</td></tr>
+      </tbody>
+    </table>
+    <h3 id="nothing-else">Nothing else<a class="anchor-link" href="#nothing-else">#</a></h3>
+    <ul>
+      <li><strong>Backups:</strong> no action. <code>pg_dumpall</code> picks up <code>techieblog</code> automatically, and the <code>/srv/data</code> archive picks up <code>uploads</code> and <code>dp-keys</code> — which is precisely why they live there.</li>
+      <li><strong>Database:</strong> created by <code>sudo /usr/local/bin/ensure-db techieblog</code> inside the pipeline. No <code>vector</code> extension. Schema applied by DbUp on every boot.</li>
+      <li><strong>Caddy:</strong> the pipeline installs <code>/srv/caddy/sites/techieblog.caddy</code> <strong>only if absent</strong>, and never overwrites it. An existing file is authoritative — edit it on the server and reload by hand.</li>
+      <li><strong>Logs:</strong> stdout plus Seq. <code>docker logs techieblog</code> for the recent buffer, <code>https://seq.techierathore.com</code> for durable history.</li>
+    </ul>
+    <hr>
+    <h2 id="3-every-secret-in-plain-terms">3. Every secret, in plain terms<a class="anchor-link" href="#3-every-secret-in-plain-terms">#</a></h2>
+    <h3 id="first-you-are-not-setting-the-same-secret-twice">First — you are not setting the same secret twice<a class="anchor-link" href="#first-you-are-not-setting-the-same-secret-twice">#</a></h3>
+    <p>This is the confusing part, so here it is directly. There are two places, and they hold two different kinds of thing.</p>
+    <p><strong>On the server live the credentials the server&#x27;s own services own.</strong> You created these during the VPS runbook and they are already done — you do not touch them again:</p>
+    <ul>
+      <li>the PostgreSQL password for <code>appuser</code> (runbook Step 6)</li>
+      <li>the Seq admin password (runbook Part 6.1)</li>
+      <li>the <strong>GHCR pull credential</strong> — you logged the server in as <code>techierathore</code> with a stored PAT (runbook Step 12). This is why the pipeline never runs <code>docker login</code> over SSH.</li>
+      <li>the rclone OneDrive / Google Drive tokens for backups (runbook Part 3.2–3.3)</li>
+      <li>your SSH public key in <code>~/.ssh/authorized_keys</code></li>
+    </ul>
+    <p><strong>In GitHub live the values the pipeline needs in order to reach that server and configure the app.</strong> Nine of them.</p>
+    <p>Only <strong>two</strong> values could exist in both places — <code>DB_PASSWORD</code> and <code>SEQ_API_KEY</code> — and not out of duplication. The server owns the database and owns Seq; GitHub has to be <em>told</em> those values so it can write them into the container&#x27;s configuration. <strong>The server is the source, GitHub is the copy.</strong> The Seq key is the clearest case: you mint it in the Seq UI (§2 step 3), so it is born on the server and GitHub holds the copy the pipeline injects.</p>
+    <p><strong>The GHCR PAT is the one server credential that is deliberately NOT mirrored into GitHub.</strong> The brief is explicit: the server pulls with its own stored login, and putting a pull PAT in a workflow secret is prohibited. If a pull ever fails <code>unauthorized</code>, that PAT expired — re-run runbook Step 12 by hand. It is not a pipeline change.</p>
+    <p>Everything else is one-sided:</p>
+    <ul>
+      <li><code>VPS_SSH_KEY</code> is the <strong>private half</strong> of a key pair whose <strong>public half</strong> sits on the server. That is two halves of one key, not two secrets.</li>
+      <li><code>JWT_SIGNING_KEY</code>, <code>APP_ENCRYPTION_KEY</code> and <code>ANALYTICS_VISITOR_SALT</code> exist <strong>only in GitHub</strong>. You never type them on the server.</li>
+      <li><code>TrBlazeUiPackagesToken</code> exists <strong>only in GitHub</strong>, and only while the image is being built. It never reaches the server at all.</li>
+    </ul>
+    <p><strong>Where they end up.</strong> The pipeline writes <code>/srv/apps/techieblog/docker-compose.yml</code> on the server with the real values inside it. So yes — if you <code>cat</code> that file you will see secrets in plain text. But you never typed them there, the pipeline wrote them, and it rewrites the file on every deploy. That single file is the only place on the server they appear.</p>
+    <h3 id="what-each-one-is-actually-for">What each one is actually for<a class="anchor-link" href="#what-each-one-is-actually-for">#</a></h3>
+    <table>
+      <thead><tr><th>Secret</th><th>In plain terms</th><th>Where it came from</th></tr></thead>
+      <tbody>
+        <tr><td><code>VPS_HOST</code></td><td>The server&#x27;s address, so GitHub knows which machine to deploy to.</td><td>Bluehost console</td></tr>
+        <tr><td><code>VPS_USER</code></td><td>Which login GitHub uses when it connects (<code>ravi</code>).</td><td>Runbook Step 2</td></tr>
+        <tr><td><code>VPS_SSH_KEY</code></td><td>The key that proves GitHub is allowed in, instead of a password.</td><td>Runbook Part 2.1</td></tr>
+        <tr><td><code>DB_PASSWORD</code></td><td>The blog&#x27;s database password. GitHub writes it into the app&#x27;s connection string.</td><td>Runbook Step 6</td></tr>
+        <tr><td><code>SEQ_API_KEY</code></td><td>Identifies the blog to Seq. <strong>Repo-level and per-app</strong> — never shared with another app. It stamps <code>App = techieblog</code> on every event <em>server-side</em>, so logs stay attributable even if the app&#x27;s own enrichment is wrong, and this one app can be revoked or throttled without touching the others. Shipping works without it, unattributed.</td><td><strong>You create it</strong> — Seq UI → Settings → API Keys, per §2 step 3</td></tr>
+        <tr><td><code>JWT_SIGNING_KEY</code></td><td>The signature on your sign-in tokens — it proves a session cookie was issued by your site and not forged by someone else.</td><td>You generate</td></tr>
+        <tr><td><code>APP_ENCRYPTION_KEY</code></td><td>The lock on credentials the blog stores in its own database: the SMTP password and the cloud-storage key. Without it those would sit in the database readable by anyone who opened it.</td><td>You generate</td></tr>
+        <tr><td><code>ANALYTICS_VISITOR_SALT</code></td><td>Turns each visitor&#x27;s IP address into an unreadable fingerprint before it is stored, so you can count unique visitors without keeping anyone&#x27;s IP.</td><td>You generate</td></tr>
+        <tr><td><code>TrBlazeUiPackagesToken</code></td><td>Lets the build download your private TrBlazeUI packages. Build-time only.</td><td>You generate (§5)</td></tr>
+      </tbody>
+    </table>
+    <p>One analogy for the three you generate: <strong>the JWT key is the signature on a ticket, the encryption key is the safe your stored passwords sit in, and the visitor salt is the shredder your visitor logs go through.</strong> Change the signature and everyone&#x27;s ticket stops working. Change the safe&#x27;s combination and you can never open the safe again. Change the shredder and yesterday&#x27;s shreds no longer match today&#x27;s.</p>
+    <h3 id="what-breaks-without-each-one">What breaks without each one<a class="anchor-link" href="#what-breaks-without-each-one">#</a></h3>
+    <table>
+      <thead><tr><th>Secret</th><th>What breaks</th></tr></thead>
+      <tbody>
+        <tr><td><code>VPS_HOST</code> / <code>VPS_USER</code> / <code>VPS_SSH_KEY</code></td><td>Every <code>deploy</code> step fails to connect.</td></tr>
+        <tr><td><code>DB_PASSWORD</code></td><td>Container starts, then fails every request; <code>/healthz</code> returns 503.</td></tr>
+        <tr><td><code>SEQ_API_KEY</code></td><td>The deploy still succeeds and logs still ship, unauthenticated, with a <code>::warning::</code>. What you lose is the server-side <code>App</code> stamp, per-app revocation and per-app throttling — the three reasons runbook §6.3 insists on per-app keys. Not fatal; do it anyway.</td></tr>
+        <tr><td><code>JWT_SIGNING_KEY</code></td><td><strong>The container refuses to start.</strong> <code>AppSecrets.Initialise</code> (REQ-NFR-027) throws — there is deliberately no fallback.</td></tr>
+        <tr><td><code>APP_ENCRYPTION_KEY</code></td><td><strong>The container refuses to start</strong> (same gate).</td></tr>
+        <tr><td><code>ANALYTICS_VISITOR_SALT</code></td><td><strong>The container refuses to start.</strong> <code>DeploymentConfiguration.Enforce</code> (REQ-NFR-030) throws outside Development.</td></tr>
+        <tr><td><code>TrBlazeUiPackagesToken</code></td><td><strong>The image never builds.</strong> <code>dotnet restore</code> fails <code>NU1301 / 403</code> inside the Docker build.</td></tr>
+      </tbody>
+    </table>
+    <p>The <code>deploy</code> job checks all five of the value-carrying secrets for presence <strong>and minimum length</strong> before it touches the server, so a missing or too-short secret fails in GitHub with a named error rather than as a crash-looping container you have to diagnose over SSH.</p>
+    <h3 id="the-three-you-must-never-rotate-casually">The three you must never rotate casually<a class="anchor-link" href="#the-three-you-must-never-rotate-casually">#</a></h3>
+    <p>These are effectively <strong>write-once for the life of the deployment</strong>:</p>
+    <table>
+      <thead><tr><th>Rotating…</th><th>Consequence</th></tr></thead>
+      <tbody>
+        <tr><td><code>JWT_SIGNING_KEY</code></td><td>Every existing session cookie becomes invalid. Every signed-in user is silently signed out on their next request. Recoverable, but everyone sees it.</td></tr>
+        <tr><td><code>APP_ENCRYPTION_KEY</code></td><td>Every value already encrypted under the old key is <strong>permanently unreadable</strong>: the SMTP password and cloud storage key must be re-entered by hand. Worse, they <em>look</em> present in the admin UI while failing at use.</td></tr>
+        <tr><td><code>ANALYTICS_VISITOR_SALT</code></td><td>Every stored visitor pseudonym stops matching. Unique-view counts jump, de-duplication restarts from zero, and old and new digests can never be reconciled. <strong>Treat as write-once.</strong></td></tr>
+      </tbody>
+    </table>
+    <p><code>SiteSettings:BaseUrl</code> is <strong>not</strong> a secret — the compose template hard-codes <code>https://techierathore.com</code>.</p>
+    <h3 id="where-log-events-go-and-why-the-public-url-must-never-appear-here">Where log events go — and why the public URL must never appear here<a class="anchor-link" href="#where-log-events-go-and-why-the-public-url-must-never-appear-here">#</a></h3>
+    <p>There is no configuration for you to set. <code>SeqUrl</code> is rendered by the workflow as the constant <strong><code>http://seq:5341</code></strong>: container <code>techieblog</code> to container <code>seq</code>, over the shared <code>web</code> Docker network, plain HTTP.</p>
+    <p><strong>The public address <code>https://seq.techierathore.com</code> is for your browser only and must never appear in app config</strong> — deployment-brief v3.2 §0 states this as a rule, and the reasons are good ones: ingestion traffic would leave the Docker network, cross Caddy, and terminate TLS for no benefit, while making the app&#x27;s logging depend on public DNS and a certificate.</p>
+    <blockquote>
+      <p>An earlier revision of this document introduced a <code>SEQ_URL</code> repository <strong>variable</strong> that could override the address with the public URL. <strong>It has been removed</strong> — it existed only because the internal address was unconfirmed at the time, and pointing app config at the public URL is exactly what the brief prohibits. Nothing to unset; if you created that variable, delete it.</p>
+    </blockquote>
+    <p>The deploy job still prints where events are going (<em>Report the Seq endpoint</em>, warning-only), so a misrouted sink is visible in the log rather than silent.</p>
+    <hr>
+    <h2 id="4-dns-the-two-records">4. DNS — the two records<a class="anchor-link" href="#4-dns-the-two-records">#</a></h2>
+    <p>The pipeline never touches DNS, by design. Add both records <strong>before the first push</strong>, because Caddy provisions the Let&#x27;s Encrypt certificate on the first request and cannot do so for a name that does not resolve to the VPS.</p>
+    <table>
+      <thead><tr><th>Type</th><th>Name</th><th>Value</th><th>TTL</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td>A</td><td><code>@</code></td><td><em>your VPS IPv4 address</em></td><td>Auto / 300</td><td>The apex record. If the domain is on Cloudflare: <strong>DNS only — grey cloud.</strong></td></tr>
+        <tr><td>A</td><td><code>www</code></td><td><em>your VPS IPv4 address</em></td><td>Auto / 300</td><td>Needed for the <code>www</code> → apex redirect. A <code>CNAME www → techierathore.com</code> works equally well. <strong>DNS only — grey cloud</strong> if on Cloudflare.</td></tr>
+      </tbody>
+    </table>
+    <p><strong>Why grey cloud matters:</strong> an orange-cloud (proxied) Cloudflare record terminates TLS at Cloudflare. Caddy&#x27;s <code>HTTP-01</code> certificate challenge then fails, and Cloudflare&#x27;s proxy adds its own WebSocket and buffering behaviour in front of a Blazor Server circuit. Keep both records DNS-only.</p>
+    <p>Verify before pushing — both must print the VPS IP:</p>
+    <pre><code class="language-bash">dig +short techierathore.com
+dig +short www.techierathore.com</code></pre>
+    <hr>
+    <h2 id="5-the-trblazeui-package-token">5. The TrBlazeUI package token<a class="anchor-link" href="#5-the-trblazeui-package-token">#</a></h2>
+    <p>This blog depends on <code>TrBlazeUI.Components</code> and <code>TrBlazeUI.Icons.Lucide</code>, published to a <strong>private, user-scoped GitHub Packages feed</strong> (<code>https://nuget.pkg.github.com/techierathore/index.json</code>). Anonymous restore is impossible, so both CI and the deploy image build need a credential.</p>
+    <blockquote>
+      <p><strong>The token that used to be committed in <code>NuGet.Config</code> was invalidated by GitHub secret scanning on 2026-08-09 and CANNOT be reused</strong> (REQ-NFR-025). Never put a token back into <code>NuGet.Config</code> — that file is published to every clone and fork.</p>
+    </blockquote>
+    <p>Do <strong>one</strong> of these two. They are alternatives, not steps.</p>
+    <h3 id="remedy-1-a-classic-pat-stored-as-trblazeuipackagestoken-recommended">Remedy 1 — a classic PAT stored as <code>TrBlazeUiPackagesToken</code> (recommended)<a class="anchor-link" href="#remedy-1-a-classic-pat-stored-as-trblazeuipackagestoken-recommended">#</a></h3>
+    <ol>
+      <li>Sign in to GitHub as <strong><code>techierathore</code></strong>.</li>
+      <li><strong>Settings → Developer settings → Personal access tokens → Tokens (classic)</strong> (<code>https://github.com/settings/tokens</code>).</li>
+      <li><strong>Generate new token → Generate new token (classic)</strong>.</li>
+      <li><strong>Note:</strong> <code>TechieBlog CI + deploy — TrBlazeUI packages</code>.</li>
+      <li><strong>Expiration:</strong> a date you will remember, or <em>No expiration</em> if you accept the trade-off. An expired token reappears as the same <code>NU1301 / 403</code> failure.</li>
+      <li><strong>Scopes:</strong> tick <strong><code>read:packages</code></strong> only. Not <code>repo</code>, not <code>write:packages</code>. A fine-grained token will <strong>not</strong> work — GitHub Packages for NuGet still requires a <strong>classic</strong> token.</li>
+      <li><strong>Generate token</strong>, copy the value immediately (<code>ghp_…</code>). GitHub never shows it again.</li>
+      <li>In the <strong>TechieBlog repository</strong>: <strong>Settings → Secrets and variables → Actions → New repository secret</strong>.</li>
+      <li><strong>Name:</strong> <code>TrBlazeUiPackagesToken</code> — exactly this. Secret names are case-sensitive and both workflows reference this spelling.</li>
+      <li>Paste the token, <strong>Add secret</strong>.</li>
+    </ol>
+    <h3 id="remedy-2-grant-this-repository-package-access-and-use-the-built-in-githubtoken">Remedy 2 — grant this repository package access, and use the built-in <code>GITHUB_TOKEN</code><a class="anchor-link" href="#remedy-2-grant-this-repository-package-access-and-use-the-built-in-githubtoken">#</a></h3>
+    <p>No PAT and no secret to rotate — but it must be repeated for <strong>each</strong> TrBlazeUI package.</p>
+    <ol>
+      <li>Go to <code>https://github.com/users/techierathore/packages</code>.</li>
+      <li>Open <strong><code>TrBlazeUI.Components</code></strong> → <strong>Package settings</strong> → <strong>Manage Actions access</strong>.</li>
+      <li><strong>Add repository</strong> → <strong>TechieBlog</strong> → role <strong>Read</strong>.</li>
+      <li>Repeat for <strong><code>TrBlazeUI.Icons.Lucide</code></strong> and any other TrBlazeUI package the solution references.</li>
+    </ol>
+    <p>Both workflows already fall back to <code>GITHUB_TOKEN</code> automatically.</p>
+    <h3 id="how-the-token-reaches-the-build-and-why-it-is-not-a-build-arg">How the token reaches the build — and why it is not a build ARG<a class="anchor-link" href="#how-the-token-reaches-the-build-and-why-it-is-not-a-build-arg">#</a></h3>
+    <p>The image build receives it as a <strong>BuildKit secret</strong>, id <strong><code>nuget_pat</code></strong>. The Dockerfile consumes it with <code>RUN --mount=type=secret,id=nuget_pat …</code>, which mounts it into a single layer&#x27;s filesystem for the duration of that <code>RUN</code> and never writes it into the image. A build <code>ARG</code> <strong>would</strong> be written in: <code>docker history</code> prints every ARG value. That is why this pipeline never uses one.</p>
+    <blockquote>
+      <p><strong>The two ids must be spelled identically.</strong> Until 2026-08-10 the workflow sent <code>trblazeui_token</code> while the Dockerfile mounted <code>nuget_pat</code>. BuildKit does not treat that as an error — it simply mounts nothing, <code>/run/secrets/nuget_pat</code> is empty, and the build dies deep inside <code>dotnet restore</code> with an <code>NU1301</code> that never mentions a secret. If you rename one half, rename the other in the same commit.</p>
+    </blockquote>
+    <h3 id="local-development-for-completeness">Local development (for completeness)<a class="anchor-link" href="#local-development-for-completeness">#</a></h3>
+    <p>Your own machine restores against the same feed using your <strong>user-level</strong> NuGet config, outside the repository:</p>
+    <pre><code class="language-bash">dotnet nuget add source https://nuget.pkg.github.com/techierathore/index.json \
+  --name TrBlazeUI --username techierathore \
+  --password &lt;your PAT with read:packages&gt; --store-password-in-clear-text</code></pre>
+    <hr>
+    <h2 id="6-what-the-pipeline-does-step-by-step">6. What the pipeline does, step by step<a class="anchor-link" href="#6-what-the-pipeline-does-step-by-step">#</a></h2>
+    <pre><code class="language-text">build   preflight feed probe -&gt; buildx -&gt; GHCR login (the RUNNER, so it can push)
+        -&gt; docker build (BuildKit secret nuget_pat) -&gt; push :latest and :&lt;sha7&gt;
+
+deploy  check every secret is present and long enough
+        -&gt; envsubst renders deploy/docker-compose.template.yml
+        -&gt; assert no placeholder survived
+        -&gt; mkdir -p /srv/apps/techieblog, /srv/data/techieblog/{uploads,dp-keys}
+        -&gt; scp rendered compose to /srv/apps/techieblog/docker-compose.yml
+        -&gt; Caddy snippet: install ONLY if absent, then reload
+        -&gt; sudo /usr/local/bin/ensure-db techieblog
+        -&gt; VERIFY appuser can CREATE/DROP a table  (fails with the GRANTs if not)
+        -&gt; GHCR login on the SERVER (ephemeral) -&gt; docker compose pull
+        -&gt; chown uploads + dp-keys to 1654:1654  (root container over the same image)
+        -&gt; docker compose up -d -&gt; docker image prune -f -&gt; GHCR logout
+        -&gt; PROBE both mounts are writable by UID 1654  (fails loudly if not)
+        -&gt; REPORT the Seq endpoint  (warning only, never fatal)
+
+verify  sleep 20 -&gt; /healthz must be 200 (3 attempts, 10s apart)
+        -&gt; /_framework/blazor.web.js must be 200
+        -&gt; www redirect answers (warning only)</code></pre>
+    <p>Everything is idempotent: the hundredth run does the same thing as the first.</p>
+    <p><strong>Two design notes worth knowing:</strong></p>
+    <ul>
+      <li><strong>The ownership fix runs as a throwaway root container over the image the deploy just pulled.</strong> <code>ciuser</code>&#x27;s passwordless <code>sudo</code> is scoped to <code>/usr/local/bin/ensure-db</code> and nothing else, so <code>sudo chown</code> is simply not available to it; and the app container itself runs as 1654 and cannot chown its own mounts. A <code>--rm</code> container running as root over an image already on the box solves it with no new image and nothing left behind. It touches only the two leaf directories, never their parent, and it changes the <strong>owner only</strong> — group <code>webops</code> and the setgid bit are preserved so <code>ciuser</code> keeps its access (§0, contradiction 2).</li>
+      <li><strong>The <code>chown</code> is unconditional, and that is deliberate.</strong> It used to be guarded by a <code>find … ! -uid 1654 | wc -l</code> pre-check, which has a silent-false-pass mode: <code>-uid</code> is GNU findutils; BusyBox <code>find</code> does not implement it, so on a musl base image <code>find</code> fails, <code>wc -l</code> prints <code>0</code>, and the guard reports <em>&quot;already correct, nothing to do&quot;</em> while the <code>chown</code> never runs. <code>set -e</code> does not catch it, because the command that failed is inside a substitution and <code>wc</code> succeeded. Measured directly on <code>alpine:latest</code> on 2026-08-16. The app image is Debian-based, so this was latent rather than live — but a pre-check that can report success <strong>by failing</strong> is precisely the failure class this pipeline exists to remove, and <code>chown -R</code> is idempotent and costs milliseconds.</li>
+      <li><strong>An existing <code>ghcr.io</code> credential on the server is left completely untouched — and as of 2026-08-16 there IS one, so this is now the path every deploy takes.</strong> Runbook Step 12 has you log in by hand with a personal PAT that every app on the box shares; you did. The pipeline checks for that first and logs <code>ghcr.io credential already present on the server — left untouched</code>.</li>
+    </ul>
+    <p>This satisfies deployment-brief v3.2 §0, which prohibits the pipeline from running <code>docker login</code> over SSH: with your credential in place, it never does. <strong>The ephemeral-login fallback is retained deliberately</strong> — it fires only when the server has <em>no</em> credential at all, a state the brief says should not occur. Removing it would trade a harmless dormant branch for a deploy that fails <code>unauthorized</code> with no explanation if that PAT is ever revoked. It logs out again on the way out, including when the deploy fails, so it can never overwrite or strip your stored login.</p>
+    <hr>
+    <h2 id="7-after-the-first-deploy-what-to-check">7. After the first deploy — what to check<a class="anchor-link" href="#7-after-the-first-deploy-what-to-check">#</a></h2>
+    <p><strong>1. The pipeline is green.</strong> All three jobs. A green <code>verify</code> means DNS resolved, Caddy answered, TLS was valid, the app started, the database answered, and the Blazor script is being served. That is a genuinely reachable, genuinely interactive site — not a guess.</p>
+    <p><strong>2. Click through it.</strong> Open <code>https://techierathore.com</code>, then <em>interact</em> — open a post, use the search box, sign in. TechieBlog is Blazor <strong>Server</strong>, so everything after the first render travels over a SignalR WebSocket. The pipeline now checks the script loads, but only a human can confirm the circuit behaves through Caddy (§13).</p>
+    <p><strong>3. Upload one image</strong> in <strong>Admin → Images</strong> and reload the page. The pipeline proves the directory is <em>writable</em>; this proves the whole path end to end.</p>
+    <p><strong>4. Confirm the logs arrived.</strong> Open <code>https://seq.techierathore.com</code> and filter on <code>App = &quot;techieblog&quot;</code>. Events should appear from the moment the container started. <strong>This is the first deploy that will ever have shipped an event from this app</strong> (§13), so look rather than assume. If nothing arrives, read the deploy job&#x27;s <em>Report the Seq endpoint</em> step — it prints both what is on the server and what the container was configured with.</p>
+    <p><strong>5. Run the server&#x27;s own acceptance script.</strong> One SSH command, changes nothing:</p>
+    <pre><code class="language-bash">sudo /srv/checkup.sh</code></pre>
+    <p>Every line should read <code>[ OK ]</code>. Deployment-brief v3.2 §6 names this the post-deploy verification step, and two of its checks are specifically about what you just did: <strong><code>no container restart-looping</code></strong> (a crash-looping <code>techieblog</code> shows up here even when <code>verify</code> passed on a stale container) and <strong><code>caddy config valid</code></strong> (the pipeline installs a site snippet; this proves it did not break the shared Caddyfile for the other apps on the box). It also re-confirms <code>seq container up</code>.</p>
+    <p><strong>6. Add the uptime monitor.</strong> UptimeRobot → <strong>Add New Monitor</strong> → <strong>HTTP(s)</strong> → URL <code>https://techierathore.com/healthz</code> → interval 5 minutes → alert after 2 consecutive failures. Same URL the <code>verify</code> job probes: one URL, one meaning.</p>
+    <p>By hand, if you want them:</p>
+    <pre><code class="language-bash">curl -i https://techierathore.com/healthz       # 200 -&gt; process AND database healthy
+curl -i https://techierathore.com/health        # 200, liveness only
+curl -I https://www.techierathore.com           # 308 redirect to the apex</code></pre>
+    <blockquote>
+      <p><strong><code>/healthz</code> is the deployment probe.</strong> It is mapped <code>AllowAnonymous()</code> and <code>DisableRateLimiting()</code>, so it needs no credential and a monitor polling every minute is never 429&#x27;d. It carries the <strong>PostgreSQL check</strong> <em>and</em> a <strong>schema check</strong> (REQ-NFR-039) that reads DbUp&#x27;s <code>schemaversions</code> journal — so a database that is reachable but has no tables returns <strong>503</strong> rather than a misleading 200.</p>
+    </blockquote>
+    <hr>
+    <h2 id="8-the-two-conditional-server-steps">8. The two conditional server steps<a class="anchor-link" href="#8-the-two-conditional-server-steps">#</a></h2>
+    <p>Neither is routine. Do them only if the trigger below actually happens.</p>
+    <h3 id="if-the-pipelines-ddl-check-fails">If the pipeline&#x27;s DDL check fails<a class="anchor-link" href="#if-the-pipelines-ddl-check-fails">#</a></h3>
+    <p>The <code>Verify appuser DDL rights</code> step runs a <code>CREATE TABLE</code> / <code>DROP TABLE</code> probe as <code>appuser</code>. If it fails, the deploy stops <strong>before</strong> the container starts and prints these three statements. Run them on the VPS as a superuser, once, then re-run the workflow:</p>
+    <pre><code class="language-bash">sudo -u postgres psql -d techieblog -c &quot;GRANT ALL PRIVILEGES ON DATABASE techieblog TO appuser;&quot;
+sudo -u postgres psql -d techieblog -c &quot;GRANT ALL ON SCHEMA public TO appuser;&quot;
+sudo -u postgres psql -d techieblog -c &quot;ALTER SCHEMA public OWNER TO appuser;&quot;</code></pre>
+    <p><strong>Why this check exists.</strong> DbUp creates its own <code>schemaversions</code> table and then runs every script in <code>source/BlogDb/PostgresScripts</code>. That needs <strong>DDL rights</strong>, not just <code>CONNECT</code>.</p>
+    <p><strong>It should not fail at all.</strong> Two independent reasons, one inferred and one now confirmed:</p>
+    <ol>
+      <li>The <code>ensure-db</code> script was read directly on the VPS on 2026-08-14 (§0): it runs <code>createdb -O appuser</code>, so <code>appuser</code> becomes the database <strong>owner</strong>, and the server is PostgreSQL <strong>18.4</strong> — where the owner holds <code>CREATE</code> on <code>public</code> through <code>pg_database_owner</code>.</li>
+      <li><strong>You checked <code>appuser</code> directly on 2026-08-16 and confirmed it holds database-creation and DDL rights.</strong> That closes the project&#x27;s oldest open unknown; it is an observation, not an inference from a script&#x27;s text.</li>
+    </ol>
+    <p><strong>The gate stays anyway</strong>, and that is deliberate. It costs one <code>CREATE TABLE</code> / <code>DROP TABLE</code> per deploy, it guards the quietest failure in the project, and a privilege that is true today is not a privilege that is true after the next server change. A check whose expected result is &quot;pass&quot; is still worth running when its failure mode is a site that looks fine and is empty.</p>
+    <blockquote>
+      <p><strong>If you see <code>database &quot;techieblog&quot; does not exist</code>, that is NOT this problem and these <code>GRANT</code>s are NOT the fix.</strong> It means <code>ensure-db</code> did not create the database — look at the <em>Ensure database</em> step&#x27;s log instead. A read-only recon script written for this project made exactly that mistake and reported a permissions failure when the database simply did not exist yet; the pipeline&#x27;s own gate now distinguishes the two explicitly.</p>
+    </blockquote>
+    <p><strong>The failure this prevents</strong> used to be the single most damaging and quietest one in the project: a container that started, a <code>/healthz</code> that answered 200, a green pipeline — and a completely empty site, because DbUp had thrown during startup.</p>
+    <h3 id="if-you-have-existing-local-images-to-migrate">If you have existing local images to migrate<a class="anchor-link" href="#if-you-have-existing-local-images-to-migrate">#</a></h3>
+    <p>If your development copy has images under <code>source/TechieBlog/wwwroot/uploads</code>, copy them up — the database rows reference these paths, so without them existing posts show broken images.</p>
+    <pre><code class="language-bash"># 1. See what you have.
+ls -R /mnt/c/1MyCode/TechieBlog/source/TechieBlog/wwwroot/uploads
+
+# 2. Copy it up. Note the trailing slash: it copies the CONTENTS.
+rsync -av --progress \
+  /mnt/c/1MyCode/TechieBlog/source/TechieBlog/wwwroot/uploads/ \
+  &lt;VPS_USER&gt;@&lt;VPS_HOST&gt;:/srv/data/techieblog/uploads/</code></pre>
+    <p><strong>There is no third step any more.</strong> <code>rsync</code> writes the files as the SSH user (<code>ciuser</code>), not as 1654 — but the next deploy&#x27;s ownership fix corrects them automatically. If you want them working immediately rather than at the next push, run the workflow manually from the Actions tab (<code>workflow_dispatch</code>).</p>
+    <blockquote>
+      <p><strong>This path depends on the <code>g+ws</code> in the ownership fix.</strong> After the first deploy the uploads directory is owned by UID 1654; <code>ciuser</code> can still write into it only because the pipeline preserves group <code>webops</code> and restores the group-write bit. An earlier <code>chown -R 1654:1654</code> would have made this <code>rsync</code> fail with <code>Permission denied</code> — see §0, contradiction 2.</p>
+    </blockquote>
+    <p>If <code>rsync</code> is not on the server, <code>scp -r</code> works the same way. Copying while the site is live is safe.</p>
+    <h3 id="backups-nothing-to-do">Backups — nothing to do<a class="anchor-link" href="#backups-nothing-to-do">#</a></h3>
+    <p><code>pg_dumpall</code> picks up the new <code>techieblog</code> database automatically, and the <code>/srv/data</code> archive picks up <code>/srv/data/techieblog/uploads</code> and <code>/srv/data/techieblog/dp-keys</code> automatically, because that is precisely why they live there.</p>
+    <hr>
+    <h2 id="9-how-uploads-and-keys-survive-a-redeploy">9. How uploads and keys survive a redeploy<a class="anchor-link" href="#9-how-uploads-and-keys-survive-a-redeploy">#</a></h2>
+    <p>You do not have to do anything here — this section explains <em>why</em> the arrangement exists, so that nothing in it looks arbitrary later.</p>
+    <p><strong>The rule: uploaded images must never live inside the container.</strong> A container&#x27;s filesystem is discarded and recreated on every <code>docker compose pull &amp;&amp; up -d</code>. An image written inside it survives until the next deploy and then silently disappears — the post still references <code>/uploads/blog/foo.jpg</code> and the browser shows a broken image.</p>
+    <table>
+      <thead><tr><th>Where</th><th>Path</th></tr></thead>
+      <tbody>
+        <tr><td>On the server (persistent, backed up)</td><td><code>/srv/data/techieblog/uploads</code></td></tr>
+        <tr><td>Inside the container</td><td><code>/app/uploads</code></td></tr>
+        <tr><td>On the wire</td><td><code>https://techierathore.com/uploads/…</code></td></tr>
+      </tbody>
+    </table>
+    <p><strong>Why <code>/app/uploads</code> and not <code>/app/wwwroot/uploads</code>.</strong> <code>wwwroot</code> lives <em>inside the image</em>, so the old web-root location put uploaded images on the same disposable layer as the binaries. <code>BlogEngine</code>&#x27;s <code>UploadsLocation</code> now resolves both halves from the single <code>Uploads:Path</code> setting: it names the directory served at <code>/uploads</code>, and because its last segment is already <code>uploads</code>, the storage root is its parent (<code>/app</code>). <code>UploadsRootPath</code> is <em>always</em> <code>StorageRootPath + &quot;/uploads&quot;</code> by construction, so &quot;written here, served from there&quot; is not a state this can get into.</p>
+    <blockquote>
+      <p><strong>Leave Site Settings → Storage → &quot;Local root path&quot; EMPTY</strong> in the admin UI. An explicit value there overrides the deployment default and points storage somewhere the static-file mapping does not cover — uploads would then succeed and be unservable.</p>
+    </blockquote>
+    <p><strong>The second bind mount — the DataProtection key ring.</strong> ASP.NET Core creates a key ring on first use and, with nothing mounted, writes it <em>inside</em> the container, so every redeploy mints a new one. Audited honestly: TechieBlog has no Identity cookie, no <code>ITicketStore</code>, no session state, no <code>TempData</code>. Sign-in is a JWT signed with <code>JwtSigningKey</code>, so <strong>losing the key ring does not sign anyone out</strong>. The two real consumers are the Blazor circuit descriptors and the antiforgery token in prerendered forms — both fail only for a page rendered by the <em>outgoing</em> container and submitted to the <em>incoming</em> one, a seconds-wide window a reload clears. So the mount is correctness hygiene: it removes the &quot;Attempting to reconnect…&quot; banner some visitors catch mid-deploy. It becomes genuinely load-bearing the moment a second replica or a real server-side form post is added.</p>
+    <p><strong>Ownership.</strong> The container runs as UID <strong>1654</strong> (<code>app</code>), while <code>mkdir -p</code> over SSH creates the host directories owned by <code>ciuser</code> with group <code>webops</code>. That mismatch used to be a manual <code>chown</code> and a genuinely invisible failure — no <code>[ERR]</code>, no <code>[WRN]</code>, <code>/healthz</code> at 200, and only a red toast in the admin UI. <strong>The pipeline now fixes it on every deploy and then probes that it worked</strong>, so it should never reach you. §12 keeps the symptom description in case it ever does.</p>
+    <p>The fix sets the <strong>owner</strong> to 1654 and restores <strong><code>g+ws</code></strong> on the two directories, leaving group <code>webops</code> in place. Both users therefore keep what they need: the container writes as the owner, <code>ciuser</code> writes via the group, and setgid means files the container creates inherit <code>webops</code> rather than becoming 1654-only — which is what keeps them readable in the <code>/srv/data</code> backup archive.</p>
+    <hr>
+    <h2 id="10-rolling-back">10. Rolling back<a class="anchor-link" href="#10-rolling-back">#</a></h2>
+    <p><strong>Normal rollback — revert the commit:</strong></p>
+    <pre><code class="language-bash">git revert &lt;bad-commit-sha&gt;
+git push origin main</code></pre>
+    <p>The pipeline rebuilds the previous code and redeploys it. Preferred, because the repository stays the source of truth.</p>
+    <p><strong>Emergency rollback — pin the image tag on the server.</strong> When the site is down and you need it up in 60 seconds:</p>
+    <pre><code class="language-bash">ssh &lt;VPS_USER&gt;@&lt;VPS_HOST&gt;
+docker images ghcr.io/techierathore/techieblog     # every deploy pushed a :&lt;sha7&gt;
+sudo nano /srv/apps/techieblog/docker-compose.yml  # :latest -&gt; :&lt;good-sha7&gt;
+cd /srv/apps/techieblog &amp;&amp; docker compose up -d</code></pre>
+    <blockquote>
+      <p><strong>This is temporary by construction.</strong> The next push overwrites that compose file from the template and restores <code>:latest</code>. Follow an emergency pin with a real <code>git revert</code>, or the next unrelated push silently rolls you forward onto the broken image again.</p>
+    </blockquote>
+    <p><strong>What rollback does <em>not</em> undo:</strong> database migrations. DbUp applies scripts forward-only on every boot; reverting code does not un-apply a schema change. If a release included a destructive migration, restore the database from the <code>pg_dumpall</code> backup as well.</p>
+    <hr>
+    <h2 id="11-routine-operations">11. Routine operations<a class="anchor-link" href="#11-routine-operations">#</a></h2>
+    <p><strong>Changing a secret.</strong> Update it in GitHub, then push any commit to <code>main</code> (or run the workflow from the Actions tab — it has <code>workflow_dispatch</code>). The compose file is re-rendered and the container restarts with the new value. Re-read the rotation warnings in §3 first.</p>
+    <p><strong>Changing the site&#x27;s routing / Caddy config.</strong> The pipeline installs <code>/srv/caddy/sites/techieblog.caddy</code> <strong>only when it does not already exist</strong>, and never overwrites it — manual server edits are authoritative.</p>
+    <pre><code class="language-bash">sudo nano /srv/caddy/sites/techieblog.caddy
+docker exec caddy caddy reload --config /etc/caddy/Caddyfile</code></pre>
+    <p>To <em>reset</em> it to the repository version, delete the server copy and push.</p>
+    <p><strong>Reading logs.</strong> The container writes <strong>no log files</strong> (<code>LogFileEnabled=false</code>), because a rolling file sink inside a container writes into the ephemeral layer the next redeploy discards. Two places:</p>
+    <pre><code class="language-bash">docker logs -f techieblog
+docker compose -f /srv/apps/techieblog/docker-compose.yml ps</code></pre>
+    <p>…and <strong>Seq at <code>https://seq.techierathore.com</code></strong>, which is the durable copy. One Seq instance receives events from every application on the host, so <strong>filter on <code>App = &quot;techieblog&quot;</code></strong> — the property <code>SeqSettings</code> attaches to the logger itself, which is why the same property appears in the console output and makes a local reproduction comparable with a production trace.</p>
+    <p><code>docker logs</code> is a daemon-side ring buffer: &quot;what happened recently&quot;, never an archive. If an incident needs history, it needs Seq.</p>
+    <p><strong>If Seq shows nothing for <code>techieblog</code></strong>, the sink is pointed somewhere that does not resolve. Read the deploy job&#x27;s <em>Report the Seq endpoint</em> step — it prints both what is on the server and what the container was configured with — and if it warned, set the <code>SEQ_URL</code> repository variable (§3).</p>
+    <p><strong>Manual restart.</strong></p>
+    <pre><code class="language-bash">cd /srv/apps/techieblog &amp;&amp; docker compose restart</code></pre>
+    <p><strong>Checking the server is still healthy</strong> — after any deploy, or any time you come back to the box weeks later wondering whether something drifted:</p>
+    <pre><code class="language-bash">sudo /srv/checkup.sh          # reports state, changes nothing, safe any time</code></pre>
+    <p>It catches the quiet failures specifically: a backup that stopped uploading, a container restart-looping since Tuesday, a cron job that was never registered. Nothing about those announces itself. Runbook v5.2 Part 9.</p>
+    <hr>
+    <h2 id="12-troubleshooting">12. Troubleshooting<a class="anchor-link" href="#12-troubleshooting">#</a></h2>
+    <h3 id="nu1301-403-forbidden-during-restore-the-image-will-not-build"><code>NU1301</code> / <code>403 Forbidden</code> during restore — the image will not build<a class="anchor-link" href="#nu1301-403-forbidden-during-restore-the-image-will-not-build">#</a></h3>
+    <p><strong>Symptom.</strong> <code>build</code> fails at &quot;Preflight — TrBlazeUI feed authentication&quot; with a boxed message naming HTTP 401 or 403.</p>
+    <p><strong>Cause.</strong> No usable credential for the private TrBlazeUI feed. <strong>Fix:</strong> §5, either remedy. Most common specific causes, in order:</p>
+    <ul>
+      <li>The secret is spelled <code>TRBLAZEUI_PACKAGES_TOKEN</code> or <code>TrBlazeUIPackagesToken</code>. It must be <strong><code>TrBlazeUiPackagesToken</code></strong>.</li>
+      <li>The PAT is <em>fine-grained</em>. GitHub Packages for NuGet requires a <strong>classic</strong> token.</li>
+      <li>The PAT lacks <code>read:packages</code>, or has expired.</li>
+      <li>You are relying on <code>GITHUB_TOKEN</code> without having done Remedy 2 for <strong>every</strong> TrBlazeUI package.</li>
+    </ul>
+    <h3 id="sudo-a-password-is-required-in-a-deploy-step"><code>sudo: a password is required</code> in a deploy step<a class="anchor-link" href="#sudo-a-password-is-required-in-a-deploy-step">#</a></h3>
+    <p><strong>Cause.</strong> A step used <code>sudo</code> for something outside <code>ciuser</code>&#x27;s allowlist. That account may run <strong>exactly one</strong> privileged command — <code>/usr/local/bin/ensure-db</code> — per runbook v5.2 §2.1.</p>
+    <p><strong>Fix.</strong> Remove the <code>sudo</code>. In particular <strong>never write <code>sudo docker</code></strong>: <code>ciuser</code> is in the <code>docker</code> group, so <code>docker</code> needs no elevation, and <code>sudo docker</code> is blocked by the sudoers allowlist and will fail the deploy. This pipeline currently executes exactly one <code>sudo</code>, and it is the permitted one.</p>
+    <h3 id="ssh-step-fails-with-permission-denied-publickey">SSH step fails with <code>Permission denied (publickey)</code><a class="anchor-link" href="#ssh-step-fails-with-permission-denied-publickey">#</a></h3>
+    <p><strong>Cause.</strong> Either <code>VPS_SSH_KEY</code> holds the <code>.pub</code> file instead of the private key, or <code>VPS_USER</code> is stale.</p>
+    <p><strong>Fix.</strong> Re-paste the <strong>entire</strong> private key including the <code>-----BEGIN</code> and <code>-----END</code> lines, and confirm <code>VPS_USER</code> is <strong><code>ciuser</code></strong> — not <code>ravi</code>. The account changed in runbook v5.2; an org secret still holding the old value fails every deploy at the first SSH step.</p>
+    <h3 id="denied-unauthorized-on-docker-compose-pull"><code>denied</code> / <code>unauthorized</code> on <code>docker compose pull</code><a class="anchor-link" href="#denied-unauthorized-on-docker-compose-pull">#</a></h3>
+    <p><strong>Symptom.</strong> The deploy reaches &quot;Pull image, fix mount ownership, restart the stack&quot; and the pull is refused.</p>
+    <p><strong>Most likely cause: the credential belongs to <code>ravi</code>, not to <code>ciuser</code>.</strong> Registry logins are per-user, and runbook Step 12 ran as <code>ravi</code> — see §0, contradiction 0. The pipeline&#x27;s ephemeral fallback normally covers this; if it did not fire (check the step log), that is why the pull failed. <strong>Fix — one command on the server as <code>ravi</code>:</strong></p>
+    <pre><code class="language-bash">sudo -u ciuser -H bash -c \
+  &#x27;echo &lt;YOUR_PAT&gt; | docker login ghcr.io -u techierathore --password-stdin&#x27;</code></pre>
+    <p><strong>Second cause: the stored PAT expired.</strong> Deployment-brief v3.2 §8 says this outright, and calls it <em>not a pipeline concern</em>. <strong>Fix:</strong> re-run the login from runbook v5.2 Step 12 on the server, once:</p>
+    <pre><code class="language-bash">echo YOUR_GITHUB_PAT | docker login ghcr.io -u techierathore --password-stdin</code></pre>
+    <p>Then re-run the workflow. <strong>Do not &quot;fix&quot; this by adding a PAT to a GitHub secret for server-side pulls</strong> — the brief explicitly prohibits it, and the credential would then live in two places with one of them silently stale.</p>
+    <p><strong>Less likely.</strong> The credential is missing entirely <em>and</em> the run&#x27;s ephemeral fallback did not fire; the step emits a <code>::warning::</code> saying so. Check the <code>deploy</code> job still declares <code>permissions: packages: read</code> — without it the run&#x27;s <code>GITHUB_TOKEN</code> cannot pull either.</p>
+    <p><strong>Alternative fix.</strong> Make the <code>ghcr.io/techierathore/techieblog</code> package public, and the credential question disappears. The image carries no secrets by construction — the NuGet PAT is a BuildKit secret mounted for one <code>RUN</code>, never an <code>ARG</code> or <code>ENV</code>, and that was audited when the committed token was revoked. It does expose your compiled application to anyone who wants to pull it, which is why the recommendation is to <strong>leave it private</strong> and let the server&#x27;s stored login handle it.</p>
+    <h3 id="the-container-will-not-start-sitesettingsbaseurl-analyticsvisitorsalt">The container will not start: <code>SiteSettings:BaseUrl</code> / <code>Analytics:VisitorSalt</code><a class="anchor-link" href="#the-container-will-not-start-sitesettingsbaseurl-analyticsvisitorsalt">#</a></h3>
+    <p><strong>Symptom.</strong> <code>deploy</code> goes green, then <code>verify</code> fails with no 200. <code>docker logs techieblog</code> shows the process exiting immediately and repeatedly with an <code>InvalidOperationException</code> naming the setting.</p>
+    <p><strong>Cause.</strong> <code>DeploymentConfiguration.Enforce</code> (REQ-NFR-030) refuses to start any non-Development host when either value is absent, blank, loopback, unparseable as a URL, equal to the built-in development salt, or — for the salt — shorter than 32 characters. This is intended: both settings fail <em>silently</em> at runtime otherwise.</p>
+    <p><strong>Fix.</strong> Confirm what actually reached the container:</p>
+    <pre><code class="language-bash">docker exec techieblog printenv | grep -Ei &#x27;SiteSettings|Analytics|JwtSigningKey|AppEncryptionKey&#x27;</code></pre>
+    <ul>
+      <li><strong>Absent</strong> → the secret is missing from GitHub. Add it (§3) and re-run. (The workflow pre-checks this, so an absent secret should fail in <code>deploy</code> with a named error first.)</li>
+      <li><strong>Present but the app still complains</strong> → an environment-variable naming mismatch. The compose file uses <strong>PascalCase</strong> spellings (<code>SiteSettingsBaseUrl</code>, <code>AnalyticsVisitorSalt</code>, <code>SeqUrl</code>, <code>UploadsPath</code>), which <code>AppEnvironmentVariables</code> translates to the <code>:</code>-nested paths the app reads. That provider is added <strong>last</strong>, so PascalCase outranks the JSON files and the framework&#x27;s <code>__</code> form. If a name is set and the gate still fires, the name is not in the map: open <code>source/TechieBlog/Configuration/AppEnvironmentVariables.cs</code> and compare its <code>Map</code> table — <strong>that table is the contract</strong> — against the comment block atop <code>deploy/docker-compose.template.yml</code>.</li>
+      <li>The two <code>ForwardedHeaders__…</code> entries are the deliberate exception and stay double-underscore, because <code>KnownNetworks</code> is a configuration <em>array</em> and an array index has no PascalCase spelling.</li>
+    </ul>
+    <p>The sibling failure has the same shape and fix, from <code>AppSecrets.Initialise</code> (REQ-NFR-027), when <code>JwtSigningKey</code> or <code>AppEncryptionKey</code> is missing or too short.</p>
+    <h3 id="the-site-renders-once-then-every-click-does-nothing">The site renders once, then every click does nothing<a class="anchor-link" href="#the-site-renders-once-then-every-click-does-nothing">#</a></h3>
+    <p><strong>Symptom.</strong> The home page loads and looks right. Clicking, typing in search, or signing in does nothing. A &quot;Attempting to reconnect to the server…&quot; overlay may appear. The browser console shows a failed WebSocket to <code>/_blazor</code>.</p>
+    <p><strong>Cause.</strong> TechieBlog is <strong>Blazor Server</strong>: after the first render every interaction travels over a long-lived SignalR WebSocket. Something between the browser and Kestrel is not passing the upgrade through.</p>
+    <p><strong>Check cause zero first — the image itself.</strong> If <code>/_framework/blazor.web.js</code> 404s, the proxy is innocent; see the next entry. <strong>The <code>verify</code> job now probes this on every deploy</strong>, so a green pipeline rules it out.</p>
+    <p><strong>Then, in order of likelihood:</strong></p>
+    <ol>
+      <li><strong>Cloudflare is proxying (orange cloud).</strong> Set both DNS records to <strong>DNS only / grey cloud</strong> (§4). By far the most common cause on an apex domain.</li>
+      <li><strong>The Caddy snippet was hand-edited</strong> and lost the plain <code>reverse_proxy</code>. Caddy v2 handles the WebSocket upgrade <em>transparently with no extra directives</em> — there is no equivalent of nginx&#x27;s <code>proxy_http_version 1.1</code> + <code>Upgrade</code> headers to add. If someone &quot;fixed&quot; it by adding directives, compare with <code>deploy/techieblog.caddy</code> and revert.</li>
+      <li><strong>Compression was applied to the circuit.</strong> The shipped snippet compresses everything <em>except</em> <code>/_blazor*</code> for exactly this reason.</li>
+      <li><strong>A corporate proxy or browser extension</strong> blocking WebSockets. Blazor falls back to long polling — slow but functional. If the site is unusable only on one network, this is why.</li>
+    </ol>
+    <h3 id="frameworkblazorwebjs-returns-404-a-dockerfile-defect"><code>/_framework/blazor.web.js</code> returns 404 — a Dockerfile defect<a class="anchor-link" href="#frameworkblazorwebjs-returns-404-a-dockerfile-defect">#</a></h3>
+    <p><strong>Written down because the site passes every automated check while being unusable.</strong></p>
+    <p><strong>Symptom.</strong> Identical to the entry above from a user&#x27;s point of view, with one decisive difference:</p>
+    <pre><code class="language-bash">curl -o /dev/null -w &#x27;%{http_code}\n&#x27; https://techierathore.com/_framework/blazor.web.js   # 404</code></pre>
+    <p>Meanwhile <code>/healthz</code> returns 200, <code>/</code> returns 200, the container is <code>Up</code> and the logs are clean. <code>docker exec techieblog ls /app/wwwroot</code> shows <strong>no <code>_framework</code> directory</strong>.</p>
+    <p><strong>Cause.</strong> A <code>Dockerfile</code> in which <code>dotnet restore</code> runs while <strong>only the <code>.csproj</code> files exist</strong> (the layer-caching trick) and the later <code>dotnet publish</code> uses <code>--no-restore</code>. That restore writes an <code>obj/</code> state with no Blazor framework static web assets, publish faithfully reuses it, and the published <code>wwwroot</code> ships without <code>_framework</code>. It is <strong>not</strong> caused by <code>--no-restore</code> itself.</p>
+    <p><strong>Confirm which image you have.</strong> The published route count is the cheap fingerprint:</p>
+    <pre><code class="language-bash">docker exec techieblog sh -c &#x27;grep -o &quot;\&quot;Route\&quot;&quot; /app/TechieBlog.staticwebassets.endpoints.json | wc -l&#x27;
+# 606 = healthy.   586 = the broken build (no _framework).</code></pre>
+    <p><strong>Fix.</strong> The <code>Dockerfile</code> was corrected on 2026-08-11: it runs a <strong>second <code>dotnet restore</code></strong> immediately after <code>COPY source/ source/</code>, keeping the BuildKit secret mount and keeping <code>--no-restore</code> on the publish. Packages are already warm, so it adds seconds and no downloads.</p>
+    <p><strong>Do not delete that second restore as redundant</strong> — it is commented in the <code>Dockerfile</code> for exactly this reason. Both states were measured back to back on the same source tree: 586 routes and a 404 without it, 606 and a working circuit with it. <strong>The <code>verify</code> job now fails on this</strong>, so it cannot ship silently again.</p>
+    <h3 id="the-site-is-up-but-completely-empty-no-posts-no-admin-no-tables">The site is up but completely empty — no posts, no admin, no tables<a class="anchor-link" href="#the-site-is-up-but-completely-empty-no-posts-no-admin-no-tables">#</a></h3>
+    <p><strong>Since REQ-NFR-039 the deploy tells you this itself.</strong> <code>/healthz</code> returns <strong>503</strong> with a <code>schema</code> check that names the cause, so <code>verify</code> fails rather than reporting success over an empty site:</p>
+    <pre><code class="language-bash">curl -s https://techierathore.com/healthz | jq &#x27;.checks[] | select(.name==&quot;schema&quot;)&#x27;</code></pre>
+    <table>
+      <thead><tr><th>Description says</th><th>Means</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td><code>&#x27;schemaversions&#x27; journal table does not exist</code></td><td>DbUp never created its journal — almost always missing DDL rights</td><td>§8 — the <code>GRANT</code>s</td></tr>
+        <tr><td><code>journal is BEHIND the migration set: N of M scripts …</code></td><td>DbUp ran and a <strong>specific</strong> script failed; the outstanding file names are listed</td><td><code>docker logs techieblog</code>, search for the named script</td></tr>
+      </tbody>
+    </table>
+    <p>The expectation is <strong>derived</strong> from the scripts folder itself, not hardcoded, so adding <code>026-….sql</code> extends what the gate demands with no code change.</p>
+    <p><strong>And since the DDL probe was added to the pipeline (§8), the first case should now fail the deploy <em>before</em> the container ever starts.</strong></p>
+    <h3 id="uploads-fail-with-a-generic-error">Uploads fail with a generic error<a class="anchor-link" href="#uploads-fail-with-a-generic-error">#</a></h3>
+    <p><strong>This should no longer happen</strong> — the pipeline fixes ownership and then probes writability on every deploy. The description is kept because the failure mode is instructive.</p>
+    <p><strong>Symptom.</strong> <code>docker ps</code> shows the container <strong>Up</strong>, <code>/healthz</code> returns 200, the startup log reports the uploads directory as <code>configured: True</code>, there are <strong>zero <code>[ERR]</code> and <code>[WRN]</code> lines</strong> — and the only evidence is a red toast in the admin UI.</p>
+    <p><strong>Cause.</strong> The uploads directory on the host is <strong>root-owned</strong>. <code>configured: True</code> is not a contradiction — the path <em>is</em> configured correctly; it is simply not writable.</p>
+    <p><strong>Diagnose:</strong></p>
+    <pre><code class="language-bash">docker exec techieblog touch /app/uploads/probe    # &quot;Permission denied&quot; confirms it
+sudo chown -R 1654:1654 /srv/data/techieblog/uploads</code></pre>
+    <p>No restart is needed — the permission is evaluated per write, so the next upload succeeds immediately.</p>
+    <blockquote>
+      <p><strong>Since REQ-NFR-040 the failure is no longer silent.</strong> A refused upload emits one <code>[ERR]</code> line naming the storage provider, the target path, the uploading user and the exception. The admin sees <strong>&quot;The server cannot write to its upload location… Retrying will not help&quot;</strong> — deliberately distinct from a transient I/O failure, so nobody retries forever. <code>docker logs techieblog 2&gt;&amp;1 | grep &#x27;Upload REFUSED&#x27;</code> is the fastest diagnosis.</p>
+    </blockquote>
+    <h3 id="uploads-succeed-but-the-images-404">Uploads succeed but the images 404<a class="anchor-link" href="#uploads-succeed-but-the-images-404">#</a></h3>
+    <ol>
+      <li><strong>The bind mount.</strong> <code>docker inspect techieblog --format &#x27;{{json .Mounts}}&#x27;</code> must show <code>/srv/data/techieblog/uploads</code> → <strong><code>/app/uploads</code></strong>. A destination of <code>/app/wwwroot/uploads</code> is a stale compose file from before 2026-08-10 — re-run the deploy.</li>
+      <li><strong><code>UploadsPath</code>.</strong> <code>docker exec techieblog printenv UploadsPath</code> must print <code>/app/uploads</code>.</li>
+      <li><strong>Site Settings → Storage → Local root path</strong> was set to a directory outside the served tree. Empty that field (§9).</li>
+    </ol>
+    <h3 id="verify-fails-but-the-site-works-in-a-browser"><code>verify</code> fails but the site works in a browser<a class="anchor-link" href="#verify-fails-but-the-site-works-in-a-browser">#</a></h3>
+    <p>Usually DNS propagation: the GitHub runner resolved the old record. Re-run the job. If it fails again, check for an IPv6 <code>AAAA</code> record pointing elsewhere — <code>curl</code> on the runner may prefer it.</p>
+    <h3 id="ensure-db-fails"><code>ensure-db</code> fails<a class="anchor-link" href="#ensure-db-fails">#</a></h3>
+    <p>The deploy user&#x27;s passwordless <code>sudo</code> is scoped to <code>/usr/local/bin/ensure-db</code>. A &quot;sudo: a password is required&quot; error means the sudoers entry is missing or the helper moved. VPS runbook territory, not app configuration.</p>
+    <hr>
+    <h2 id="13-what-is-proven-and-what-is-not">13. What is proven and what is not<a class="anchor-link" href="#13-what-is-proven-and-what-is-not">#</a></h2>
+    <p>Honest scope statement. <strong>No part of this pipeline has ever <em>executed</em> against the real VPS.</strong> What changed on 2026-08-14 is that the server&#x27;s <em>state</em> was inspected directly (§0), so the assumptions the pipeline encodes are no longer guesses — but running the pipeline itself is still untested.</p>
+    <h3 id="actually-executed-and-proven">Actually executed and proven<a class="anchor-link" href="#actually-executed-and-proven">#</a></h3>
+    <ul>
+      <li>Every YAML file parses; every shell block in <code>deploy.yml</code> passes <code>bash -n</code>.</li>
+      <li>The compose template renders through <code>envsubst</code> with zero surviving placeholders, and the result passes <code>docker compose config</code>.</li>
+      <li>The secret-presence and minimum-length guard was exercised in four scenarios, including bare <code>envsubst</code> with a variable unset — which <strong>exits 0 and emits an empty value</strong>, proving why the guard is needed.</li>
+      <li><code>deploy/techieblog.caddy</code> passes <code>caddy validate --adapter caddyfile</code>.</li>
+      <li><strong>A real image build</strong>, with <code>--secret id=nuget_pat</code>, reaching the private feed and failing <code>NU1301 / 401</code> on an invalid token — the correct outcome, and proof the secret is presented under the id the Dockerfile mounts. The secret-id handshake was proved directly with a probe image: under the correct id the mount held the exact token; under the old <code>trblazeui_token</code> it was <strong>silently empty</strong>.</li>
+      <li><strong>A running container serving the real site</strong>, signed into through its real admin UI, with a real image uploaded through the interactive dialog. <code>/_blazor</code> opened (<code>101</code>), <code>window.Blazor</code> initialised, <code>/_framework/blazor.web.js</code> returned 200. <em>Substitution: the private feed was replaced with a local folder feed of the cached TrBlazeUI packages, because no valid PAT exists on the build machine.</em></li>
+      <li><strong>Uploads through a bind mount, in both directions</strong> — a real PNG landed on the host owned <code>1654:1654</code>, byte-identical, was served back over HTTP, and <strong>survived <code>docker rm -f</code> plus a recreate</strong>. With the host directory left root-owned, the same upload failed. <em>Deviation: a local bind mount, not <code>/srv/data</code> on the VPS.</em></li>
+      <li><strong>The DataProtection key-ring mount</strong> — without it, two recreates generated two different key GUIDs and the runtime warned each time; with it, the warning disappeared and a recreate reloaded the <strong>same</strong> <code>key-&lt;guid&gt;.xml</code>.</li>
+      <li><strong>The container UID</strong> — <code>$APP_UID</code> is <code>1654</code>; <code>id 1654</code> resolves to <code>uid=1654(app) gid=1654(app)</code>.</li>
+      <li><strong>The new ownership fix, as a mechanism</strong> — the actual step script was run against real directories with real Docker. Run 1 corrected the paths; <code>ls -ln</code> confirmed <code>1654:1654</code> recursively. Run 2 reported &quot;nothing to do&quot; (idempotent). Run 3 corrected a newly-dropped root-owned file — which is the <code>rsync</code> migration case healing itself. The parent directory stayed owned by the deploy user. Writability was proven both ways with <code>--user 1654</code>.</li>
+      <li><strong>The new DDL probe and both verify probes, as control flow</strong> — every branch exercised with stubs (psql absent → warning; success; failure → <code>GRANT</code>s + <code>::error::</code> + exit 1), including a check that the password never appears in output.</li>
+    </ul>
+    <h3 id="established-on-the-real-vps-server-state-not-pipeline-behaviour">Established on the real VPS (server state, not pipeline behaviour)<a class="anchor-link" href="#established-on-the-real-vps-server-state-not-pipeline-behaviour">#</a></h3>
+    <p>These were assumptions in early revisions. They are observations now. They are <strong>server-state</strong> facts — none of them is proof that a pipeline step runs.</p>
+    <p><strong>By read-only inspection, 2026-08-14:</strong> PostgreSQL <strong>18.4</strong> active with <code>psql</code> present (so the DDL gate executes rather than skipping itself); <code>ensure-db</code> runs <code>createdb -O appuser</code>, making <code>appuser</code> the database <strong>owner</strong>; the <code>web</code> network and <code>caddy:2</code> container exist; <code>/srv</code> and its children are owned by the deploy user; Docker Engine <strong>29.7.1</strong> with the <strong><code>docker compose</code> v5.3.1</strong> plugin.</p>
+    <p><strong>By direct HTTPS probe, 2026-08-16:</strong> Seq answers at <code>https://seq.techierathore.com</code> (<strong>Seq 2026.1.17083</strong>), on the <strong>same IPv4 as the apex and <code>www</code></strong>, behind the same Caddy. It accepts <strong>unauthenticated ingestion</strong> — <code>POST /ingest/clef</code> returned <strong>201</strong>, while <code>GET /api/events/signal</code> returned <strong>401</strong> — which is why <code>SEQ_API_KEY</code> is genuinely optional rather than optional-in-name. The apex itself returned <strong>502</strong>: Caddy live and holding a valid certificate, with nothing behind it yet — exactly the expected pre-deploy state.</p>
+    <p><strong>By the owner completing the server build, 2026-08-16 — <code>docs/bluehost-vps-runbook-v5.2.md</code> finished and <code>sudo /srv/checkup.sh</code> reporting 0 failed:</strong></p>
+    <ul>
+      <li><strong>The Seq container is named <code>seq</code> and is up</strong>, answering through Caddy. Combined with the brief&#x27;s contract constant, <code>http://seq:5341</code> is settled — this was the last open unknown from the previous revision, and it is now closed.</li>
+      <li><strong><code>appuser</code> holds database-creation and DDL rights</strong> — owner-checked directly. The §8 <code>GRANT</code>s become a guard against future drift, not an expected step.</li>
+      <li><strong>The server is authenticated to GHCR</strong> with a stored PAT (runbook Step 12). This flips a branch that was live in the previous revision: the pipeline&#x27;s credential check will now find an existing <code>ghcr.io</code> entry and take the <strong>leave-it-alone</strong> path, never its ephemeral login. That is what deployment-brief v3.2 requires.</li>
+      <li><strong>Swap is configured</strong>, <code>ufw</code>/<code>fail2ban</code>/<code>unattended-upgrades</code>/<code>cron</code> active, <code>/srv</code> tree complete, backups running with a recent copy on <strong>both</strong> OneDrive and Google Drive.</li>
+    </ul>
+    <p><strong>By owner action + local measurement, 2026-08-16b — the <code>ciuser</code> change (runbook v5.2 §2.1):</strong></p>
+    <ul>
+      <li><strong>The pipeline SSHes in as <code>ciuser</code>, not <code>ravi</code>.</strong> Audited: this workflow executes exactly <strong>one</strong> <code>sudo</code>, and it is <code>/usr/local/bin/ensure-db</code> — the only command in ciuser&#x27;s allowlist. It uses no <code>sudo docker</code> anywhere, and it never hardcodes a username; every step reads <code>VPS_USER</code>.</li>
+      <li><strong>The ownership fix was re-measured under the new group model</strong>, on both a Debian base (what the app image is) and Alpine: resulting mode <code>drwxrwsr-x</code>, owner <code>1654</code>, group unchanged; container UID 1654 writes; a <code>webops</code>-group user writes; setgid inheritance confirmed; idempotent over three runs; parent untouched; uploaded files stay <code>-rw-r--r--</code>.</li>
+      <li><strong>A latent silent-false-pass was found and removed.</strong> The old <code>find … ! -uid 1654 | wc -l</code> pre-check reports <em>&quot;nothing to do&quot;</em> on any BusyBox/musl base, because <code>-uid</code> is GNU-only and a failed <code>find</code> piped to <code>wc -l</code> yields <code>0</code>. Reproduced directly on <code>alpine:latest</code>. Not live today (the app image is Debian), and now gone regardless.</li>
+    </ul>
+    <h3 id="still-unverified-and-unverifiable-from-a-development-machine">Still unverified, and unverifiable from a development machine<a class="anchor-link" href="#still-unverified-and-unverifiable-from-a-development-machine">#</a></h3>
+    <table>
+      <thead><tr><th>Unverified</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Everything the pipeline does on the server</strong></td><td>No SSH credential exists on this machine — see the table below. Server <em>state</em> is thoroughly known; the pipeline&#x27;s <em>behaviour against it</em> has never run once.</td></tr>
+        <tr><td>Whether <code>ciuser</code> really has <strong>no</strong> stored GHCR credential</td><td>Inferred, and the inference is strong: registry logins are per-user, and runbook Step 12 ran as <code>ravi</code> before <code>ciuser</code> existed. It cannot be checked from here. Either way the deploy works — with the credential the pipeline skips its login, without it the ephemeral fallback fires — and the pull step&#x27;s own log says which branch it took.</td></tr>
+      </tbody>
+    </table>
+    <h3 id="unverified-and-cannot-be-verified-from-a-development-machine">Unverified, and cannot be verified from a development machine<a class="anchor-link" href="#unverified-and-cannot-be-verified-from-a-development-machine">#</a></h3>
+    <table>
+      <thead><tr><th>Unverified</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Any actual deploy</td><td>No SSH-from-CI, no scp, no <code>ensure-db</code> invocation, no <code>docker compose up</code> has run against the real server. The server&#x27;s <em>state</em> is now known (§0); its <em>behaviour under the pipeline</em> is not.</td></tr>
+        <tr><td>The <strong>authenticated GitHub Packages restore</strong></td><td>No valid TrBlazeUI PAT on the build machine. The failure direction <em>is</em> proven (invalid token → <code>NU1301 / 401</code>).</td></tr>
+        <tr><td>GHCR push, tags and <code>type=gha</code> caching</td><td>Requires a real workflow run.</td></tr>
+        <tr><td>The server <strong>pulling</strong> a private image with its stored PAT</td><td>The credential now exists (runbook Step 12) and the pipeline is designed to leave it alone, but no pull has been attempted. If it fails <code>unauthorized</code>, the PAT expired — re-run Step 12 by hand; it is not a pipeline change.</td></tr>
+        <tr><td>The <code>appleboy/ssh-action</code> / <code>scp-action</code> steps</td><td>Never executed. Argument shapes follow the actions&#x27; documented inputs.</td></tr>
+        <tr><td>Caddy actually serving <strong>this site</strong>, TLS issuance for the apex, the <code>www</code> redirect</td><td>Caddy itself is proven live (it returned 502 for the apex with a valid certificate, and <code>checkup.sh</code> validates its config). What is untested is <em>this app&#x27;s</em> snippet being installed and routed.</td></tr>
+        <tr><td>The Blazor circuit <strong>through Caddy</strong></td><td>Proven in-container; the <strong>Caddy hop</strong> — WebSocket upgrade through the reverse proxy, over TLS, on the real domain — is untested.</td></tr>
+        <tr><td>The ownership fix, the DDL probe and the writability probe <strong>on the VPS</strong></td><td>The mechanisms are proven locally. What has not happened is any of them running over SSH against the real server. The ownership fix is also the piece that makes this repo&#x27;s non-root container (UID 1654) safe despite deployment-brief v3.2 prescribing root — see §0.</td></tr>
+        <tr><td>Seq actually receiving events <strong>from this app</strong></td><td>The sink is registered and unit-tested, and the Seq server is now proven to exist and to accept anonymous ingestion (a manual <code>POST</code> landed a <code>probe</code> event on 2026-08-16). What has never happened is the <strong>app</strong> shipping an event, because the app has never run on the VPS. Seq is now enabled by default rather than disabled.</td></tr>
+      </tbody>
+    </table>
+    <hr>
+    <p><em>Companion documents: <code>docs/claude-code-deployment-brief-v3.2.md</code> (the portfolio-wide spec this implements — note it still describes a generated <code>deploy/SERVER-SETUP.md</code>, which this project no longer has, and it disagrees with runbook v5.2 §6.3 on the Seq secret&#x27;s name — see §0), <code>docs/bluehost-vps-runbook-v5.2.md</code> (the VPS build, <strong>complete</strong>, <code>sudo /srv/checkup.sh</code> = 0 failed), <code>docs/deployment.md</code> (older, generic, non-VPS deployment options).</em></p>
+    <p><em><code>docs/Server-Setup.md</code> and <code>docs/Server-Setup.html</code> were <strong>merged into this file and deleted on 2026-08-16</strong>. Their content is §2. If you have a bookmark to either, repoint it at §2.</em></p>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+<script>
+// Light/dark toggle. The initial theme was already applied flash-free by the
+// <head> script (saved choice, else time-of-day). Clicking flips it, saves the
+// choice, and reloads so Mermaid re-renders in the matching theme.
+(function(){
+  var btn = document.getElementById('themeToggle');
+  if(!btn) return;
+  var relabel = function(){
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    btn.textContent = dark ? '☀ Light' : '☾ Dark';
+  };
+  relabel();
+  btn.addEventListener('click', function(){
+    var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    try{ localStorage.setItem('tf-theme', next); }catch(e){}
+    location.reload();
+  });
+})();
+
+// Copy buttons on every code <pre> — but NEVER on a `pre.mermaid`:
+// mermaid reads the <pre>'s textContent as the diagram source, so a button
+// appended here glues "copy" onto the last line and breaks the parse
+// (flowcharts → "Syntax error"; sequence diagrams silently absorb it).
+// Mermaid blocks get copy/export from their own .diagram toolbar instead.
+document.querySelectorAll('pre:not(.mermaid)').forEach(pre => {
+  const btn = document.createElement('button');
+  btn.className = 'copy';
+  btn.textContent = 'copy';
+  btn.addEventListener('click', () => {
+    const text = pre.querySelector('code') ? pre.querySelector('code').innerText : pre.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'copied';
+      setTimeout(() => { btn.textContent = 'copy'; }, 1200);
+    });
+  });
+  pre.appendChild(btn);
+});
+
+// Mermaid init — theme follows the resolved light/dark theme
+if (window.mermaid) {
+  var mermaidTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
+  mermaid.initialize({ startOnLoad: true, theme: mermaidTheme, securityLevel: 'loose' });
+}
+
+// Mermaid toolbar wiring — run after mermaid renders
+function wireMermaidToolbars() {
+  document.querySelectorAll('.diagram').forEach(dia => {
+    if (dia.dataset.wired) return;
+    const merm = dia.querySelector('.mermaid');
+    const svg = merm && merm.querySelector('svg');
+    if (!svg) return;
+    dia.dataset.wired = '1';
+    let scale = 1;
+    const label = dia.querySelector('.zlabel');
+    const apply = () => {
+      svg.style.transform = `scale(${scale})`;
+      svg.style.transformOrigin = 'top left';
+      if (label) label.textContent = Math.round(scale * 100) + '%';
+    };
+    const setScale = (s) => { scale = Math.max(0.25, Math.min(4, s)); apply(); };
+    dia.querySelector('[data-zin]').onclick = () => setScale(scale * 1.2);
+    dia.querySelector('[data-zout]').onclick = () => setScale(scale / 1.2);
+    dia.querySelector('[data-fit]').onclick = () => {
+      svg.style.transform = '';
+      svg.removeAttribute('width');
+      svg.style.maxWidth = '100%';
+      svg.style.height = 'auto';
+      scale = 1;
+      if (label) label.textContent = 'Fit';
+    };
+    dia.querySelector('[data-one]').onclick = () => {
+      svg.style.transform = '';
+      svg.style.maxWidth = 'none';
+      svg.style.width = '';
+      svg.style.height = '';
+      scale = 1;
+      if (label) label.textContent = '100%';
+    };
+    dia.querySelector('[data-fs]').onclick = () => {
+      dia.classList.toggle('fs');
+      if (dia.classList.contains('fs')) {
+        document.addEventListener('keydown', escFs);
+      } else {
+        document.removeEventListener('keydown', escFs);
+      }
+    };
+    function escFs(e) { if (e.key === 'Escape') { dia.classList.remove('fs'); document.removeEventListener('keydown', escFs); } }
+    dia.querySelector('[data-pop]').onclick = () => openInNewTab(svg);
+    // Ctrl+wheel zoom
+    merm.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setScale(scale * (e.deltaY < 0 ? 1.1 : 1/1.1));
+    }, { passive: false });
+  });
+}
+
+function openInNewTab(svg) {
+  const svgSource = new XMLSerializer().serializeToString(svg);
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Diagram</title>
+<style>
+  html,body{margin:0;height:100%;background:#0f1115;color:#e6e8ee;font-family:system-ui,sans-serif}
+  .bar{position:fixed;top:0;left:0;right:0;padding:8px 12px;background:#161a22;border-bottom:1px solid #2a3142;display:flex;gap:8px;z-index:10}
+  .bar button{background:#1c2230;color:#9aa3b2;border:1px solid #2a3142;border-radius:6px;padding:5px 12px;font-size:13px;cursor:pointer}
+  .bar button:hover{color:#7cc4ff;border-color:#7cc4ff}
+  .bar .hint{margin-left:auto;color:#9aa3b2;font-size:11.5px;align-self:center}
+  #stage{position:absolute;top:42px;bottom:0;left:0;right:0;overflow:hidden}
+  #stage svg{width:100%;height:100%}
+</style>
+</head><body>
+<div class="bar">
+  <button onclick="zpz.zoomIn()">+</button>
+  <button onclick="zpz.zoomOut()">−</button>
+  <button onclick="zpz.fit();zpz.center()">Fit</button>
+  <button onclick="zpz.resetZoom();zpz.center()">1:1</button>
+  <button onclick="window.print()">Print</button>
+  <button onclick="dlPng()">PNG</button>
+  <button onclick="dlSvg()">SVG</button>
+  <span class="hint">Drag to pan · Ctrl+wheel to zoom · + / − keys</span>
+</div>
+<div id="stage">${svgSource}</div>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"><\/script>
+<script>
+  const el = document.querySelector('#stage svg');
+  const zpz = svgPanZoom(el, { zoomScaleSensitivity: .3, minZoom: .2, maxZoom: 10, controlIconsEnabled: false, fit: true, center: true });
+  document.addEventListener('keydown', e => {
+    if (e.key === '+' || e.key === '=') zpz.zoomIn();
+    if (e.key === '-' || e.key === '_') zpz.zoomOut();
+    if (e.key === '0') { zpz.resetZoom(); zpz.center(); }
+  });
+  function dlSvg() {
+    const blob = new Blob([new XMLSerializer().serializeToString(el)], { type: 'image/svg+xml' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'diagram.svg'; a.click();
+  }
+  function dlPng() {
+    const src = new XMLSerializer().serializeToString(el);
+    const img = new Image();
+    const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(src)));
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = el.clientWidth * 2; c.height = el.clientHeight * 2;
+      const ctx = c.getContext('2d'); ctx.scale(2,2); ctx.drawImage(img, 0, 0);
+      c.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'diagram.png'; a.click(); });
+    };
+    img.src = url;
+  }
+<\/script>
+</body></html>`;
+  const w = window.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+// Run wiring after mermaid finishes (it renders async)
+if (window.mermaid) {
+  setTimeout(wireMermaidToolbars, 400);
+  setTimeout(wireMermaidToolbars, 1200);  // safety re-run for slow renders
+}
+</script>
+</body>
+</html>

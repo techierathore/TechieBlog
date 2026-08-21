@@ -7,10 +7,15 @@
 
   <Folder Name="/source/">
     <Project Path="source/TechieBlog/TechieBlog.csproj" />
+    <Project Path="source/BlogApp/BlogApp.csproj" />
     <Project Path="source/BlogDb/BlogDb.csproj" />
     <Project Path="source/BlogEngine/BlogEngine.csproj" />
     <Project Path="source/BlogModel/BlogModels.csproj" />
     <Project Path="source/BlogUI/BlogUI.csproj" />
+  </Folder>
+
+  <Folder Name="/tests/">
+    <Project Path="tests/TechieBlog.Tests/TechieBlog.Tests.csproj" />
   </Folder>
 
   <Folder Name="/docs/">

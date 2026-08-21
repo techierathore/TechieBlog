@@ -1,0 +1,147 @@
+@*
+    Unsubscribe.razor
+    Purpose: Public landing page for the one-click unsubscribe link carried by every
+    newsletter message. [REQ-FN-032 / BRD-59]
+
+    Route: /unsubscribe/{Token}
+    Layout: FullWidthLayout (public shell, no blog sidebar — matches /verify/{token})
+
+    ANONYMOUS BY DESIGN — deliberately carries NO @attribute [Authorize]. The link is
+    followed out of a mail client by someone who may have no account at all, and an
+    unsubscribe that demands a sign-in is not an unsubscribe. The opaque per-subscriber
+    token in the route IS the authorisation; nothing here reads the current identity.
+
+    THE DEFECT THIS PAGE FIXES: NewsletterSvc has mailed {BaseUrl}/unsubscribe/{token}
+    since the newsletter feature shipped, but no page was ever routed there, so every
+    issue already delivered carried an unsubscribe link that answered HTTP 404 with a
+    zero-byte body. That is a compliance failure, not a cosmetic one.
+
+    States (exactly one card body renders):
+      loading             — the token has not been applied yet
+      unsubscribed        — the token resolved and the subscriber was opted out now
+      alreadyUnsubscribed — the token resolved but the subscriber was already off the list
+      invalid             — the token resolved to nobody, or the request could not be processed
+
+    The invalid state never says whether the token existed, so the route cannot be used to
+    test guessed tokens against the subscriber list.
+
+    Colour comes from TrBlazeUI semantic tokens only (text-primary / text-destructive and
+    the Alert variants) — no hardcoded hex values, so all site themes x light/dark work.
+
+    The heading is a raw <h1> with utility classes rather than <TypographyH1>, for the same
+    reason VerifyEmail.razor gives: TypographyH1 bakes in text-4xl and .text-4xl is emitted
+    after .text-2xl in trblazeui.css, so a Class override loses on equal specificity.
+*@
+@page "/unsubscribe/{Token}"
+@layout FullWidthLayout
+
+<PageTitle>@PageHeading &middot; TechieBlog</PageTitle>
+
+<div class="mx-auto w-full max-w-lg py-8" data-testid="unsubscribe-page">
+
+    <Card data-testid="unsubscribe-card">
+        <CardContent Class="p-8 text-center">
+
+            @if (State == UnsubscribeState.Loading)
+            {
+                <div class="flex flex-col items-center gap-4 py-12" data-testid="unsubscribe-loading">
+                    <Spinner Size="SpinnerSize.Large" Class="text-primary" />
+                    <p class="text-sm text-muted-foreground">Processing your unsubscribe request&hellip;</p>
+                </div>
+            }
+            else if (State == UnsubscribeState.Unsubscribed)
+            {
+                <div data-testid="unsubscribe-done">
+                    <div class="mb-6 flex justify-center">
+                        <LucideIcon Name="circle-check" Size="72" Class="text-primary" />
+                    </div>
+
+                    <h1 class="text-2xl font-bold tracking-tight">You have been unsubscribed</h1>
+
+                    <p class="mt-4 text-sm text-muted-foreground" data-testid="unsubscribe-summary">
+                        The address this link belongs to will no longer receive the TechieBlog newsletter.
+                    </p>
+
+                    <Alert Variant="AlertVariant.Success" Class="mt-6 text-left" data-testid="unsubscribe-success-alert">
+                        <LucideIcon Name="circle-check" Size="16" />
+                        <AlertTitle>Removed from the mailing list</AlertTitle>
+                        <AlertDescription>
+                            It takes effect immediately &mdash; an issue already on its way may still arrive.
+                            Nothing else about your account or comments has changed.
+                        </AlertDescription>
+                    </Alert>
+                </div>
+            }
+            else if (State == UnsubscribeState.AlreadyUnsubscribed)
+            {
+                <div data-testid="unsubscribe-already">
+                    <div class="mb-6 flex justify-center">
+                        <LucideIcon Name="info" Size="72" Class="text-primary" />
+                    </div>
+
+                    <h1 class="text-2xl font-bold tracking-tight">Already unsubscribed</h1>
+
+                    <p class="mt-4 text-sm text-muted-foreground" data-testid="unsubscribe-summary">
+                        This address is already off the newsletter list, so nothing was changed.
+                    </p>
+
+                    <Alert Variant="AlertVariant.Info" Class="mt-6 text-left" data-testid="unsubscribe-already-alert">
+                        <LucideIcon Name="info" Size="16" />
+                        <AlertTitle>Nothing left to do</AlertTitle>
+                        <AlertDescription>
+                            You will not receive further issues. The link stays valid, so you can open it
+                            again at any time without any effect.
+                        </AlertDescription>
+                    </Alert>
+                </div>
+            }
+            else
+            {
+                <div data-testid="unsubscribe-invalid">
+                    <div class="mb-6 flex justify-center">
+                        <LucideIcon Name="circle-alert" Size="72" Class="text-destructive" />
+                    </div>
+
+                    <h1 class="text-2xl font-bold tracking-tight">This link is not valid</h1>
+
+                    <p class="mt-4 text-sm text-muted-foreground" data-testid="unsubscribe-summary">
+                        Nothing has been changed.
+                    </p>
+
+                    <Alert Variant="AlertVariant.Danger" Class="mt-6 text-left" data-testid="unsubscribe-invalid-alert">
+                        <LucideIcon Name="circle-alert" Size="16" />
+                        <AlertTitle>Unsubscribe failed</AlertTitle>
+                        <AlertDescription>@ErrorMessage</AlertDescription>
+                    </Alert>
+
+                    <p class="mt-4 text-sm text-muted-foreground" data-testid="unsubscribe-invalid-help">
+                        Open the link straight from a recent newsletter rather than retyping it &mdash; the
+                        token is long and a truncated copy will not resolve. If it still fails, reach us
+                        through the <a class="underline" href="/about">about page</a> and we will remove the
+                        address by hand.
+                    </p>
+                </div>
+            }
+
+            @if (State != UnsubscribeState.Loading)
+            {
+                <div class="mt-6 flex flex-wrap justify-center gap-3" data-testid="unsubscribe-actions">
+                    <Button Href="/newsletters" Variant="ButtonVariant.Outline" data-testid="unsubscribe-archive">
+                        Read the archive
+                    </Button>
+                    <Button Href="/" data-testid="unsubscribe-home">
+                        <LucideIcon Name="arrow-left" Size="16" />
+                        <span class="ml-2">Back to TechieBlog</span>
+                    </Button>
+                </div>
+
+                <Separator Class="my-6" />
+
+                <p class="text-sm text-muted-foreground" data-testid="unsubscribe-footnote">
+                    Changed your mind? You can subscribe again from the newsletter box on any page.
+                </p>
+            }
+
+        </CardContent>
+    </Card>
+</div>

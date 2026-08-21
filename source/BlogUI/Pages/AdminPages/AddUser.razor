@@ -4,120 +4,168 @@
     Admins can create new users with specified roles.
 
     Usage: Navigate to /AddUser
-    Dependencies: Microsoft.FluentUI.AspNetCore.Components, BlogUserRepo
+    Dependencies: TrBlazeUI.Components (REQ-UI-048), AuthSvc
     Authorization: AdminOnly policy required
+
+    REQ-NFR-002 / REQ-FN-006 (BRD-10, BRD-79) — 2026-08-07: this page used to hash the
+    password itself with a bare, unsalted SHA256 and accept anything six characters long,
+    bypassing both PasswordHasher and PasswordValidator. Accounts created that way could
+    never sign in, because no verifier recognises that hash shape. It now delegates the
+    whole operation to AuthSvc.CreateStaffAccount, which enforces password strength,
+    stores a PBKDF2-HMAC-SHA256 hash and flags the account MustChangePassword.
 *@
 @page "/AddUser"
 @attribute [Authorize(Policy = "AdminOnly")]
 @layout BlogUI.Layouts.AdminLayout
-@inject BlogModels.IBlogUserRepo UserRepo
+@inject BlogEngine.Services.AuthSvc AuthService
 @inject NavigationManager Navigation
 
-<div class="add-user-page">
-    @* Page Header *@
-    <div class="page-header">
+@* [REQ-NFR-007] WCAG 2.4.2 Page Titled (Level A) — without this the page inherits the
+   shell title and every admin screen announces itself as just the site name. *@
+<PageTitle>Add user - TechieBlog</PageTitle>
+
+<div class="mx-auto max-w-[800px] space-y-6">
+
+    @* ---- Page header --------------------------------------------------- *@
+    <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
-            <h1>Add New User</h1>
-            <p class="page-subtitle">Create a new user account</p>
+            <h1 class="text-2xl font-semibold tracking-tight text-foreground">Add New User</h1>
+            <p class="text-sm text-muted-foreground">Create a new user account.</p>
         </div>
-        <FluentAnchor Href="/users" Appearance="Appearance.Outline">
-            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowLeft())" Style="margin-right: 4px;" />
+        <Button Href="/users" Variant="ButtonVariant.Outline" data-testid="back-to-users">
+            <LucideIcon Name="arrow-left" Size="16" />
             Back to Users
-        </FluentAnchor>
+        </Button>
     </div>
 
-    @* Status Messages *@
+    @* ---- Status message ------------------------------------------------ *@
     @if (!string.IsNullOrEmpty(StatusMessage))
     {
-        <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
-                          Style="margin-bottom: 16px;">
-            @StatusMessage
-        </FluentMessageBar>
+        <Alert Variant="@(IsError ? AlertVariant.Danger : AlertVariant.Success)"
+               data-testid="add-user-status-message">
+            <LucideIcon Name="@(IsError ? "circle-alert" : "circle-check")" Size="16" />
+            <AlertDescription>@StatusMessage</AlertDescription>
+        </Alert>
     }
 
-    @* User Form *@
-    <div class="form-card">
-        <EditForm Model="@NewUser" OnValidSubmit="HandleSubmit">
-            <DataAnnotationsValidator />
+    @* ---- User form ------------------------------------------------------ *@
+    <Card>
+        <CardContent Class="pt-6">
+            <EditForm Model="@NewUser" OnValidSubmit="HandleSubmit" data-testid="add-user-form">
+                <DataAnnotationsValidator />
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">First Name *</label>
-                    <FluentTextField @bind-Value="NewUser.FirstName"
-                                     Placeholder="Enter first name"
-                                     Style="width: 100%;"
-                                     Required="true" />
-                    <ValidationMessage For="@(() => NewUser.FirstName)" />
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <Field>
+                        <FieldLabel For="user-first-name">First Name *</FieldLabel>
+                        <FieldContent>
+                            <Input Id="user-first-name"
+                                   @bind-Value="NewUser.FirstName"
+                                   Placeholder="Enter first name"
+                                   Required="true"
+                                   Class="w-full"
+                                   data-testid="user-first-name" />
+                            <ValidationMessage For="@(() => NewUser.FirstName)" />
+                        </FieldContent>
+                    </Field>
+
+                    <Field>
+                        <FieldLabel For="user-last-name">Last Name *</FieldLabel>
+                        <FieldContent>
+                            <Input Id="user-last-name"
+                                   @bind-Value="NewUser.LastName"
+                                   Placeholder="Enter last name"
+                                   Required="true"
+                                   Class="w-full"
+                                   data-testid="user-last-name" />
+                            <ValidationMessage For="@(() => NewUser.LastName)" />
+                        </FieldContent>
+                    </Field>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Last Name *</label>
-                    <FluentTextField @bind-Value="NewUser.LastName"
-                                     Placeholder="Enter last name"
-                                     Style="width: 100%;"
-                                     Required="true" />
-                    <ValidationMessage For="@(() => NewUser.LastName)" />
+                <Field Class="mt-4">
+                    <FieldLabel For="user-email">Email Address *</FieldLabel>
+                    <FieldContent>
+                        <Input Id="user-email"
+                               Type="InputType.Email"
+                               @bind-Value="NewUser.EmailId"
+                               Placeholder="user@example.com"
+                               Required="true"
+                               Class="w-full"
+                               data-testid="user-email" />
+                        <ValidationMessage For="@(() => NewUser.EmailId)" />
+                    </FieldContent>
+                </Field>
+
+                <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                    <Field>
+                        <FieldLabel For="user-password">Password *</FieldLabel>
+                        <FieldContent>
+                            <Input Id="user-password"
+                                   Type="InputType.Password"
+                                   @bind-Value="Password"
+                                   Placeholder="Enter password"
+                                   Required="true"
+                                   Class="w-full"
+                                   data-testid="user-password" />
+                            <FieldDescription>
+                                Minimum 8 characters, including uppercase, lowercase and a number.
+                                The user must change it at first sign-in.
+                            </FieldDescription>
+                        </FieldContent>
+                    </Field>
+
+                    <Field>
+                        <FieldLabel For="user-confirm-password">Confirm Password *</FieldLabel>
+                        <FieldContent>
+                            <Input Id="user-confirm-password"
+                                   Type="InputType.Password"
+                                   @bind-Value="ConfirmPassword"
+                                   Placeholder="Confirm password"
+                                   Required="true"
+                                   Class="w-full"
+                                   data-testid="user-confirm-password" />
+                        </FieldContent>
+                    </Field>
                 </div>
-            </div>
 
-            <div class="form-group">
-                <label class="form-label">Email Address *</label>
-                <FluentTextField @bind-Value="NewUser.EmailId"
-                                 Placeholder="user@example.com"
-                                 Style="width: 100%;"
-                                 Required="true" />
-                <ValidationMessage For="@(() => NewUser.EmailId)" />
-            </div>
+                <Field Class="mt-4">
+                    <FieldLabel For="user-role">Role *</FieldLabel>
+                    <FieldContent>
+                        <Select TValue="string" @bind-Value="NewUser.UserRole" Class="w-full">
+                            <SelectTrigger data-testid="user-role">
+                                <SelectValue Placeholder="Select a role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem TValue="string" Value="@("Admin")" Text="Admin">Admin</SelectItem>
+                                <SelectItem TValue="string" Value="@("Editor")" Text="Editor">Editor</SelectItem>
+                                <SelectItem TValue="string" Value="@("Author")" Text="Author">Author</SelectItem>
+                                <SelectItem TValue="string" Value="@("Contributor")" Text="Contributor">Contributor</SelectItem>
+                                <SelectItem TValue="string" Value="@("Reader")" Text="Reader">Reader</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </FieldContent>
+                </Field>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">Password *</label>
-                    <FluentTextField @bind-Value="Password"
-                                     TextFieldType="TextFieldType.Password"
-                                     Placeholder="Enter password"
-                                     Style="width: 100%;"
-                                     Required="true" />
+                <div class="mt-6 flex justify-end gap-3 border-t border-border pt-6">
+                    <Button Variant="ButtonVariant.Outline"
+                            Type="ButtonType.Button"
+                            OnClick="Cancel"
+                            data-testid="add-user-cancel">
+                        Cancel
+                    </Button>
+                    <Button Type="ButtonType.Submit"
+                            Disabled="@IsProcessing"
+                            data-testid="add-user-submit">
+                        @if (IsProcessing)
+                        {
+                            <Spinner Size="SpinnerSize.Small" />
+                        }
+                        Create User
+                    </Button>
                 </div>
-
-                <div class="form-group">
-                    <label class="form-label">Confirm Password *</label>
-                    <FluentTextField @bind-Value="ConfirmPassword"
-                                     TextFieldType="TextFieldType.Password"
-                                     Placeholder="Confirm password"
-                                     Style="width: 100%;"
-                                     Required="true" />
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label class="form-label">Role *</label>
-                <FluentSelect TOption="string" @bind-Value="NewUser.UserRole" Style="width: 100%;">
-                    <FluentOption TOption="string" Value="Admin">Admin</FluentOption>
-                    <FluentOption TOption="string" Value="Editor">Editor</FluentOption>
-                    <FluentOption TOption="string" Value="Author">Author</FluentOption>
-                    <FluentOption TOption="string" Value="Contributor">Contributor</FluentOption>
-                    <FluentOption TOption="string" Value="Reader">Reader</FluentOption>
-                </FluentSelect>
-            </div>
-
-            <div class="form-actions">
-                <FluentButton Appearance="Appearance.Neutral"
-                              OnClick="Cancel"
-                              Type="ButtonType.Button">
-                    Cancel
-                </FluentButton>
-                <FluentButton Appearance="Appearance.Accent"
-                              Type="ButtonType.Submit"
-                              Disabled="@IsProcessing">
-                    @if (IsProcessing)
-                    {
-                        <FluentProgressRing Style="width: 16px; height: 16px; margin-right: 8px;" />
-                    }
-                    Create User
-                </FluentButton>
-            </div>
-        </EditForm>
-    </div>
+            </EditForm>
+        </CardContent>
+    </Card>
 </div>
 
 @code {
@@ -134,19 +182,23 @@
     private bool IsError = false;
     private bool IsProcessing = false;
 
+    /// <summary>
+    /// Creates the staff account through the authentication service.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Only the confirm-password match is checked here, because it
+    /// is a UI-only concern. Password strength (BRD-3), email uniqueness, hashing and the
+    /// forced-first-change flag all belong to <c>AuthSvc.CreateStaffAccount</c>, so this page and
+    /// the reset flow cannot drift apart (REQ-FN-006, REQ-NFR-002).</para>
+    /// <para><b>Flow:</b> confirm match → call the service → show the returned message → redirect
+    /// on success.</para>
+    /// <para><b>Side Effects:</b> Inserts one user; navigates to /users on success.</para>
+    /// </remarks>
     private async Task HandleSubmit()
     {
-        // Validate passwords match
         if (Password != ConfirmPassword)
         {
             StatusMessage = "Passwords do not match.";
-            IsError = true;
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(Password) || Password.Length < 6)
-        {
-            StatusMessage = "Password must be at least 6 characters.";
             IsError = true;
             return;
         }
@@ -156,31 +208,29 @@
             IsProcessing = true;
             StateHasChanged();
 
-            // Check if email already exists
-            var existingUser = UserRepo.GetUserByEmail(NewUser.EmailId);
-            if (existingUser != null)
+            var displayName = $"{NewUser.FirstName} {NewUser.LastName}".Trim();
+            var result = await AuthService.CreateStaffAccountAsync(
+                displayName, NewUser.EmailId, Password, NewUser.UserRole);
+
+            if (!result.IsSuccess)
             {
-                StatusMessage = "A user with this email already exists.";
+                StatusMessage = result.ErrorMessage ?? "Account creation failed. Please try again.";
                 IsError = true;
                 return;
             }
 
-            // Hash the password (using simple hash for now)
-            NewUser.LoginPass = HashPassword(Password);
-
-            // Insert the user
-            UserRepo.Insert(NewUser);
-
-            StatusMessage = $"User '{NewUser.FirstName} {NewUser.LastName}' created successfully!";
+            StatusMessage = $"User '{displayName}' created successfully! "
+                + "They must change this password at first sign-in.";
             IsError = false;
 
-            // Wait a moment then redirect
             await Task.Delay(1500);
             Navigation.NavigateTo("/users");
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error creating user: {ex.Message}";
+            // REQ-NFR-033: the exception text never reaches the screen. AuthSvc has already
+            // logged it with context; the operator matches it on the response correlation id.
+            StatusMessage = "Could not create the user. Please try again later.";
             IsError = true;
         }
         finally
@@ -193,75 +243,4 @@
     {
         Navigation.NavigateTo("/users");
     }
-
-    private string HashPassword(string password)
-    {
-        // Simple SHA256 hash - in production, use proper password hashing like BCrypt
-        using var sha256 = System.Security.Cryptography.SHA256.Create();
-        var hashedBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
-        return Convert.ToBase64String(hashedBytes);
-    }
 }
-
-<style>
-    .add-user-page {
-        max-width: 800px;
-    }
-
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: var(--spacing-lg, 24px);
-    }
-
-    .page-header h1 {
-        margin: 0 0 var(--spacing-xs, 4px) 0;
-    }
-
-    .page-subtitle {
-        margin: 0;
-        font-size: var(--font-size-small, 0.875rem);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .form-card {
-        border: 1px solid var(--color-border, #E1E1E1);
-        border-radius: var(--border-radius-lg, 8px);
-        padding: var(--spacing-xl, 32px);
-        background-color: var(--color-background, #fff);
-    }
-
-    .form-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: var(--spacing-md, 16px);
-    }
-
-    @@media (max-width: 600px) {
-        .form-row {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    .form-group {
-        margin-bottom: var(--spacing-md, 16px);
-    }
-
-    .form-label {
-        display: block;
-        margin-bottom: var(--spacing-xs, 4px);
-        font-size: var(--font-size-small, 0.875rem);
-        font-weight: var(--font-weight-semibold, 600);
-        color: var(--color-neutral, #323130);
-    }
-
-    .form-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: var(--spacing-md, 16px);
-        margin-top: var(--spacing-lg, 24px);
-        padding-top: var(--spacing-lg, 24px);
-        border-top: 1px solid var(--color-border, #E1E1E1);
-    }
-</style>

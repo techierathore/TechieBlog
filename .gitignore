@@ -362,10 +362,6 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
-# BMAD (local only)
-.bmad-core/
-.bmad-*/
-
 # AI Assistant files (local only)
 .claude/
 .opencode/
@@ -394,3 +390,85 @@ uiissues/
 *.key
 secrets.json
 **/secrets.json
+
+# TechieFlow framework — deployed copies, never commit (managed by scaffold/update-framework.sh)
+.tfcore/
+/WORKFLOW.html
+/opencode.jsonc
+/.tf-scaffold-note.txt
+
+# TechieFlow agent artifacts — machine-generated test harness & logs, never commit (managed by scaffold/update-framework.sh)
+/package.json
+/package-lock.json
+test-results/
+test-results-blogapp/
+playwright-report/
+.verify/
+logs/
+/docs/.last-verify.json
+.DS_Store
+
+# Local NuGet feed credentials (REQ-NFR-025). Holds a GitHub PAT in <ClearTextPassword>
+# for the TrBlazeUI GitHub Packages feed, so it must never be committed.
+# NOTE: this file is ALREADY TRACKED — ignoring it does not untrack it and does not remove it
+# from history. It still needs `git rm --cached nuget.config`, and the PAT still needs REVOKING
+# on GitHub. CI does not use it: .github/workflows/ci.yml writes a throwaway nuget.ci.config.
+/nuget.config
+
+# TechieFlow agent artifacts — machine-generated test harness & logs, never commit (managed by scaffold/update-framework.sh)
+tests/.artifacts/
+test-results-*/
+
+# Per-agent private build output (-p:OutDir=.smokeout/<agent>/). Build artefacts only, and hundreds
+# of megabytes of them — the `logs/` pattern above already covers any log folder inside it.
+# `.buildout/` is the same thing under the name two 2026-08-11 build clusters actually used; both
+# are ignored so a concurrent run never leaves hundreds of megabytes in the owner's `git status`.
+.smokeout/
+.buildout/
+
+# TechieFlow agent artifacts — machine-generated test harness & logs, never commit (managed by scaffold/update-framework.sh)
+/scripts-*/
+
+# TechieFlow framework — deployed copies, never commit (managed by scaffold/update-framework.sh)
+.tfcore/
+.claude/
+.opencode/
+/CLAUDE.md
+/WORKFLOW.html
+/opencode.jsonc
+/.tf-scaffold-note.txt
+
+# TechieFlow agent artifacts — machine-generated test harness & logs, never commit (managed by scaffold/update-framework.sh)
+node_modules/
+/package.json
+/package-lock.json
+tests/.artifacts/
+test-results/
+test-results-*/
+playwright-report/
+.verify/
+logs/
+/docs/.last-verify.json
+.DS_Store
+
+# TechieFlow framework — deployed copies, never commit (managed by scaffold/update-framework.sh)
+.tfcore/
+.claude/
+.opencode/
+/CLAUDE.md
+/WORKFLOW.html
+/opencode.jsonc
+/.tf-scaffold-note.txt
+
+# TechieFlow agent artifacts — machine-generated test harness & logs, never commit (managed by scaffold/update-framework.sh)
+node_modules/
+/package.json
+/package-lock.json
+tests/.artifacts/
+test-results/
+test-results-*/
+playwright-report/
+.verify/
+logs/
+/docs/.last-verify.json
+.DS_Store

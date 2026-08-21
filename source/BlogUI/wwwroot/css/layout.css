@@ -410,7 +410,9 @@
 
 .nav-menu__link--active {
     background-color: var(--color-primary);
-    color: white;
+    /* REQ-UI-033: was a hardcoded `white` — unreadable on the Minimal dark theme's
+       near-white --primary. The token pairs correctly in every theme x mode. */
+    color: var(--color-primary-foreground);
 }
 
 /* ==========================================================================
@@ -437,7 +439,8 @@
 
 .tag:hover {
     background-color: var(--color-primary);
-    color: white;
+    /* REQ-UI-033: see .nav-menu__link--active — hardcoded `white` replaced by the paired token. */
+    color: var(--color-primary-foreground);
     text-decoration: none;
 }
 
@@ -594,9 +597,11 @@
     margin-bottom: var(--spacing-md);
     padding: var(--spacing-sm) var(--spacing-md);
     font-size: var(--font-size-small);
-    color: var(--color-danger, #dc3545);
-    background-color: rgba(220, 53, 69, 0.1);
-    border: 1px solid var(--color-danger, #dc3545);
+    /* REQ-UI-033: hardcoded hex fallbacks and an rgba() tint replaced by token derivations,
+       so the tint tracks the theme instead of staying Bootstrap red on every surface. */
+    color: var(--color-danger);
+    background-color: color-mix(in oklab, var(--color-danger) 12%, transparent);
+    border: 1px solid var(--color-danger);
     border-radius: var(--border-radius);
 }
 
@@ -607,16 +612,17 @@
     margin-bottom: var(--spacing-md);
     padding: var(--spacing-sm) var(--spacing-md);
     font-size: var(--font-size-small);
-    color: var(--color-success, #28a745);
-    background-color: rgba(40, 167, 69, 0.1);
-    border: 1px solid var(--color-success, #28a745);
+    /* REQ-UI-033: see .form-error — token derivations replace the hardcoded pair. */
+    color: var(--color-success);
+    background-color: color-mix(in oklab, var(--color-success) 12%, transparent);
+    border: 1px solid var(--color-success);
     border-radius: var(--border-radius);
 }
 
 /* Form field error state */
 .form-field--error input,
 .form-field--error fluent-text-field {
-    border-color: var(--color-danger, #dc3545) !important;
+    border-color: var(--color-danger) !important;
 }
 
 /* ==========================================================================
@@ -691,5 +697,46 @@
         flex-direction: column;
         align-items: center;
         gap: var(--spacing-sm);
+    }
+}
+
+/* ==========================================================================
+   ADMIN STATISTICS ROW (REQ-FN-027)
+   The compiled TrBlazeUI utility set has no responsive `basis-*` variants, so
+   the row that pairs a value chip, a label and a four-button action cluster
+   needs a real rule: one line from tablet up, stacked on a phone where the
+   label would otherwise collide with the buttons.
+   ========================================================================== */
+
+.stat-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.stat-row__body {
+    flex: 1 1 0%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.stat-row__actions {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    margin-left: auto;
+}
+
+@media (max-width: 767px) {
+    .stat-row {
+        flex-wrap: wrap;
+    }
+
+    .stat-row__body {
+        flex-basis: 100%;
+    }
+
+    .stat-row__actions {
+        margin-left: auto;
     }
 }

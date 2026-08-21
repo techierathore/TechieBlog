@@ -1,0 +1,183 @@
+@*
+    VerifyEmail.razor
+    Purpose: Public landing page for the double opt-in confirmation link mailed to an
+    anonymous commenter, rater or newsletter subscriber. [REQ-UI-055 / BRD-98]
+
+    Route: /verify/{token}
+    Layout: FullWidthLayout (public shell, no blog sidebar — matches mockup 44-verify-email.html)
+
+    States (exactly one card body renders):
+      loading            — the token has not been checked yet
+      confirmed          — a valid token was redeemed; the copy names what was confirmed
+      subscriptionDone   — a valid Subscription token was redeemed
+      alreadyVerified    — the token was already redeemed; NOTHING is confirmed a second time
+      expiredOrInvalid   — unknown or expired token; a fresh link can be requested
+
+    Colour comes from TrBlazeUI semantic tokens only (text-primary / text-destructive and the
+    Alert variants) — no hardcoded hex values, so all three site themes x light/dark work.
+
+    [REQ-UI-060] 2026-08-11 — the headings are <TypographyH1>. They were raw <h1>s with copied
+    utility classes because 2.0.1's TypographyH1 baked in text-4xl/lg:text-5xl and .text-4xl is
+    emitted AFTER .text-2xl in trblazeui.css, so a Class override lost on equal specificity, and
+    because Typography* took no unmatched attributes so a data-testid had nowhere to go. TR-020
+    and TR-021 close both: `Size` REPLACES the component's size classes (which is why 24px is
+    requested as Size="TypographySize.Xl2" and NOT through Class), and the component splats.
+
+    Exactly one heading renders per visit — the five state branches are mutually exclusive — so
+    the document outline has one <h1>. That is asserted directly by the smoke run, because the
+    default axe tag set structurally cannot see a missing or duplicated <h1>.
+*@
+@page "/verify/{Token}"
+@layout FullWidthLayout
+
+<PageTitle>@PageHeading &middot; TechieBlog</PageTitle>
+
+<div class="mx-auto w-full max-w-lg py-8" data-testid="verify-page">
+
+    <Card data-testid="verify-card">
+        <CardContent Class="p-8 text-center">
+
+            @if (state == VerifyState.Loading)
+            {
+                <div class="flex flex-col items-center gap-4 py-12" data-testid="verify-loading">
+                    <Spinner Size="SpinnerSize.Large" Class="text-primary" />
+                    <p class="text-sm text-muted-foreground">Checking your confirmation link&hellip;</p>
+                </div>
+            }
+            else if (state == VerifyState.Confirmed)
+            {
+                <div data-testid="verify-confirmed">
+                    <div class="mb-6 flex justify-center">
+                        <LucideIcon Name="circle-check" Size="72" Class="text-primary" />
+                    </div>
+
+                    <TypographyH1 Size="TypographySize.Xl2" Class="tracking-tight" data-testid="verify-heading">Email confirmed</TypographyH1>
+
+                    <p class="mt-4 text-sm text-muted-foreground" data-testid="verify-purpose">
+                        @ConfirmationSummary
+                    </p>
+
+                    <Alert Variant="AlertVariant.Success" Class="mt-6 text-left" data-testid="verify-success-alert">
+                        <LucideIcon Name="circle-check" Size="16" />
+                        <AlertTitle>@ConfirmedThingTitle</AlertTitle>
+                        <AlertDescription>@ConfirmationDetail</AlertDescription>
+                    </Alert>
+                </div>
+            }
+            else if (state == VerifyState.SubscriptionConfirmed)
+            {
+                <div data-testid="verify-subscribed">
+                    <div class="mb-6 flex justify-center">
+                        <LucideIcon Name="circle-check" Size="72" Class="text-primary" />
+                    </div>
+
+                    <TypographyH1 Size="TypographySize.Xl2" Class="tracking-tight" data-testid="verify-heading">You&rsquo;re subscribed</TypographyH1>
+
+                    <p class="mt-4 text-sm text-muted-foreground" data-testid="verify-purpose">
+                        @ConfirmationSummary
+                    </p>
+
+                    <Alert Variant="AlertVariant.Success" Class="mt-6 text-left" data-testid="verify-success-alert">
+                        <LucideIcon Name="circle-check" Size="16" />
+                        <AlertTitle>Newsletter subscription confirmed</AlertTitle>
+                        <AlertDescription>
+                            The next issue lands in your inbox at the start of the month.
+                            Every issue carries a one-click unsubscribe link.
+                        </AlertDescription>
+                    </Alert>
+                </div>
+            }
+            else if (state == VerifyState.AlreadyVerified)
+            {
+                <div data-testid="verify-already">
+                    <div class="mb-6 flex justify-center">
+                        <LucideIcon Name="info" Size="72" Class="text-primary" />
+                    </div>
+
+                    <TypographyH1 Size="TypographySize.Xl2" Class="tracking-tight" data-testid="verify-heading">Already confirmed</TypographyH1>
+
+                    <p class="mt-4 text-sm text-muted-foreground" data-testid="verify-purpose">
+                        @ConfirmationSummary
+                    </p>
+
+                    <Alert Variant="AlertVariant.Info" Class="mt-6 text-left" data-testid="verify-already-alert">
+                        <LucideIcon Name="info" Size="16" />
+                        <AlertTitle>Nothing left to do</AlertTitle>
+                        <AlertDescription>
+                            This link was already used, so it was not applied again. Future comments and
+                            ratings from the same address skip the confirmation step.
+                        </AlertDescription>
+                    </Alert>
+                </div>
+            }
+            else
+            {
+                <div data-testid="verify-expired">
+                    <div class="mb-6 flex justify-center">
+                        <LucideIcon Name="circle-alert" Size="72" Class="text-destructive" />
+                    </div>
+
+                    <TypographyH1 Size="TypographySize.Xl2" Class="tracking-tight" data-testid="verify-heading">This link is no longer valid</TypographyH1>
+
+                    <p class="mt-4 text-sm text-muted-foreground" data-testid="verify-purpose">
+                        @ConfirmationSummary
+                    </p>
+
+                    <Alert Variant="AlertVariant.Danger" Class="mt-6 text-left" data-testid="verify-expired-alert">
+                        <LucideIcon Name="circle-alert" Size="16" />
+                        <AlertTitle>Confirmation failed</AlertTitle>
+                        <AlertDescription>
+                            The confirmation link is no longer valid &mdash; it either expired after 24 hours
+                            or was never issued. Nothing has been published.
+                        </AlertDescription>
+                    </Alert>
+
+                    @if (!string.IsNullOrEmpty(resendMessage))
+                    {
+                        <Alert Variant="AlertVariant.Info" Class="mt-4 text-left" data-testid="verify-resend-result">
+                            <LucideIcon Name="mail" Size="16" />
+                            <AlertDescription>@resendMessage</AlertDescription>
+                        </Alert>
+                    }
+                </div>
+            }
+
+            @if (state != VerifyState.Loading)
+            {
+                <div class="mt-6 flex flex-wrap justify-center gap-3" data-testid="verify-actions">
+
+                    @if (canResend)
+                    {
+                        <Button OnClick="ResendLinkAsync"
+                                Disabled="@isResending"
+                                data-testid="verify-resend">
+                            <LucideIcon Name="mail" Size="16" />
+                            @(isResending ? "Sending…" : "Send a new link")
+                        </Button>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(returnUrl))
+                    {
+                        <Button Href="@returnUrl" data-testid="verify-back-to-article">
+                            <LucideIcon Name="arrow-left" Size="16" />
+                            Back to the article
+                        </Button>
+                    }
+
+                    <Button Href="/categories"
+                            Variant="ButtonVariant.Outline"
+                            data-testid="verify-browse">
+                        Browse articles
+                    </Button>
+                </div>
+
+                <Separator Class="my-6" />
+
+                <p class="text-sm text-muted-foreground" data-testid="verify-footnote">
+                    Confirmation links expire after 24 hours and can be used once.
+                </p>
+            }
+
+        </CardContent>
+    </Card>
+</div>

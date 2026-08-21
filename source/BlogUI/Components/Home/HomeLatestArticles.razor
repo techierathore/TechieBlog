@@ -1,0 +1,205 @@
+@*
+    HomeLatestArticles.razor
+    Purpose: "Latest Articles" section of the portfolio home page — the most
+    recent published posts, rendered with the shared <PostCard> (REQ-UI-049).
+
+    Each card links to the real post at /post/{Slug}. Read-only star ratings come
+    from RatingSvc, matching the mockup's post-card meta row.
+
+    States (mockup "States" note): loading -> Skeleton cards; empty -> <Empty>.
+
+    REQ-UI-048 — TrBlazeUI (Card / Skeleton / Empty / Button / LucideIcon).
+    REQ-UI-041/042 — the author byline is plain text.
+
+    Dependencies: PostCard, TrBlazeUI Skeleton/Empty, BlogEngine RatingSvc,
+                  BlogEngine.Common.ReadingTimeCalculator
+    Usage: <HomeLatestArticles Posts="@latestPosts" IsLoading="@isLoading" />
+*@
+
+@using BlogModels.Models
+@inject BlogEngine.Services.RatingSvc RatingService
+
+<section id="articles" class="py-10" data-testid="home-latest-articles">
+
+    <h2 class="text-3xl font-bold tracking-tight" data-testid="home-articles-heading">Latest Articles</h2>
+    <p class="mb-6 text-sm text-muted-foreground">
+        Fresh from the editor —
+        @* REQ-NFR-007 / WCAG 1.4.1: a link inside a text block must not be identified by
+           colour alone, so it stays underlined rather than underlining only on hover. *@
+        <a href="/search" class="text-primary underline" data-testid="home-articles-browse-link">browse all articles</a>.
+    </p>
+
+    @if (IsLoading)
+    {
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="home-articles-loading">
+            @for (var placeholder = 0; placeholder < SkeletonCount; placeholder++)
+            {
+                <Card Class="overflow-hidden">
+                    <Skeleton Class="h-36 w-full" />
+                    <CardContent Class="flex flex-col gap-2 p-4">
+                        <Skeleton Class="h-4 w-full" />
+                        <Skeleton Class="h-4 w-full" />
+                    </CardContent>
+                </Card>
+            }
+        </div>
+    }
+    else if (Posts is null || Posts.Count == 0)
+    {
+        <Empty Title="No posts yet"
+               Description="Check back soon — new articles are on the way."
+               data-testid="home-articles-empty">
+            <Icon><LucideIcon Name="inbox" Size="48" /></Icon>
+            <ChildContent>
+                <Button Href="/resume" Variant="ButtonVariant.Outline" data-testid="home-articles-empty-resume">
+                    Read my resume instead
+                </Button>
+            </ChildContent>
+        </Empty>
+    }
+    else
+    {
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="home-articles-grid">
+            @foreach (var post in Posts)
+            {
+                @* [REQ-FN-057] Date is the PUBLICATION date, not the creation date — PostCard's
+                   other two callers (CategoryArchive, SearchResults) must agree with this one.
+                   A Razor comment may not sit between a component's attributes: it compiles, then
+                   throws at render as an unmatched parameter name. Keep it out here. *@
+                <PostCard Category="@GetCategory(post.Tags)"
+                          Title="@post.Title"
+                          Excerpt="@GetExcerpt(post)"
+                          PostUrl="@($"/post/{post.Slug}")"
+                          AuthorName="@(string.IsNullOrWhiteSpace(post.BlogWriter) ? "Unknown" : post.BlogWriter)"
+                          Date="@((post.PublishedOn ?? post.CreatedOn).ToString("MMM dd, yyyy"))"
+                          ReadTime="@GetReadingTime(post.PostContent)"
+                          ImageUrl="@post.FeaturedImage"
+                          ImagePlaceholder="@post.Title"
+                          ShowRating="true"
+                          Rating="@GetRating(post.PostID)"
+                          RatingCount="@GetRatingCount(post.PostID)" />
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private const int SkeletonCount = 3;
+    private const int ExcerptLength = 150;
+
+    private readonly Dictionary<long, int> ratingAverages = new();
+    private readonly Dictionary<long, int> ratingCounts = new();
+
+    /// <summary>
+    /// The recent published posts to show, newest first.
+    /// </summary>
+    [Parameter]
+    public IReadOnlyList<BlogPost>? Posts { get; set; }
+
+    /// <summary>
+    /// Whether the parent page is still loading posts.
+    /// </summary>
+    [Parameter]
+    public bool IsLoading { get; set; }
+
+    /// <inheritdoc />
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadRatingsAsync();
+    }
+
+    /// <summary>
+    /// Caches the public average and count for each post so the render pass does
+    /// no database work. A rating failure leaves the card without stars rather
+    /// than breaking the section.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>[REQ-NFR-026] stage 3 — these were the last two blocking service calls on the
+    /// home page.</b> This grid asks every card for an average and a count, so a three-card
+    /// section parked a thread-pool thread six times over on the most-requested route in the
+    /// application; that is the blocking-render-path constraint REQ-NFR-001 measured. Both reads
+    /// now go through the async twins, which are cached under <c>CacheTags.Content</c> exactly as
+    /// their synchronous originals are.</para>
+    /// <para><b>Side Effects:</b> Replaces the two rating dictionaries.</para>
+    /// </remarks>
+    /// <returns>A task that completes once every visible card has its figures.</returns>
+    private async Task LoadRatingsAsync()
+    {
+        ratingAverages.Clear();
+        ratingCounts.Clear();
+
+        if (Posts is null)
+        {
+            return;
+        }
+
+        foreach (var post in Posts)
+        {
+            try
+            {
+                ratingAverages[post.PostID] = (int)Math.Round(await RatingService.GetAverageRatingAsync(post.PostID));
+                ratingCounts[post.PostID] = await RatingService.GetRatingCountAsync(post.PostID);
+            }
+            catch
+            {
+                ratingAverages[post.PostID] = 0;
+                ratingCounts[post.PostID] = 0;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the rounded public average rating for a post, or zero when unrated.
+    /// </summary>
+    /// <param name="postId">Identifier of the post.</param>
+    private int GetRating(long postId) => ratingAverages.TryGetValue(postId, out var value) ? value : 0;
+
+    /// <summary>
+    /// Gets the number of public ratings for a post, or zero when unrated.
+    /// </summary>
+    /// <param name="postId">Identifier of the post.</param>
+    private int GetRatingCount(long postId) => ratingCounts.TryGetValue(postId, out var value) ? value : 0;
+
+    /// <summary>
+    /// Gets the first tag as the card's category, falling back to "General".
+    /// </summary>
+    /// <param name="tags">Comma-separated tag list from the post.</param>
+    private static string GetCategory(string tags)
+    {
+        if (string.IsNullOrWhiteSpace(tags))
+        {
+            return "General";
+        }
+
+        var firstTag = tags.Split(',').FirstOrDefault()?.Trim();
+        return string.IsNullOrEmpty(firstTag) ? "General" : firstTag;
+    }
+
+    /// <summary>
+    /// Prefers the post's own abstract and falls back to a trimmed slice of the body.
+    /// </summary>
+    /// <param name="post">The post being rendered.</param>
+    private static string GetExcerpt(BlogPost post)
+    {
+        if (!string.IsNullOrWhiteSpace(post.Abstract))
+        {
+            return post.Abstract;
+        }
+
+        var text = (post.PostContent ?? string.Empty)
+            .Replace("#", string.Empty)
+            .Replace("*", string.Empty)
+            .Replace("_", string.Empty)
+            .Replace("`", string.Empty)
+            .Trim();
+
+        return text.Length <= ExcerptLength ? text : text[..ExcerptLength].TrimEnd() + "...";
+    }
+
+    /// <summary>
+    /// Gets the estimated reading time for a post body.
+    /// </summary>
+    /// <param name="content">The post body.</param>
+    private static string GetReadingTime(string content) =>
+        BlogEngine.Common.ReadingTimeCalculator.Calculate(content);
+}

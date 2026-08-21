@@ -1,764 +1,238 @@
 /* ==========================================================================
    resume.css
-   Purpose: Full-page resume styles matching nitinpandit.com layout.
-   Designed for author resume/portfolio pages with hero section and
-   experience timeline.
+   Purpose: The handful of layout primitives the /resume page needs that the
+   Tailwind utility set compiled into _content/TrBlazeUI.Components/trblazeui.css
+   does not provide:
 
-   Dependencies: CSS custom properties from Themes/_variables.css
-   Usage: Imported on resume pages for full-page resume display
+     - the sticky in-page section-nav strip  (TrBlazeUI has no scrollspy — TR-003)
+     - the CSS-only experience timeline      (TrBlazeUI has no Timeline  — TR-004)
+     - auto-fit responsive grids             (no grid-cols-* utilities are compiled)
+     - fixed-size media boxes + print optimisation
 
-   Layout Structure:
-   .resume-hero (full viewport) + .resume-section (content sections)
+   Everything else on the page is expressed with TrBlazeUI components
+   (Card / Badge / Button / Separator / Avatar) and utility classes.
+
+   Every colour, radius and spacing value below resolves to a design token, so
+   the page is correct in both light and dark mode (REQ-UI-033). No literal
+   colours, no legacy --color-* bridge variables.
+
+   Loaded from source/TechieBlog/Components/App.razor after theme.css +
+   trblazeui.css; these rules are unlayered and therefore win over the library's
+   @layer utilities.
    ========================================================================== */
 
-/* ==========================================================================
-   HERO SECTION
-   Full viewport height introduction with profile photo, name, and CTA
-   ========================================================================== */
+/* --------------------------------------------------------------------------
+   PAGE SHELL
+   -------------------------------------------------------------------------- */
 
-.resume-hero {
-    min-height: 100vh;
+.resume-page {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: var(--spacing-xl);
-    position: relative;
-    background-color: var(--color-background);
+    gap: calc(var(--spacing) * 8);
 }
 
-.resume-hero .profile-photo {
-    width: 180px;
-    height: 180px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 4px solid var(--color-primary);
-    margin-bottom: var(--spacing-lg);
-    box-shadow: var(--shadow-lg);
-}
-
-.resume-hero .greeting {
-    font-size: var(--font-size-h3);
-    color: var(--color-neutral-light);
-    margin-bottom: var(--spacing-sm);
-    font-weight: var(--font-weight-regular);
-}
-
-.resume-hero .name {
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: var(--color-neutral);
-    margin-bottom: var(--spacing-sm);
-    line-height: var(--line-height-tight);
-}
-
-.resume-hero .title {
-    font-size: var(--font-size-h2);
-    color: var(--color-neutral-light);
-    margin-bottom: var(--spacing-md);
-    font-weight: var(--font-weight-regular);
-}
-
-.resume-hero .tagline {
-    font-size: 1.1rem;
-    max-width: 600px;
-    line-height: var(--line-height-normal);
-    margin-bottom: var(--spacing-xl);
-    color: var(--color-neutral);
-}
-
-/* CTA Buttons */
-.resume-hero .cta-buttons {
-    display: flex;
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-xl);
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
-.resume-hero .cta-btn {
-    padding: 0.75rem 1.5rem;
-    border-radius: var(--border-radius);
-    text-decoration: none;
-    font-weight: var(--font-weight-semibold);
-    font-size: var(--font-size-body);
-    transition: all var(--transition-fast);
-    display: inline-flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.resume-hero .cta-btn.primary {
-    background: var(--color-primary);
-    color: white;
-    border: 2px solid var(--color-primary);
-}
-
-.resume-hero .cta-btn.primary:hover {
-    background: var(--color-primary-hover);
-    border-color: var(--color-primary-hover);
-    text-decoration: none;
-}
-
-.resume-hero .cta-btn.secondary {
-    border: 2px solid var(--color-primary);
-    color: var(--color-primary);
-    background: transparent;
-}
-
-.resume-hero .cta-btn.secondary:hover {
-    background: var(--color-primary);
-    color: white;
-    text-decoration: none;
-}
-
-/* Social Links */
-.resume-hero .social-links {
-    display: flex;
-    gap: var(--spacing-lg);
-}
-
-.resume-hero .social-links a {
-    font-size: 1.5rem;
-    color: var(--color-neutral-light);
-    transition: color var(--transition-fast), transform var(--transition-fast);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.resume-hero .social-links a:hover {
-    color: var(--color-primary);
-    transform: translateY(-2px);
-    text-decoration: none;
-}
-
-/* Scroll Indicator */
-.resume-hero .scroll-indicator {
-    position: absolute;
-    bottom: var(--spacing-xl);
-    color: var(--color-neutral-light);
-    animation: resume-bounce 2s infinite;
-    cursor: pointer;
-}
-
-@keyframes resume-bounce {
-    0%, 20%, 50%, 80%, 100% {
-        transform: translateY(0);
-    }
-    40% {
-        transform: translateY(-10px);
-    }
-    60% {
-        transform: translateY(-5px);
-    }
-}
-
-/* ==========================================================================
-   RESUME SECTIONS
-   Content sections for experience, skills, awards, etc.
-   ========================================================================== */
-
-.resume-section {
-    padding: var(--spacing-3xl) var(--spacing-xl);
-    max-width: var(--max-content-width);
-    margin: 0 auto;
-}
-
-.resume-section h2 {
-    font-size: var(--font-size-h1);
-    font-weight: var(--font-weight-semibold);
-    color: var(--color-neutral);
-    margin-bottom: var(--spacing-xl);
-    position: relative;
-    padding-bottom: var(--spacing-md);
-}
-
-.resume-section h2::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 60px;
-    height: 3px;
-    background: var(--color-primary);
-    border-radius: 2px;
-}
-
-/* Alternate section backgrounds */
-.resume-section--alt {
-    background-color: var(--color-surface);
-}
-
-/* ==========================================================================
-   EXPERIENCE TIMELINE
-   Vertical timeline for work experience and education
-   ========================================================================== */
-
-.experience-timeline {
-    position: relative;
-    padding-left: var(--spacing-xl);
-}
-
-.experience-timeline::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background: var(--color-border);
-}
-
-.experience-item {
-    position: relative;
-    padding-bottom: var(--spacing-xl);
-    padding-left: var(--spacing-lg);
-}
-
-.experience-item:last-child {
-    padding-bottom: 0;
-}
-
-/* Timeline dot */
-.experience-item::before {
-    content: '';
-    position: absolute;
-    left: calc(-1 * var(--spacing-xl) - 5px);
-    top: 6px;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: var(--color-primary);
-    border: 2px solid var(--color-background);
-    box-shadow: 0 0 0 3px var(--color-surface);
-}
-
-.experience-item .company-logo {
-    width: 48px;
-    height: 48px;
-    object-fit: contain;
-    margin-right: var(--spacing-md);
-    border-radius: var(--border-radius);
-    background: var(--color-surface);
-    padding: var(--spacing-xs);
-}
-
-.experience-item .experience-header {
-    display: flex;
-    align-items: flex-start;
-    margin-bottom: var(--spacing-sm);
-}
-
-.experience-item .experience-info {
-    flex: 1;
-}
-
-.experience-item .role-title {
-    font-size: var(--font-size-h3);
-    font-weight: var(--font-weight-semibold);
-    color: var(--color-neutral);
-    margin-bottom: var(--spacing-xs);
-    line-height: var(--line-height-tight);
-}
-
-.experience-item .company-name {
-    color: var(--color-primary);
-    font-weight: var(--font-weight-semibold);
-    text-decoration: none;
-}
-
-.experience-item .company-name:hover {
-    text-decoration: underline;
-}
-
-.experience-item .date-range {
-    color: var(--color-neutral-light);
-    font-size: var(--font-size-small);
-    margin-top: var(--spacing-xs);
-}
-
-.experience-item .location {
-    color: var(--color-neutral-light);
-    font-size: var(--font-size-small);
-}
-
-.experience-item .description {
-    margin-top: var(--spacing-md);
-    line-height: var(--line-height-normal);
-    color: var(--color-neutral);
-}
-
-.experience-item .description ul {
-    margin: var(--spacing-sm) 0 0 0;
-    padding-left: var(--spacing-lg);
-}
-
-.experience-item .description li {
-    margin-bottom: var(--spacing-sm);
-}
-
-.experience-item .technologies {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-sm);
-    margin-top: var(--spacing-md);
-}
-
-.experience-item .tech-tag {
-    padding: var(--spacing-xs) var(--spacing-sm);
-    background: var(--color-surface);
-    border-radius: var(--border-radius);
-    font-size: var(--font-size-xs);
-    color: var(--color-neutral-light);
-    border: 1px solid var(--color-border);
-}
-
-/* ==========================================================================
-   SKILLS GRID
-   Categorized skills display
-   ========================================================================== */
-
-.skills-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: var(--spacing-xl);
-}
-
-.skill-category {
-    background: var(--color-surface);
-    padding: var(--spacing-lg);
-    border-radius: var(--border-radius-lg);
-    border: 1px solid var(--color-border);
-    transition: box-shadow var(--transition-normal);
-}
-
-.skill-category:hover {
-    box-shadow: var(--shadow-md);
-}
-
-.skill-category h3 {
-    font-size: var(--font-size-body);
-    font-weight: var(--font-weight-semibold);
-    margin-bottom: var(--spacing-md);
-    color: var(--color-primary);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.skill-category ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-.skill-category li {
-    padding: var(--spacing-sm) 0;
-    border-bottom: 1px solid var(--color-border);
-    color: var(--color-neutral);
-    font-size: var(--font-size-small);
-}
-
-.skill-category li:last-child {
-    border-bottom: none;
-}
-
-/* Skill proficiency indicator (optional) */
-.skill-category .skill-level {
-    float: right;
-    font-size: var(--font-size-xs);
-    color: var(--color-neutral-light);
-}
-
-/* ==========================================================================
-   AWARDS SECTION
-   Certifications, achievements, and recognitions
-   ========================================================================== */
-
-.awards-list {
-    display: grid;
-    gap: var(--spacing-lg);
-}
-
-.award-item {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--spacing-lg);
-    padding: var(--spacing-lg);
-    background: var(--color-surface);
-    border-radius: var(--border-radius-lg);
-    border: 1px solid var(--color-border);
-    transition: box-shadow var(--transition-normal);
-}
-
-.award-item:hover {
-    box-shadow: var(--shadow-md);
-}
-
-.award-item .badge-image {
-    width: 80px;
-    height: 80px;
-    object-fit: contain;
-    flex-shrink: 0;
-    border-radius: var(--border-radius);
-}
-
-.award-item .award-content {
-    flex: 1;
-}
-
-.award-item .award-title {
-    font-size: var(--font-size-h3);
-    font-weight: var(--font-weight-semibold);
-    color: var(--color-neutral);
-    margin-bottom: var(--spacing-xs);
-}
-
-.award-item .award-issuer {
-    color: var(--color-primary);
-    font-size: var(--font-size-small);
-    margin-bottom: var(--spacing-xs);
-}
-
-.award-item .award-year {
-    color: var(--color-neutral-light);
-    font-size: var(--font-size-small);
-    margin-bottom: var(--spacing-sm);
-}
-
-.award-item .award-description {
-    line-height: var(--line-height-normal);
-    color: var(--color-neutral);
-    font-size: var(--font-size-small);
-}
-
-/* ==========================================================================
-   STATS DISPLAY
-   Numeric highlights and metrics
-   ========================================================================== */
-
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: var(--spacing-xl);
-    text-align: center;
-}
-
-.stat-item {
-    padding: var(--spacing-lg);
-}
-
-.stat-item .stat-value {
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: var(--color-primary);
-    line-height: 1;
-    margin-bottom: var(--spacing-sm);
-}
-
-.stat-item .stat-label {
-    color: var(--color-neutral-light);
-    font-size: var(--font-size-small);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-/* ==========================================================================
-   CONTACT SECTION
-   Contact information and links
-   ========================================================================== */
-
-.contact-info {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: var(--spacing-lg);
-}
-
-.contact-item {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-    padding: var(--spacing-md);
-    background: var(--color-surface);
-    border-radius: var(--border-radius);
-    border: 1px solid var(--color-border);
-    transition: border-color var(--transition-fast);
-}
-
-.contact-item:hover {
-    border-color: var(--color-primary);
-}
-
-.contact-item .icon {
-    font-size: 1.5rem;
-    color: var(--color-primary);
-    flex-shrink: 0;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--color-surface-hover);
-    border-radius: var(--border-radius);
-}
-
-.contact-item .contact-details {
-    flex: 1;
-}
-
-.contact-item .contact-label {
-    font-size: var(--font-size-xs);
-    color: var(--color-neutral-light);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: var(--spacing-xs);
-}
-
-.contact-item .contact-value {
-    color: var(--color-neutral);
-    font-weight: var(--font-weight-semibold);
-}
-
-.contact-item a.contact-value {
-    color: var(--color-primary);
-    text-decoration: none;
-}
-
-.contact-item a.contact-value:hover {
-    text-decoration: underline;
-}
-
-/* ==========================================================================
-   PROJECTS GRID
-   Portfolio/projects showcase
-   ========================================================================== */
-
-.projects-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: var(--spacing-lg);
-}
-
-.project-card {
-    background: var(--color-surface);
-    border-radius: var(--border-radius-lg);
-    border: 1px solid var(--color-border);
-    overflow: hidden;
-    transition: box-shadow var(--transition-normal), transform var(--transition-normal);
-}
-
-.project-card:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
-}
-
-.project-card .project-image {
-    width: 100%;
-    height: 180px;
-    object-fit: cover;
-    background: var(--color-surface-hover);
-}
-
-.project-card .project-content {
-    padding: var(--spacing-lg);
-}
-
-.project-card .project-title {
-    font-size: var(--font-size-h3);
-    font-weight: var(--font-weight-semibold);
-    color: var(--color-neutral);
-    margin-bottom: var(--spacing-sm);
-}
-
-.project-card .project-description {
-    color: var(--color-neutral-light);
-    font-size: var(--font-size-small);
-    line-height: var(--line-height-normal);
-    margin-bottom: var(--spacing-md);
-}
-
-.project-card .project-links {
-    display: flex;
-    gap: var(--spacing-sm);
-}
-
-.project-card .project-link {
-    padding: var(--spacing-xs) var(--spacing-sm);
-    font-size: var(--font-size-small);
-    color: var(--color-primary);
-    border: 1px solid var(--color-primary);
-    border-radius: var(--border-radius);
-    text-decoration: none;
-    transition: all var(--transition-fast);
-}
-
-.project-card .project-link:hover {
-    background: var(--color-primary);
-    color: white;
-    text-decoration: none;
-}
-
-/* ==========================================================================
-   SMOOTH SCROLL
-   Enable smooth scrolling for anchor navigation
-   ========================================================================== */
-
-html {
+/* Smooth-scroll only while the resume page is mounted, so the rest of the
+   site keeps the browser default. */
+:root:has(.resume-page) {
     scroll-behavior: smooth;
 }
 
-/* ==========================================================================
-   PRINT STYLES
-   Optimize resume for printing
-   ========================================================================== */
+/* Anchor targets must clear the sticky nav strip. */
+.resume-section {
+    scroll-margin-top: calc(var(--spacing) * 20);
+}
+
+/* --------------------------------------------------------------------------
+   STICKY SECTION NAV (anchor chip row — TR-003 fallback)
+   -------------------------------------------------------------------------- */
+
+.resume-nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    gap: calc(var(--spacing) * 2);
+    overflow-x: auto;
+    padding: calc(var(--spacing) * 2) 0;
+    background-color: var(--background);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   HERO
+   -------------------------------------------------------------------------- */
+
+.resume-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(var(--spacing) * 3);
+    text-align: center;
+    padding: calc(var(--spacing) * 8) 0;
+}
+
+.resume-photo {
+    width: calc(var(--spacing) * 40);
+    height: calc(var(--spacing) * 40);
+    border-radius: 9999px;
+    object-fit: cover;
+    border: 3px solid var(--primary);
+    background-color: var(--muted);
+}
+
+.resume-tagline {
+    max-width: 42rem;
+}
+
+/* --------------------------------------------------------------------------
+   EXPERIENCE TIMELINE (TR-004 — no Timeline component in TrBlazeUI 2.0.1)
+   -------------------------------------------------------------------------- */
+
+.resume-timeline {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing) * 8);
+    padding-left: calc(var(--spacing) * 6);
+    border-left: 2px solid var(--border);
+}
+
+.resume-timeline-item {
+    position: relative;
+}
+
+.resume-timeline-item::before {
+    content: '';
+    position: absolute;
+    top: calc(var(--spacing) * 3);
+    left: calc(-1 * var(--spacing) * 6 - 6px);
+    width: 10px;
+    height: 10px;
+    border-radius: 9999px;
+    background-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--background);
+}
+
+/* --------------------------------------------------------------------------
+   MEDIA BOXES (object-fit has no compiled utility)
+   -------------------------------------------------------------------------- */
+
+.resume-logo {
+    width: calc(var(--spacing) * 12);
+    height: calc(var(--spacing) * 12);
+    flex-shrink: 0;
+    object-fit: contain;
+    border-radius: var(--radius);
+    background-color: var(--muted);
+    padding: calc(var(--spacing) * 1);
+}
+
+.resume-badge-image {
+    width: calc(var(--spacing) * 16);
+    height: calc(var(--spacing) * 16);
+    flex-shrink: 0;
+    object-fit: contain;
+    border-radius: var(--radius);
+}
+
+/* --------------------------------------------------------------------------
+   AUTO-FIT GRIDS (no grid-cols-* / md:grid-cols-* utilities are compiled)
+   -------------------------------------------------------------------------- */
+
+.resume-autogrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: calc(var(--spacing) * 4);
+}
+
+.resume-stack {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing) * 4);
+}
+
+/* --------------------------------------------------------------------------
+   PRIMARY CONTACT CALL TO ACTION (LinkedIn)
+
+   The public contact block publishes no email address and no phone number
+   (owner decision, 2026-08-10), so LinkedIn is the ONLY route a reader has.
+   It therefore reads as a full-width primary panel rather than as one tile
+   among several. Every value below is a theme token — the panel inherits the
+   active site theme and both light and dark automatically.
+   -------------------------------------------------------------------------- */
+
+.resume-contact-primary {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 4);
+    padding: calc(var(--spacing) * 5);
+    border: 1px solid var(--primary);
+    border-radius: var(--radius);
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+    text-decoration: none;
+    transition: opacity 150ms ease-in-out, box-shadow 150ms ease-in-out;
+}
+
+.resume-contact-primary:hover,
+.resume-contact-primary:focus-visible {
+    opacity: 0.92;
+    box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+}
+
+.resume-contact-primary-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: calc(var(--spacing) * 12);
+    height: calc(var(--spacing) * 12);
+    border-radius: var(--radius);
+    background-color: var(--primary-foreground);
+    color: var(--primary);
+}
+
+.resume-contact-primary-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+/* Type SIZE comes from the shared utility classes on the markup (text-xs /
+   text-lg font-semibold), so this file states only what those cannot: the
+   letter-spacing and the muting of the label against the primary fill. */
+.resume-contact-primary-label {
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.85;
+}
+
+.resume-contact-primary-chevron {
+    display: flex;
+    align-items: center;
+    flex: none;
+}
+
+/* --------------------------------------------------------------------------
+   PRINT
+   -------------------------------------------------------------------------- */
 
 @media print {
-    .resume-hero {
-        min-height: auto;
-        padding: var(--spacing-lg);
-    }
-
-    .resume-hero .scroll-indicator {
+    .resume-nav,
+    .resume-actions,
+    .resume-social {
         display: none;
     }
 
-    .resume-hero .cta-buttons {
-        display: none;
-    }
-
-    .resume-section {
-        padding: var(--spacing-lg);
-        page-break-inside: avoid;
-    }
-
-    .experience-item {
-        page-break-inside: avoid;
-    }
-
-    .award-item {
-        page-break-inside: avoid;
-    }
-}
-
-/* ==========================================================================
-   RESPONSIVE BREAKPOINTS
-   Mobile: < 768px, Tablet: 768-1199px, Desktop: >= 1200px
-   ========================================================================== */
-
-/* Tablet Breakpoint */
-@media (max-width: 1199px) {
-    .resume-hero .name {
-        font-size: 2.25rem;
-    }
-
-    .resume-section {
-        padding: var(--spacing-2xl) var(--spacing-lg);
-    }
-
-    .skills-grid {
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: var(--spacing-lg);
-    }
-}
-
-/* Mobile Breakpoint */
-@media (max-width: 767px) {
     .resume-hero {
-        min-height: auto;
-        padding: var(--spacing-3xl) var(--spacing-md);
+        padding: calc(var(--spacing) * 2) 0;
     }
 
-    .resume-hero .profile-photo {
-        width: 140px;
-        height: 140px;
-    }
-
-    .resume-hero .name {
-        font-size: 1.75rem;
-    }
-
-    .resume-hero .title {
-        font-size: var(--font-size-h3);
-    }
-
-    .resume-hero .tagline {
-        font-size: var(--font-size-body);
-    }
-
-    .resume-hero .cta-buttons {
-        flex-direction: column;
-        width: 100%;
-        max-width: 280px;
-    }
-
-    .resume-hero .cta-btn {
-        width: 100%;
-        justify-content: center;
-    }
-
-    .resume-hero .social-links {
-        gap: var(--spacing-md);
-    }
-
-    .resume-section {
-        padding: var(--spacing-xl) var(--spacing-md);
-    }
-
-    .resume-section h2 {
-        font-size: var(--font-size-h2);
-    }
-
-    .experience-timeline {
-        padding-left: var(--spacing-lg);
-    }
-
-    .experience-item {
-        padding-left: var(--spacing-md);
-    }
-
-    .experience-item::before {
-        left: calc(-1 * var(--spacing-lg) - 5px);
-        width: 10px;
-        height: 10px;
-    }
-
-    .experience-item .experience-header {
-        flex-direction: column;
-    }
-
-    .experience-item .company-logo {
-        margin-bottom: var(--spacing-sm);
-    }
-
-    .skills-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .award-item {
-        flex-direction: column;
-        text-align: center;
-    }
-
-    .award-item .badge-image {
-        margin: 0 auto;
-    }
-
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: var(--spacing-md);
-    }
-
-    .stat-item .stat-value {
-        font-size: 2rem;
-    }
-
-    .contact-info {
-        grid-template-columns: 1fr;
-    }
-
-    .projects-grid {
-        grid-template-columns: 1fr;
+    .resume-section,
+    .resume-timeline-item,
+    .resume-award {
+        page-break-inside: avoid;
     }
 }

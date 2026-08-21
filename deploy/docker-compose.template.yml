@@ -1,0 +1,245 @@
+# =============================================================================
+# TechieBlog — production compose TEMPLATE
+# =============================================================================
+# This file is a TEMPLATE. It is rendered by .github/workflows/deploy.yml with
+#
+#     envsubst '<explicit variable list>' < deploy/docker-compose.template.yml
+#
+# and the rendered result is scp'd to /srv/apps/techieblog/docker-compose.yml on
+# the VPS. Real secret values therefore NEVER enter this repository — only the
+# placeholder NAMES below do. (Deployment brief §4 item 3, §5 item 2.)
+#
+# Do NOT run `docker compose up` against this file directly; every placeholder
+# would resolve to an empty string and the container would refuse to start.
+#
+# NOTE FOR EDITORS: never write a dollar-brace placeholder inside a COMMENT in
+# this file. envsubst does not know the difference between a comment and a
+# value, so it would substitute a real secret into the comment, and the
+# workflow's "no leftover placeholder" guard scans the whole rendered file.
+#
+# -----------------------------------------------------------------------------
+# ENVIRONMENT CONTRACT — the complete list, so a mismatch is one-line fixable
+# -----------------------------------------------------------------------------
+# The authoritative mapping of container variable name -> configuration path is
+# source/TechieBlog/Configuration/AppEnvironmentVariables.cs (the `Map` table).
+# Read that file before changing ANY name here; its unit tests assert against
+# that table, so this block is a mirror of it and never the other way round.
+#
+# NAMES ARE PascalCase, NO SEPARATORS (SiteSettingsBaseUrl), as
+# docs/TechieBlog-Coding-Standards.md "Environment Variables" requires.
+# AppEnvironmentVariables IS registered in Program.cs (on the bootstrap builder
+# AND on builder.Configuration) and is added LAST, so a PascalCase name outranks
+# both the JSON files and the framework's `__` form of the same setting.
+#
+# This file used to set BOTH spellings for every key, because on 2026-08-10 the
+# custom provider was described in the standards but not yet registered. It is
+# registered now, so the duplicates are gone — one name per setting, one place
+# to change it.
+#
+#   Variable                           -> config path          rendered from
+#   ---------------------------------------------------------------------------
+#   AppDbConString                     -> AppDbConString        secret DB_PASSWORD
+#   JwtSigningKey                      -> JwtSigningKey         secret JWT_SIGNING_KEY
+#   AppEncryptionKey                   -> AppEncryptionKey      secret APP_ENCRYPTION_KEY
+#   SiteSettingsBaseUrl                -> SiteSettings:BaseUrl  literal
+#   AnalyticsVisitorSalt               -> Analytics:VisitorSalt secret ANALYTICS_VISITOR_SALT
+#   SeqUrl                             -> Seq:Url               literal
+#   SeqApiKey                          -> Seq:ApiKey            secret SEQ_API_KEY
+#   LogFileEnabled                     -> LogFile:Enabled       literal
+#   UploadsPath                        -> Uploads:Path          literal
+#   ForwardedHeaders__KnownNetworks__0 -> proxy allow-list      literal  (see below)
+#   ForwardedHeaders__ForwardLimit     -> proxy allow-list      literal  (see below)
+#
+# THE TWO ForwardedHeaders KEYS STAY DOUBLE-UNDERSCORE, DELIBERATELY.
+# AppEnvironmentVariables.Map has no entry for them, and it cannot sensibly have
+# one: ForwardedHeadersSetup reads ForwardedHeaders:KnownNetworks as a
+# configuration ARRAY (GetSection(...).GetChildren()), and an array index has no
+# PascalCase spelling. The framework's own environment provider is still
+# registered, so the `__` form works — it is simply the only form that can
+# express KnownNetworks:0. ASPNETCORE_ENVIRONMENT and ASPNETCORE_URLS below are
+# framework variables for the same reason and are not part of Map either.
+#
+# -----------------------------------------------------------------------------
+# THE FOUR VALUES THAT STOP THE CONTAINER DEAD IF WRONG
+# -----------------------------------------------------------------------------
+#  * SiteSettings:BaseUrl and Analytics:VisitorSalt — TechieBlog.Configuration
+#    .DeploymentConfiguration.Enforce() (REQ-NFR-030) THROWS at startup in any
+#    environment other than Development when either is absent, blank, loopback,
+#    unparseable, equal to the built-in development salt, or (salt) shorter than
+#    32 characters. This container runs ASPNETCORE_ENVIRONMENT=Production.
+#  * JwtSigningKey and AppEncryptionKey — BlogModel.Common.AppSecrets.Initialise()
+#    (REQ-NFR-027) throws when either is missing; there is no fallback default.
+#    JwtSigningKey needs >= 32 chars, AppEncryptionKey >= 16.
+#
+#  ALL FOUR MUST BE STABLE ACROSS DEPLOYS.
+#    - rotating JwtSigningKey invalidates every live session cookie (everyone is
+#      signed out);
+#    - rotating AppEncryptionKey makes every already-encrypted value (SMTP
+#      password, cloud storage key in SiteSettings) undecryptable — they must be
+#      re-entered by hand;
+#    - Analytics:VisitorSalt is WRITE-ONCE in effect: rotating it resets every
+#      stored visitor pseudonym, so unique-view counts jump and de-duplication
+#      restarts from zero.
+# =============================================================================
+
+services:
+  techieblog:
+    image: ghcr.io/techierathore/techieblog:latest
+    container_name: techieblog
+    restart: unless-stopped
+    mem_limit: 512m
+    networks:
+      - web
+
+    environment:
+      # --- host ---------------------------------------------------------------
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+
+      # --- database -----------------------------------------------------------
+      # NOTE: this project's key is the FLAT PascalCase name AppDbConString.
+      # It is NOT ConnectionStrings__Default (the deployment brief's generic
+      # example). Program.cs reads builder.Configuration["AppDbConString"] and
+      # throws at startup if it is absent. DbUp applies source/BlogDb migrations
+      # on every boot AND CREATES ITS OWN `schemaversions` TABLE, so `appuser`
+      # needs DDL rights on this database, not merely CONNECT. What
+      # `sudo ensure-db techieblog` actually grants is not stated anywhere this
+      # repository can see — docs/Prod-Deploy-Checklist.md §5a is a one-command
+      # check to run after the first deploy, with the exact GRANT to apply if it
+      # turns out to be insufficient.
+      AppDbConString: "Host=172.17.0.1;Port=5432;Database=techieblog;Username=appuser;Password=${DB_PASSWORD}"
+
+      # --- cryptographic secrets (REQ-NFR-027) --------------------------------
+      JwtSigningKey: "${JWT_SIGNING_KEY}"
+      AppEncryptionKey: "${APP_ENCRYPTION_KEY}"
+
+      # --- startup gate (REQ-NFR-030) -----------------------------------------
+      SiteSettingsBaseUrl: "https://techierathore.com"
+      AnalyticsVisitorSalt: "${ANALYTICS_VISITOR_SALT}"
+
+      # --- centralised logging ------------------------------------------------
+      # Program.cs registers the Serilog Seq sink CONDITIONALLY, on Seq:Url being
+      # non-blank (SeqSettings.Resolve). Setting SeqUrl here is therefore what
+      # turns it on, and every event is enriched with the application name so one
+      # shared Seq server can separate this app from the others on the VPS.
+      # Leaving SeqUrl blank remains a supported state: console only, no errors.
+      #
+      # SeqUrl is RENDERED by the workflow, not hardcoded. Since 2026-08-16 it is
+      # rendered UNCONDITIONALLY — Seq IS running on this VPS
+      # (https://seq.techierathore.com, Seq 2026.1.17083, same IP as the apex,
+      # same Caddy). An earlier revision blanked it whenever SEQ_API_KEY was
+      # unset, on the strength of a 2026-08-14 recon that concluded no seq
+      # container existed; that conclusion no longer holds and the blanking
+      # silently disabled log shipping on every deploy.
+      #
+      # The value is the INTERNAL address http://seq:5341 — container `seq` on
+      # the shared `web` network, plain HTTP, ingestion-only port. This is a
+      # CONTRACT CONSTANT from deployment-brief-v3 §0/§2, confirmed on the real
+      # server by runbook-v5's acceptance script (/srv/checkup.sh: "seq
+      # container up", "seq answers through caddy"). It is not configurable.
+      #
+      # NEVER put https://seq.techierathore.com here. That is the Seq web UI for
+      # humans; using it would route ingestion out through Caddy and make this
+      # app's logging depend on public DNS and a certificate. A short-lived
+      # SEQ_URL repository variable that permitted exactly that was removed on
+      # 2026-08-16 — it existed only while the internal address was unconfirmed.
+      #
+      # SeqApiKey is a PER-APP key (repo secret SEQ_API_KEY, created in the Seq
+      # UI per runbook v5 §6.3) — it stamps App=techieblog server-side. It may be
+      # empty: this Seq accepts unauthenticated ingestion (POST /ingest/clef
+      # returned 201 on 2026-08-16), and SeqSettings.Resolve treats an empty key
+      # as null rather than as a configuration error.
+      SeqUrl: "${SEQ_URL}"
+      SeqApiKey: "${SEQ_API_KEY}"
+
+      # NO ROLLING FILE SINK IN THE CONTAINER, and no logs bind mount.
+      # A file sink here writes into the container's ephemeral layer, which the
+      # next `docker compose pull && up -d` discards; Docker already captures
+      # stdout, and Seq is the aggregator. The Dockerfile sets LogFileEnabled
+      # false as well — it is repeated here so the compose file states the whole
+      # runtime contract without anyone having to open the image.
+      # Logs are: `docker logs techieblog` (short-lived, ring-buffered by the
+      # daemon — NOT a long-term store) plus Seq, which is the durable copy.
+      LogFileEnabled: "false"
+
+      # --- reverse proxy (REQ-NFR-028) ----------------------------------------
+      # Caddy terminates TLS and forwards over the `web` docker network. With an
+      # EMPTY allow-list ForwardedHeadersSetup switches the middleware off, so
+      # every request would appear to come from Caddy's container address and the
+      # per-IP auth rate limiter (10 requests / 60s) would collapse into ONE
+      # site-wide bucket — a single brute-force attempt would lock out the whole
+      # site. 172.16.0.0/12 covers the RFC1918 range docker allocates bridge
+      # networks from, and is reachable only from inside docker. Narrow it to the
+      # real subnet with `docker network inspect web` if you prefer.
+      ForwardedHeaders__KnownNetworks__0: "172.16.0.0/12"
+      ForwardedHeaders__ForwardLimit: "1"
+
+      # --- uploaded media (REQ-FN-025) ----------------------------------------
+      # Uploads:Path NAMES THE DIRECTORY SERVED AT /uploads. BlogEngine's
+      # UploadsLocation.Resolve takes this value, notices its last segment is
+      # already "uploads", and uses the PARENT (/app) as the storage root that
+      # LocalFileStorage writes relative paths beneath — so a stored
+      # "uploads/blog/x.jpg" lands in /app/uploads/blog/x.jpg and the public URL
+      # /uploads/blog/x.jpg serves that same file. UploadsRootPath is always
+      # StorageRootPath + "/uploads" by construction, so "written here, served
+      # from there" cannot happen.
+      #
+      # The Dockerfile already sets this to the same value; it is repeated here
+      # because it must agree with the bind mount immediately below, and the two
+      # belong side by side. It is NOT /app/wwwroot/uploads any more — wwwroot
+      # lives inside the image, so mounting there worked only by accident of the
+      # old web-root fallback.
+      UploadsPath: "/app/uploads"
+
+    volumes:
+      # Uploaded images MUST live outside the container: anything written into
+      # the container filesystem is destroyed on every redeploy. /srv/data is the
+      # server's archived tree, so this folder is backed up automatically.
+      #
+      # The host directory must be writable by UID 1654 — the `app` user the
+      # .NET runtime image ships and the Dockerfile switches to. `mkdir -p` in
+      # the pipeline cannot produce that ownership, so the deploy workflow
+      # chowns it to 1654:1654 from inside a throwaway root container after the
+      # pull and before `up -d`, then probes it with `touch` afterwards. It is
+      # idempotent and needs no sudo. NOTHING IS LEFT TO DO BY HAND HERE — if
+      # you find yourself running `sudo chown` on this path, the pipeline step
+      # ("Fix bind-mount ownership") did not run, and that is the bug.
+      - /srv/data/techieblog/uploads:/app/uploads
+
+      # THE DATA PROTECTION KEY RING — same class of bug as uploads, same fix.
+      # ASP.NET Core generates a key ring on first use and, with nothing mounted,
+      # writes it to ~/.aspnet/DataProtection-Keys INSIDE the container. The
+      # runtime warns about exactly this on every start:
+      #   "Storing keys in a directory '/home/app/.aspnet/DataProtection-Keys'
+      #    that may not be persisted outside of the container."
+      # Every `docker compose pull && up -d` would then throw the ring away and
+      # mint a new key.
+      #
+      # WHAT ACTUALLY DEPENDS ON IT HERE (audited, not assumed): this app has NO
+      # ASP.NET Identity cookie, no ITicketStore, no session state, no TempData
+      # and no ProtectedBrowserStorage. Sign-in uses a JWT signed with
+      # JwtSigningKey and resolved against the database
+      # (SessionCookieAuthenticationHandler), so a lost key ring does NOT sign
+      # anybody out. The two real consumers are framework-implicit and both
+      # belong to the page-load handshake:
+      #   1. the Blazor Server component descriptors and StartCircuit payload
+      #      (the CfDJ8... blobs in the prerendered HTML), and
+      #   2. the antiforgery token UseAntiforgery() emits inside every
+      #      prerendered EditForm.
+      # Both fail only for a document that was rendered by the OLD container and
+      # submitted to the NEW one — a seconds-wide window per deploy that a page
+      # reload clears. So this mount is correctness hygiene, not an outage fix;
+      # it removes the reconnect banner some visitors see mid-deploy and makes
+      # the behaviour deterministic. It also becomes load-bearing the moment a
+      # second replica or a real SSR form post is added.
+      #
+      # Same ownership rule as uploads — UID 1654 must be able to write here —
+      # and the same automation covers it: the deploy workflow chowns and then
+      # probes this directory too. It matters more here than the log makes it
+      # look: an unwritable uploads mount at least produces one [ERR] line since
+      # REQ-NFR-040, and this one produces none at all.
+      - /srv/data/techieblog/dp-keys:/home/app/.aspnet/DataProtection-Keys
+
+networks:
+  web:
+    external: true

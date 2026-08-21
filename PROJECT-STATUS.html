@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TechieBlog — Project Status</title>
+<script>
+/* Resolve the theme BEFORE first paint (no flash). Saved choice wins; otherwise
+   pick by time of day — light 07:00–19:00 local, softened dark at night. */
+(function(){
+  try{
+    var t = localStorage.getItem('tf-theme');
+    if(t!=='light' && t!=='dark'){ var h = new Date().getHours(); t = (h>=7 && h<19) ? 'light' : 'dark'; }
+    document.documentElement.setAttribute('data-theme', t);
+  }catch(e){ document.documentElement.setAttribute('data-theme','light'); }
+})();
+</script>
+<style>
+/* LIGHT is the default theme — a warm off-white, easy on the eyes (never bright white). */
+:root{
+  --bg:#f4f1e9; --panel:#efe9db; --panel2:#e7e0cd; --line:#d8cfb6;
+  --ink:#2e2a22; --muted:#6f6857; --accent:#2f6f9f; --accent2:#3f7d54;
+  --warn:#9a6b15; --danger:#b03a52; --ok:#3f7d54;
+  --code-bg:#ece5d3; --code-ink:#332f26; --row-alt:#eae2cf;
+  --h3:#3a352b; --h4:#2f6f9f; --quote:#4a4537; --cta-bg:#e6eef5;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+/* DARK — softened near-black (warmer / less harsh than pure #0f1115). */
+html[data-theme="dark"]{
+  --bg:#11141a; --panel:#171b23; --panel2:#1e2430; --line:#2b3240;
+  --ink:#dfe3ea; --muted:#99a2b1; --accent:#7cc4ff; --accent2:#a6e3a1;
+  --warn:#f9c74f; --danger:#f38ba8; --ok:#a6e3a1;
+  --code-bg:#0c1016; --code-ink:#d8dde8; --row-alt:#141821;
+  --h3:#cfd5e3; --h4:#7cc4ff; --quote:#cfd5e3; --cta-bg:#0d2030;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;font-size:15px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:var(--mono);font-size:13px;background:var(--code-bg);color:var(--code-ink);padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+pre{font-family:var(--mono);font-size:12.5px;background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto;color:var(--code-ink);position:relative}
+pre code{background:none;border:none;padding:0}
+.copy{position:absolute;top:8px;right:8px;background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:11px;font-family:var(--sans);cursor:pointer}
+.copy:hover{color:var(--accent);border-color:var(--accent)}
+/* floating light/dark toggle (top-right) */
+.theme-toggle{position:fixed;top:12px;right:14px;z-index:10000;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12.5px;font-family:var(--sans);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.theme-toggle:hover{color:var(--accent);border-color:var(--accent)}
+
+.layout{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+.layout.no-toc{grid-template-columns:1fr}
+nav.side{position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--line);background:var(--panel);padding:18px 14px}
+nav.side h1{font-size:14px;margin:0 0 4px;letter-spacing:.5px;color:var(--ink)}
+nav.side .sub{font-size:11.5px;color:var(--muted);margin-bottom:14px}
+nav.side ol,nav.side ul{list-style:none;padding:0;margin:0}
+nav.side li{font-size:13px;margin:2px 0}
+nav.side li a{display:block;padding:5px 8px;color:var(--ink);border-radius:6px}
+nav.side li a:hover{background:var(--panel2);text-decoration:none}
+nav.side li.h3 a{padding-left:22px;font-size:12.5px;color:var(--h3)}
+nav.side .group{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin:14px 8px 4px}
+
+main{padding:28px 40px 80px;max-width:1100px}
+.layout.no-toc main{margin:0 auto}
+
+h1{font-size:28px;margin:0 0 6px}
+h2{font-size:22px;margin:32px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);scroll-margin-top:16px}
+h3{font-size:17px;margin:22px 0 6px;color:var(--h3);scroll-margin-top:16px}
+h4{font-size:14px;margin:14px 0 4px;color:var(--h4);scroll-margin-top:16px}
+.subtitle{color:var(--muted);font-size:14px;margin-top:-4px;margin-bottom:18px}
+p{margin:6px 0 10px}
+blockquote{border-left:3px solid var(--accent);background:var(--panel);margin:8px 0;padding:8px 14px;color:var(--quote)}
+ul,ol{padding-left:22px}
+li{margin:2px 0}
+
+table{border-collapse:collapse;width:100%;font-size:13.5px;margin:8px 0}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--panel2);color:var(--h3);font-weight:600}
+tr:nth-child(even) td{background:var(--row-alt)}
+
+hr{border:none;border-top:1px solid var(--line);margin:24px 0}
+.anchor-link{color:var(--muted);font-weight:400;font-size:0.85em;margin-left:8px;opacity:0;transition:opacity .15s;text-decoration:none}
+h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
+
+/* inline TOC at top of main content */
+.toc-inline{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 16px;margin:14px 0 24px}
+.toc-inline > div{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.toc-inline ol,.toc-inline ul{margin:4px 0;padding-left:18px}
+.toc-inline li{font-size:13px;margin:1px 0}
+.toc-inline a{color:var(--h3)}
+
+/* mermaid diagram wrapper + toolbar */
+.diagram{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--code-bg);margin:14px 0;overflow:hidden}
+.diagram .mermaid{padding:14px;margin:0;background:transparent;border:none;overflow:auto}
+.diagram .dt{display:flex;gap:6px;justify-content:flex-end;padding:6px 8px;background:var(--row-alt);border-bottom:1px solid var(--line)}
+.diagram .dt button{background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 10px;font-size:12px;font-family:var(--sans);cursor:pointer;min-width:30px}
+.diagram .dt button:hover{color:var(--accent);border-color:var(--accent)}
+.diagram .dt .zlabel{padding:3px 6px;font-size:11px;color:var(--muted);font-family:var(--mono);align-self:center}
+.diagram.fs{position:fixed;inset:0;z-index:9999;border-radius:0;border:none}
+.diagram.fs .mermaid{height:calc(100vh - 40px);display:flex;align-items:center;justify-content:center}
+
+@media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{position:static;height:auto}}
+</style>
+</head>
+<body>
+<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">☾ Dark</button>
+<div class="layout">
+  <nav class="side">
+    <h1>TechieBlog — Project Status</h1>
+    <div class="sub">Last rendered: 2026-08-16</div>
+    <div class="group">Contents</div>
+    <ol>
+      <li><a href="#where-i-am">Where I am</a></li>
+      <li><a href="#next-command-to-run">Next command to run</a></li>
+      <li><a href="#open-requirements">Open requirements</a></li>
+      <li><a href="#known-blockers">Known blockers</a></li>
+      <li><a href="#verification-log">Verification log</a></li>
+      <li><a href="#library-feedback-summary">Library feedback summary</a></li>
+      <li><a href="#standards-compliance-2026-08-14">Standards compliance (2026-08-14)</a></li>
+      <li><a href="#deferred-future">Deferred / future</a></li>
+    </ol>
+  </nav>
+  <main>
+    <hr>
+    <p>project: TechieBlog stack: .NET 10 / Blazor Server / TrBlazeUI / PostgreSQL + Dapper + DbUp / Serilog / BlogApp MAUI (Windows) last_updated: 2026-08-16 current_phase: Handoff — READY FOR UAT; 4 rows open, ALL owner-gated or not agent-observable last_verified_build: PASS last_verified_date: 2026-08-14</p>
+    <hr>
+    <h1>TechieBlog — Status</h1>
+    <h2 id="where-i-am">Where I am<a class="anchor-link" href="#where-i-am">#</a></h2>
+    <p><strong>All agent-actionable REQs are terminal; awaiting UAT per <code>docs/TechieBlog-UsageGuide.md</code>.</strong> <code>*build-phase</code> (FIX) + a chained scoped <code>*verify</code> + <code>*handoff-phase</code>. Terminal <strong>159 → 160</strong>; open <strong>5 → 4</strong>. Build GREEN rung #4 <code>0 Error(s)</code> 7/7; suite <strong>1 482 → 1 490</strong> (1 487 pass / 0 fail / 3 skip). <strong>REQ-NFR-041 CLOSED (<code>Verified</code>) — the three-occurrence regex-blindness cycle is over.</strong> Pattern 2 was blind a third time (one underscore only). Both halves fixed: the pattern allows N underscores plus generics, <strong>and patterns 1-4 are gated at BUILD time</strong> by <code>tests/unit/Ops/SourceConventionTests.cs</code>, whose fifth Fact asserts each regex matches a synthetic violation — so a dead regex fails the build instead of reading as a pass. Proved by <strong>mutation test</strong>: 3 violations injected into <code>source/BlogModel/</code> failed 3 of 4 scans, each naming file, line, text.</p>
+    <p><strong>REQ-NFR-038 — five manual owner steps moved into <code>deploy.yml</code></strong> (<code>chown 1654</code>, a writability probe, the DDL-rights probe as a <em>gate</em>, server-side GHCR login, a hard <code>/_framework/blazor.web.js</code> check), <strong>then the REAL VPS was inspected</strong> via an owner-run write-free recon script. <strong>Three would-be first-deploy failures found and closed:</strong> (1) the server was never authenticated to GHCR, so <code>compose pull</code> would have been denied; (2) <strong>PostgreSQL was not listening on <code>172.17.0.1</code></strong> — runbook Step 7 edits 1-2 never applied, so the container could not have reached the database and <code>/healthz</code> would have sat at 503; owner fixed it, <code>pg_isready</code> now answers <code>accepting connections</code>; (3) <strong><code>SEQ_API_KEY</code> was required but no <code>seq</code> container exists</strong> — now optional, <code>SeqUrl</code> rendered blank, both branches tested. Also confirmed <code>ensure-db</code> makes <code>appuser</code> the DB <strong>owner</strong>, so on PG 18.4 the §8 GRANTs are very unlikely to be needed. Stays <code>Implemented</code>: server <em>state</em> is known, but no pipeline step has <em>executed</em> there.</p>
+    <p><strong>2026-08-16 — two of those findings CORRECTED, and the deploy docs merged into one file.</strong> (a) <strong>Seq IS running</strong> at <code>https://seq.techierathore.com</code> (Seq 2026.1.17083, same VPS IP as the apex, same Caddy) — probed directly over HTTPS. The 2026-08-14 remedy therefore over-corrected: blanking <code>SeqUrl</code> whenever <code>SEQ_API_KEY</code> was unset would have <strong>silently disabled log shipping on every deploy</strong>, since nothing gave the owner a reason to set that secret. <code>SeqUrl</code> is now rendered <strong>unconditionally</strong> (default <code>http://seq:5341</code>, at the time overridable by a repo <strong>variable</strong> <code>SEQ_URL</code> — <strong>that override was removed hours later, see 2026-08-16b</strong>), and a new warning-only deploy step <em>Report the Seq endpoint</em> observes on the server which address is right. <code>SEQ_API_KEY</code> stays optional and genuinely is: that Seq accepts anonymous ingestion (<code>POST /ingest/clef</code> → 201; reads 401). All three render branches executed, <code>docker compose config</code> valid. (b) <strong><code>appuser</code> DDL/database-creation rights owner-confirmed</strong> — no longer an inference from <code>ensure-db</code>&#x27;s text; the §8 gate stays as a guard, not an expected step. (c) <strong><code>docs/Server-Setup.md</code> + <code>.html</code> merged into <code>docs/Prod-Deploy-Checklist.md</code> §2 and DELETED</strong> — two files described one procedure and the short one had already drifted stale on both facts above.</p>
+    <p><strong>2026-08-16b — SERVER BUILD COMPLETE. Deploy docs realigned to runbook v5 + deployment-brief v3.</strong> The owner finished <code>docs/bluehost-vps-runbook-v5.md</code> end to end and its acceptance script <code>sudo /srv/checkup.sh</code> (Part 9) reports <strong>0 failed</strong> — swap, ufw, fail2ban, cron, Postgres + pgvector, Docker, the <code>web</code> network, Caddy valid, <strong><code>seq</code> container up and answering</strong>, the whole <code>/srv</code> tree, and backups landing on <strong>both</strong> OneDrive and Google Drive. The server is also <strong>logged in to GHCR</strong> with a stored PAT. <strong>Only the app container is left to deploy — that is CI&#x27;s job.</strong> Consequences: the last open unknown (<code>http://seq:5341</code> — is the container named <code>seq</code> on <code>web</code>?) is <strong>closed</strong>, so the <code>SEQ_URL</code> repo-variable override added earlier the same day was <strong>removed</strong> — brief v3 §0 forbids the public Seq URL in app config, and it existed only while the address was unconfirmed. <code>SeqUrl</code> is now the hardcoded contract constant. The GHCR credential check will now always take its <strong>leave-it-alone</strong> branch, which is what the brief requires. <code>SEQ_API_KEY</code> was promoted from &quot;optional, skip it&quot; to <strong>§2 step 3</strong> — one of the two genuinely manual per-app tasks. <strong>Two upstream contradictions found and adjudicated in the doc rather than silently picked:</strong> (1) runbook §6.3 names the secret <code>SEQ_APIKEY_BLOG</code>, brief §2 names it <code>SEQ_API_KEY</code> — <strong>this repo follows the brief</strong> (the workflow reads <code>SEQ_API_KEY</code>; a mis-named secret fails silently, so it is called out three times); (2) brief §0 mandates a <strong>root</strong> container with no <code>USER</code> directive, while this repo runs <strong>non-root UID 1654</strong> — <strong>deviation kept deliberately</strong>, because the pipeline already chowns the bind mounts to 1654 and probes them, which is exactly the premise the brief&#x27;s rule assumes absent. Both are documented in Prod-Deploy-Checklist §0 with the reasoning and the exact change needed to switch. <code>sudo /srv/checkup.sh</code> added to §7 (post-deploy) and §11 (routine ops). Evidence: <code>deploy.yml</code> parses (3 jobs / 21 steps), 14/14 shell blocks pass <code>bash -n</code>, the render step <strong>executed</strong> in both Seq branches → <code>SeqUrl: &quot;http://seq:5341&quot;</code> in each, 237 lines, zero surviving placeholders, <code>docker compose config</code> <strong>valid</strong>; HTML re-rendered, <strong>58/58 anchors resolve</strong>, no unbalanced tags.</p>
+    <p><strong>2026-08-16c — <code>ciuser</code> CI account (runbook v5.2 / brief v3.2). THREE DEFECTS FOUND, all in the pipeline, all fixed and measured.</strong> The owner created a dedicated CI account and supplied the two updated specs. Auditing this pipeline against them found: <strong>(1) THE GHCR CREDENTIAL DOES NOT COVER <code>ciuser</code> — this would have failed the first deploy.</strong> Brief v3.2 §0 still asserts &quot;the server is already authenticated… the workflow must not run <code>docker login</code> over SSH&quot;, but that answer predates the account change: registry logins are <strong>per-user</strong> (<code>~/.docker/config.json</code>), the <code>docker</code> group grants daemon access and <em>nothing</em> at the registry, and runbook Step 12 ran as <code>ravi</code> before <code>ciuser</code> existed. So <code>docker compose pull</code> of a private image as <code>ciuser</code> would fail <code>unauthorized</code>. <strong>The deploy survives only because the ephemeral-login fallback was deliberately retained on 2026-08-16b</strong> — it is now the LIVE path, not a dormant one. Documented, with the one-command fix (<code>sudo -u ciuser -H … docker login</code>) that restores spec compliance. <strong>(2) The ownership fix would have cut <code>ciuser</code> out of its own directories.</strong> <code>chown -R 1654:1654</code> replaces group <code>webops</code> with <code>1654</code>, silently breaking §8&#x27;s documented <code>rsync</code> uploads-migration path, which connects as <code>VPS_USER</code> (= <code>ciuser</code>). Now <code>chown -R 1654</code> (owner only) + <code>chmod g+ws</code> on the directory, restoring the setgid/group-write model runbook v5.2 §2.1 sets on <code>/srv</code>. <strong>Measured on both a Debian base (the app image) and Alpine:</strong> mode <code>drwxrwsr-x</code>, owner 1654, group unchanged; container UID 1654 writes; a <code>webops</code> user writes; setgid inheritance confirmed; idempotent over 3 runs; parent untouched; files stay <code>-rw-r--r--</code>. <strong>(3) A silent-false-pass removed:</strong> the old <code>find … ! -uid 1654 | wc -l</code> guard reports &quot;nothing to do&quot; on any BusyBox/musl base — <code>-uid</code> is GNU-only, and a failed <code>find</code> piped to <code>wc -l</code> yields <code>0</code>, which <code>set -e</code> never sees. Reproduced on <code>alpine:latest</code>; latent today (Debian image), gone now. <strong>Two quoting bugs in the new inline comments were caught by the <code>bash -n</code> gate before they shipped</strong> — one stray apostrophe inside the <code>sh -c &#x27;…&#x27;</code> inner script (step dies <code>syntax error near unexpected token done</code>), then an <em>even</em> number of them, which re-balances so <code>bash -n</code> passes while exposing the enclosed text to the outer shell. An editors-note now states the rule in the file. <strong>Compliance audit:</strong> the workflow executes exactly one <code>sudo</code> — <code>/usr/local/bin/ensure-db</code>, the only command in ciuser&#x27;s allowlist — uses no <code>sudo docker</code>, and never hardcodes the SSH username. <strong>Evidence:</strong> <code>deploy.yml</code> parses (21 steps); <strong>14/14</strong> blocks pass <code>bash -n</code>; 0 apostrophes in the inner script; render executed → 245 lines, zero placeholders, <code>docker compose config</code> VALID; checklist HTML <strong>60/60 anchors</strong>, no unbalanced tags. Zero files under <code>source/</code> touched.</p>
+    <h2 id="next-command-to-run">Next command to run<a class="anchor-link" href="#next-command-to-run">#</a></h2>
+    <pre><code>Manual UAT per docs/TechieBlog-UsageGuide.md smoke checklist.</code></pre>
+    <p>Handoff ran 2026-08-14; the UAT bundle is current. Set <code>current_phase: Released</code> yourself once UAT passes. Nothing remains that an agent can build or verify.</p>
+    <h2 id="open-requirements">Open requirements<a class="anchor-link" href="#open-requirements">#</a></h2>
+    <ul>
+      <li>[ ] <strong>Implemented — not agent-observable (1)</strong> — REQ-NFR-038 <em>(needs a real VPS)</em></li>
+      <li>[ ] <strong>PARTIAL (2)</strong> — REQ-NFR-017 <em>(owner: CI repo secret)</em>, REQ-NFR-026 <em>(stage 4 deferred)</em></li>
+      <li>[ ] <strong>In Progress (1)</strong> — REQ-NFR-025 <em>(owner: git-history decision)</em></li>
+    </ul>
+    <p>Counts: 164 rows. Terminal 160 (148 <code>Verified</code> + 4 <code>N/A</code> + 8 <code>N/A removed</code>); open 4 — all owner-gated.</p>
+    <h2 id="known-blockers">Known blockers<a class="anchor-link" href="#known-blockers">#</a></h2>
+    <ul>
+      <li><strong>⚠⚠ OWNER — ROTATE A LEAKED PAT, TODAY.</strong> A live TrBlazeUI PAT sits in <strong>clear text</strong> at <code>C:\Users\srkra\AppData\Roaming\NuGet\NuGet.Config</code> and was exposed in a 2026-08-14 transcript. Not used after discovery. Rotate, then re-store.</li>
+      <li><strong>⚠ OWNER — six GitHub items gate a real deploy:</strong> <code>TrBlazeUiPackagesToken</code>, <code>JWT_SIGNING_KEY</code>, <code>APP_ENCRYPTION_KEY</code>, <code>ANALYTICS_VISITOR_SALT</code>, <strong>the per-app <code>SEQ_API_KEY</code></strong> (created in the Seq UI — note the name, NOT runbook §6.3&#x27;s <code>SEQ_APIKEY_BLOG</code>) — <strong>owner reports all secrets added 2026-08-16</strong>. DNS A records are <strong>already live</strong> (apex + www → 50.6.45.249, verified). Server-side steps (ownership, DDL probe, GHCR auth) need nothing from you. See <code>docs/Prod-Deploy-Checklist.md</code> §2 — now the ONLY deploy setup doc; <code>docs/Server-Setup.md</code> was merged into it and deleted 2026-08-16.</li>
+      <li><strong>⚠ OWNER — OPTIONAL BUT RECOMMENDED: give <code>ciuser</code> its own GHCR login.</strong> Registry credentials are per-user; runbook Step 12 logged in as <code>ravi</code>, so <code>ciuser</code> has none and every pull currently relies on the pipeline&#x27;s ephemeral <code>GITHUB_TOKEN</code> login. It works, but it ties each pull to <code>packages: read</code> on the workflow. One command on the server as <code>ravi</code>: <code>sudo -u ciuser -H bash -c &#x27;echo &lt;PAT&gt; | docker login ghcr.io -u techierathore --password-stdin&#x27;</code></li>
+      <li><strong><code>deploy.yml</code> triggers on <code>main</code> only</strong> — one production branch, no second name to keep in sync. <strong>Correction 2026-08-16:</strong> an intermediate revision claimed this repo used <code>master</code> and widened the trigger to both names; that came from a stale session snapshot, not the repository. Owner confirmed <code>main</code> and removed the fallback. No deploy was ever at risk — both names were listed at the time — but the written instructions pointed at the wrong branch for part of a day.</li>
+      <li><strong>✅ The VPS build is COMPLETE (2026-08-16)</strong> — the whole of <code>docs/bluehost-vps-runbook-v5.md</code>, confirmed by its own acceptance script <code>sudo /srv/checkup.sh</code> reporting <strong>0 failed</strong>. The earlier &quot;runbook was NOT fully applied&quot; warning is retired. Historical note worth keeping: two recon conclusions from 2026-08-14 had to be reversed (Postgres reachability, and &quot;no Seq container&quot;) — <strong>do not treat a one-off recon as ground truth when a repeatable acceptance script exists.</strong> Verified state: <code>docs/Prod-Deploy-Checklist.md</code> §0.</li>
+      <li><strong>⚠ <code>/srv/caddy/sites/techieblog.caddy</code> already exists and is AUTHORITATIVE</strong> — the pipeline is create-only and will never replace it. Content checked and correct; it just lacks the repo version&#x27;s compression directive.</li>
+      <li><strong>⚠ A green deploy is still not proof</strong> — every probe has been green while the site was broken three times. Two classes are now gated (<code>_framework</code> 404, empty schema); the Caddy hop is not.</li>
+      <li><strong>⚠ <code>dotnet run</code> ignores <code>ASPNETCORE_ENVIRONMENT</code></strong> unless <code>--no-launch-profile</code> is passed. <strong><code>CLAUDE.md</code> says &quot;No TrBlazeUI&quot; — stale</strong>; 2.0.2 is referenced by three projects.</li>
+      <li><strong>⚠ OWNER — dead PAT still in git history.</strong> Revoked (401). Recommendation: accept the history.</li>
+      <li><strong>⚠ Admin WCAG rests on a workaround</strong> (TR-054/063/064); no screen-reader pass ever run. <em>(The <code>mustchangepassword</code> contradiction is RESOLVED — dev-DB drift, not a doc error. See UsageGuide.)</em></li>
+    </ul>
+    <h2 id="verification-log">Verification log<a class="anchor-link" href="#verification-log">#</a></h2>
+    <table>
+      <thead><tr><th>Date</th><th>Phase</th><th>Result</th><th>Status table</th></tr></thead>
+      <tbody>
+        <tr><td>2026-08-02…08-06</td><td>Day-1 docs, amendment, mockups</td><td>Docs only — BRD-92…97, 38 screens</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+        <tr><td>2026-08-07…08-08</td><td>*build-phase x2 + build repair</td><td>383 tests; PASS 7/7 · no verifier run</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+        <tr><td>2026-08-09</td><td><em>verify all</em> (first executed run)</td><td>131 graded · 98 Verified, 17 FAIL, 8 Needs re-verify</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+        <tr><td>2026-08-09…08-10</td><td>*build-phase FIX + *build-phase</td><td>1055 → 1291 tests · coverage 82.5%</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+        <tr><td>2026-08-11</td><td>*build-phase + local Docker verification</td><td>1355 tests · BLOCKING <code>_framework</code> defect found and fixed</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+        <tr><td>2026-08-11</td><td>*build-phase (7 clusters) + chained <em>verify all</em></td><td><strong>51 rows graded: 45 Verified</strong> · terminal 108 → 149</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+        <tr><td>2026-08-14</td><td>*build-phase (REQ-FN-061) + chained <em>verify</em></td><td>1411 → 1482 tests · <strong>11 graded, 9 → <code>Verified</code></strong> · REQ-NFR-041 raised · terminal 149 → 158</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+        <tr><td>2026-08-14</td><td><em>verify</em> REQ-NFR-001/038/041 (scoped)</td><td><strong>REQ-NFR-001 → <code>Verified</code></strong> (both perf budgets, 0 errors in 30 000 req @ c100); REQ-NFR-041 → <code>Needs re-verify</code> (pattern 2 blind, 3rd time) · ⚠ leaked PAT found · terminal 158 → 159</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+        <tr><td>2026-08-14</td><td><strong><em>handoff-phase</em></strong> (owner-invoked; a prior handoff ran 2026-08-11)</td><td><strong>READY FOR UAT.</strong> UsageGuide finalised: test-user table <strong>reconciled against the live DB</strong> (all 4 exist, ids 1-4), and the long-open <code>MustChangePassword</code> contradiction RESOLVED — <code>019-SampleData.sql</code> seeds users 2-4 <code>TRUE</code>, so the doc was right and the <strong>dev DB had drifted</strong> (re-arm step skipped after a smoke). Stale sections corrected against evidence: &quot;solution does not build&quot;, &quot;no tests / no CI&quot;, &quot;reset tokens in memory&quot;, &quot;seeded admin password is plaintext&quot; were all false. DevGuide re-map skipped — <strong>zero files under <code>source/</code> changed this session</strong>. TrBlazeUI feedback re-confirmed, no new entries (next id TR-067)</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+        <tr><td>2026-08-14</td><td><strong><em>build-phase</em> FIX + chained <em>verify</em> REQ-NFR-041</strong></td><td>PASS 0 errors 7/7 · 1482 → <strong>1490</strong> tests · <strong>REQ-NFR-041 → <code>Verified</code></strong> (pattern 2 fixed AND patterns 1-4 promoted to a build-time gate; mutation-tested by the verifier) · <strong>REQ-NFR-038: 5 manual server steps moved into CI, then the REAL VPS inspected (owner-run read-only recon) — 3 would-be first-deploy failures found and closed: server-side GHCR auth, Postgres not listening on 172.17.0.1 (runbook Step 7 never applied), <code>SEQ_API_KEY</code> required with no Seq container</strong> · deploy docs rewritten · terminal <strong>159 → 160</strong>, open <strong>5 → 4</strong></td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+      </tbody>
+    </table>
+    <h2 id="library-feedback-summary">Library feedback summary<a class="anchor-link" href="#library-feedback-summary">#</a></h2>
+    <ul>
+      <li><strong>TrBlazeUI:</strong> next free <strong>TR-067</strong>. Nothing new — this pass was app-side. Prior: TR-057…066. <strong>TechieRag:</strong> not used (no AI/RAG features).</li>
+    </ul>
+    <h2 id="standards-compliance-2026-08-14">Standards compliance (2026-08-14)<a class="anchor-link" href="#standards-compliance-2026-08-14">#</a></h2>
+    <ul>
+      <li><strong>All six enforcement checks are now gated by the build.</strong> Patterns 1-4 joined 5-6 via <code>SourceConventionTests</code>; the exposure flagged on every prior pass is closed.</li>
+      <li><strong>Source and tests clean</strong>, each zero validated by a control in the same invocation: underscore fields 0 (4/4 synthetic, liveness <strong>259</strong>) · test-method underscores 0 (4/5 — correctly rejecting the non-violation; liveness <strong>1 228</strong>) · Hungarian 0 (2/2) · <code>a</code>/<code>v</code> 0 (both caught) · <code>ex.Message</code> 0.</li>
+      <li><strong>Mutation-tested, not merely green</strong> — 3 injected violations failed 3 of 4 scans; a passing suite alone cannot tell a live gate from a dead one. Run the doc greps with <code>command grep</code> (this shell aliases <code>grep</code> to <code>ugrep -G</code>).</li>
+    </ul>
+    <h2 id="deferred-future">Deferred / future<a class="anchor-link" href="#deferred-future">#</a></h2>
+    <ul>
+      <li><strong>The 137 rows <code>Verified</code> on 2026-08-11 were NOT re-confirmed</strong> — a full <code>*verify all</code> re-sweep is owed.</li>
+      <li><strong>No pipeline step has EXECUTED on the real VPS.</strong> Server <em>state</em> is verified (§0); its behaviour under the pipeline is not — SSH-from-CI, GHCR push/pull, TLS issuance, the Caddy hop. §13 is the ledger.</li>
+      <li><strong>Optional on the server:</strong> delete <code>/srv/caddy/sites/techieblog.caddy</code> to adopt the repo&#x27;s compression directive. Swap and Seq are both <strong>done</strong> — the whole runbook is complete and <code>checkup.sh</code> passes.</li>
+      <li><strong>Not re-tested</strong> — <code>/category/{slug}</code> featured-image <code>renders-empty</code>. <strong>Not re-exercised</strong> — REQ-NFR-005, REQ-NFR-023 (both keep <code>Verified</code> on unit coverage).</li>
+      <li><strong>Never driven</strong> — profile save (REQ-FN-011 update half, REQ-FN-053), newsletter Send, subscriber toggles, comment/rating/subscribe submits. <strong>BlogApp (MAUI) is build-verified only</strong> — REQ-UI-051/052, REQ-FN-046/047 have no runtime coverage.</li>
+      <li>REQ-UI-059 needs a back-dated seed post; <code>newsletter</code> has 0 rows (REQ-UI-054 / REQ-FN-050 unexercised); a real screen-reader pass; Firefox + WebKit for REQ-NFR-009; macOS BlogApp head.</li>
+      <li><code>.buildout/*/logs</code> ~133 MB of leftover agent logs (gitignored, safe to delete). Docker cleanup 2026-08-14 reclaimed 18.05 GB; <code>WinPostgre</code> untouched.</li>
+    </ul>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+<script>
+// Light/dark toggle. The initial theme was already applied flash-free by the
+// <head> script (saved choice, else time-of-day). Clicking flips it, saves the
+// choice, and reloads so Mermaid re-renders in the matching theme.
+(function(){
+  var btn = document.getElementById('themeToggle');
+  if(!btn) return;
+  var relabel = function(){
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    btn.textContent = dark ? '☀ Light' : '☾ Dark';
+  };
+  relabel();
+  btn.addEventListener('click', function(){
+    var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    try{ localStorage.setItem('tf-theme', next); }catch(e){}
+    location.reload();
+  });
+})();
+
+// Copy buttons on every code <pre> — but NEVER on a `pre.mermaid`:
+// mermaid reads the <pre>'s textContent as the diagram source, so a button
+// appended here glues "copy" onto the last line and breaks the parse
+// (flowcharts → "Syntax error"; sequence diagrams silently absorb it).
+// Mermaid blocks get copy/export from their own .diagram toolbar instead.
+document.querySelectorAll('pre:not(.mermaid)').forEach(pre => {
+  const btn = document.createElement('button');
+  btn.className = 'copy';
+  btn.textContent = 'copy';
+  btn.addEventListener('click', () => {
+    const text = pre.querySelector('code') ? pre.querySelector('code').innerText : pre.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'copied';
+      setTimeout(() => { btn.textContent = 'copy'; }, 1200);
+    });
+  });
+  pre.appendChild(btn);
+});
+
+// Mermaid init — theme follows the resolved light/dark theme
+if (window.mermaid) {
+  var mermaidTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
+  mermaid.initialize({ startOnLoad: true, theme: mermaidTheme, securityLevel: 'loose' });
+}
+
+// Mermaid toolbar wiring — run after mermaid renders
+function wireMermaidToolbars() {
+  document.querySelectorAll('.diagram').forEach(dia => {
+    if (dia.dataset.wired) return;
+    const merm = dia.querySelector('.mermaid');
+    const svg = merm && merm.querySelector('svg');
+    if (!svg) return;
+    dia.dataset.wired = '1';
+    let scale = 1;
+    const label = dia.querySelector('.zlabel');
+    const apply = () => {
+      svg.style.transform = `scale(${scale})`;
+      svg.style.transformOrigin = 'top left';
+      if (label) label.textContent = Math.round(scale * 100) + '%';
+    };
+    const setScale = (s) => { scale = Math.max(0.25, Math.min(4, s)); apply(); };
+    dia.querySelector('[data-zin]').onclick = () => setScale(scale * 1.2);
+    dia.querySelector('[data-zout]').onclick = () => setScale(scale / 1.2);
+    dia.querySelector('[data-fit]').onclick = () => {
+      svg.style.transform = '';
+      svg.removeAttribute('width');
+      svg.style.maxWidth = '100%';
+      svg.style.height = 'auto';
+      scale = 1;
+      if (label) label.textContent = 'Fit';
+    };
+    dia.querySelector('[data-one]').onclick = () => {
+      svg.style.transform = '';
+      svg.style.maxWidth = 'none';
+      svg.style.width = '';
+      svg.style.height = '';
+      scale = 1;
+      if (label) label.textContent = '100%';
+    };
+    dia.querySelector('[data-fs]').onclick = () => {
+      dia.classList.toggle('fs');
+      if (dia.classList.contains('fs')) {
+        document.addEventListener('keydown', escFs);
+      } else {
+        document.removeEventListener('keydown', escFs);
+      }
+    };
+    function escFs(e) { if (e.key === 'Escape') { dia.classList.remove('fs'); document.removeEventListener('keydown', escFs); } }
+    dia.querySelector('[data-pop]').onclick = () => openInNewTab(svg);
+    // Ctrl+wheel zoom
+    merm.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setScale(scale * (e.deltaY < 0 ? 1.1 : 1/1.1));
+    }, { passive: false });
+  });
+}
+
+function openInNewTab(svg) {
+  const svgSource = new XMLSerializer().serializeToString(svg);
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Diagram</title>
+<style>
+  html,body{margin:0;height:100%;background:#0f1115;color:#e6e8ee;font-family:system-ui,sans-serif}
+  .bar{position:fixed;top:0;left:0;right:0;padding:8px 12px;background:#161a22;border-bottom:1px solid #2a3142;display:flex;gap:8px;z-index:10}
+  .bar button{background:#1c2230;color:#9aa3b2;border:1px solid #2a3142;border-radius:6px;padding:5px 12px;font-size:13px;cursor:pointer}
+  .bar button:hover{color:#7cc4ff;border-color:#7cc4ff}
+  .bar .hint{margin-left:auto;color:#9aa3b2;font-size:11.5px;align-self:center}
+  #stage{position:absolute;top:42px;bottom:0;left:0;right:0;overflow:hidden}
+  #stage svg{width:100%;height:100%}
+</style>
+</head><body>
+<div class="bar">
+  <button onclick="zpz.zoomIn()">+</button>
+  <button onclick="zpz.zoomOut()">−</button>
+  <button onclick="zpz.fit();zpz.center()">Fit</button>
+  <button onclick="zpz.resetZoom();zpz.center()">1:1</button>
+  <button onclick="window.print()">Print</button>
+  <button onclick="dlPng()">PNG</button>
+  <button onclick="dlSvg()">SVG</button>
+  <span class="hint">Drag to pan · Ctrl+wheel to zoom · + / − keys</span>
+</div>
+<div id="stage">${svgSource}</div>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"><\/script>
+<script>
+  const el = document.querySelector('#stage svg');
+  const zpz = svgPanZoom(el, { zoomScaleSensitivity: .3, minZoom: .2, maxZoom: 10, controlIconsEnabled: false, fit: true, center: true });
+  document.addEventListener('keydown', e => {
+    if (e.key === '+' || e.key === '=') zpz.zoomIn();
+    if (e.key === '-' || e.key === '_') zpz.zoomOut();
+    if (e.key === '0') { zpz.resetZoom(); zpz.center(); }
+  });
+  function dlSvg() {
+    const blob = new Blob([new XMLSerializer().serializeToString(el)], { type: 'image/svg+xml' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'diagram.svg'; a.click();
+  }
+  function dlPng() {
+    const src = new XMLSerializer().serializeToString(el);
+    const img = new Image();
+    const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(src)));
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = el.clientWidth * 2; c.height = el.clientHeight * 2;
+      const ctx = c.getContext('2d'); ctx.scale(2,2); ctx.drawImage(img, 0, 0);
+      c.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'diagram.png'; a.click(); });
+    };
+    img.src = url;
+  }
+<\/script>
+</body></html>`;
+  const w = window.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+// Run wiring after mermaid finishes (it renders async)
+if (window.mermaid) {
+  setTimeout(wireMermaidToolbars, 400);
+  setTimeout(wireMermaidToolbars, 1200);  // safety re-run for slow renders
+}
+</script>
+</body>
+</html>

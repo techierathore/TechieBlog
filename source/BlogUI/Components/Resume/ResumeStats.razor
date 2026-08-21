@@ -1,0 +1,121 @@
+@*
+    ResumeStats.razor
+    Purpose: "About" block of the public Resume page — the site owner's biography
+    followed by the headline statistics tiles, plus a separate community-contribution
+    block (BRD-51, F-RESUME section list; mockup docs/mockups/10-resume.html).
+
+    UserStats rows carry a category. Rows categorised "Community" render in the
+    community block; every other row renders in the About block, so a site with no
+    category set still gets a sensible page.
+
+    Renders nothing at all when there is neither a biography nor a statistic, so an
+    unconfigured resume degrades to a shorter page rather than an empty heading.
+
+    REQ-UI-036 / REQ-UI-048 — TrBlazeUI (Card). Grid primitive (.resume-autogrid)
+    lives in wwwroot/css/resume.css because grid-cols-* utilities are not compiled.
+
+    Dependencies: BlogEngine.Services.UserStatsSvc, BlogModels.Models.AppUser
+*@
+
+@using BlogModels.Models
+@inject BlogEngine.Services.UserStatsSvc StatsSvc
+
+@if (HasAbout)
+{
+    <Card id="about" Class="resume-section" data-testid="about-section">
+        <CardHeader>
+            <CardTitle Class="text-2xl">About</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <div class="resume-stack">
+                @if (!string.IsNullOrWhiteSpace(User?.ProfileDescription))
+                {
+                    <p class="text-muted-foreground" data-testid="about-summary">@User.ProfileDescription</p>
+                }
+
+                @if (headlineStats.Count > 0)
+                {
+                    <div class="resume-autogrid" data-testid="about-stats-grid">
+                        @foreach (var stat in headlineStats)
+                        {
+                            <div class="flex flex-col items-center gap-1 rounded-lg border border-border bg-card p-4 text-center"
+                                 data-testid="about-stat">
+                                <span class="text-3xl font-bold text-primary" data-testid="about-stat-value">@stat.StatValue</span>
+                                <span class="text-sm text-muted-foreground" data-testid="about-stat-label">@stat.StatLabel</span>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </CardContent>
+    </Card>
+}
+
+@if (communityStats.Count > 0)
+{
+    <Card id="community" Class="resume-section" data-testid="community-section">
+        <CardHeader>
+            <CardTitle Class="text-2xl">Community</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <div class="resume-autogrid" data-testid="community-stats-grid">
+                @foreach (var stat in communityStats)
+                {
+                    <div class="flex flex-col items-center gap-1 rounded-lg border border-border bg-card p-4 text-center"
+                         data-testid="community-stat">
+                        <span class="text-3xl font-bold text-primary" data-testid="community-stat-value">@stat.StatValue</span>
+                        <span class="text-sm text-muted-foreground" data-testid="community-stat-label">@stat.StatLabel</span>
+                    </div>
+                }
+            </div>
+        </CardContent>
+    </Card>
+}
+
+@code {
+    /// <summary>
+    /// Category whose statistics render in the community block instead of the About block.
+    /// </summary>
+    private const string CommunityCategory = "Community";
+
+    /// <summary>
+    /// Statistics rendered as About tiles, in display order.
+    /// </summary>
+    private IReadOnlyList<UserStat> headlineStats = [];
+
+    /// <summary>
+    /// Statistics rendered in the community block, in display order.
+    /// </summary>
+    private IReadOnlyList<UserStat> communityStats = [];
+
+    /// <summary>
+    /// The site owner whose biography heads the About block.
+    /// </summary>
+    [Parameter]
+    public AppUser? User { get; set; }
+
+    /// <summary>
+    /// Identifier of the user whose statistics are shown.
+    /// </summary>
+    [Parameter]
+    public long UserId { get; set; }
+
+    /// <summary>
+    /// Whether the About block has anything worth rendering.
+    /// </summary>
+    private bool HasAbout =>
+        !string.IsNullOrWhiteSpace(User?.ProfileDescription) || headlineStats.Count > 0;
+
+    /// <inheritdoc />
+    /// <returns>A task that completes when the statistics have been read.</returns>
+    protected override async Task OnParametersSetAsync()
+    {
+        var all = (await StatsSvc.GetStatsForUserAsync(UserId)).ToList();
+
+        communityStats = all
+            .Where(s => string.Equals(s.StatCategory, CommunityCategory, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        headlineStats = all.Except(communityStats).ToList();
+    }
+}

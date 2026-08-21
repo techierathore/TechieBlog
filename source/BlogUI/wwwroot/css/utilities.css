@@ -1,0 +1,221 @@
+/* =============================================================================
+   utilities.css — the utilities TrBlazeUI's bundle still cannot generate
+   =============================================================================
+   REQ-UI-048. Logged upstream as TrBlazeUI gaps TR-019 / TR-043 / TR-050 / TR-069.
+
+   WHY THIS FILE STILL EXISTS (much smaller than it was)
+   -----------------------------------------------------
+   TrBlazeUI 2.0.1 shipped a tree-shaken Tailwind bundle, so 107 ordinary
+   utilities this application uses silently did nothing and had to be hand
+   declared here. **2.0.2 closed that gap** — `_content/TrBlazeUI.Components/
+   trblazeui.css` now ships the standard Tailwind scale with the sm/md/lg/xl
+   responsive variants, and every one of those 107 declarations was deleted on
+   2026-08-11 after checking each class against the shipped bundle.
+
+   Two categories survive, and only two:
+
+   1. ARBITRARY VALUES — `max-w-[820px]`, `min-h-[400px]`, `h-[60vh]`, … A
+      pre-built bundle can never generate these; the AI reference says so
+      explicitly. Where a component parameter exists, prefer it: the wide
+      analytics table now uses `DataTable MinWidth="720px"` instead of the
+      `min-w-[720px]` that used to live here.
+
+   2. SCALE POINTS 2.0.2 STILL OMITS — measured, not assumed (TR-069):
+      `min-h-28` / `min-h-36` (the `h-*` scale has 28 and 36, the `min-h-*`
+      scale jumps 24 → 32 → 40), `hover:opacity-90` (only `opacity-100` ships
+      with a hover variant), and `md:-mx-6` (negative margins ship unprefixed
+      but carry no responsive variant).
+
+   RULES FOR THIS FILE
+   -------------------
+   - Values follow the Tailwind v4 scale (1 unit = 0.25rem) so the class names
+     mean exactly what a reader expects.
+   - Colours come from theme tokens only — never a literal.
+   - Breakpoints match Tailwind v4: sm 40rem, md 48rem, lg 64rem.
+   - Loaded AFTER trblazeui.css, so anything the bundle already defines wins
+     first and these only fill genuine gaps.
+   - BEFORE ADDING ANYTHING HERE, check it is really absent from the bundle:
+     `python3 tests/.artifacts/harness/css-audit.py` cross-checks every class
+     used in BlogUI/TechieBlog markup against the installed `trblazeui.css`
+     and prints only the ones that resolve to nothing.
+   ========================================================================== */
+
+/* --- Arbitrary max-width values ------------------------------------------- */
+.max-w-\[300px\] { max-width: 300px; }
+.max-w-\[420px\] { max-width: 420px; }
+.max-w-\[760px\] { max-width: 760px; }
+.max-w-\[800px\] { max-width: 800px; }
+.max-w-\[820px\] { max-width: 820px; }
+.max-w-\[860px\] { max-width: 860px; }
+.max-w-\[1200px\] { max-width: 1200px; }
+.max-w-\[1400px\] { max-width: 1400px; }
+
+/* --- Arbitrary min-width values ------------------------------------------- */
+/* Search inputs on the admin list pages keep a usable width when the filter
+   row wraps. `min-w-[720px]` used to live here for wide data tables; 2.0.2's
+   `DataTable MinWidth` parameter replaced it (TR-043). */
+.min-w-\[200px\] { min-width: 200px; }
+
+/* --- Arbitrary height values ---------------------------------------------- */
+.h-\[60vh\] { height: 60vh; }
+.min-h-\[400px\] { min-height: 400px; }
+.max-h-\[65vh\] { max-height: 65vh; }
+
+/* --- Scale points the 2.0.2 bundle omits (TR-069) ------------------------- */
+/* `h-28` / `h-36` ship, but the min-height scale skips both. */
+.min-h-28 { min-height: 7rem; }
+.min-h-36 { min-height: 9rem; }
+
+/* Only `hover:opacity-100` ships with a hover variant. */
+.hover\:opacity-90:hover { opacity: 0.9; }
+
+/* --- Typography ----------------------------------------------------------- */
+.text-\[var\(--alert-warning\)\] { color: var(--alert-warning); }
+
+/* --- Translucent surfaces + backdrop -------------------------------------- */
+/* `bg-background/80` itself ships; the `supports-[backdrop-filter]:` variant
+   of it does not, and arbitrary variants cannot be pre-generated either. */
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    .supports-\[backdrop-filter\]\:bg-background\/80 {
+        background-color: color-mix(in oklab, var(--background) 80%, transparent);
+    }
+}
+
+/* =============================================================================
+   Responsive variants
+   ========================================================================== */
+
+@media (min-width: 40rem) { /* sm */
+    .sm\:w-\[320px\] { width: 320px; }
+}
+
+@media (min-width: 48rem) { /* md */
+    /* Negative margins ship unprefixed only — no responsive variant (TR-069). */
+    .md\:-mx-6 { margin-left: -1.5rem; margin-right: -1.5rem; }
+}
+
+/* -----------------------------------------------------------------------------
+   Keyboard fallback for controls the library renders unreachable — REQ-NFR-007.
+
+   HISTORICAL as of TrBlazeUI 2.0.2: TR-031/045/052 made `Rating`'s stars real
+   `<button role="radio">` elements with a roving tabindex, so the fallback is no
+   longer needed. The class is kept only until `PostRatingPanel.razor` drops the
+   hidden `<fieldset>` that uses it — that file belongs to another work item, and
+   deleting the rule first would un-hide a 622 px control on every post page.
+
+   TrBlazeUI's 2.0.1 Rating painted its stars as non-focusable <span role="radio">
+   elements (TR-031), so star selection could not be reached by keyboard at all.
+   The application supplies a real radio group beside it; that group is hidden
+   from sighted mouse users but stays in the tab order, and reveals itself as
+   soon as anything inside it takes focus, so a keyboard user both reaches AND
+   sees the control (WCAG 2.1.1 Keyboard + 2.4.7 Focus Visible).
+   -------------------------------------------------------------------------- */
+.tb-keyboard-fallback {
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border-width: 0;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    position: absolute;
+    overflow: hidden;
+    /*
+      [REQ-UI-057] The element this class hides is a <fieldset>, and the UA stylesheet gives
+      fieldsets `min-inline-size: min-content`. That beats `width: 1px`, so the "hidden" control
+      was really 622 px wide with a nowrap legend, sitting 272 px past the right edge of a 390 px
+      viewport — the post page scrolled sideways for EVERY mobile visitor, not just keyboard
+      users, and `clip`/`overflow: hidden` hid the evidence without removing the cause. Zeroing
+      both the physical and the logical minimum is what actually makes the box 1 px.
+    */
+    min-width: 0;
+    min-inline-size: 0;
+}
+
+/*
+  [REQ-UI-057] A fieldset's <legend> is a "rendered legend": Chromium lays it out over the
+  border box rather than inside it, so the `overflow: hidden` above does NOT clip it. Left
+  alone it kept a 683 px nowrap sentence in the layout and the 390 px page still scrolled
+  sideways by 333 px. Clamping the legend in the hidden state is what finishes the job; the
+  :focus-within rule below hands the width straight back when the control is revealed.
+*/
+.tb-keyboard-fallback > legend {
+    max-width: 1px;
+    overflow: hidden;
+}
+
+.tb-keyboard-fallback:focus-within {
+    clip: auto;
+    clip-path: none;
+    white-space: normal;
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    position: static;
+    overflow: visible;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--card);
+    color: var(--card-foreground);
+    /*
+      [REQ-UI-057] Revealed while smoking the accessible captcha at 390 px: tabbing into the
+      rating stars un-hides this control, and a nowrap flex row with a full-sentence <legend>
+      forced the whole page 272 px wide — the keyboard-only user was the only one who could see
+      it and the only one it broke. Wrapping and clamping the width keeps the fallback usable on
+      a phone. Narrow fix to an existing rule; the fallback's behaviour is otherwise untouched.
+    */
+    flex-wrap: wrap;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.tb-keyboard-fallback:focus-within > legend {
+    max-width: 100%;
+}
+
+/* -----------------------------------------------------------------------------
+   Target size — REQ-NFR-007 / BRD-84.
+
+   The acceptance names 44x44 px targets. That number is WCAG 2.5.5 Target Size,
+   level **AAA**; the AA-level target-size rule is 2.5.8 Target Size (Minimum),
+   24x24, and it only exists in WCAG 2.2 — WCAG 2.1 AA, which is what REQ-NFR-007
+   is measured against, has no target-size criterion at all.
+
+   Measured before this rule: the only controls under 44 px in BOTH axes were the
+   square icon buttons the library renders as `h-10 w-10` (40x40) — header search,
+   theme toggle, the four social links, the captcha reload. Raising those to the
+   token is free: the header is 60 px tall and nothing else in the row is
+   size-constrained.
+
+   Deliberately NOT raised: inline text links (footer navigation ~20 px tall,
+   in-prose contact links 16 px, newsletter issue titles 21 px, the captcha
+   mode-toggle rendered as a link). Both 2.5.5 and 2.5.8 exempt a target that is
+   "in a sentence or block of text", and stretching them would break the type
+   rhythm of the very prose they sit in. That exemption is the reason this rule is
+   scoped to square icon controls rather than applied to everything focusable.
+   -------------------------------------------------------------------------- */
+button.h-10.w-10,
+a.h-10.w-10,
+button.size-10,
+a.size-10 {
+    min-block-size: var(--tb-target-min);
+    min-inline-size: var(--tb-target-min);
+}
+
+/* -----------------------------------------------------------------------------
+   DELETED 2026-08-11 — nested dialog stacking (was REQ-UI-037 / REQ-UI-039).
+
+   A scoped `z-index: 120` used to be forced onto the ImagePicker's gallery and
+   upload portals because TrBlazeUI 2.0.1 appended portals in an order that did
+   not follow open order, so a child dialog could paint UNDER its parent and its
+   tiles became unclickable. TR-060 fixed that library-side in 2.0.2: portals now
+   render in open order, so the nested dialog is on top by construction. Verified
+   by opening the experience dialog's ImagePicker and clicking a gallery tile
+   with this rule removed — see the cluster-f smoke artifacts.
+   -------------------------------------------------------------------------- */

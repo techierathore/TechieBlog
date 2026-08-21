@@ -1,44 +1,48 @@
 @*
     ResumeSkills.razor
-    Purpose: Displays user skills grouped by category in a responsive grid layout.
-    Shows skills organized into category cards with skill lists ordered by DisplayOrder.
+    Purpose: Skills section of the public Resume page — one block per category,
+    each skill rendered as a badge chip, ordered by DisplayOrder.
 
-    Dependencies: IUserSkillsRepo for data access, resume.css for styling
-    Usage: Used on resume/portfolio pages to display skills and expertise
+    REQ-UI-036 / REQ-UI-048 — TrBlazeUI (Card / Badge / Spinner).
+    Grid primitive (.resume-autogrid) lives in wwwroot/css/resume.css.
+
+    Dependencies: IUserSkillsRepo for data access.
 *@
 
 @using BlogModels.Models
 @using BlogModels.Interfaces
 
-<section class="resume-section">
-    <h2>Skills & Expertise</h2>
-
-    @if (_isLoading)
-    {
-        <p>Loading skills...</p>
-    }
-    else if (_skillsByCategory == null || !_skillsByCategory.Any())
-    {
-        <p>No skills available.</p>
-    }
-    else
-    {
-        <div class="skills-grid">
-            @foreach (var categoryGroup in _skillsByCategory)
-            {
-                <div class="skill-category">
-                    <h3>@categoryGroup.Key</h3>
-                    <ul class="skill-list">
-                        @foreach (var skill in categoryGroup.Value)
-                        {
-                            <li>@skill.SkillName</li>
-                        }
-                    </ul>
-                </div>
-            }
-        </div>
-    }
-</section>
+@if (isLoading)
+{
+    <div class="flex items-center gap-2 text-muted-foreground" data-testid="skills-loading">
+        <Spinner Size="SpinnerSize.Small" />
+        <span class="text-sm">Loading skills...</span>
+    </div>
+}
+else if (skillsByCategory is not null && skillsByCategory.Count > 0)
+{
+    <Card id="skills" Class="resume-section" data-testid="skills-section">
+        <CardHeader>
+            <CardTitle Class="text-2xl">Skills &amp; Expertise</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <div class="resume-autogrid" data-testid="skills-grid">
+                @foreach (var categoryGroup in skillsByCategory)
+                {
+                    <div class="rounded-lg border border-border bg-card p-4" data-testid="skill-category">
+                        <h3 class="mb-3 text-sm font-semibold text-primary" data-testid="skill-category-name">@categoryGroup.Key</h3>
+                        <div class="flex flex-wrap gap-2">
+                            @foreach (var skill in categoryGroup.Value)
+                            {
+                                <Badge Variant="BadgeVariant.Secondary" data-testid="skill-badge">@skill.SkillName</Badge>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </CardContent>
+    </Card>
+}
 
 @code {
     /// <summary>
@@ -53,8 +57,8 @@
     [Inject]
     public IUserSkillsRepo SkillsRepo { get; set; } = default!;
 
-    private Dictionary<string, List<UserSkill>>? _skillsByCategory;
-    private bool _isLoading = true;
+    private Dictionary<string, List<UserSkill>>? skillsByCategory;
+    private bool isLoading = true;
 
     /// <summary>
     /// Loads skills for the specified user and groups them by category.
@@ -78,15 +82,14 @@
     /// </summary>
     private async Task LoadSkillsAsync()
     {
-        _isLoading = true;
+        isLoading = true;
 
         try
         {
-            // Run synchronous repo call on a background thread
-            var skills = await Task.Run(() => SkillsRepo.GetByUserId(UserId));
+            var skills = await SkillsRepo.GetByUserIdAsync(UserId);
 
             // Group by Category and order each group by DisplayOrder
-            _skillsByCategory = skills
+            skillsByCategory = skills
                 .GroupBy(s => s.Category)
                 .OrderBy(g => g.Key)
                 .ToDictionary(
@@ -96,11 +99,11 @@
         }
         catch (Exception)
         {
-            _skillsByCategory = new Dictionary<string, List<UserSkill>>();
+            skillsByCategory = new Dictionary<string, List<UserSkill>>();
         }
         finally
         {
-            _isLoading = false;
+            isLoading = false;
         }
     }
 }

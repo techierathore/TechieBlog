@@ -1,351 +1,603 @@
 @*
     Settings.razor
-    Purpose: Administrative settings page for blog configuration.
-    Allows admins to configure site-wide settings.
+    Purpose: Site-wide configuration console.
 
-    Usage: Navigate to /settings
-    Dependencies: Microsoft.FluentUI.AspNetCore.Components
-    Authorization: AdminOnly policy required
+    REQ-UI-048 — rebuilt on TrBlazeUI.
+    REQ-UI-032 / BRD-68 — the Theme tab carries the site-theme selector offering the
+    three shipped themes, with preview swatches and the active theme outlined.
+    BRD-69 — values persist through ISiteSettingsService (PostgreSQL settings table)
+    and apply without an app restart.
+
+    Layout: admin shell, Tabs section switcher, card grid, sticky save bar.
 *@
+
 @page "/settings"
 @attribute [Authorize(Policy = "AdminOnly")]
 @layout BlogUI.Layouts.AdminLayout
+@using BlogModels.Interfaces
+@using BlogModels.Models
 @inject ThemeService ThemeService
-@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject ISiteSettingsService SiteSettingsService
+@inject ToastService ToastService
 
-<div class="settings-page">
-    @* Page Header *@
-    <div class="page-header">
-        <h1>Settings</h1>
+<PageTitle>Settings - TechieBlog</PageTitle>
+
+<div class="flex flex-col gap-6 pb-24" data-testid="settings-page">
+
+    <div>
+        <h1 class="m-0 text-2xl font-semibold tracking-tight">Settings</h1>
+        <p class="mt-1 text-sm text-muted-foreground">
+            Configure how TechieBlog looks and behaves. Changes apply without a restart.
+        </p>
     </div>
 
-    @* Status Messages *@
-    @if (!string.IsNullOrEmpty(StatusMessage))
+    @if (isLoading)
     {
-        <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
-                          Style="margin-bottom: 16px;">
-            @StatusMessage
-        </FluentMessageBar>
+        <div class="flex justify-center py-16" data-testid="settings-loading">
+            <Spinner Size="SpinnerSize.Large" />
+        </div>
     }
+    else
+    {
+        @*
+            Each trigger's test hook sits on <TabsTrigger> itself. Up to TrBlazeUI 2.0.1 that
+            threw InvalidOperationException and rendered the whole page as an empty error
+            boundary, so the ids had to ride on a <span> inside the trigger (TR-032/TR-046);
+            2.0.2 splats on all 344 components and the spans are gone.
+        *@
+        <Tabs DefaultValue="general">
+            @*
+                h-auto + flex-wrap: six triggers do not fit on one line at a 390px viewport, and
+                the library's default fixed-height single-line TabsList pushed Email and Storage
+                off-canvas. Wrapping keeps every tab reachable on a phone.
+            *@
+            <TabsList Class="h-auto flex-wrap">
+                <TabsTrigger Value="general" data-testid="tab-general">General</TabsTrigger>
+                <TabsTrigger Value="blog" data-testid="tab-blog">Blog</TabsTrigger>
+                <TabsTrigger Value="theme" data-testid="tab-theme">Theme</TabsTrigger>
+                <TabsTrigger Value="seo" data-testid="tab-seo">SEO &amp; Social</TabsTrigger>
+                <TabsTrigger Value="email" data-testid="tab-email">Email</TabsTrigger>
+                <TabsTrigger Value="storage" data-testid="tab-storage">Storage</TabsTrigger>
+            </TabsList>
 
-    @* Settings Sections *@
-    <div class="settings-grid">
-        @* Theme Settings *@
-        <div class="settings-card">
-            <h2>Theme</h2>
-            <div class="settings-form">
-                <div class="form-group">
-                    <FluentSelect TOption="ThemeInfo"
-                                  Items="@availableThemes"
-                                  OptionValue="@(t => t.Id)"
-                                  OptionText="@(t => t.Name)"
-                                  @bind-SelectedOption="selectedThemeInfo"
-                                  @bind-SelectedOption:after="OnThemeChanged"
-                                  Label="Select Theme"
-                                  Style="width: 100%;" />
-                </div>
-                @if (selectedThemeInfo != null)
-                {
-                    <div class="theme-description">
-                        <p>@selectedThemeInfo.Description</p>
-                        @if (selectedThemeInfo.IsDefault)
-                        {
-                            <span class="theme-badge">Default</span>
-                        }
-                    </div>
-                }
-            </div>
-        </div>
+            @* ---------------- General ---------------- *@
+            <TabsContent Value="general">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>General</CardTitle>
+                        <CardDescription>Identity and contact details for the site.</CardDescription>
+                    </CardHeader>
+                    <CardContent Class="flex flex-col gap-4">
+                        <Field>
+                            <FieldLabel For="site-title">Site title</FieldLabel>
+                            <FieldContent>
+                                <Input Id="site-title" @bind-Value="settings.SiteTitle"
+                                       Placeholder="TechieBlog" data-testid="site-title" />
+                            </FieldContent>
+                        </Field>
+                        <Field>
+                            <FieldLabel For="site-tagline">Site tagline</FieldLabel>
+                            <FieldContent>
+                                <Input Id="site-tagline" @bind-Value="settings.SiteTagline"
+                                       Placeholder="A blog about technology" data-testid="site-tagline" />
+                            </FieldContent>
+                        </Field>
+                        <Field>
+                            <FieldLabel For="admin-email">Admin email</FieldLabel>
+                            <FieldContent>
+                                <Input Id="admin-email" Type="InputType.Email" @bind-Value="settings.AdminEmail"
+                                       Placeholder="admin@example.com" data-testid="admin-email" />
+                                <FieldDescription>Where system notifications are delivered.</FieldDescription>
+                            </FieldContent>
+                        </Field>
+                    </CardContent>
+                </Card>
+            </TabsContent>
 
-        @* General Settings *@
-        <div class="settings-card">
-            <h2>General Settings</h2>
-            <div class="settings-form">
-                <div class="form-group">
-                    <FluentTextField Label="Site Title"
-                                     @bind-Value="SiteTitle"
-                                     Placeholder="TechieBlog"
-                                     Style="width: 100%;" />
-                </div>
-                <div class="form-group">
-                    <FluentTextField Label="Site Tagline"
-                                     @bind-Value="SiteTagline"
-                                     Placeholder="A blog about technology"
-                                     Style="width: 100%;" />
-                </div>
-                <div class="form-group">
-                    <FluentTextField Label="Admin Email"
-                                     @bind-Value="AdminEmail"
-                                     Placeholder="admin@example.com"
-                                     Style="width: 100%;" />
-                </div>
-            </div>
-        </div>
+            @* ---------------- Blog ---------------- *@
+            <TabsContent Value="blog">
+                <div class="grid gap-6 lg:grid-cols-2">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Reading</CardTitle>
+                            <CardDescription>How posts are paged for readers.</CardDescription>
+                        </CardHeader>
+                        <CardContent Class="flex flex-col gap-4">
+                            <Field>
+                                <FieldLabel For="posts-per-page">Posts per page</FieldLabel>
+                                <FieldContent>
+                                    <Input Id="posts-per-page" Type="InputType.Number"
+                                           Value="@settings.PostsPerPage.ToString()"
+                                           ValueChanged="@(v => settings.PostsPerPage = ParseInt(v, 10))"
+                                           data-testid="posts-per-page" />
+                                </FieldContent>
+                            </Field>
+                            <Field>
+                                <FieldLabel For="pagination-words">Article pagination word count</FieldLabel>
+                                <FieldContent>
+                                    <Input Id="pagination-words" Type="InputType.Number"
+                                           Value="@settings.PaginationWordCount.ToString()"
+                                           ValueChanged="@(v => settings.PaginationWordCount = ParseInt(v, 500))"
+                                           data-testid="pagination-word-count" />
+                                    <FieldDescription>
+                                        Split articles longer than this into pages. Set to 0 to disable.
+                                    </FieldDescription>
+                                </FieldContent>
+                            </Field>
+                        </CardContent>
+                    </Card>
 
-        @* Blog Settings *@
-        <div class="settings-card">
-            <h2>Blog Settings</h2>
-            <div class="settings-form">
-                <div class="form-group">
-                    <FluentNumberField Label="Posts Per Page"
-                                       @bind-Value="PostsPerPage"
-                                       Min="5"
-                                       Max="50"
-                                       Style="width: 100%;" />
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Comments</CardTitle>
+                            <CardDescription>Reader participation rules.</CardDescription>
+                        </CardHeader>
+                        <CardContent Class="flex flex-col gap-4">
+                            <div class="flex items-center justify-between gap-4">
+                                <div>
+                                    <p class="m-0 text-sm font-medium">Allow comments</p>
+                                    <p class="m-0 text-xs text-muted-foreground">Readers may comment on posts.</p>
+                                </div>
+                                <Switch @bind-Checked="settings.AreCommentsAllowed" data-testid="allow-comments" />
+                            </div>
+                            <Separator />
+                            <div class="flex items-center justify-between gap-4">
+                                <div>
+                                    <p class="m-0 text-sm font-medium">Moderate comments</p>
+                                    <p class="m-0 text-xs text-muted-foreground">Hold comments for approval first.</p>
+                                </div>
+                                <Switch @bind-Checked="settings.AreCommentsModerated" data-testid="moderate-comments" />
+                            </div>
+                            <Separator />
+                            <div class="flex items-center justify-between gap-4">
+                                <div>
+                                    <p class="m-0 text-sm font-medium">Allow registration</p>
+                                    <p class="m-0 text-xs text-muted-foreground">Visitors may create their own account.</p>
+                                </div>
+                                <Switch @bind-Checked="settings.IsRegistrationAllowed" data-testid="allow-registration" />
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
-                <div class="form-group">
-                    <FluentNumberField Label="Article Pagination Word Count"
-                                       @bind-Value="PaginationWordCount"
-                                       Min="0"
-                                       Max="10000"
-                                       Style="width: 100%;" />
-                    <span class="form-hint">Split articles longer than this word count into pages. Set to 0 to disable pagination.</span>
-                </div>
-                <div class="form-group">
-                    <FluentCheckbox @bind-Value="AllowComments" Label="Allow Comments" />
-                </div>
-                <div class="form-group">
-                    <FluentCheckbox @bind-Value="ModerateComments" Label="Moderate Comments Before Publishing" />
-                </div>
-                <div class="form-group">
-                    <FluentCheckbox @bind-Value="AllowRegistration" Label="Allow User Registration" />
-                </div>
-            </div>
-        </div>
+            </TabsContent>
 
-        @* SEO Settings *@
-        <div class="settings-card">
-            <h2>SEO Settings</h2>
-            <div class="settings-form">
-                <div class="form-group">
-                    <FluentTextArea Label="Meta Description"
-                                    @bind-Value="MetaDescription"
-                                    Placeholder="Default meta description for the site..."
-                                    Rows="3"
-                                    Style="width: 100%;" />
-                </div>
-                <div class="form-group">
-                    <FluentTextField Label="Meta Keywords"
-                                     @bind-Value="MetaKeywords"
-                                     Placeholder="technology, programming, web development"
-                                     Style="width: 100%;" />
-                </div>
-            </div>
-        </div>
+            @* ---------------- Theme (REQ-UI-032) ---------------- *@
+            <TabsContent Value="theme">
+                <Card data-testid="theme-settings">
+                    <CardHeader>
+                        <CardTitle>Site theme</CardTitle>
+                        <CardDescription>
+                            Choose the palette applied to the public site and the admin console.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent Class="flex flex-col gap-6">
 
-        @* Social Media Settings *@
-        <div class="settings-card">
-            <h2>Social Media Links</h2>
-            <div class="settings-form">
-                <div class="form-group">
-                    <FluentTextField Label="Twitter/X URL"
-                                     @bind-Value="TwitterUrl"
-                                     Placeholder="https://twitter.com/yourhandle"
-                                     Style="width: 100%;" />
-                </div>
-                <div class="form-group">
-                    <FluentTextField Label="LinkedIn URL"
-                                     @bind-Value="LinkedInUrl"
-                                     Placeholder="https://linkedin.com/in/yourprofile"
-                                     Style="width: 100%;" />
-                </div>
-                <div class="form-group">
-                    <FluentTextField Label="GitHub URL"
-                                     @bind-Value="GitHubUrl"
-                                     Placeholder="https://github.com/yourusername"
-                                     Style="width: 100%;" />
-                </div>
-            </div>
-        </div>
-    </div>
+                        <Field>
+                            <FieldLabel For="site-theme">Theme</FieldLabel>
+                            <FieldContent>
+                                <Select TValue="string"
+                                        Value="@settings.SiteTheme"
+                                        ValueChanged="@OnThemeSelected"
+                                        Class="w-full sm:w-[320px]">
+                                    <SelectTrigger data-testid="site-theme-select">
+                                        <SelectValue Placeholder="Select a theme" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        @foreach (var theme in availableThemes)
+                                        {
+                                            <SelectItem TValue="string" Value="@theme.Id" Text="@theme.Name">
+                                                @theme.Name
+                                            </SelectItem>
+                                        }
+                                    </SelectContent>
+                                </Select>
+                            </FieldContent>
+                        </Field>
 
-    @* Save Button *@
-    <div class="settings-footer">
-        <FluentButton Appearance="Appearance.Accent"
-                      OnClick="SaveSettings"
-                      Disabled="@IsSaving">
-            @if (IsSaving)
-            {
-                <FluentProgressRing Style="width: 16px; height: 16px; margin-right: 8px;" />
-            }
-            Save Settings
-        </FluentButton>
-    </div>
+                        @* Preview swatches - the active theme is outlined. *@
+                        <div class="grid gap-4 sm:grid-cols-3" data-testid="theme-swatches">
+                            @foreach (var theme in availableThemes)
+                            {
+                                var isActive = theme.Id == settings.SiteTheme;
+                                <button type="button"
+                                        @onclick="@(() => OnThemeSelected(theme.Id))"
+                                        class="@SwatchClass(isActive)"
+                                        data-testid="@($"theme-swatch-{theme.Id}")"
+                                        aria-pressed="@isActive">
+                                    <span class="flex items-center justify-between gap-2">
+                                        <span class="text-sm font-medium">@theme.Name</span>
+                                        @if (isActive)
+                                        {
+                                            <LucideIcon Name="check" Size="16" Class="text-primary" />
+                                        }
+                                    </span>
+                                    <span class="mt-3 flex gap-1.5" data-site-theme="@theme.Id">
+                                        <span class="h-6 w-6 rounded-full border border-border bg-primary"></span>
+                                        <span class="h-6 w-6 rounded-full border border-border bg-secondary"></span>
+                                        <span class="h-6 w-6 rounded-full border border-border bg-muted"></span>
+                                        <span class="h-6 w-6 rounded-full border border-border bg-destructive"></span>
+                                    </span>
+                                    <span class="mt-3 block text-left text-xs text-muted-foreground">
+                                        @theme.Description
+                                    </span>
+                                    @if (theme.IsDefault)
+                                    {
+                                        <Badge Variant="BadgeVariant.Secondary" Class="mt-3">Default</Badge>
+                                    }
+                                </button>
+                            }
+                        </div>
+
+                        <Separator />
+
+                        <div class="flex items-center justify-between gap-4">
+                            <div>
+                                <p class="m-0 text-sm font-medium">Default to dark mode</p>
+                                <p class="m-0 text-xs text-muted-foreground">
+                                    New visitors start in dark mode unless they choose otherwise.
+                                </p>
+                            </div>
+                            <Switch @bind-Checked="settings.IsDarkModeDefault" data-testid="dark-mode-default" />
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+
+            @* ---------------- SEO & Social ---------------- *@
+            <TabsContent Value="seo">
+                <div class="grid gap-6 lg:grid-cols-2">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>SEO</CardTitle>
+                            <CardDescription>Defaults used when a page supplies no metadata.</CardDescription>
+                        </CardHeader>
+                        <CardContent Class="flex flex-col gap-4">
+                            <Field>
+                                <FieldLabel For="meta-description">Meta description</FieldLabel>
+                                <FieldContent>
+                                    <Textarea Id="meta-description" @bind-Value="settings.MetaDescription"
+                                              Placeholder="Default meta description for the site..."
+                                              data-testid="meta-description" />
+                                </FieldContent>
+                            </Field>
+                            <Field>
+                                <FieldLabel For="meta-keywords">Meta keywords</FieldLabel>
+                                <FieldContent>
+                                    <Input Id="meta-keywords" @bind-Value="settings.MetaKeywords"
+                                           Placeholder="technology, programming, web development"
+                                           data-testid="meta-keywords" />
+                                </FieldContent>
+                            </Field>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Social links</CardTitle>
+                            <CardDescription>Shown in the site footer and resume.</CardDescription>
+                        </CardHeader>
+                        <CardContent Class="flex flex-col gap-4">
+                            <Field>
+                                <FieldLabel For="twitter-url">X / Twitter URL</FieldLabel>
+                                <FieldContent>
+                                    <Input Id="twitter-url" Type="InputType.Url" @bind-Value="settings.TwitterUrl"
+                                           Placeholder="https://x.com/yourhandle" data-testid="twitter-url" />
+                                </FieldContent>
+                            </Field>
+                            <Field>
+                                <FieldLabel For="linkedin-url">LinkedIn URL</FieldLabel>
+                                <FieldContent>
+                                    <Input Id="linkedin-url" Type="InputType.Url" @bind-Value="settings.LinkedInUrl"
+                                           Placeholder="https://linkedin.com/in/yourprofile" data-testid="linkedin-url" />
+                                </FieldContent>
+                            </Field>
+                            <Field>
+                                <FieldLabel For="github-url">GitHub URL</FieldLabel>
+                                <FieldContent>
+                                    <Input Id="github-url" Type="InputType.Url" @bind-Value="settings.GitHubUrl"
+                                           Placeholder="https://github.com/yourusername" data-testid="github-url" />
+                                </FieldContent>
+                            </Field>
+                        </CardContent>
+                    </Card>
+                </div>
+            </TabsContent>
+
+            @* ---------------- Email ---------------- *@
+            <TabsContent Value="email">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Outgoing email (SMTP)</CardTitle>
+                        <CardDescription>
+                            Used for password resets, subscriber confirmations and newsletters.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent Class="grid gap-4 sm:grid-cols-2">
+                        <Field>
+                            <FieldLabel For="smtp-host">Host</FieldLabel>
+                            <FieldContent>
+                                <Input Id="smtp-host" @bind-Value="settings.Smtp.Host"
+                                       Placeholder="smtp.example.com" data-testid="smtp-host" />
+                            </FieldContent>
+                        </Field>
+                        <Field>
+                            <FieldLabel For="smtp-port">Port</FieldLabel>
+                            <FieldContent>
+                                <Input Id="smtp-port" Type="InputType.Number"
+                                       Value="@settings.Smtp.Port.ToString()"
+                                       ValueChanged="@(v => settings.Smtp.Port = ParseInt(v, 587))"
+                                       data-testid="smtp-port" />
+                            </FieldContent>
+                        </Field>
+                        <Field>
+                            <FieldLabel For="smtp-user">Username</FieldLabel>
+                            <FieldContent>
+                                <Input Id="smtp-user" @bind-Value="settings.Smtp.UserName" data-testid="smtp-username" />
+                            </FieldContent>
+                        </Field>
+                        <Field>
+                            <FieldLabel For="smtp-password">Password</FieldLabel>
+                            <FieldContent>
+                                <Input Id="smtp-password" Type="InputType.Password"
+                                       @bind-Value="settings.Smtp.Password" data-testid="smtp-password" />
+                                <FieldDescription>Stored encrypted.</FieldDescription>
+                            </FieldContent>
+                        </Field>
+                        <Field>
+                            <FieldLabel For="smtp-from-address">From address</FieldLabel>
+                            <FieldContent>
+                                <Input Id="smtp-from-address" Type="InputType.Email"
+                                       @bind-Value="settings.Smtp.FromAddress" data-testid="smtp-from-address" />
+                            </FieldContent>
+                        </Field>
+                        <Field>
+                            <FieldLabel For="smtp-from-name">From name</FieldLabel>
+                            <FieldContent>
+                                <Input Id="smtp-from-name" @bind-Value="settings.Smtp.FromName"
+                                       data-testid="smtp-from-name" />
+                            </FieldContent>
+                        </Field>
+                        <div class="flex items-center gap-2 sm:col-span-2">
+                            <Checkbox Id="smtp-ssl" @bind-Checked="settings.Smtp.IsSslEnabled" data-testid="smtp-ssl" />
+                            <Label For="smtp-ssl" Class="text-sm font-normal">Use SSL/TLS</Label>
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+
+            @* ---------------- Storage ---------------- *@
+            <TabsContent Value="storage">
+                <Card data-testid="storage-settings">
+                    <CardHeader>
+                        <CardTitle>Uploaded media storage</CardTitle>
+                        <CardDescription>
+                            Where post images and other uploads are written. Only the selected
+                            provider's fields are used.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent Class="flex flex-col gap-4">
+                        <Field>
+                            <FieldLabel For="storage-provider">Provider</FieldLabel>
+                            <FieldContent>
+                                <Select TValue="string"
+                                        Value="@settings.Storage.ProviderName"
+                                        ValueChanged="@(v => settings.Storage.ProviderName = v)"
+                                        Class="w-full sm:w-[320px]">
+                                    <SelectTrigger data-testid="storage-provider">
+                                        <SelectValue Placeholder="Select a provider" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        @foreach (var provider in storageProviders)
+                                        {
+                                            <SelectItem TValue="string" Value="@provider" Text="@provider">
+                                                @provider
+                                            </SelectItem>
+                                        }
+                                    </SelectContent>
+                                </Select>
+                            </FieldContent>
+                        </Field>
+                        <div class="grid gap-4 sm:grid-cols-2">
+                            <Field>
+                                <FieldLabel For="storage-local-root">Local root path</FieldLabel>
+                                <FieldContent>
+                                    <Input Id="storage-local-root" @bind-Value="settings.Storage.LocalRootPath"
+                                           Placeholder="wwwroot/uploads" data-testid="storage-local-root" />
+                                    <FieldDescription>Blank uses the host's web root.</FieldDescription>
+                                </FieldContent>
+                            </Field>
+                            <Field>
+                                <FieldLabel For="storage-network-root">Network root path</FieldLabel>
+                                <FieldContent>
+                                    <Input Id="storage-network-root" @bind-Value="settings.Storage.NetworkRootPath"
+                                           Placeholder="\\\\server\\share\\techieblog" data-testid="storage-network-root" />
+                                </FieldContent>
+                            </Field>
+                            <Field>
+                                <FieldLabel For="storage-cloud-url">Cloud service URL</FieldLabel>
+                                <FieldContent>
+                                    <Input Id="storage-cloud-url" Type="InputType.Url"
+                                           @bind-Value="settings.Storage.CloudServiceUrl"
+                                           Placeholder="https://s3.example.com" data-testid="storage-cloud-url" />
+                                </FieldContent>
+                            </Field>
+                            <Field>
+                                <FieldLabel For="storage-cloud-container">Cloud container</FieldLabel>
+                                <FieldContent>
+                                    <Input Id="storage-cloud-container"
+                                           @bind-Value="settings.Storage.CloudContainerName"
+                                           Placeholder="techieblog-media" data-testid="storage-cloud-container" />
+                                </FieldContent>
+                            </Field>
+                            <Field>
+                                <FieldLabel For="storage-cloud-key">Cloud access key</FieldLabel>
+                                <FieldContent>
+                                    <Input Id="storage-cloud-key" Type="InputType.Password"
+                                           @bind-Value="settings.Storage.CloudAccessKey"
+                                           data-testid="storage-cloud-key" />
+                                    <FieldDescription>Stored encrypted.</FieldDescription>
+                                </FieldContent>
+                            </Field>
+                            <Field>
+                                <FieldLabel For="storage-public-base">Public base URL</FieldLabel>
+                                <FieldContent>
+                                    <Input Id="storage-public-base" @bind-Value="settings.Storage.PublicBaseUrl"
+                                           Placeholder="/uploads" data-testid="storage-public-base" />
+                                    <FieldDescription>URL prefix that maps to the storage root.</FieldDescription>
+                                </FieldContent>
+                            </Field>
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+        </Tabs>
+    }
 </div>
 
-<style>
-    .settings-page {
-        max-width: 1200px;
-    }
-
-    .page-header {
-        margin-bottom: var(--spacing-lg, 24px);
-    }
-
-    .page-header h1 {
-        margin: 0;
-    }
-
-    .settings-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: var(--spacing-lg, 24px);
-    }
-
-    @@media (max-width: 991px) {
-        .settings-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    .settings-card {
-        border: 1px solid var(--color-border, #E1E1E1);
-        border-radius: var(--border-radius-lg, 8px);
-        padding: var(--spacing-lg, 24px);
-        background-color: var(--color-background, #fff);
-    }
-
-    .settings-card h2 {
-        font-size: var(--font-size-h3, 1.25rem);
-        margin: 0 0 var(--spacing-md, 16px) 0;
-        padding-bottom: var(--spacing-sm, 8px);
-        border-bottom: 1px solid var(--color-border, #E1E1E1);
-    }
-
-    .settings-form {
-        display: flex;
-        flex-direction: column;
-        gap: var(--spacing-md, 16px);
-    }
-
-    .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: var(--spacing-xs, 4px);
-    }
-
-    .settings-footer {
-        margin-top: var(--spacing-xl, 32px);
-        display: flex;
-        justify-content: flex-end;
-    }
-
-    .theme-description {
-        color: var(--color-text-secondary, #666);
-        font-size: var(--font-size-small, 0.875rem);
-    }
-
-    .theme-description p {
-        margin: 0 0 var(--spacing-xs, 4px) 0;
-    }
-
-    .theme-badge {
-        display: inline-block;
-        background-color: var(--color-accent, #0078D4);
-        color: white;
-        font-size: 0.75rem;
-        padding: 2px 8px;
-        border-radius: var(--border-radius-sm, 4px);
-    }
-
-    .form-hint {
-        font-size: var(--font-size-xs, 0.75rem);
-        color: var(--color-text-secondary, #666);
-        margin-top: var(--spacing-xs, 4px);
-    }
-</style>
+@* Sticky save bar *@
+@if (!isLoading)
+{
+    <div class="sticky bottom-0 z-10 -mx-4 mt-6 flex items-center justify-end gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
+        <Button OnClick="SaveSettings" Disabled="@isSaving" data-testid="save-settings">
+            @if (isSaving)
+            {
+                <Spinner Size="SpinnerSize.Small" Class="mr-2" />
+                <span>Saving...</span>
+            }
+            else
+            {
+                <span>Save Settings</span>
+            }
+        </Button>
+    </div>
+}
 
 @code {
-    // Theme Settings
+    private SiteSettings settings = new();
     private List<ThemeInfo> availableThemes = new();
-    private ThemeInfo? selectedThemeInfo;
+    private bool isLoading = true;
+    private bool isSaving;
 
-    // General Settings
-    private string SiteTitle { get; set; } = "TechieBlog";
-    private string SiteTagline { get; set; } = "";
-    private string AdminEmail { get; set; } = "";
+    private static readonly string[] storageProviders =
+    {
+        StorageProviderNames.Local,
+        StorageProviderNames.Network,
+        StorageProviderNames.Cloud
+    };
 
-    // Blog Settings
-    private int PostsPerPage { get; set; } = 10;
-    private int PaginationWordCount { get; set; } = 500;
-    private bool AllowComments { get; set; } = true;
-    private bool ModerateComments { get; set; } = true;
-    private bool AllowRegistration { get; set; } = true;
-
-    private const string PaginationWordCountKey = "techieblog_pagination_word_count";
-
-    // SEO Settings
-    private string MetaDescription { get; set; } = "";
-    private string MetaKeywords { get; set; } = "";
-
-    // Social Media
-    private string TwitterUrl { get; set; } = "";
-    private string LinkedInUrl { get; set; } = "";
-    private string GitHubUrl { get; set; } = "";
-
-    // UI State
-    private string StatusMessage { get; set; } = "";
-    private bool IsError { get; set; } = false;
-    private bool IsSaving { get; set; } = false;
-
+    /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
-        // Load theme settings
-        await LoadThemeSettingsAsync();
-
-        // Load settings from local storage
-        await LoadDefaultSettings();
-    }
-
-    private async Task LoadThemeSettingsAsync()
-    {
         availableThemes = ThemeService.GetAvailableThemes();
-        var currentThemeId = await ThemeService.GetCurrentThemeAsync();
-        selectedThemeInfo = availableThemes.FirstOrDefault(t => t.Id == currentThemeId)
-                            ?? availableThemes.First();
-    }
-
-    private async Task OnThemeChanged()
-    {
-        if (selectedThemeInfo != null)
-        {
-            await ThemeService.SetThemeAsync(selectedThemeInfo.Id);
-        }
-    }
-
-    private async Task LoadDefaultSettings()
-    {
-        // Load pagination word count from local storage
-        var storedWordCount = await LocalStorage.GetItemAsync<int?>(PaginationWordCountKey);
-        if (storedWordCount.HasValue)
-        {
-            PaginationWordCount = storedWordCount.Value;
-        }
-        // In a real implementation, other settings would be loaded from a database
-    }
-
-    private async Task SaveSettings()
-    {
-        IsSaving = true;
-        StateHasChanged();
 
         try
         {
-            // Save pagination word count to local storage
-            await LocalStorage.SetItemAsync(PaginationWordCountKey, PaginationWordCount);
-
-            // TODO: Implement actual save to database for other settings when settings service is created
-            StatusMessage = "Settings saved successfully.";
-            IsError = false;
+            // Editable COPY, never the shared cached aggregate (REQ-FN-061). Every control on this
+            // page binds straight to `settings`, so binding it to the singleton's instance made each
+            // keystroke a live, unsaved, site-wide configuration change visible to anonymous
+            // visitors. The copy is discarded unless Save writes it.
+            settings = await SiteSettingsService.GetEditableSettingsAsync();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error saving settings: {ex.Message}";
-            IsError = true;
+            settings = new SiteSettings();
+            ToastService.Error("Could not load saved settings. Showing defaults.", "Settings");
+        }
+
+        settings.SiteTheme = ThemeService.NormaliseTheme(settings.SiteTheme);
+        isLoading = false;
+    }
+
+    /// <summary>
+    /// Applies a newly chosen site theme immediately and records it on the model.
+    /// </summary>
+    /// <remarks>
+    /// The theme is applied live through <see cref="ThemeService"/> so the admin sees the
+    /// result at once; it is not durable until Save Settings writes it through
+    /// <see cref="ISiteSettingsService"/>.
+    /// <para>Both halves of that preview are scoped to this administrator (REQ-FN-061).
+    /// <c>settings</c> is the page's own copy from <c>GetEditableSettingsAsync</c>, and
+    /// <see cref="ThemeService"/> is registered <c>Scoped</c>, so it is per-circuit. Neither reaches
+    /// another user. Before the fix <c>settings</c> WAS the singleton's cached aggregate, so this one
+    /// assignment re-themed the live site for everyone — including anonymous visitors — with nothing
+    /// written to the database and no way to undo it short of a restart.</para>
+    /// </remarks>
+    /// <param name="themeId">Identifier of the selected theme.</param>
+    private void OnThemeSelected(string themeId)
+    {
+        if (string.IsNullOrWhiteSpace(themeId))
+        {
+            return;
+        }
+
+        settings.SiteTheme = themeId;
+
+        // Preview only — writing to LocalStorage here would turn the administrator into a
+        // visitor with a personal override and hide the site default from them (REQ-UI-032).
+        ThemeService.PreviewTheme(themeId);
+    }
+
+    /// <summary>
+    /// Persists every setting through the site-settings service.
+    /// </summary>
+    private async Task SaveSettings()
+    {
+        if (isSaving)
+        {
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            var result = await SiteSettingsService.SaveSettingsAsync(settings);
+
+            if (result.IsSuccess)
+            {
+                // Rebind to what the store actually returned, so the screen shows the persisted
+                // truth rather than the values that were merely submitted. The service returns a
+                // detached copy (REQ-FN-061), so continuing to edit after a save stays page-local.
+                settings = result.Data ?? settings;
+                settings.SiteTheme = ThemeService.NormaliseTheme(settings.SiteTheme);
+                ToastService.Success("Settings saved.", "Settings");
+            }
+            else
+            {
+                ToastService.Error(result.ErrorMessage, "Could not save settings");
+            }
+        }
+        catch (Exception)
+        {
+            ToastService.Error("An unexpected error occurred while saving.", "Could not save settings");
         }
         finally
         {
-            IsSaving = false;
+            isSaving = false;
         }
+    }
+
+    /// <summary>
+    /// Builds the CSS classes for a theme preview swatch.
+    /// </summary>
+    /// <param name="isActive">True when the swatch represents the selected theme.</param>
+    /// <returns>The utility class string for the swatch button.</returns>
+    private static string SwatchClass(bool isActive)
+    {
+        var baseClasses = "flex flex-col rounded-lg border bg-card p-4 text-left transition-colors hover:bg-accent/50";
+        return isActive
+            ? $"{baseClasses} border-primary ring-2 ring-primary/30"
+            : $"{baseClasses} border-border";
+    }
+
+    /// <summary>
+    /// Parses a numeric input value, falling back when the text is not a number.
+    /// </summary>
+    /// <param name="value">Raw text from the input.</param>
+    /// <param name="fallback">Value to use when parsing fails.</param>
+    /// <returns>The parsed integer, or <paramref name="fallback"/>.</returns>
+    private static int ParseInt(string value, int fallback)
+    {
+        return int.TryParse(value, out var parsed) ? parsed : fallback;
     }
 }

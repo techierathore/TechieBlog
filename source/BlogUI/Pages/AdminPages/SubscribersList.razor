@@ -4,7 +4,7 @@
     Provides filtering, searching, status toggle, and CSV export capabilities.
 
     Usage: Navigate to /admin/subscribers
-    Dependencies: Microsoft.FluentUI.AspNetCore.Components, SubscriberSvc
+    Dependencies: TrBlazeUI.Components (REQ-UI-048), SubscriberSvc
     Authorization: AdminOnly policy required
 *@
 @page "/admin/subscribers"
@@ -13,263 +13,177 @@
 @inject BlogEngine.Services.SubscriberSvc SubscriberService
 @inject IJSRuntime JSRuntime
 
-<div class="subscribers-page">
-    @* Page Header *@
-    <div class="page-header">
-        <div class="page-header__title">
-            <h1>Subscribers</h1>
-            <span class="subscriber-count">@TotalCount total (@ActiveCount active)</span>
+<div class="mx-auto max-w-[1200px] space-y-6">
+
+    @* ---- Page header --------------------------------------------------- *@
+    <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-semibold tracking-tight text-foreground">Subscribers</h1>
+            <p class="text-sm text-muted-foreground" data-testid="subscribers-summary">
+                @TotalCount total (@ActiveCount active)
+            </p>
         </div>
-        <FluentButton Appearance="Appearance.Accent" OnClick="ExportToCsv">
-            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowDownload())" Style="margin-right: 8px;" />
+        <Button OnClick="ExportToCsv" data-testid="subscribers-export">
+            <LucideIcon Name="download" Size="16" />
             Export CSV
-        </FluentButton>
+        </Button>
     </div>
 
-    @* Status Messages *@
+    @* ---- Status message ------------------------------------------------ *@
     @if (!string.IsNullOrEmpty(StatusMessage))
     {
-        <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
-                          Style="margin-bottom: 16px;">
-            @StatusMessage
-        </FluentMessageBar>
+        <Alert Variant="@(IsError ? AlertVariant.Danger : AlertVariant.Success)"
+               data-testid="subscribers-status-message">
+            <LucideIcon Name="@(IsError ? "circle-alert" : "circle-check")" Size="16" />
+            <AlertDescription>@StatusMessage</AlertDescription>
+        </Alert>
     }
 
-    @* Filters Row *@
-    <div class="filters-row">
-        @* Status Tabs *@
-        <div class="status-tabs">
-            <span class="tabs__item @(StatusFilter == "all" ? "tabs__item--active" : "")"
-                  @onclick='() => SetFilter("all")'>
-                All (@TotalCount)
-            </span>
-            <span class="tabs__item @(StatusFilter == "active" ? "tabs__item--active" : "")"
-                  @onclick='() => SetFilter("active")'>
-                Active (@ActiveCount)
-            </span>
-            <span class="tabs__item @(StatusFilter == "inactive" ? "tabs__item--active" : "")"
-                  @onclick='() => SetFilter("inactive")'>
-                Inactive (@InactiveCount)
-            </span>
-        </div>
+    @* ---- Filter row ---------------------------------------------------- *@
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        @*
+            Each trigger's test hook sits on <TabsTrigger> itself. Up to TrBlazeUI 2.0.1
+            TabsList/TabsTrigger declared no CaptureUnmatchedValues, so a data-testid on either
+            threw at render and the ErrorBoundary swallowed the whole page behind an HTTP 200 —
+            this page was unreachable, and every hook had to ride on a span this page owned
+            (TR-030/TR-046). 2.0.2 splats on all 344 components, so the spans are gone.
+        *@
+        <Tabs Value="@StatusFilter"
+              ValueChanged="@((string value) => SetFilter(value))"
+              data-testid="subscribers-status-tabs">
+            <TabsList>
+                <TabsTrigger Value="all" data-testid="subscribers-tab-all">All (@TotalCount)</TabsTrigger>
+                <TabsTrigger Value="active" data-testid="subscribers-tab-active">Active (@ActiveCount)</TabsTrigger>
+                <TabsTrigger Value="inactive" data-testid="subscribers-tab-inactive">Inactive (@InactiveCount)</TabsTrigger>
+            </TabsList>
+        </Tabs>
 
-        <span style="flex: 1;"></span>
-
-        @* Search Box *@
-        <div class="search-box">
-            <FluentIcon Value="@(new Icons.Regular.Size16.Search())" Color="Color.Neutral" />
-            <FluentTextField @bind-Value="SearchTerm"
-                             @bind-Value:after="ApplyFilter"
-                             Placeholder="Search by email..."
-                             Style="min-width: 200px;" />
+        <div class="flex items-center gap-2">
+            <LucideIcon Name="search" Size="16" Class="text-muted-foreground" />
+            <Input Type="InputType.Search"
+                   @bind-Value="SearchTerm"
+                   @bind-Value:after="ApplyFilter"
+                   Placeholder="Search by email..."
+                   Class="min-w-[200px]"
+                   AriaLabel="Search subscribers"
+                   data-testid="subscribers-search" />
         </div>
     </div>
 
-    @* Subscribers Table *@
-    <div class="table-container">
-        @if (SubscriberList == null)
-        {
-            <div style="padding: 32px; text-align: center;">
-                <FluentProgressRing />
-                <span style="display: block; margin-top: 8px;">Loading...</span>
-            </div>
-        }
-        else if (FilteredList == null || !FilteredList.Any())
-        {
-            <div style="padding: 32px; text-align: center; color: var(--color-neutral-light);">
-                @if (StatusFilter == "all" && string.IsNullOrEmpty(SearchTerm))
+    @* ---- Subscribers table ---------------------------------------------- *@
+    @if (SubscriberList == null)
+    {
+        <div class="flex flex-col items-center gap-2 py-8" data-testid="subscribers-loading">
+            <Spinner />
+            <span class="text-sm text-muted-foreground">Loading...</span>
+        </div>
+    }
+    else if (FilteredList == null || !FilteredList.Any())
+    {
+        <Empty Title="@EmptyTitle" Description="@EmptyDescription" data-testid="subscribers-empty">
+            <Icon><LucideIcon Name="mail" Size="48" /></Icon>
+            <ChildContent>
+                @if (HasActiveFilters)
                 {
-                    <p>No subscribers yet. Subscribers will appear here when users sign up.</p>
+                    <Button Variant="ButtonVariant.Outline" OnClick="ClearFilters" data-testid="subscribers-clear-filters">
+                        Clear Filters
+                    </Button>
                 }
-                else
-                {
-                    <p>No subscribers match your filters.</p>
-                    <FluentButton Appearance="Appearance.Outline" OnClick="ClearFilters">Clear Filters</FluentButton>
-                }
-            </div>
-        }
-        else
-        {
-            <table class="data-grid">
-                <thead>
-                    <tr>
-                        <th>Email</th>
-                        <th style="width: 180px;">Name</th>
-                        <th style="width: 150px;">Subscribed On</th>
-                        <th style="width: 100px;">Status</th>
-                        <th style="width: 120px;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var subscriber in FilteredList)
-                    {
-                        <tr>
-                            <td class="subscriber-email">@subscriber.Email</td>
-                            <td>@subscriber.Name</td>
-                            <td>@subscriber.SubscribedOn.ToString("MMM dd, yyyy")</td>
-                            <td>
-                                @if (subscriber.IsActive)
-                                {
-                                    <span class="badge badge--success">Active</span>
-                                }
-                                else
-                                {
-                                    <span class="badge badge--warning">Inactive</span>
-                                }
-                            </td>
-                            <td>
-                                <div class="action-buttons">
-                                    @if (subscriber.IsActive)
-                                    {
-                                        <FluentButton Appearance="Appearance.Stealth"
-                                                      OnClick="@(() => ToggleStatus(subscriber, false))"
-                                                      Title="Deactivate">
-                                            <FluentIcon Value="@(new Icons.Regular.Size16.PersonSubtract())" />
-                                        </FluentButton>
-                                    }
-                                    else
-                                    {
-                                        <FluentButton Appearance="Appearance.Stealth"
-                                                      OnClick="@(() => ToggleStatus(subscriber, true))"
-                                                      Title="Activate">
-                                            <FluentIcon Value="@(new Icons.Regular.Size16.PersonAdd())" Color="Color.Success" />
-                                        </FluentButton>
-                                    }
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        }
-    </div>
+            </ChildContent>
+        </Empty>
+    }
+    else
+    {
+        <DataTable TData="Subscriber"
+                   Data="@FilteredList"
+                   InitialPageSize="20"
+                   AriaLabel="Subscribers"
+                   data-testid="subscribers-grid">
+            <Columns>
+                <DataTableColumn TData="Subscriber" TValue="string" Property="@(s => s.Email)" Header="Email" Sortable Filterable>
+                    <CellTemplate Context="row">
+                        <span class="font-semibold text-foreground" data-testid="subscriber-row-email">@row.Email</span>
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="Subscriber" TValue="string" Property="@(s => s.Name)" Header="Name" Sortable Width="180px">
+                    <CellTemplate Context="row">
+                        <span data-testid="subscriber-row-name">@row.Name</span>
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="Subscriber" TValue="DateTime" Property="@(s => s.SubscribedOn)" Header="Subscribed On" Sortable Width="160px">
+                    <CellTemplate Context="row">
+                        <span data-testid="subscriber-row-date">@row.SubscribedOn.ToString("MMM dd, yyyy")</span>
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="Subscriber" TValue="bool" Property="@(s => s.IsActive)" Header="Status" Sortable Width="110px">
+                    <CellTemplate Context="row">
+                        @if (row.IsActive)
+                        {
+                            <Badge data-testid="subscriber-row-status">Active</Badge>
+                        }
+                        else
+                        {
+                            <Badge Variant="BadgeVariant.Outline" data-testid="subscriber-row-status">Inactive</Badge>
+                        }
+                    </CellTemplate>
+                </DataTableColumn>
+
+                @*
+                    [REQ-FN-059] Consent is a SEPARATE axis from the Status column above. Status is
+                    the mailability bit (IsConfirmed); this is the consent record, derived from
+                    ConfirmedOn / UnsubscribedOn / IsConsentUnknown. They differ exactly where the
+                    old single bit was lying: "Withdrawn" and "Pending" both show Status = Inactive,
+                    but only one of them made a decision, and only "Withdrawn" must be left out of a
+                    re-confirmation sweep. Not sortable or filterable on purpose - the tabs above
+                    already partition on mailability and a second sortable status column reads as a
+                    duplicate of it.
+                *@
+                <DataTableColumn TData="Subscriber" TValue="SubscriberConsentState" Property="@(s => s.ConsentState)" Header="Consent" Width="190px">
+                    <CellTemplate Context="row">
+                        <div class="flex flex-col gap-0.5">
+                            <Badge Variant="@ConsentBadgeVariant(row.ConsentState)" data-testid="subscriber-row-consent">
+                                @row.ConsentState.ToString()
+                            </Badge>
+                            <span class="text-xs text-muted-foreground" data-testid="subscriber-row-consent-detail">
+                                @ConsentDetail(row)
+                            </span>
+                        </div>
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="Subscriber" TValue="long" Property="@(s => s.SubscriberId)" Header="Actions" Width="120px">
+                    <CellTemplate Context="row">
+                        <div class="flex flex-nowrap items-center gap-1">
+                            @if (row.IsActive)
+                            {
+                                <Button Size="ButtonSize.IconSmall"
+                                        Variant="ButtonVariant.Ghost"
+                                        OnClick="@(() => ToggleStatusAsync(row, false))"
+                                        AriaLabel="Deactivate subscriber"
+                                        data-testid="subscriber-deactivate">
+                                    <LucideIcon Name="user-minus" Size="16" />
+                                </Button>
+                            }
+                            else
+                            {
+                                <Button Size="ButtonSize.IconSmall"
+                                        Variant="ButtonVariant.Ghost"
+                                        OnClick="@(() => ToggleStatusAsync(row, true))"
+                                        AriaLabel="Activate subscriber"
+                                        data-testid="subscriber-activate">
+                                    <LucideIcon Name="user-plus" Size="16" />
+                                </Button>
+                            }
+                        </div>
+                    </CellTemplate>
+                </DataTableColumn>
+            </Columns>
+        </DataTable>
+    }
 </div>
-
-<style>
-    .subscribers-page {
-        max-width: 1200px;
-    }
-
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: var(--spacing-lg, 24px);
-    }
-
-    .page-header__title {
-        display: flex;
-        align-items: baseline;
-        gap: var(--spacing-md, 16px);
-    }
-
-    .page-header h1 {
-        margin: 0;
-    }
-
-    .subscriber-count {
-        font-size: var(--font-size-small, 0.875rem);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .filters-row {
-        display: flex;
-        gap: var(--spacing-md, 16px);
-        margin-bottom: var(--spacing-lg, 24px);
-        flex-wrap: wrap;
-        align-items: center;
-    }
-
-    .status-tabs {
-        display: flex;
-        border-bottom: 1px solid var(--color-border, #E1E1E1);
-    }
-
-    .tabs__item {
-        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
-        font-size: var(--font-size-small, 0.875rem);
-        color: var(--color-neutral-light, #605E5C);
-        border-bottom: 2px solid transparent;
-        margin-bottom: -1px;
-        cursor: pointer;
-        transition: all var(--transition-fast, 150ms ease);
-    }
-
-    .tabs__item:hover {
-        color: var(--color-neutral, #323130);
-    }
-
-    .tabs__item--active {
-        color: var(--color-primary, #0078D4);
-        border-bottom-color: var(--color-primary, #0078D4);
-    }
-
-    .search-box {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-sm, 8px);
-    }
-
-    .table-container {
-        border: 1px solid var(--color-border, #E1E1E1);
-        border-radius: var(--border-radius-lg, 8px);
-        overflow: hidden;
-        background-color: var(--color-background, #fff);
-    }
-
-    .data-grid {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: var(--font-size-small, 0.875rem);
-    }
-
-    .data-grid th,
-    .data-grid td {
-        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
-        text-align: left;
-        border-bottom: 1px solid var(--color-border, #E1E1E1);
-    }
-
-    .data-grid th {
-        font-weight: var(--font-weight-semibold, 600);
-        background-color: var(--color-surface, #F5F5F5);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .data-grid tr:hover td {
-        background-color: var(--color-surface, #F5F5F5);
-    }
-
-    .subscriber-email {
-        font-weight: var(--font-weight-semibold, 600);
-    }
-
-    .badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 2px var(--spacing-sm, 8px);
-        font-size: var(--font-size-xs, 0.75rem);
-        font-weight: var(--font-weight-semibold, 600);
-        border-radius: var(--border-radius, 4px);
-        background-color: var(--color-surface, #F5F5F5);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .badge--success {
-        background-color: var(--color-success, #107C10);
-        color: white;
-    }
-
-    .badge--warning {
-        background-color: var(--color-warning, #FFB900);
-        color: var(--color-neutral, #323130);
-    }
-
-    .action-buttons {
-        display: flex;
-        gap: 4px;
-    }
-</style>
 
 @code {
     private List<Subscriber> SubscriberList;
@@ -283,17 +197,68 @@
     private int TotalCount => SubscriberList?.Count ?? 0;
     private int ActiveCount => SubscriberList?.Count(s => s.IsActive) ?? 0;
     private int InactiveCount => SubscriberList?.Count(s => !s.IsActive) ?? 0;
+    private bool HasActiveFilters => StatusFilter != "all" || !string.IsNullOrEmpty(SearchTerm);
 
-    protected override void OnInitialized()
+    private string EmptyTitle => HasActiveFilters ? "No subscribers match your filters" : "No subscribers yet";
+
+    private string EmptyDescription => HasActiveFilters
+        ? "Try a different status tab or clear the search term."
+        : "Subscribers will appear here when readers sign up.";
+
+    /// <summary>
+    /// Picks the badge variant for a consent state. [REQ-FN-059]
+    /// </summary>
+    /// <remarks>
+    /// Withdrawn is the only state an operator can make a compliance mistake against, so it is the
+    /// only one styled as a warning. Pending and Unknown are merely not-yet-consented and are shown
+    /// as quiet outlines rather than as problems.
+    /// </remarks>
+    /// <param name="state">The subscriber's derived consent state.</param>
+    /// <returns>The badge variant to render.</returns>
+    private static BadgeVariant ConsentBadgeVariant(SubscriberConsentState state) => state switch
     {
-        LoadSubscribers();
+        SubscriberConsentState.Confirmed => BadgeVariant.Default,
+        SubscriberConsentState.Withdrawn => BadgeVariant.Destructive,
+        _ => BadgeVariant.Outline
+    };
+
+    /// <summary>
+    /// Renders the one line of evidence behind a consent state. [REQ-FN-059]
+    /// </summary>
+    /// <remarks>
+    /// A withdrawn subscriber shows BOTH dates when both are known, because the point of the
+    /// requirement is that opting out no longer erases the proof of the earlier opt-in.
+    /// </remarks>
+    /// <param name="subscriber">The row being rendered.</param>
+    /// <returns>A short human-readable summary of the consent record.</returns>
+    private static string ConsentDetail(Subscriber subscriber)
+    {
+        var confirmed = subscriber.ConfirmedOn.HasValue
+            ? $"opted in {subscriber.ConfirmedOn.Value:MMM dd, yyyy}"
+            : string.Empty;
+
+        return subscriber.ConsentState switch
+        {
+            SubscriberConsentState.Confirmed => confirmed,
+            SubscriberConsentState.Withdrawn when subscriber.ConfirmedOn.HasValue =>
+                $"left {subscriber.UnsubscribedOn:MMM dd, yyyy} - {confirmed}",
+            SubscriberConsentState.Withdrawn => $"left {subscriber.UnsubscribedOn:MMM dd, yyyy}",
+            SubscriberConsentState.Unknown => "pre-2026-08-10 row, never interpreted",
+            _ => "opt-in link not yet redeemed"
+        };
     }
 
-    private void LoadSubscribers()
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSubscribersAsync();
+    }
+
+    private async Task LoadSubscribersAsync()
     {
         try
         {
-            SubscriberList = SubscriberService.GetAllSubscribers().ToList();
+            SubscriberList = (await SubscriberService.GetAllSubscribersAsync()).ToList();
             ApplyFilter();
         }
         catch
@@ -346,9 +311,9 @@
         ApplyFilter();
     }
 
-    private void ToggleStatus(Subscriber subscriber, bool newStatus)
+    private async Task ToggleStatusAsync(Subscriber subscriber, bool newStatus)
     {
-        var result = SubscriberService.UpdateSubscriberStatus(subscriber.SubscriberId, newStatus);
+        var result = await SubscriberService.UpdateSubscriberStatusAsync(subscriber.SubscriberId, newStatus);
         if (result.IsSuccess)
         {
             subscriber.IsActive = newStatus;
@@ -367,7 +332,7 @@
     {
         try
         {
-            var subscribers = SubscriberService.GetSubscribersForExport();
+            var subscribers = await SubscriberService.GetSubscribersForExportAsync();
             var csv = "Email,Name,SubscribedOn,Status\n";
             foreach (var s in subscribers)
             {
@@ -383,9 +348,11 @@
             StatusMessage = $"Exported {subscribers.Count()} subscribers.";
             IsError = false;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Export failed: {ex.Message}";
+            // REQ-NFR-033: the exception text never reaches the screen. The export failure is
+            // logged by the service beneath; the operator matches it on the correlation id.
+            StatusMessage = "The export failed. Please try again later.";
             IsError = true;
         }
     }

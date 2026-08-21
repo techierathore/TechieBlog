@@ -3,7 +3,10 @@
     Purpose: Tag archive page showing posts filtered by tag.
     Displays tag header with hashtag, filtered post grid, and pagination.
 
-    Dependencies: Breadcrumb, PostCard, Pagination components, TagSvc
+    REQ-UI-048 — migrated from Microsoft Fluent UI to TrBlazeUI. The weighted tag
+    cloud now scales through Tailwind text-size buckets instead of inline styles.
+
+    Dependencies: BlogBreadcrumb, PostCard, BlogPagination components, TagSvc
     Layout: Uses MainLayout (with sidebar for tag navigation)
 *@
 
@@ -15,92 +18,129 @@
 @inject BlogEngine.Services.CategorySvc CategorySvc
 @inject NavigationManager Navigation
 
+@* REQ-NFR-007 / WCAG 2.4.2 Page Titled. *@
+<PageTitle>@(tagInfo == null ? "Tags · TechieBlog" : $"#{tagInfo.TagName} · TechieBlog")</PageTitle>
+
 @if (isLoading)
 {
-    <div class="loading-container" style="display: flex; justify-content: center; padding: 48px;">
-        <FluentProgressRing />
-        <span style="margin-left: 12px;">Loading...</span>
+    <div class="flex items-center justify-center gap-3 py-12" data-testid="tag-loading">
+        <Spinner />
+        <span class="text-muted-foreground">Loading...</span>
     </div>
 }
 else if (notFound)
 {
-    <div class="not-found" style="text-align: center; padding: 48px;">
-        <FluentIcon Value="@(new Icons.Regular.Size48.Tag())" />
-        <h1>Tag Not Found</h1>
-        <p>The tag you're looking for doesn't exist.</p>
-        <FluentAnchor Href="/tags" Appearance="Appearance.Accent">
-            View All Tags
-        </FluentAnchor>
-    </div>
+    <Empty Title="Tag not found"
+           Description="The tag you're looking for doesn't exist."
+           Class="py-12"
+           data-testid="tag-not-found">
+        <Icon><LucideIcon Name="tag" Size="48" /></Icon>
+        <ChildContent>
+            <Button Href="/tags" data-testid="tag-not-found-all">View all tags</Button>
+        </ChildContent>
+    </Empty>
 }
 else if (showTagList)
 {
     @* All Tags View *@
-    <Breadcrumb Items="@breadcrumbItems" />
+    <BlogBreadcrumb Items="@breadcrumbItems" />
 
-    <div class="tag-header">
-        <h1>All Tags</h1>
-        <p class="tag-header__description">Browse all blog post tags.</p>
-    </div>
+    <header class="my-6 flex flex-col gap-2">
+        <TypographyH1>All Tags</TypographyH1>
+        <p class="text-muted-foreground">Browse all blog post tags.</p>
+    </header>
 
-    <div class="tags-cloud" style="margin: 24px 0;">
-        @foreach (var tag in allTags)
-        {
-            var fontSize = CalculateFontSize(tag.PostCount);
-            <a href="/tag/@tag.Slug" class="tag" style="font-size: @(fontSize)rem; margin: 4px 8px; display: inline-block;">
-                #@tag.TagName
-                <FluentBadge Appearance="Appearance.Neutral" Style="margin-left: 4px;">@tag.PostCount</FluentBadge>
-            </a>
-        }
-    </div>
+    @if (allTags.Count == 0)
+    {
+        <Empty Title="Nothing tagged yet"
+               Description="Tags appear here once posts carry them."
+               Class="py-12"
+               data-testid="tags-empty">
+            <Icon><LucideIcon Name="tag" Size="48" /></Icon>
+        </Empty>
+    }
+    else
+    {
+        <div class="my-6 flex flex-wrap items-center gap-3" data-testid="tags-cloud">
+            @foreach (var tag in allTags)
+            {
+                <a href="/tag/@tag.Slug"
+                   class="@($"inline-flex items-center gap-1 rounded-md border border-border px-3 py-1 text-foreground no-underline hover:bg-accent hover:text-accent-foreground {GetTagSizeClass(tag.PostCount)}")"
+                   data-testid="@($"tag-chip-{tag.Slug}")">
+                    #@tag.TagName
+                    <Badge Variant="BadgeVariant.Secondary">@tag.PostCount</Badge>
+                </a>
+            }
+        </div>
+    }
 }
 else
 {
     @* Tag Detail View *@
-    <Breadcrumb Items="@breadcrumbItems" />
+    <BlogBreadcrumb Items="@breadcrumbItems" />
 
-    <div class="tag-header">
-        <div class="tag-header__title">
-            <span class="tag-header__hash">#</span>
-            <h1>@tagInfo.TagName</h1>
+    <header class="my-6 flex flex-col gap-2">
+        <TypographyH1>#@tagInfo.TagName</TypographyH1>
+        <p class="text-muted-foreground" data-testid="tag-description">Posts tagged with "@tagInfo.TagName"</p>
+        <div>
+            <Badge Variant="BadgeVariant.Secondary" data-testid="tag-post-count">@totalPosts posts</Badge>
         </div>
-        <p class="tag-header__description">Posts tagged with "@tagInfo.TagName"</p>
-        <FluentBadge Appearance="Appearance.Neutral">@totalPosts posts</FluentBadge>
-    </div>
+    </header>
 
     @if (posts.Count == 0)
     {
-        <FluentMessageBar Intent="MessageIntent.Info" Style="margin: 24px 0;">
-            No posts found with this tag.
-        </FluentMessageBar>
+        <Empty Title="Nothing tagged yet"
+               Description="No posts currently carry this tag."
+               Class="py-12"
+               data-testid="tag-posts-empty">
+            <Icon><LucideIcon Name="inbox" Size="48" /></Icon>
+            <ChildContent>
+                <Button Href="/tags" Variant="ButtonVariant.Outline">Browse other tags</Button>
+            </ChildContent>
+        </Empty>
     }
     else
     {
-        <div class="post-grid">
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="posts-grid">
             @foreach (var post in posts)
             {
+                @* [REQ-UI-045] 2026-08-09 — see the matching note in CategoryArchive.razor: the
+                   featured image was never passed, so this listing showed placeholders while the
+                   home page showed real covers for the same posts.
+                   [REQ-FN-057] 2026-08-10 — Date is the PUBLICATION date, matching every other
+                   PostCard caller. Fixing this line alone would have changed nothing: the tag
+                   archive reads through BlogTagRepo.SelectPostsByTagSql, which did not project
+                   PublishedOn at all, so the ?? fallback fired on every row. The projection was
+                   widened first. *@
                 <PostCard Category="@GetCategoryName(post)"
                           Title="@post.Title"
                           Excerpt="@(string.IsNullOrEmpty(post.Abstract) ? GetExcerpt(post.PostContent) : post.Abstract)"
                           PostUrl="@($"/post/{post.Slug}")"
                           AuthorName="@(string.IsNullOrEmpty(post.BlogWriter) ? "Unknown" : post.BlogWriter)"
-                          Date="@post.CreatedOn.ToString("MMM dd")"
-                          ReadTime="@GetReadingTime(post.PostContent)" />
+                          Date="@((post.PublishedOn ?? post.CreatedOn).ToString("MMM dd"))"
+                          ReadTime="@GetReadingTime(post.PostContent)"
+                          ImageUrl="@post.FeaturedImage"
+                          ImagePlaceholder="@post.Title" />
             }
         </div>
 
         @if (totalPages > 1)
         {
-            <Pagination CurrentPage="@currentPage" TotalPages="@totalPages" OnPageChanged="HandlePageChanged" />
+            <div class="mt-8">
+                <BlogPagination CurrentPage="@currentPage" TotalPages="@totalPages" OnPageChanged="HandlePageChanged" />
+            </div>
         }
     }
 }
 
 @code {
+    /// <summary>
+    /// Tag slug from URL route parameter. Empty renders the full tag cloud.
+    /// </summary>
     [Parameter]
     public string Slug { get; set; } = string.Empty;
 
-    private List<Breadcrumb.BreadcrumbItem> breadcrumbItems = new();
+    private List<BlogBreadcrumbItem> breadcrumbItems = new();
     private BlogTag tagInfo;
     private List<BlogTag> allTags = new();
     private List<BlogModels.BlogPost> posts = new();
@@ -129,7 +169,7 @@ else
             // Load categories into cache for name lookup
             if (categoryCache.Count == 0)
             {
-                var allCategories = CategorySvc.GetAllCategories();
+                var allCategories = await CategorySvc.GetAllCategoriesAsync();
                 categoryCache = allCategories.ToDictionary(c => c.CategoryId, c => c);
             }
 
@@ -137,18 +177,18 @@ else
             {
                 // Show all tags
                 showTagList = true;
-                allTags = TagService.GetAllWithCounts().ToList();
+                allTags = (await TagService.GetAllWithCountsAsync()).ToList();
 
-                breadcrumbItems = new List<Breadcrumb.BreadcrumbItem>
+                breadcrumbItems = new List<BlogBreadcrumbItem>
                 {
-                    new Breadcrumb.BreadcrumbItem { Label = "Home", Url = "/" },
-                    new Breadcrumb.BreadcrumbItem { Label = "Tags", Url = "" }
+                    new BlogBreadcrumbItem { Label = "Home", Url = "/" },
+                    new BlogBreadcrumbItem { Label = "Tags", Url = "" }
                 };
             }
             else
             {
                 // Show specific tag
-                tagInfo = TagService.GetTagBySlug(Slug);
+                tagInfo = await TagService.GetTagBySlugAsync(Slug);
 
                 if (tagInfo == null)
                 {
@@ -156,18 +196,18 @@ else
                 }
                 else
                 {
-                    breadcrumbItems = new List<Breadcrumb.BreadcrumbItem>
+                    breadcrumbItems = new List<BlogBreadcrumbItem>
                     {
-                        new Breadcrumb.BreadcrumbItem { Label = "Home", Url = "/" },
-                        new Breadcrumb.BreadcrumbItem { Label = "Tags", Url = "/tags" },
-                        new Breadcrumb.BreadcrumbItem { Label = tagInfo.TagName, Url = "" }
+                        new BlogBreadcrumbItem { Label = "Home", Url = "/" },
+                        new BlogBreadcrumbItem { Label = "Tags", Url = "/tags" },
+                        new BlogBreadcrumbItem { Label = tagInfo.TagName, Url = "" }
                     };
 
-                    totalPosts = TagService.GetPostCountByTag(tagInfo.TagId);
+                    totalPosts = await TagService.GetPostCountByTagAsync(tagInfo.TagId);
                     totalPages = Math.Max(1, (int)Math.Ceiling(totalPosts / (double)PageSize));
 
                     var offset = (currentPage - 1) * PageSize;
-                    posts = TagService.GetPostsByTag(tagInfo.TagId, PageSize, offset).ToList();
+                    posts = (await TagService.GetPostsByTagAsync(tagInfo.TagId, PageSize, offset)).ToList();
                 }
             }
         }
@@ -180,12 +220,19 @@ else
         StateHasChanged();
     }
 
+    /// <summary>
+    /// Reloads the archive for the requested page.
+    /// </summary>
+    /// <param name="page">1-based page number.</param>
     private async Task HandlePageChanged(int page)
     {
         currentPage = page;
         await LoadTag();
     }
 
+    /// <summary>
+    /// Resolves a post's category name from the cached category lookup.
+    /// </summary>
     private string GetCategoryName(BlogModels.BlogPost post)
     {
         if (post.CategoryId > 0 && categoryCache.TryGetValue(post.CategoryId, out var category))
@@ -195,6 +242,9 @@ else
         return "Uncategorized";
     }
 
+    /// <summary>
+    /// Gets a short excerpt from content.
+    /// </summary>
     private string GetExcerpt(string content, int maxLength = 150)
     {
         if (string.IsNullOrWhiteSpace(content))
@@ -213,22 +263,39 @@ else
         return text.Substring(0, maxLength).TrimEnd() + "...";
     }
 
+    /// <summary>
+    /// Gets reading time from content.
+    /// </summary>
     private string GetReadingTime(string content)
     {
         return BlogEngine.Common.ReadingTimeCalculator.Calculate(content);
     }
 
-    private double CalculateFontSize(int count)
+    /// <summary>
+    /// Picks a Tailwind text-size class so busier tags read larger in the cloud.
+    /// </summary>
+    /// <param name="count">Number of posts carrying the tag.</param>
+    /// <returns>A Tailwind font-size utility class.</returns>
+    private string GetTagSizeClass(int count)
     {
-        // Calculate font size based on post count (range: 0.9rem to 1.6rem)
-        if (allTags.Count == 0) return 1.0;
+        if (allTags.Count == 0)
+        {
+            return "text-base";
+        }
 
         var minCount = allTags.Min(t => t.PostCount);
         var maxCount = allTags.Max(t => t.PostCount);
 
-        if (maxCount == minCount) return 1.0;
+        if (maxCount == minCount)
+        {
+            return "text-base";
+        }
 
         var ratio = (double)(count - minCount) / (maxCount - minCount);
-        return 0.9 + (ratio * 0.7);
+
+        if (ratio >= 0.75) return "text-xl";
+        if (ratio >= 0.5) return "text-lg";
+        if (ratio >= 0.25) return "text-base";
+        return "text-sm";
     }
 }

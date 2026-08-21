@@ -1,0 +1,230 @@
+@*
+    ConnectionSetup.razor
+    Purpose: Capture, test and store the site's PostgreSQL connection (REQ-FN-047 / BRD-96).
+
+    Mockup: docs/mockups/39-blogapp-connection-setup.html.
+
+    Two routes, one screen:
+      /blogapp/connection           - first run; the app cannot go anywhere else until this is done
+      /blogapp/connection/settings  - the reconfiguration surface, reached from the sign-in
+                                      screen's "Change connection" link and from the admin shell
+
+    BlogApp keeps no local database and performs no sync: these settings are the only thing
+    standing between the desktop head and the live site database. They are stored through
+    IConnectionStore, which uses the OS credential store - never a plaintext settings file.
+*@
+
+@page "/blogapp/connection"
+@page "/blogapp/connection/settings"
+@layout BlogApp.Components.Layout.DesktopSetupLayout
+
+<PageTitle>@(IsReconfiguring ? "Connection settings" : "Connect to your blog") - BlogApp</PageTitle>
+
+<Card data-testid="connection-setup-card">
+    <CardHeader>
+        <CardTitle>
+            <h1 class="text-xl font-semibold" data-testid="connection-setup-heading">
+                @(IsReconfiguring ? "Connection settings" : "Connect to your blog")
+            </h1>
+        </CardTitle>
+        <CardDescription>
+            BlogApp connects directly to your site's PostgreSQL database - nothing is stored locally.
+        </CardDescription>
+    </CardHeader>
+
+    <CardContent Class="flex flex-col gap-4">
+
+        @* grid-cols-2: the TrBlazeUI bundle is tree-shaken, so only utilities the library
+           itself ships resolve — arbitrary-value classes such as grid-cols-[1fr_120px] do not. *@
+        <div class="grid grid-cols-2 gap-x-4">
+            <Field>
+                <FieldLabel For="connection-host">Host</FieldLabel>
+                <FieldContent>
+                    <Input Id="connection-host"
+                           Placeholder="db.example.com"
+                           @bind-Value="Settings.Host"
+                           data-testid="connection-host" />
+                </FieldContent>
+            </Field>
+
+            <Field>
+                <FieldLabel For="connection-port">Port</FieldLabel>
+                <FieldContent>
+                    <Input Id="connection-port"
+                           Type="InputType.Number"
+                           @bind-Value="PortText"
+                           data-testid="connection-port" />
+                </FieldContent>
+            </Field>
+        </div>
+
+        <Field>
+            <FieldLabel For="connection-database">Database</FieldLabel>
+            <FieldContent>
+                <Input Id="connection-database"
+                       Placeholder="TechieBlog"
+                       @bind-Value="Settings.Database"
+                       data-testid="connection-database" />
+            </FieldContent>
+        </Field>
+
+        <div class="grid grid-cols-2 gap-x-4">
+            <Field>
+                <FieldLabel For="connection-username">Username</FieldLabel>
+                <FieldContent>
+                    <Input Id="connection-username"
+                           @bind-Value="Settings.Username"
+                           data-testid="connection-username" />
+                </FieldContent>
+            </Field>
+
+            <Field>
+                <FieldLabel For="connection-password">Password</FieldLabel>
+                <FieldContent>
+                    <Input Id="connection-password"
+                           Type="InputType.Password"
+                           @bind-Value="Settings.Password"
+                           data-testid="connection-password" />
+                </FieldContent>
+            </Field>
+        </div>
+
+        <Field>
+            <FieldLabel For="connection-sslmode">SSL mode</FieldLabel>
+            <FieldContent>
+                <Select TValue="string" @bind-Value="Settings.SslMode" Class="w-full">
+                    <SelectTrigger data-testid="connection-sslmode">
+                        <SelectValue Placeholder="Select an SSL mode" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        @foreach (var sslMode in ConnectionSettings.SslModes)
+                        {
+                            <SelectItem TValue="string" Value="@sslMode" Text="@sslMode">@sslMode</SelectItem>
+                        }
+                    </SelectContent>
+                </Select>
+            </FieldContent>
+        </Field>
+
+        @* REQ-NFR-027: the desktop head loads these into AppSecrets at startup. They are NOT
+           app-specific — they must be byte-for-byte the website's values, because both heads read
+           the same encrypted SiteSetting rows and there is no key versioning. Stored through the
+           same IConnectionStore as the password above, never in the embedded appsettings.json. *@
+        <Field>
+            <FieldLabel For="connection-jwt-key">JWT signing key</FieldLabel>
+            <FieldContent>
+                <Input Id="connection-jwt-key"
+                       Type="InputType.Password"
+                       @bind-Value="Settings.JwtSigningKey"
+                       data-testid="connection-jwt-key" />
+            </FieldContent>
+        </Field>
+
+        <Field>
+            <FieldLabel For="connection-encryption-key">Encryption key</FieldLabel>
+            <FieldContent>
+                <Input Id="connection-encryption-key"
+                       Type="InputType.Password"
+                       @bind-Value="Settings.AppEncryptionKey"
+                       data-testid="connection-encryption-key" />
+            </FieldContent>
+        </Field>
+
+        <p class="text-sm text-muted-foreground" data-testid="connection-secrets-note">
+            Copy both values from the website's configuration exactly — the same
+            <code>JwtSigningKey</code> and <code>AppEncryptionKey</code> the site runs with.
+            A mismatch will not report an error; it will silently fail to read your settings.
+        </p>
+
+        <div class="flex items-center gap-3">
+            <Button Variant="ButtonVariant.Outline"
+                    Type="ButtonType.Button"
+                    OnClick="TestConnection"
+                    Disabled="@IsBusy"
+                    data-testid="connection-test">
+                @if (isTesting)
+                {
+                    <Spinner Size="SpinnerSize.Small" Class="mr-2" />
+                    <span>Testing...</span>
+                }
+                else
+                {
+                    <span>Test connection</span>
+                }
+            </Button>
+            <span class="text-sm text-muted-foreground">Runs a read-only probe against the server.</span>
+        </div>
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <Alert Variant="AlertVariant.Success" AccentBorder="true" data-testid="connection-success">
+                <LucideIcon Name="circle-check" Size="16" />
+                <AlertTitle>Connection OK</AlertTitle>
+                <AlertDescription>@successMessage</AlertDescription>
+            </Alert>
+        }
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <Alert Variant="AlertVariant.Danger" AccentBorder="true" data-testid="connection-error">
+                <LucideIcon Name="circle-alert" Size="16" />
+                <AlertTitle>Connection failed</AlertTitle>
+                <AlertDescription>@errorMessage</AlertDescription>
+            </Alert>
+        }
+
+    </CardContent>
+
+    <CardFooter Class="flex-col gap-3">
+        <Button Class="w-full"
+                Type="ButtonType.Button"
+                OnClick="SaveAndContinue"
+                Disabled="@(IsBusy || !Settings.IsComplete())"
+                data-testid="connection-save">
+            @if (isSaving)
+            {
+                <Spinner Size="SpinnerSize.Small" Class="mr-2" />
+                <span>Saving...</span>
+            }
+            else
+            {
+                <span>Save &amp; continue</span>
+            }
+        </Button>
+
+        @if (IsReconfiguring)
+        {
+            <div class="flex w-full gap-2">
+                <Button Variant="ButtonVariant.Outline"
+                        Class="flex-1"
+                        Type="ButtonType.Button"
+                        OnClick="GoBack"
+                        Disabled="@IsBusy"
+                        data-testid="connection-cancel">
+                    Cancel
+                </Button>
+                <Button Variant="ButtonVariant.Destructive"
+                        Class="flex-1"
+                        Type="ButtonType.Button"
+                        OnClick="ForgetConnection"
+                        Disabled="@IsBusy"
+                        data-testid="connection-forget">
+                    Forget connection
+                </Button>
+            </div>
+        }
+
+        <p class="flex items-center justify-center gap-2 text-center text-xs text-muted-foreground"
+           data-testid="connection-storage-note">
+            <LucideIcon Name="lock" Size="14" />
+            <span>Stored encrypted on this device: @ConnectionStore.StorageDescription</span>
+        </p>
+
+        @if (!string.IsNullOrEmpty(restartMessage))
+        {
+            <p class="text-center text-sm text-muted-foreground" data-testid="connection-restart-note">
+                @restartMessage
+            </p>
+        }
+    </CardFooter>
+</Card>

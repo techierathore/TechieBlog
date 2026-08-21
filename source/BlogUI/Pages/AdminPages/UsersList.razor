@@ -4,339 +4,228 @@
     Provides user management capabilities including role assignment.
 
     Usage: Navigate to /users
-    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+    Dependencies: TrBlazeUI.Components (REQ-UI-048)
     Authorization: AdminOnly policy required
 *@
 @page "/users"
 @attribute [Authorize(Policy = "AdminOnly")]
 @layout BlogUI.Layouts.AdminLayout
+@using BlogModels.Models
 
-<div class="users-list-page">
-    @* Page Header *@
-    <div class="page-header">
-        <h1>Users</h1>
-        <FluentAnchor Href="/AddUser" Appearance="Appearance.Accent">+ Add New User</FluentAnchor>
+<div class="mx-auto max-w-[1400px] space-y-6">
+
+    @* ---- Page header --------------------------------------------------- *@
+    <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-semibold tracking-tight text-foreground">Users</h1>
+            <p class="text-sm text-muted-foreground">Accounts, roles and activation status.</p>
+        </div>
+        <Button Href="/AddUser" data-testid="new-user">
+            <LucideIcon Name="plus" Size="16" />
+            Add New User
+        </Button>
     </div>
 
-    @* Status Messages *@
+    @* ---- Status message ------------------------------------------------ *@
     @if (!string.IsNullOrEmpty(StatusMessage))
     {
-        <FluentMessageBar Intent="@(IsError ? MessageIntent.Error : MessageIntent.Success)"
-                          Style="margin-bottom: 16px;">
-            @StatusMessage
-        </FluentMessageBar>
+        <Alert Variant="@(IsError ? AlertVariant.Danger : AlertVariant.Success)"
+               data-testid="users-status-message">
+            <LucideIcon Name="@(IsError ? "circle-alert" : "circle-check")" Size="16" />
+            <AlertDescription>@StatusMessage</AlertDescription>
+        </Alert>
     }
 
-    @* Filters Row *@
-    <div class="filters-row">
-        @* Role Tabs *@
-        <div class="status-tabs">
-            <span class="tabs__item @(RoleFilter == "all" ? "tabs__item--active" : "")"
-                  @onclick='() => SetFilter("all")'>
-                All (@(ObjectList?.Count ?? 0))
-            </span>
-            <span class="tabs__item @(RoleFilter == "admin" ? "tabs__item--active" : "")"
-                  @onclick='() => SetFilter("admin")'>
-                Admins (@AdminCount)
-            </span>
-            <span class="tabs__item @(RoleFilter == "editor" ? "tabs__item--active" : "")"
-                  @onclick='() => SetFilter("editor")'>
-                Editors (@EditorCount)
-            </span>
-            <span class="tabs__item @(RoleFilter == "reader" ? "tabs__item--active" : "")"
-                  @onclick='() => SetFilter("reader")'>
-                Readers (@ReaderCount)
-            </span>
-        </div>
+    @* ---- Filter row ---------------------------------------------------- *@
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        @*
+            TrBlazeUI's TabsList and TabsTrigger declare no CaptureUnmatchedValues, so a
+            data-testid on either throws at render and the ErrorBoundary swallowed the whole
+            page behind an HTTP 200 — this page was unreachable. Tabs itself does splat, so the
+            container hook lives there and each trigger's hook lives on a span this page owns.
+            Library gap TR-030/TR-046; do not put test hooks back on the
+            TabsList/TabsTrigger elements.
+        *@
+        <Tabs Value="@RoleFilter"
+              ValueChanged="@((string value) => SetFilter(value))"
+              data-testid="users-role-tabs">
+            <TabsList>
+                <TabsTrigger Value="all"><span data-testid="users-tab-all">All (@(ObjectList?.Count ?? 0))</span></TabsTrigger>
+                <TabsTrigger Value="admin"><span data-testid="users-tab-admin">Admins (@AdminCount)</span></TabsTrigger>
+                <TabsTrigger Value="editor"><span data-testid="users-tab-editor">Editors (@EditorCount)</span></TabsTrigger>
+                <TabsTrigger Value="reader"><span data-testid="users-tab-reader">Readers (@ReaderCount)</span></TabsTrigger>
+            </TabsList>
+        </Tabs>
 
-        <span style="flex: 1;"></span>
-
-        @* Search Box *@
-        <div class="search-box">
-            <FluentIcon Value="@(new Icons.Regular.Size16.Search())" Color="Color.Neutral" />
-            <FluentTextField @bind-Value="SearchTerm"
-                             @bind-Value:after="ApplyFilter"
-                             Placeholder="Search users..."
-                             Style="min-width: 200px;" />
+        <div class="flex items-center gap-2">
+            <LucideIcon Name="search" Size="16" Class="text-muted-foreground" />
+            <Input Type="InputType.Search"
+                   @bind-Value="SearchTerm"
+                   @bind-Value:after="ApplyFilter"
+                   Placeholder="Search users..."
+                   Class="min-w-[200px]"
+                   AriaLabel="Search users"
+                   data-testid="users-search" />
         </div>
     </div>
 
-    @* Users Table *@
-    <div class="users-table-container">
-        @if (ObjectList == null)
-        {
-            <div style="padding: 32px; text-align: center;">
-                <FluentProgressRing />
-                <span style="display: block; margin-top: 8px;">Loading...</span>
-            </div>
-        }
-        else if (FilteredList == null || FilteredList.Count == 0)
-        {
-            <div style="padding: 32px; text-align: center; color: var(--color-neutral-light);">
-                @if (RoleFilter == "all" && string.IsNullOrEmpty(SearchTerm))
+    @* ---- Users table ---------------------------------------------------- *@
+    @if (ObjectList == null)
+    {
+        <div class="flex flex-col items-center gap-2 py-8" data-testid="users-loading">
+            <Spinner />
+            <span class="text-sm text-muted-foreground">Loading...</span>
+        </div>
+    }
+    else if (FilteredList == null || FilteredList.Count == 0)
+    {
+        <Empty Title="@EmptyTitle" Description="@EmptyDescription" data-testid="users-empty">
+            <Icon><LucideIcon Name="users" Size="48" /></Icon>
+            <ChildContent>
+                @if (HasActiveFilters)
                 {
-                    <p>No users found.</p>
+                    <Button Variant="ButtonVariant.Outline" OnClick="ClearFilters" data-testid="users-clear-filters">
+                        Clear Filters
+                    </Button>
                 }
                 else
                 {
-                    <p>No users match your filters.</p>
-                    <FluentButton Appearance="Appearance.Outline" OnClick="ClearFilters">Clear Filters</FluentButton>
+                    <Button Href="/AddUser" data-testid="users-empty-new">Add New User</Button>
                 }
-            </div>
-        }
-        else
-        {
-            <table class="data-grid">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th style="width: 120px;">Role</th>
-                        <th style="width: 100px;">Status</th>
-                        <th style="width: 120px;">Joined</th>
-                        <th style="width: 140px;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var user in FilteredList)
-                    {
-                        <tr>
-                            <td>
-                                <div class="user-name">@user.FirstName @user.LastName</div>
-                                <div class="user-username">@user.EmailId</div>
-                            </td>
-                            <td>@user.EmailId</td>
-                            <td>
-                                <span class="badge @GetRoleBadgeClass(user.UserRole)">@user.UserRole</span>
-                            </td>
-                            <td>
-                                @if (user.IsConfirmed)
-                                {
-                                    <span class="badge badge--success">Active</span>
-                                }
-                                else
-                                {
-                                    <span class="badge badge--warning">Inactive</span>
-                                }
-                            </td>
-                            <td>@user.CreatedOn.ToString("MMM dd, yyyy")</td>
-                            <td>
-                                <div class="action-buttons">
-                                    <FluentButton Appearance="Appearance.Stealth"
-                                                  OnClick="@(() => ShowEditRoleDialog(user))"
-                                                  Title="Change Role">
-                                        <FluentIcon Value="@(new Icons.Regular.Size16.PersonEdit())" />
-                                    </FluentButton>
-                                    @if (user.IsConfirmed)
-                                    {
-                                        <FluentButton Appearance="Appearance.Stealth"
-                                                      OnClick="@(() => ToggleUserStatus(user))"
-                                                      Title="Deactivate"
-                                                      Disabled="@IsProcessing">
-                                            <FluentIcon Value="@(new Icons.Regular.Size16.PersonProhibited())" Color="Color.Warning" />
-                                        </FluentButton>
-                                    }
-                                    else
-                                    {
-                                        <FluentButton Appearance="Appearance.Stealth"
-                                                      OnClick="@(() => ToggleUserStatus(user))"
-                                                      Title="Activate"
-                                                      Disabled="@IsProcessing">
-                                            <FluentIcon Value="@(new Icons.Regular.Size16.PersonAvailable())" Color="Color.Success" />
-                                        </FluentButton>
-                                    }
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        }
-    </div>
-
-    @* Pagination Footer *@
-    @if (FilteredList != null && FilteredList.Count > 0)
-    {
-        <div class="table-footer">
-            <div class="pagination-info">
-                Showing @FilteredList.Count of @(ObjectList?.Count ?? 0) users
-            </div>
-        </div>
+            </ChildContent>
+        </Empty>
     }
-
-    @* Edit Role Dialog *@
-    @if (ShowRoleDialog)
+    else
     {
-        <FluentDialog Hidden="false" Modal="true" TrapFocus="true">
-            <FluentDialogHeader>
-                <FluentLabel Typo="Typography.PaneHeader">Change User Role</FluentLabel>
-            </FluentDialogHeader>
-            <FluentDialogBody>
-                <p>Change role for <strong>@UserToEdit?.FirstName @UserToEdit?.LastName</strong></p>
-                <FluentSelect TOption="string" @bind-Value="SelectedRole" Style="width: 100%; margin-top: 16px;">
-                    <FluentOption TOption="string" Value="Admin">Admin</FluentOption>
-                    <FluentOption TOption="string" Value="Editor">Editor</FluentOption>
-                    <FluentOption TOption="string" Value="Author">Author</FluentOption>
-                    <FluentOption TOption="string" Value="Contributor">Contributor</FluentOption>
-                    <FluentOption TOption="string" Value="Reader">Reader</FluentOption>
-                </FluentSelect>
-            </FluentDialogBody>
-            <FluentDialogFooter>
-                <FluentButton Appearance="Appearance.Neutral" OnClick="@CancelRoleEdit">
-                    Cancel
-                </FluentButton>
-                <FluentButton Appearance="Appearance.Accent" OnClick="@SaveRoleChange">
-                    Save
-                </FluentButton>
-            </FluentDialogFooter>
-        </FluentDialog>
+        <DataTable TData="AppUser"
+                   Data="@FilteredList"
+                   InitialPageSize="20"
+                   AriaLabel="Users"
+                   data-testid="users-grid">
+            <Columns>
+                <DataTableColumn TData="AppUser" TValue="string" Property="@(u => u.FirstName)" Header="Name" Sortable Filterable>
+                    <CellTemplate Context="row">
+                        <div class="flex items-center gap-3">
+                            <Avatar Size="AvatarSize.Small">
+                                <AvatarFallback>@GetInitials(row)</AvatarFallback>
+                            </Avatar>
+                            <div class="flex flex-col">
+                                <span class="font-semibold text-foreground" data-testid="user-row-name">@row.FirstName @row.LastName</span>
+                                <span class="text-xs text-muted-foreground" data-testid="user-row-username">@row.EmailId</span>
+                            </div>
+                        </div>
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="AppUser" TValue="string" Property="@(u => u.EmailId)" Header="Email" Sortable Filterable>
+                    <CellTemplate Context="row">
+                        <span data-testid="user-row-email">@row.EmailId</span>
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="AppUser" TValue="string" Property="@(u => u.UserRole)" Header="Role" Sortable Width="130px">
+                    <CellTemplate Context="row">
+                        <Badge Variant="@GetRoleBadgeVariant(row.UserRole)" data-testid="user-row-role">@row.UserRole</Badge>
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="AppUser" TValue="bool" Property="@(u => u.IsConfirmed)" Header="Status" Sortable Width="110px">
+                    <CellTemplate Context="row">
+                        @if (row.IsConfirmed)
+                        {
+                            <Badge data-testid="user-row-status">Active</Badge>
+                        }
+                        else
+                        {
+                            <Badge Variant="BadgeVariant.Outline" data-testid="user-row-status">Inactive</Badge>
+                        }
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="AppUser" TValue="DateTime" Property="@(u => u.CreatedOn)" Header="Joined" Sortable Width="140px">
+                    <CellTemplate Context="row">
+                        <span data-testid="user-row-joined">@row.CreatedOn.ToString("MMM dd, yyyy")</span>
+                    </CellTemplate>
+                </DataTableColumn>
+
+                <DataTableColumn TData="AppUser" TValue="long" Property="@(u => u.UserId)" Header="Actions" Width="130px">
+                    <CellTemplate Context="row">
+                        <div class="flex flex-nowrap items-center gap-1">
+                            <Button Size="ButtonSize.IconSmall"
+                                    Variant="ButtonVariant.Ghost"
+                                    OnClick="@(() => ShowEditRoleDialog(row))"
+                                    AriaLabel="Change role"
+                                    data-testid="user-change-role">
+                                <LucideIcon Name="user-cog" Size="16" />
+                            </Button>
+                            @if (row.IsConfirmed)
+                            {
+                                <Button Size="ButtonSize.IconSmall"
+                                        Variant="ButtonVariant.Ghost"
+                                        OnClick="@(() => ToggleUserStatus(row))"
+                                        Disabled="@IsProcessing"
+                                        AriaLabel="Deactivate user"
+                                        data-testid="user-deactivate">
+                                    <LucideIcon Name="user-x" Size="16" />
+                                </Button>
+                            }
+                            else
+                            {
+                                <Button Size="ButtonSize.IconSmall"
+                                        Variant="ButtonVariant.Ghost"
+                                        OnClick="@(() => ToggleUserStatus(row))"
+                                        Disabled="@IsProcessing"
+                                        AriaLabel="Activate user"
+                                        data-testid="user-activate">
+                                    <LucideIcon Name="user-check" Size="16" />
+                                </Button>
+                            }
+                        </div>
+                    </CellTemplate>
+                </DataTableColumn>
+            </Columns>
+        </DataTable>
+
+        <div class="flex justify-end">
+            <span class="text-sm text-muted-foreground" data-testid="users-count">
+                Showing @FilteredList.Count of @(ObjectList?.Count ?? 0) users
+            </span>
+        </div>
     }
 </div>
 
-<style>
-    .users-list-page {
-        max-width: 1400px;
-    }
-
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: var(--spacing-lg, 24px);
-    }
-
-    .page-header h1 {
-        margin: 0;
-    }
-
-    .filters-row {
-        display: flex;
-        gap: var(--spacing-md, 16px);
-        margin-bottom: var(--spacing-lg, 24px);
-        flex-wrap: wrap;
-        align-items: center;
-    }
-
-    .status-tabs {
-        display: flex;
-        border-bottom: 1px solid var(--color-border, #E1E1E1);
-    }
-
-    .tabs__item {
-        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
-        font-size: var(--font-size-small, 0.875rem);
-        color: var(--color-neutral-light, #605E5C);
-        border-bottom: 2px solid transparent;
-        margin-bottom: -1px;
-        cursor: pointer;
-        transition: all var(--transition-fast, 150ms ease);
-    }
-
-    .tabs__item:hover {
-        color: var(--color-neutral, #323130);
-    }
-
-    .tabs__item--active {
-        color: var(--color-primary, #0078D4);
-        border-bottom-color: var(--color-primary, #0078D4);
-    }
-
-    .search-box {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-sm, 8px);
-    }
-
-    .users-table-container {
-        border: 1px solid var(--color-border, #E1E1E1);
-        border-radius: var(--border-radius-lg, 8px);
-        overflow: hidden;
-        background-color: var(--color-background, #fff);
-    }
-
-    .data-grid {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: var(--font-size-small, 0.875rem);
-    }
-
-    .data-grid th,
-    .data-grid td {
-        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
-        text-align: left;
-        border-bottom: 1px solid var(--color-border, #E1E1E1);
-    }
-
-    .data-grid th {
-        font-weight: var(--font-weight-semibold, 600);
-        background-color: var(--color-surface, #F5F5F5);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .data-grid tr:hover td {
-        background-color: var(--color-surface, #F5F5F5);
-    }
-
-    .user-name {
-        font-weight: var(--font-weight-semibold, 600);
-        color: var(--color-neutral, #323130);
-    }
-
-    .user-username {
-        font-size: var(--font-size-xs, 0.75rem);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 2px var(--spacing-sm, 8px);
-        font-size: var(--font-size-xs, 0.75rem);
-        font-weight: var(--font-weight-semibold, 600);
-        border-radius: var(--border-radius, 4px);
-        background-color: var(--color-surface, #F5F5F5);
-        color: var(--color-neutral-light, #605E5C);
-    }
-
-    .badge--success {
-        background-color: var(--color-success, #107C10);
-        color: white;
-    }
-
-    .badge--warning {
-        background-color: var(--color-warning, #FFB900);
-        color: var(--color-neutral, #323130);
-    }
-
-    .badge--admin {
-        background-color: var(--color-error, #D13438);
-        color: white;
-    }
-
-    .badge--editor {
-        background-color: var(--color-primary, #0078D4);
-        color: white;
-    }
-
-    .badge--author {
-        background-color: var(--color-accent, #8764B8);
-        color: white;
-    }
-
-    .action-buttons {
-        display: flex;
-        gap: 2px;
-        flex-wrap: nowrap;
-    }
-
-    .table-footer {
-        display: flex;
-        justify-content: flex-end;
-        margin-top: var(--spacing-md, 16px);
-    }
-
-    .pagination-info {
-        font-size: var(--font-size-small, 0.875rem);
-        color: var(--color-neutral-light, #605E5C);
-    }
-</style>
+@* ---- Change role dialog -------------------------------------------------- *@
+<Dialog @bind-Open="ShowRoleDialog">
+    <DialogContent data-testid="user-role-dialog">
+        <DialogHeader>
+            <DialogTitle>Change User Role</DialogTitle>
+            <DialogDescription>Pick the permission level for this account.</DialogDescription>
+        </DialogHeader>
+        <div class="space-y-3">
+            <p class="text-sm text-foreground">
+                Change role for
+                <strong data-testid="user-role-target">@UserToEdit?.FirstName @UserToEdit?.LastName</strong>
+            </p>
+            <Select TValue="string" @bind-Value="SelectedRole" Class="w-full">
+                <SelectTrigger data-testid="user-role-select">
+                    <SelectValue Placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem TValue="string" Value="@("Admin")" Text="Admin">Admin</SelectItem>
+                    <SelectItem TValue="string" Value="@("Editor")" Text="Editor">Editor</SelectItem>
+                    <SelectItem TValue="string" Value="@("Author")" Text="Author">Author</SelectItem>
+                    <SelectItem TValue="string" Value="@("Contributor")" Text="Contributor">Contributor</SelectItem>
+                    <SelectItem TValue="string" Value="@("Reader")" Text="Reader">Reader</SelectItem>
+                </SelectContent>
+            </Select>
+        </div>
+        <DialogFooter>
+            <Button Variant="ButtonVariant.Outline" OnClick="@CancelRoleEdit" data-testid="user-role-cancel">
+                Cancel
+            </Button>
+            <Button OnClick="@SaveRoleChange" Disabled="@IsProcessing" data-testid="user-role-save">
+                Save
+            </Button>
+        </DialogFooter>
+    </DialogContent>
+</Dialog>

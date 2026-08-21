@@ -1,43 +1,38 @@
 @*
     AuthLayout.razor
-    Purpose: Layout for authentication pages (Login, Register, Password Reset).
-    Provides a centered card-based layout matching the mockup design.
-    Uses CSS custom properties from theme files for consistent styling.
+    Purpose: Bare centered layout for the authentication screens (sign in, forgot
+    password, reset password, access denied).
 
-    Usage: Applied to authentication pages in AuthPages folder.
-    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+    REQ-UI-001 / BRD-93 — reached by direct URL only: a centered brand mark above
+    a single card, a fixed theme toggle, and NO site navigation, so no public
+    page ever links into the admin surface.
+
+    REQ-UI-048 — carries the mandatory <ToastProvider /> and <PortalHost />.
 *@
-@using BlogUI.Components
+
 @inherits LayoutComponentBase
 
-<div class="layout">
-    @* Header Component *@
-    <Header OnMenuClick="OpenMobileNav" />
+<div class="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12 text-foreground">
 
-    @* Auth Page - Centered card *@
-    <div class="auth-page">
-        <div class="auth-card">
-            @Body
-        </div>
+    @* Fixed theme toggle, top-right *@
+    <div class="fixed right-4 top-4 z-50">
+        <ThemeToggle />
     </div>
 
-    @* Footer Component *@
-    <Footer />
+    @* Brand mark *@
+    <a href="/"
+       class="mb-8 flex items-center gap-2 text-lg font-semibold text-foreground no-underline"
+       data-testid="brand-link">
+        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <LucideIcon Name="code" Size="18" />
+        </span>
+        <span>TechieBlog</span>
+    </a>
 
-    @* Mobile Navigation Drawer *@
-    <MobileNav IsOpen="@isMobileNavOpen" OnClose="CloseMobileNav" />
+    <main class="w-full max-w-[420px]" data-testid="auth-content">
+        @Body
+    </main>
 </div>
 
-@code {
-    private bool isMobileNavOpen = false;
-
-    private void OpenMobileNav()
-    {
-        isMobileNavOpen = true;
-    }
-
-    private void CloseMobileNav()
-    {
-        isMobileNavOpen = false;
-    }
-}
+<ToastProvider Position="ToastPosition.BottomRight" />
+<PortalHost />

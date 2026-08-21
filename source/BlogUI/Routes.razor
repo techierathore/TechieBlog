@@ -1,76 +1,142 @@
 @*
     Routes.razor
-    Purpose: Contains the Blazor router configuration.
-    Handles routing, authorization, and layout selection for the application.
+    Purpose: Blazor router configuration — routing, authorization fallbacks,
+    layout selection and the top-level error boundary.
+
+    REQ-UI-048 — FluentLayout / FluentProgressRing / FluentAnchor / FluentIcon /
+    FluentButton replaced with their TrBlazeUI equivalents.
 *@
+
 @using BlogUI.Layouts
 @using BlogUI.Components
 @using Microsoft.AspNetCore.Components.Authorization
 
 <CascadingAuthenticationState>
+    @* REQ-NFR-023 — renders nothing; holds a MustChangePassword account on /change-password
+       until the password has actually been changed. Placed here so it is alive for every route. *@
+    <ForcePasswordChangeGuard />
     <ThemeProvider>
-        <FluentLayout>
-            <ErrorBoundary @ref="errorBoundary">
-                <ChildContent>
-                    <Router AppAssembly="@typeof(Routes).Assembly">
-                        <Found Context="routeData">
-                            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
-                                <NotAuthorized>
-                            @if (context.User.Identity?.IsAuthenticated != true)
-                            {
-                                <RedirectToLogin />
-                            }
-                            else
-                            {
-                                <LayoutView Layout="@typeof(MainLayout)">
-                                    <AccessDenied />
-                                </LayoutView>
-                            }
-                        </NotAuthorized>
-                        <Authorizing>
-                            <LayoutView Layout="@typeof(MainLayout)">
-                                <div style="display: flex; justify-content: center; align-items: center; height: 100vh;">
-                                    <FluentProgressRing />
+        <ErrorBoundary @ref="errorBoundary">
+            <ChildContent>
+                @* REQ-UI-058 — NotFoundPage is what lets a route that MATCHED but found no data
+                   answer a real 404. `NavigationManager.NotFound()` (PostView calls it for an
+                   unresolvable slug) makes the framework set HTTP 404 and swap the route content
+                   for this component IN THE SAME RENDER PASS.
+
+                   It has to be in the same pass. Blazor deliberately writes NO BODY for an SSR
+                   response whose status is 404, expecting the status-code-page middleware to
+                   re-execute and supply one — and re-execution is impossible here: measured
+                   2026-08-10, re-executing a request whose component tree has already prerendered
+                   reuses the same scoped services and throws
+                   `InvalidOperationException: 'RemoteNavigationManager' already initialized`,
+                   turning the article into an HTTP 500. That is why `/nonexistent-route-zzz`
+                   re-executes happily (nothing rendered first) while `/post/<bad-slug>` cannot.
+
+                   Naming the page here also replaces the <NotFound> RenderFragment this router used
+                   to carry: NotFoundPage renders `_404Page` with its own `@layout` (MainLayout), so
+                   the client-side miss looks exactly as it did, and the prerendered and hydrated
+                   screens stay byte-identical. `_404Page` is the compiler-sanitised type name — a
+                   C# identifier cannot start with a digit, so `404Page.razor` compiles to
+                   `_404Page`. *@
+                <Router AppAssembly="@typeof(Routes).Assembly"
+                        NotFoundPage="@typeof(BlogUI.Pages.AdminPages._404Page)">
+                    <Found Context="routeData">
+                        <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                            @* [REQ-NFR-007] NO <LayoutView> IN HERE — see the Authorizing note below.
+                               AuthorizeRouteView already renders this fragment inside DefaultLayout,
+                               so the AuthLayout wrapper this branch used to carry nested a SECOND
+                               shell (its own <main data-testid="auth-content">, ToastProvider and
+                               PortalHost) inside MainLayout's — a nested <main>, duplicated portal
+                               hosts, and an axe landmark violation on every denied route. *@
+                            <NotAuthorized>
+                                @if (context.User.Identity?.IsAuthenticated != true)
+                                {
+                                    <RedirectToLogin />
+                                }
+                                else
+                                {
+                                    <BlogUI.Pages.AccessDenied />
+                                }
+                            </NotAuthorized>
+                            @* [REQ-NFR-007] 2026-08-09 — THE DOUBLE-SHELL BUG. This fragment used to be
+                               a <LayoutView Layout="MainLayout">. AuthorizeRouteView renders BOTH
+                               Authorizing and NotAuthorized through its own
+                               `LayoutView Layout="DefaultLayout"` (AuthorizeRouteViewCore
+                               .RenderContentInDefaultLayout), so wrapping the content in a second
+                               LayoutView painted MainLayout INSIDE MainLayout: two <header>s, two
+                               sidebars, two <footer>s and two PortalHosts for as long as the auth
+                               state took to resolve. It self-healed, which is why it survived — but it
+                               is the source of the "both shells for ~1.5s" blocker, of the transient
+                               duplicate-landmark / duplicate-testid readings that polluted verification
+                               runs, and of the `document-title` violation (HeadOutlet had no PageTitle
+                               to render while the real route was suspended). The spinner now renders
+                               bare, inside the ONE layout AuthorizeRouteView supplies, and carries a
+                               title of its own so <title> is never empty. *@
+                            <Authorizing>
+                                <PageTitle>Loading - TechieBlog</PageTitle>
+                                <div class="flex h-[60vh] items-center justify-center" data-testid="authorizing">
+                                    <Spinner Size="SpinnerSize.Large" Class="text-primary" />
                                 </div>
-                            </LayoutView>
-                        </Authorizing>
-                    </AuthorizeRouteView>
-                    <FocusOnNavigate RouteData="@routeData" Selector="h1" />
-                </Found>
-                <NotFound>
-                    <LayoutView Layout="@typeof(MainLayout)">
-                        <PageTitle>Not Found</PageTitle>
-                        <div style="text-align: center; padding: 40px;">
-                            <h1>404 - Page Not Found</h1>
-                            <p>Sorry, there's nothing at this address.</p>
-                            <FluentAnchor Href="/" Appearance="Appearance.Accent">Go to Home</FluentAnchor>
-                        </div>
-                    </LayoutView>
-                    </NotFound>
+                            </Authorizing>
+                        </AuthorizeRouteView>
+                        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+                    </Found>
+                    @* REQ-UI-012 / REQ-UI-058 — SUPERSEDED BY THE NotFoundPage PARAMETER ABOVE.
+                       The router's `NotFound` RenderFragment and its `NotFoundPage` parameter are
+                       two spellings of the same thing and only one may be supplied, so the
+                       fragment is gone and the note it carried is kept here because the reasoning
+                       still applies.
+
+                       REQ-UI-012 — this must render the SAME screen as the server.
+                       The old comment here described a catch-all `@page "/{*NotFoundPath}"` on
+                       404Page.razor that no longer exists, and called this block dead code. Both
+                       statements went stale on 2026-08-09 when cluster F replaced the catch-all
+                       with `UseStatusCodePagesWithReExecute("/404")` in Program.cs: an unmatched
+                       URL now RE-EXECUTES against /404, so the visitor receives the real 404 page
+                       prerendered — but the browser's address bar still holds the original,
+                       unroutable path, so once the circuit hydrates the router matches nothing and
+                       fires this fragment for real.
+
+                       While this block carried its own hand-rolled 404 markup, that fired as a
+                       one-time VISUAL SWAP: `not-found-page` (server) was replaced in place by a
+                       differently-styled `not-found` (client). Status code and content were always
+                       correct; the screen simply changed under the visitor. Rendering the actual
+                       404Page component instead makes the hydrated result byte-identical to the
+                       prerendered one, so there is nothing to see.
+
+                       The fragment used to need an explicit <LayoutView>, because a Router
+                       NotFound fragment is rendered with no layout at all. NotFoundPage does not:
+                       the framework renders the named component through its own `@layout`
+                       directive, which on `_404Page` is already MainLayout. *@
                 </Router>
-                </ChildContent>
-                <ErrorContent Context="exception">
-                    <LayoutView Layout="@typeof(MainLayout)">
-                        <div style="text-align: center; padding: 40px;">
-                            <FluentIcon Value="@(new Icons.Regular.Size48.ErrorCircle())" Color="Color.Error" />
-                            <h1 style="margin-top: 16px;">Something went wrong</h1>
-                            <p style="color: var(--color-neutral-light);">
-                                We encountered an unexpected error. Please try refreshing the page.
-                            </p>
-                            <FluentButton Appearance="Appearance.Accent" OnClick="RecoverFromError" style="margin-top: 16px;">
-                                Try Again
-                            </FluentButton>
-                        </div>
-                    </LayoutView>
-                </ErrorContent>
-            </ErrorBoundary>
-        </FluentLayout>
+            </ChildContent>
+            <ErrorContent Context="exception">
+                <LayoutView Layout="@typeof(MainLayout)">
+                    <div class="flex flex-col items-center gap-4 py-16 text-center" data-testid="error-boundary">
+                        <LucideIcon Name="circle-alert" Size="48" Class="text-destructive" />
+                        @* [REQ-UI-060] 2026-08-11 — TypographyH1/TypographyP, not raw tags with
+                           copied token classes. TR-020 gives Typography* a `Size` that REPLACES
+                           its own size classes (a Class override used to lose on equal
+                           specificity), and TR-021/048 make it splat, so this fallback screen no
+                           longer has to hand-copy the library's own typography. *@
+                        <TypographyH1 Size="TypographySize.Xl2" data-testid="error-heading">Something went wrong</TypographyH1>
+                        <TypographyP Class="text-muted-foreground">
+                            We encountered an unexpected error. Please try refreshing the page.
+                        </TypographyP>
+                        <Button OnClick="RecoverFromError" data-testid="error-retry">Try Again</Button>
+                    </div>
+                </LayoutView>
+            </ErrorContent>
+        </ErrorBoundary>
     </ThemeProvider>
 </CascadingAuthenticationState>
 
 @code {
-    private ErrorBoundary? errorBoundary;
+    private ErrorBoundary errorBoundary;
 
+    /// <summary>
+    /// Clears the caught exception so the router can re-render the current route.
+    /// </summary>
     private void RecoverFromError()
     {
         errorBoundary?.Recover();

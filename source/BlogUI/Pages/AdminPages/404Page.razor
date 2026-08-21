@@ -1,22 +1,72 @@
 @*
     404Page.razor
-    Purpose: Error page displayed when a route is not found.
-    Provides user-friendly error message and navigation back to main site.
+    Purpose: The site's "page not found" screen, for BOTH the explicit /404 URL
+    and any address that matches no other route.
 
-    Usage: Displayed automatically for unknown routes
-    Dependencies: Microsoft.FluentUI.AspNetCore.Components
+    REQ-UI-048 — rebuilt on TrBlazeUI.
+    Also fixes a dead link: the action pointed at "dashboard-default", which is
+    not a route in this application.
+
+    REQ-UI-012 — WHY THIS PAGE HAS ONE PLAIN ROUTE AND NOT A CATCH-ALL.
+    This is a Blazor Web App: `MapRazorComponents` registers ONE endpoint per
+    `@page` directive it discovers, so a URL that matches no directive matches
+    no endpoint at all. ASP.NET routing then ends the request with a bare 404
+    and an EMPTY body — the Blazor router never runs, which is why the
+    `<NotFound>` fragment in Routes.razor could never fire and a real visitor
+    who mistyped a URL got a blank white page (verified 2026-08-09: HTTP 404,
+    zero bytes).
+
+    The first fix (2026-08-09) added a catch-all `@page "/{*NotFoundPath}"`
+    here. It did render the page, but it traded one defect for two:
+      * nothing 404s any more, so an unknown URL answered HTTP 200 — a soft
+        404, which search engines index and monitoring cannot see. The page
+        cannot correct that itself: the router is mounted
+        `@rendermode="InteractiveServer"` (App.razor), so this component never
+        receives the HttpContext cascading parameter and cannot set a status.
+      * the catch-all matched every unrouted path, including `/uploads/<file>`.
+        The static-file middleware stands aside once an endpoint has been
+        selected, so an image uploaded at RUNTIME — absent from the build-time
+        static-asset manifest, therefore with no endpoint of its own — was
+        answered with this page as text/html instead of the image (REQ-FN-025).
+
+    So the catch-all was removed (2026-08-09, cluster F) and the job moved to
+    the pipeline, where the status code lives: `UseStatusCodePagesWithReExecute`
+    in source/TechieBlog/Program.cs re-executes the request against this route
+    while PRESERVING the original 404. Unmatched URLs now answer 404 WITH this
+    page rendered, and `/uploads/...` reaches the static-file handler again.
+    `/404` stays a real route so the page can also be linked to directly — and
+    because the re-execution targets exactly this URL: renaming it without
+    updating `NotFoundPage.Path` in Program.cs sends the body back to empty.
+
+    Layout: MainLayout — the public shell (header, nav, footer) so a lost
+    visitor has a way back into the site. It previously used AuthLayout, which
+    renders no navigation at all.
 *@
-@page "/404"
-@layout BlogUI.Layouts.AuthLayout
 
-<FluentStack Orientation="Orientation.Vertical"
-             HorizontalAlignment="HorizontalAlignment.Center"
-             VerticalAlignment="VerticalAlignment.Center"
-             Style="min-height: 50vh; text-align: center;">
-    <h1 style="font-size: 6rem; font-weight: bold; margin: 0;">404</h1>
-    <h2>Page not found.</h2>
-    <p style="margin: 24px 0;">The page you are looking for might have been removed.</p>
-    <FluentAnchor Href="dashboard-default" Appearance="Appearance.Accent">
-        Return to website
-    </FluentAnchor>
-</FluentStack>
+@page "/404"
+@layout BlogUI.Layouts.MainLayout
+
+<PageTitle>Page not found - TechieBlog</PageTitle>
+
+<div class="flex flex-col items-center gap-4 py-16 text-center" data-testid="not-found-page">
+    <p class="m-0 text-6xl font-bold tracking-tight text-muted-foreground">404</p>
+    <h1 class="m-0 text-2xl font-semibold">Page not found</h1>
+    <p class="m-0 text-sm text-muted-foreground">
+        The page you are looking for might have been removed or renamed.
+    </p>
+    <div class="mt-2 flex flex-wrap items-center justify-center gap-3">
+        <Button Href="/" data-testid="not-found-home">
+            Return to website
+        </Button>
+        <Button Href="/search" Variant="ButtonVariant.Outline" data-testid="not-found-search">
+            <LucideIcon Name="search" Size="16" />
+            Search the blog
+        </Button>
+    </div>
+</div>
+
+@*
+    No route parameter and no echo of the requested path, deliberately: the value is
+    visitor-controlled text and reflecting it would be a reflected-content surface for no benefit.
+    The path the visitor asked for is already in the request log line via the correlation id.
+*@

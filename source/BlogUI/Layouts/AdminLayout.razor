@@ -1,371 +1,181 @@
 @*
     AdminLayout.razor
-    Purpose: Layout for administrative pages with navigation sidebar and header.
-    Provides navigation menu, user profile dropdown, and main content area.
-    Uses CSS custom properties from theme files for consistent styling.
-    Role-based menu visibility using AuthorizeView.
+    Purpose: Administration shell for every /admin surface.
 
-    Usage: Applied to all admin pages (Dashboard, BlogsList, Users, etc.)
-    Dependencies: Microsoft.FluentUI.AspNetCore.Components, ThemeService, Authorization
+    REQ-UI-048 / docs/TechieBlog-UIDesign.md §Design system — the TrBlazeUI
+    Sidebar inset shell:
+      - grouped navigation: Content . Taxonomy . Media . Resume . Audience . System
+      - topbar with a collapse trigger (icon-rail mode), breadcrumb slot and theme toggle
+      - the signed-in identity lives in the TOPBAR as a DropdownMenu on the avatar
+        (My Profile / Log Out) - a real popover with focus trap, Escape-to-close and
+        click-outside dismissal. The sidebar deliberately has no footer identity block.
+
+    Every navigation entry is gated by the same policy that guards its page, so the
+    menu never offers a destination that would bounce the user to /access-denied.
 *@
-@using BlogModels.Models
-@using Microsoft.AspNetCore.Components.Authorization
+
 @inherits LayoutComponentBase
 
-<div class="admin-layout">
-    @* Sidebar Navigation *@
-    <aside class="admin-sidebar">
-        <div class="sidebar-header">
-            <a href="/" class="sidebar-logo">TechieBlog</a>
-            <span class="badge badge--admin">Admin</span>
-        </div>
-        <ul class="nav-menu">
-            <li class="nav-menu__item">
-                <NavLink href="/admin" class="nav-menu__link" Match="NavLinkMatch.All" ActiveClass="nav-menu__link--active">
-                    <span class="nav-menu__icon">&#128200;</span>
-                    <span>Dashboard</span>
-                </NavLink>
-            </li>
-            <li class="nav-menu__item">
-                <NavLink href="/BlogsList" class="nav-menu__link" ActiveClass="nav-menu__link--active">
-                    <span class="nav-menu__icon">&#128196;</span>
-                    <span>All Posts</span>
-                </NavLink>
-            </li>
-            <AuthorizeView Policy="AdminOnly">
-                <Authorized>
-                    <li class="nav-menu__item">
-                        <NavLink href="/users" class="nav-menu__link" ActiveClass="nav-menu__link--active">
-                            <span class="nav-menu__icon">&#128101;</span>
-                            <span>Users</span>
-                        </NavLink>
-                    </li>
-                </Authorized>
-            </AuthorizeView>
-            <li class="nav-menu__item">
-                <NavLink href="/CommentsList" class="nav-menu__link" ActiveClass="nav-menu__link--active">
-                    <span class="nav-menu__icon">&#128172;</span>
-                    <span>Comments</span>
-                </NavLink>
-            </li>
-            <li class="nav-menu__item">
-                <NavLink href="/CategoriesList" class="nav-menu__link" ActiveClass="nav-menu__link--active">
-                    <span class="nav-menu__icon">&#128193;</span>
-                    <span>Categories</span>
-                </NavLink>
-            </li>
-            <AuthorizeView Policy="AdminOnly">
-                <Authorized>
-                    <li class="nav-menu__item">
-                        <NavLink href="/admin/tags" class="nav-menu__link" ActiveClass="nav-menu__link--active">
-                            <span class="nav-menu__icon">&#127991;</span>
-                            <span>Tags</span>
-                        </NavLink>
-                    </li>
-                </Authorized>
-            </AuthorizeView>
-            <li class="nav-menu__item">
-                <NavLink href="/SeriesList" class="nav-menu__link" ActiveClass="nav-menu__link--active">
-                    <span class="nav-menu__icon">&#128218;</span>
-                    <span>Series</span>
-                </NavLink>
-            </li>
+<SidebarProvider DefaultOpen="true" HeightClass="min-h-screen">
 
-            @* Resume Management Section - visible to Authors and above *@
-            <AuthorizeView Policy="AuthorOrAbove">
-                <Authorized>
-                    <li class="nav-menu__divider">
-                        <span class="nav-menu__section-title">Resume</span>
-                    </li>
-                    <li class="nav-menu__item">
-                        <NavLink href="/admin/profile" class="nav-menu__link" ActiveClass="nav-menu__link--active">
-                            <span class="nav-menu__icon">&#128100;</span>
-                            <span>My Profile</span>
-                        </NavLink>
-                    </li>
-                    <li class="nav-menu__item">
-                        <NavLink href="/admin/experience" class="nav-menu__link" ActiveClass="nav-menu__link--active">
-                            <span class="nav-menu__icon">&#128188;</span>
-                            <span>Experience</span>
-                        </NavLink>
-                    </li>
-                    <li class="nav-menu__item">
-                        <NavLink href="/admin/skills" class="nav-menu__link" ActiveClass="nav-menu__link--active">
-                            <span class="nav-menu__icon">&#127942;</span>
-                            <span>Skills</span>
-                        </NavLink>
-                    </li>
-                    <li class="nav-menu__item">
-                        <NavLink href="/admin/awards" class="nav-menu__link" ActiveClass="nav-menu__link--active">
-                            <span class="nav-menu__icon">&#127941;</span>
-                            <span>Awards</span>
-                        </NavLink>
-                    </li>
-                </Authorized>
-            </AuthorizeView>
-            <AuthorizeView Policy="AdminOnly">
-                <Authorized>
-                    <li class="nav-menu__item">
-                        <NavLink href="/admin/images" class="nav-menu__link" ActiveClass="nav-menu__link--active">
-                            <span class="nav-menu__icon">&#128247;</span>
-                            <span>Images</span>
-                        </NavLink>
-                    </li>
-                </Authorized>
-            </AuthorizeView>
+    <Sidebar Collapsible="true" data-testid="admin-sidebar">
 
-            <AuthorizeView Policy="AdminOnly">
-                <Authorized>
-                    <li class="nav-menu__item">
-                        <NavLink href="/admin/subscribers" class="nav-menu__link" ActiveClass="nav-menu__link--active">
-                            <span class="nav-menu__icon">&#128231;</span>
-                            <span>Subscribers</span>
-                        </NavLink>
-                    </li>
-                    <li class="nav-menu__item">
-                        <NavLink href="/settings" class="nav-menu__link" ActiveClass="nav-menu__link--active">
-                            <span class="nav-menu__icon">&#9881;</span>
-                            <span>Settings</span>
-                        </NavLink>
-                    </li>
-                </Authorized>
-            </AuthorizeView>
-        </ul>
-    </aside>
-
-    @* Main Content Area *@
-    <div class="admin-main">
-        @* Top Header Bar *@
-        <header class="admin-header">
-            <div class="header-left">
-                <a href="/" class="btn btn--secondary btn--sm">View Site</a>
-            </div>
-            <div class="header-right">
-                <div class="user-info">
-                    <span class="user-name">@CurrentUserName</span>
-                    <span class="badge badge--role">@CurrentUserRole</span>
+        <SidebarHeader>
+            <SidebarHeaderContent>
+                <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                    <LucideIcon Name="code" Size="16" />
                 </div>
-                <button class="btn btn--secondary btn--sm" @onclick="LogoutAsync">Sign Out</button>
-            </div>
+                <SidebarHeaderInfo>
+                    <span class="truncate font-semibold">TechieBlog</span>
+                    <span class="truncate text-xs text-muted-foreground">Admin</span>
+                </SidebarHeaderInfo>
+            </SidebarHeaderContent>
+        </SidebarHeader>
+
+        <SidebarContent>
+
+            @* Dashboard sits above the groups - it is the shell's home, not a category. *@
+            <SidebarGroup>
+                <SidebarGroupContent>
+                    <SidebarMenu>
+                        @* /admin is guarded by EditorOrAbove (BRD §F-ADMIN). Offering it to an
+                           Author put an access-denied bounce in the menu. *@
+                        <AuthorizeView Policy="@AppPolicies.EditorOrAbove">
+                            <Authorized>
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton Href="/admin"
+                                                       Match="NavLinkMatch.All"
+                                                       Tooltip="Dashboard"
+                                                       data-testid="nav-dashboard">
+                                        <LucideIcon Name="layout-dashboard" Size="16" />
+                                        <span>Dashboard</span>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            </Authorized>
+                        </AuthorizeView>
+                    </SidebarMenu>
+                </SidebarGroupContent>
+            </SidebarGroup>
+
+            @* VisibleGroups drops any group whose entries the role cannot open, so no empty
+               group heading is rendered (REQ-FN-009 / BRD-9). *@
+            @foreach (var group in VisibleGroups)
+            {
+                <SidebarGroup>
+                    <SidebarGroupLabel>@group.Label</SidebarGroupLabel>
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            @foreach (var entry in group.Entries)
+                            {
+                                <AuthorizeView Policy="@entry.Policy">
+                                    <Authorized>
+                                        <SidebarMenuItem>
+                                            <SidebarMenuButton Href="@entry.Href"
+                                                               Tooltip="@entry.Label"
+                                                               data-testid="@entry.TestId">
+                                                <LucideIcon Name="@entry.Icon" Size="16" />
+                                                <span>@entry.Label</span>
+                                            </SidebarMenuButton>
+                                        </SidebarMenuItem>
+                                    </Authorized>
+                                </AuthorizeView>
+                            }
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
+            }
+
+        </SidebarContent>
+
+        <SidebarRail />
+    </Sidebar>
+
+    <SidebarInset>
+
+        @* --- Topbar --------------------------------------------------------- *@
+        <header class="flex h-16 shrink-0 items-center gap-3 border-b border-border bg-background px-4"
+                data-testid="admin-topbar">
+
+            <SidebarTrigger data-testid="sidebar-collapse-trigger" />
+
+            <Separator Orientation="SeparatorOrientation.Vertical" Class="h-6" />
+
+            <Breadcrumb Class="hidden sm:flex">
+                <BreadcrumbList>
+                    <BreadcrumbItem>
+                        <BreadcrumbLink Href="/admin">Admin</BreadcrumbLink>
+                    </BreadcrumbItem>
+                </BreadcrumbList>
+            </Breadcrumb>
+
+            <div class="flex-1"></div>
+
+            @* [REQ-NFR-007] WCAG 4.1.2 / 2.4.4 — the label below is `hidden sm:inline`, so below
+               640 px this collapses to an icon-only link with NO accessible name at all: axe
+               `link-name` (serious) on every admin page at 390 px. The aria-label carries the name
+               at every width; the visible text still reads it out for sighted users on desktop. *@
+            <Button Href="/"
+                    Target="_blank"
+                    Variant="ButtonVariant.Ghost"
+                    Size="ButtonSize.Small"
+                    AriaLabel="View site"
+                    title="View site"
+                    data-testid="view-site">
+                <LucideIcon Name="external-link" Size="16" />
+                <span class="ml-2 hidden sm:inline">View site</span>
+            </Button>
+
+            <ThemeToggle />
+
+            @* Signed-in identity: avatar trigger -> My Profile / Log Out. *@
+            <DropdownMenu>
+                <DropdownMenuTrigger AsChild>
+                    <Button Variant="ButtonVariant.Ghost"
+                            Size="ButtonSize.Icon"
+                            Class="rounded-full"
+                            AriaLabel="Account menu"
+                            data-testid="account-menu-trigger">
+                        <Avatar Size="AvatarSize.Small">
+                            <AvatarFallback>@CurrentUserInitials</AvatarFallback>
+                        </Avatar>
+                    </Button>
+                </DropdownMenuTrigger>
+                @*
+                    Test ids sit on the DropdownMenu components themselves. Up to TrBlazeUI 2.0.1
+                    DropdownMenuContent / DropdownMenuItem declared no CaptureUnmatchedValues, so a
+                    data-testid threw "does not have a property matching the name 'data-testid'"
+                    and took the whole admin shell down (TR-040); every hook had to ride on a plain
+                    inner element. 2.0.2 splats on all 344 components, so the wrapper <div> and the
+                    two wrapper <span>s are gone.
+                *@
+                <DropdownMenuContent Class="w-56" Align="PopoverAlign.End" data-testid="account-menu">
+                    <DropdownMenuLabel>
+                        <div class="flex flex-col">
+                            <span class="truncate text-sm font-medium" data-testid="account-name">@CurrentUserName</span>
+                            <span class="truncate text-xs font-normal text-muted-foreground" data-testid="account-role">@CurrentUserRole</span>
+                        </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem OnClick="NavigateToProfile" data-testid="account-profile">
+                        <LucideIcon Name="user" Size="16" />
+                        <span class="ml-2">My Profile</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem OnClick="LogoutAsync" data-testid="account-logout">
+                        <LucideIcon Name="log-out" Size="16" />
+                        <span class="ml-2">Log Out</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
         </header>
 
-        @* Main Body Content *@
-        <main class="admin-content">
+        @* --- Page body ------------------------------------------------------ *@
+        <div class="flex-1 overflow-auto p-4 md:p-6" data-testid="admin-content">
             @Body
-        </main>
-    </div>
-</div>
+        </div>
 
-<style>
-    .admin-layout {
-        display: flex;
-        min-height: 100vh;
-        background-color: var(--color-background, #fff);
-    }
+    </SidebarInset>
+</SidebarProvider>
 
-    /* Sidebar */
-    .admin-sidebar {
-        width: 250px;
-        min-height: 100vh;
-        background-color: var(--color-surface, #F5F5F5);
-        border-right: 1px solid var(--color-border, #E1E1E1);
-        display: flex;
-        flex-direction: column;
-        flex-shrink: 0;
-    }
-
-    .sidebar-header {
-        padding: var(--spacing-lg, 24px) var(--spacing-md, 16px);
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-sm, 8px);
-        border-bottom: 1px solid var(--color-border, #E1E1E1);
-    }
-
-    .sidebar-logo {
-        font-size: var(--font-size-h3, 1.25rem);
-        font-weight: var(--font-weight-bold, 700);
-        color: var(--color-primary, #0078D4);
-        text-decoration: none;
-    }
-
-    .sidebar-logo:hover {
-        color: var(--color-primary-hover, #106EBE);
-    }
-
-    .badge--admin {
-        background-color: var(--color-primary, #0078D4);
-        color: white;
-        padding: 2px var(--spacing-sm, 8px);
-        border-radius: var(--border-radius, 4px);
-        font-size: var(--font-size-xs, 0.75rem);
-        font-weight: var(--font-weight-semibold, 600);
-    }
-
-    /* Navigation Menu */
-    .nav-menu {
-        list-style: none;
-        padding: var(--spacing-md, 16px) 0;
-        margin: 0;
-        flex: 1;
-    }
-
-    .nav-menu__item {
-        margin: 0;
-    }
-
-    .nav-menu__link {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-md, 16px);
-        padding: var(--spacing-sm, 8px) var(--spacing-lg, 24px);
-        color: var(--color-neutral, #323130);
-        text-decoration: none;
-        font-size: var(--font-size-small, 0.875rem);
-        transition: all var(--transition-fast, 150ms ease);
-        border-left: 3px solid transparent;
-    }
-
-    .nav-menu__link:hover {
-        background-color: rgba(0, 120, 212, 0.1);
-        color: var(--color-primary, #0078D4);
-    }
-
-    .nav-menu__link--active {
-        background-color: var(--color-primary, #0078D4);
-        color: white !important;
-        border-left-color: var(--color-primary-hover, #106EBE);
-    }
-
-    .nav-menu__link--active:hover {
-        background-color: var(--color-primary-hover, #106EBE);
-    }
-
-    .nav-menu__icon {
-        font-size: 16px;
-        width: 20px;
-        text-align: center;
-    }
-
-    .nav-menu__divider {
-        margin-top: var(--spacing-md, 16px);
-        padding: var(--spacing-xs, 4px) var(--spacing-lg, 24px);
-        border-top: 1px solid var(--color-border, #E1E1E1);
-    }
-
-    .nav-menu__section-title {
-        font-size: var(--font-size-xs, 0.75rem);
-        font-weight: var(--font-weight-semibold, 600);
-        color: var(--color-neutral-light, #605E5C);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    /* Main Content Area */
-    .admin-main {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-    }
-
-    .admin-header {
-        height: var(--header-height, 50px);
-        padding: 0 var(--spacing-lg, 24px);
-        background-color: var(--color-surface, #F5F5F5);
-        border-bottom: 1px solid var(--color-border, #E1E1E1);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .header-left,
-    .header-right {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-md, 16px);
-    }
-
-    .user-info {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-sm, 8px);
-    }
-
-    .user-name {
-        font-size: var(--font-size-small, 0.875rem);
-        color: var(--color-neutral, #323130);
-    }
-
-    .badge--role {
-        background-color: var(--color-success, #107C10);
-        color: white;
-        padding: 2px var(--spacing-sm, 8px);
-        border-radius: var(--border-radius, 4px);
-        font-size: var(--font-size-xs, 0.75rem);
-        font-weight: var(--font-weight-semibold, 600);
-    }
-
-    .admin-content {
-        flex: 1;
-        padding: var(--spacing-lg, 24px);
-        overflow: auto;
-        background-color: var(--color-background, #fff);
-    }
-
-    /* Buttons */
-    .btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
-        border-radius: var(--border-radius, 4px);
-        font-size: var(--font-size-small, 0.875rem);
-        font-weight: var(--font-weight-semibold, 600);
-        cursor: pointer;
-        text-decoration: none;
-        transition: all var(--transition-fast, 150ms ease);
-        border: 1px solid transparent;
-    }
-
-    .btn--sm {
-        padding: var(--spacing-xs, 4px) var(--spacing-sm, 8px);
-        font-size: var(--font-size-xs, 0.75rem);
-    }
-
-    .btn--secondary {
-        background-color: transparent;
-        border-color: var(--color-border, #E1E1E1);
-        color: var(--color-neutral, #323130);
-    }
-
-    .btn--secondary:hover {
-        background-color: var(--color-surface, #F5F5F5);
-        border-color: var(--color-neutral-light, #605E5C);
-    }
-
-    /* Responsive */
-    @@media (max-width: 768px) {
-        .admin-sidebar {
-            width: 60px;
-        }
-
-        .sidebar-header {
-            padding: var(--spacing-md, 16px) var(--spacing-sm, 8px);
-            flex-direction: column;
-        }
-
-        .sidebar-logo {
-            display: none;
-        }
-
-        .nav-menu__link span:not(.nav-menu__icon) {
-            display: none;
-        }
-
-        .nav-menu__link {
-            justify-content: center;
-            padding: var(--spacing-md, 16px);
-        }
-    }
-</style>
+<ToastProvider Position="ToastPosition.BottomRight" />
+<PortalHost />

@@ -1,30 +1,77 @@
-**/.classpath
-**/.dockerignore
-**/.env
+# =============================================================================
+# Build context for the root Dockerfile.
+#
+# Two jobs: keep the context small (a 305 MB logs/ folder was being uploaded to the daemon on every
+# build), and keep anything credential-shaped out of it. The image restores through a BuildKit
+# secret, so no NuGet credential file has any business in the context either.
+# =============================================================================
+
+# Build output
+**/bin
+**/obj
+**/.smokeout
+.smokeout/
+
+# Logs (REQ-NFR-029 — these are large and regenerate on every run)
+**/logs
+logs/
+
+# Test and agent artefacts
+tests/.artifacts/
+test-results/
+test-results-*/
+playwright-report/
+.verify/
+**/TestResults
+uiIssues/
+
+# Source control and IDE
 **/.git
 **/.gitignore
-**/.project
-**/.settings
-**/.toolstarget
+**/.gitattributes
 **/.vs
 **/.vscode
+**/.idea
 **/*.*proj.user
-**/*.dbmdl
-**/*.jfm
-**/azds.yaml
-**/bin
-**/charts
-**/docker-compose*
-**/Dockerfile*
+
+# The MAUI head. net10.0-windows10.0.19041.0, not referenced by the web host, and nothing in a Linux
+# image can build it — keeping it out of the context makes that explicit rather than incidental.
+source/BlogApp/
+
+# NOTE: .editorconfig is deliberately NOT ignored. It carries the analyzer severities, so excluding
+# it would let the in-image build disagree with the local one about what is an error.
+
+# Tooling and framework scaffolding that the image never needs
 **/node_modules
-**/npm-debug.log
-**/obj
+.tfcore/
+.claude/
+.opencode/
+.playwright-mcp/
+.trblazeui/
+scripts/
+mockups/
+docs/
+deploy/
+.github/
+
+# Credentials and secrets — never in a build context (REQ-NFR-025)
+**/.env
+**/secrets.json
 **/secrets.dev.yaml
 **/values.dev.yaml
-LICENSE
-README.md
-!**/.gitignore
-!.git/HEAD
-!.git/config
-!.git/packed-refs
-!.git/refs/heads/**
+nuget.config
+NuGet.Config
+
+# Docker's own files and anything else with no role inside the image
+**/Dockerfile*
+**/.dockerignore
+**/docker-compose*
+**/charts
+**/azds.yaml
+**/npm-debug.log
+LICENSE.txt
+*.md
+*.html
+package.json
+package-lock.json
+playwright.config.ts

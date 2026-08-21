@@ -60,7 +60,7 @@ function Log-Change {
 }
 
 # Step 1: Update solution file content
-Write-Host "`n[1/6] Updating solution file references..." -ForegroundColor Green
+Write-Host "`n[1/8] Updating solution file references..." -ForegroundColor Green
 $slnContent = Get-Content "TechieBlog.slnx" -Raw
 $newSlnContent = $slnContent -replace "source/$OldName/$OldName.csproj", "source/$NewName/$NewName.csproj"
 $newSlnContent = $newSlnContent -replace "source/$OldName/", "source/$NewName/"
@@ -73,7 +73,7 @@ if ($slnContent -ne $newSlnContent) {
 }
 
 # Step 2: Update .cs files in TechieBlog project (namespaces)
-Write-Host "`n[2/6] Updating namespace references in source files..." -ForegroundColor Green
+Write-Host "`n[2/8] Updating namespace references in source files..." -ForegroundColor Green
 $csFiles = Get-ChildItem -Path "source/$OldName" -Filter "*.cs" -Recurse -ErrorAction SilentlyContinue
 
 foreach ($file in $csFiles) {
@@ -90,7 +90,7 @@ foreach ($file in $csFiles) {
 }
 
 # Step 3: Update .razor files
-Write-Host "`n[3/6] Updating Razor component references..." -ForegroundColor Green
+Write-Host "`n[3/8] Updating Razor component references..." -ForegroundColor Green
 $razorFiles = Get-ChildItem -Path "source/$OldName" -Filter "*.razor" -Recurse -ErrorAction SilentlyContinue
 
 foreach ($file in $razorFiles) {
@@ -106,8 +106,46 @@ foreach ($file in $razorFiles) {
     }
 }
 
-# Step 4: Update appsettings and other config files
-Write-Host "`n[4/6] Updating configuration files..." -ForegroundColor Green
+# Step 4: Update Program.cs
+Write-Host "`n[4/8] Updating Program.cs..." -ForegroundColor Green
+$programCs = "source/$OldName/Program.cs"
+
+if (Test-Path $programCs) {
+    $content = Get-Content $programCs -Raw
+    $newContent = $content -replace "// $OldName Application", "// $NewName Application"
+    $newContent = $newContent -replace "using $OldName\.", "using $NewName."
+    $newContent = $newContent -replace "logs/$($OldName.ToLower())-", "logs/$($NewName.ToLower())-"
+    $newContent = $newContent -replace "Starting $OldName application", "Starting $NewName application"
+    $newContent = $newContent -replace "$OldName application shutting down", "$NewName application shutting down"
+    $newContent = $newContent -replace "$OldName\.Components\.App", "$NewName.Components.App"
+
+    if ($content -ne $newContent) {
+        Log-Change "UPDATE" $programCs
+        if (-not $DryRun) {
+            $newContent | Set-Content $programCs -NoNewline
+        }
+    }
+}
+
+# Step 5: Update launchSettings.json (Visual Studio project dropdown name)
+Write-Host "`n[5/8] Updating launchSettings.json..." -ForegroundColor Green
+$launchSettings = "source/$OldName/Properties/launchSettings.json"
+
+if (Test-Path $launchSettings) {
+    $content = Get-Content $launchSettings -Raw
+    # Update the profile name (the key in the profiles object)
+    $newContent = $content -replace "`"$OldName`":", "`"$NewName`":"
+
+    if ($content -ne $newContent) {
+        Log-Change "UPDATE" $launchSettings
+        if (-not $DryRun) {
+            $newContent | Set-Content $launchSettings -NoNewline
+        }
+    }
+}
+
+# Step 6: Update appsettings and other config files
+Write-Host "`n[6/8] Updating configuration files..." -ForegroundColor Green
 $configFiles = @(
     "source/$OldName/appsettings.json",
     "source/$OldName/appsettings.Development.json",
@@ -128,8 +166,8 @@ foreach ($configPath in $configFiles) {
     }
 }
 
-# Step 5: Rename project file
-Write-Host "`n[5/6] Renaming project file..." -ForegroundColor Green
+# Step 7: Rename project file
+Write-Host "`n[7/8] Renaming project file..." -ForegroundColor Green
 $oldCsproj = "source/$OldName/$OldName.csproj"
 $newCsproj = "source/$OldName/$NewName.csproj"
 
@@ -140,8 +178,8 @@ if (Test-Path $oldCsproj) {
     }
 }
 
-# Step 6: Rename project folder and solution file
-Write-Host "`n[6/6] Renaming folders and solution file..." -ForegroundColor Green
+# Step 8: Rename project folder and solution file
+Write-Host "`n[8/8] Renaming folders and solution file..." -ForegroundColor Green
 
 # Rename project folder
 $oldFolder = "source/$OldName"

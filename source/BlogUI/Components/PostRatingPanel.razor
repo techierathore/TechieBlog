@@ -1,0 +1,328 @@
+@*
+    PostRatingPanel.razor
+    Purpose: The "rate this article" panel on a post page — average, count and five
+    interactive stars, followed by an email + captcha step once a star is chosen.
+
+    REQ-UI-027 / BRD-40/41 — interactive for ANONYMOUS visitors, keyed by email address.
+    There is no sign-in gate anywhere in this component.
+    REQ-UI-056 / BRD-99 — the captcha is required on this public write surface.
+
+    RatingSvc owns the rules: one score per address per post (a second submission replaces the
+    first), and a score only counts towards the public average once the address has confirmed a
+    double opt-in link. An unconfirmed score is parked and invisible.
+
+    REQ-NFR-007 — the five stars are TrBlazeUI's `Rating` and nothing else: since 2.0.2 each
+    option is a real <button role="radio"> with a roving tabindex and a literal aria-checked,
+    so the widget is keyboard operable and announces correctly on its own (TR-031/045/052).
+
+    Dependencies: BlogEngine.Services.RatingSvc, CaptchaWidget, TrBlazeUI Card/Rating/Field/
+    Input/Alert/Button, Lucide icons.
+    Usage: <PostRatingPanel PostId="@post.PostID" />
+*@
+
+@inject BlogEngine.Services.RatingSvc RatingService
+
+<Card Class="my-8" data-testid="post-rating-panel">
+    <CardContent Class="flex flex-col gap-4 p-6">
+
+        <div class="flex flex-wrap items-center gap-4">
+            <span class="text-sm font-semibold text-foreground">Rate this article</span>
+
+            @* [REQ-NFR-007] 2026-08-11 — the stars ARE the control again.
+               Until TrBlazeUI 2.0.2 this markup carried two rating widgets: the library's,
+               marked aria-hidden + data-a11y-decorative because it painted non-focusable
+               <span role="radio"> stars with an empty aria-checked (TR-031/045/052), and a
+               visually-hidden native <fieldset> radio group beside it that carried the real
+               keyboard and screen-reader semantics. 2.0.2 renders every option as a real
+               <button role="radio"> with a roving tabindex and a literal aria-checked, so the
+               duplicate is gone: Tab reaches the group, arrow keys move between stars, and
+               Enter/Space selects. `Rating` also splats now (TR-030/048), so the test hook
+               sits on the component itself rather than on a wrapper.
+
+               The stars are the visitor's INPUT and start empty, as the mockup specifies; the
+               community average is the number beside them. *@
+            <Rating Value="@selectedRating"
+                    ValueChanged="OnRatingChosen"
+                    Max="5"
+                    AllowHalf="false"
+                    Size="RatingSize.Default"
+                    AriaLabel="@($"Rate this article from 1 to 5 stars. Current average {FormattedAverage} out of 5 from {stats.RatingCount} ratings.")"
+                    data-testid="post-rating-stars" />
+
+            <span class="text-sm text-muted-foreground">
+                <span class="font-semibold text-foreground" data-testid="post-rating-average">@FormattedAverage</span>
+                <span data-testid="post-rating-count"> · @stats.RatingCount @(stats.RatingCount == 1 ? "rating" : "ratings")</span>
+            </span>
+
+            <span class="ml-auto text-xs text-muted-foreground">One rating per email — no sign-in needed</span>
+        </div>
+
+        @if (!string.IsNullOrEmpty(statusMessage))
+        {
+            <Alert Variant="@(isStatusError ? AlertVariant.Danger : AlertVariant.Success)"
+                   AccentBorder="true"
+                   data-testid="@(isStatusError ? "rating-form-error" : "rating-form-success")">
+                <LucideIcon Name="@(isStatusError ? "circle-alert" : "mail-check")" Size="16" />
+                <AlertTitle>@(isStatusError ? "Your rating was not recorded" : "Thank you")</AlertTitle>
+                <AlertDescription>@statusMessage</AlertDescription>
+            </Alert>
+        }
+
+        @* Revealed once a star is chosen: identify the rater and prove they are human. *@
+        @if (isIdentifyStepVisible)
+        {
+            <div class="flex flex-col gap-4 border-t border-border pt-4" data-testid="rating-identify-step">
+
+                <Field Class="w-full sm:w-[320px]" IsInvalid="@(emailError != null)">
+                    <FieldLabel For="@emailElementId">Your email</FieldLabel>
+                    <FieldContent>
+                        <Input Id="@emailElementId"
+                               Type="InputType.Email"
+                               @bind-Value="raterEmail"
+                               Placeholder="you@example.com"
+                               Class="w-full"
+                               AriaInvalid="@(emailError == null ? (bool?)null : true)"
+                               autocomplete="email"
+                               data-testid="rating-email" />
+                        <FieldDescription>
+                            Never published. We email a one-time confirmation link so each rating counts once.
+                        </FieldDescription>
+                        @if (emailError != null)
+                        {
+                            <FieldError data-testid="rating-email-error">@emailError</FieldError>
+                        }
+                    </FieldContent>
+                </Field>
+
+                <CaptchaWidget @ref="captcha" data-testid="captcha-widget" />
+
+                <div>
+                    <Button Type="ButtonType.Button"
+                            OnClick="OnSubmitAsync"
+                            Disabled="@isSubmitting"
+                            data-testid="rating-submit">
+                        @if (isSubmitting)
+                        {
+                            <Spinner Size="SpinnerSize.Small" />
+                        }
+                        Submit rating
+                    </Button>
+                </div>
+            </div>
+        }
+    </CardContent>
+</Card>
+
+@code {
+    private readonly string emailElementId = $"rating-email-{Guid.NewGuid():N}";
+
+    private CaptchaWidget captcha;
+
+    private BlogModels.PostRatingStats stats = new();
+    private double selectedRating;
+    private bool isIdentifyStepVisible;
+    private string raterEmail = string.Empty;
+    private string emailError;
+    private string statusMessage;
+    private bool isStatusError;
+    private bool isSubmitting;
+    private long loadedPostId;
+
+    /// <summary>
+    /// The post being rated.
+    /// </summary>
+    [Parameter]
+    public long PostId { get; set; }
+
+    /// <summary>
+    /// The public average, to one decimal place.
+    /// </summary>
+    private string FormattedAverage =>
+        stats.AverageRating.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Loads the public figures whenever the panel is pointed at a different post.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The average and count come from the VERIFIED ratings only,
+    /// so an unconfirmed score cannot move the numbers shown here.</para>
+    /// <para><b>Flow:</b> compare the post id, reload, reset the visitor's own state.</para>
+    /// <para><b>Side Effects:</b> Replaces the cached statistics.</para>
+    /// </remarks>
+    /// <returns>A task that completes when the figures for the new post have been read.</returns>
+    protected override async Task OnParametersSetAsync()
+    {
+        if (PostId <= 0 || PostId == loadedPostId)
+            return;
+
+        loadedPostId = PostId;
+        selectedRating = 0;
+        isIdentifyStepVisible = false;
+        statusMessage = null;
+        await LoadStatsAsync();
+    }
+
+    /// <summary>
+    /// Reads the average and count for the current post.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The figures come from the VERIFIED ratings only, so an
+    /// unconfirmed score cannot move the numbers shown here. They are NOT fed back into the
+    /// star control: the stars are the visitor's own input and start empty, so that clicking a
+    /// star always raises <c>ValueChanged</c> and always reveals the identify step. The service
+    /// already swallows data-access errors into zeroed figures, because a broken rating widget
+    /// must never take the article down with it.</para>
+    /// <para><b>[REQ-NFR-026] stage 3:</b> the async twin is awaited rather than the blocking
+    /// member being called. This panel sits on the public article route, and the twin reads
+    /// through the same <c>CacheTags.Content</c> entry family its synchronous original does.</para>
+    /// <para><b>Side Effects:</b> Replaces <c>stats</c>.</para>
+    /// </remarks>
+    /// <returns>A task that completes when the figures have been read.</returns>
+    private async Task LoadStatsAsync()
+    {
+        stats = await RatingService.GetPostRatingStatsAsync(PostId) ?? new BlogModels.PostRatingStats();
+    }
+
+    /// <summary>
+    /// Handles a star click and reveals the identify step.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Choosing a star does not record anything — the score only
+    /// leaves the browser once the visitor has supplied an address and answered the captcha.</para>
+    /// <para><b>Side Effects:</b> Reveals the email + captcha step.</para>
+    /// </remarks>
+    /// <param name="value">The number of stars chosen, 1 to 5.</param>
+    private void OnRatingChosen(double value)
+    {
+        selectedRating = value;
+        isIdentifyStepVisible = value >= 1;
+        statusMessage = null;
+    }
+
+    /// <summary>
+    /// Validates the address and hands the score to the rating service.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The address is checked here first so a typo does not burn
+    /// the single-use captcha challenge. The captcha is validated server-side by
+    /// <c>RatingSvc</c>; this panel never calls <c>ValidateAsync</c>, which would consume the
+    /// challenge before the service could see it.</para>
+    /// <para><b>Flow:</b> validate, submit, branch on the outcome, refresh the public figures.</para>
+    /// <para><b>Side Effects:</b> Upserts a rating row; may send a confirmation email; always
+    /// replaces the captcha challenge.</para>
+    /// </remarks>
+    /// <returns>A task that completes when the outcome has been shown.</returns>
+    private async Task OnSubmitAsync()
+    {
+        statusMessage = null;
+        emailError = System.Net.Mail.MailAddress.TryCreate((raterEmail ?? string.Empty).Trim(), out _)
+            ? null
+            : "Please enter a valid email address.";
+
+        if (emailError != null)
+            return;
+
+        isSubmitting = true;
+        var result = await RatingService.SubmitRatingAsync(BuildSubmission());
+        isSubmitting = false;
+
+        if (result.IsFailure)
+        {
+            ShowFailure(result.ErrorMessage);
+            return;
+        }
+
+        await ShowSuccessAsync(result.Data?.Message);
+    }
+
+    /// <summary>
+    /// Maps the panel state onto the service's submission contract.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The captcha id and answer travel with the submission so the
+    /// service can burn the challenge itself; the IP address is left unset because a Blazor
+    /// Server circuit has no per-call request context.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <returns>The populated submission.</returns>
+    private BlogModels.RatingSubmission BuildSubmission()
+    {
+        return new BlogModels.RatingSubmission
+        {
+            PostId = PostId,
+            Email = raterEmail,
+            Rating = (int)Math.Round(selectedRating, MidpointRounding.AwayFromZero),
+            CaptchaChallengeId = captcha?.ChallengeToken,
+            CaptchaAnswer = captcha?.Answer
+        };
+    }
+
+    /// <summary>
+    /// Shows a rejected submission and re-arms the captcha.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> A captcha rejection is reported next to the image; anything
+    /// else carries the service's own message. Either way the challenge has been consumed, so a
+    /// fresh one is issued.</para>
+    /// <para><b>Side Effects:</b> Issues a new captcha challenge.</para>
+    /// </remarks>
+    /// <param name="errorMessage">The service's visitor-safe failure message.</param>
+    private void ShowFailure(string errorMessage)
+    {
+        isStatusError = true;
+
+        if (IsCaptchaFailure(errorMessage))
+        {
+            statusMessage = captcha?.IsQuestionMode == true
+                ? "Please answer the new verification question and try again."
+                : "Please retype the characters from the verification image and try again.";
+            captcha?.ShowError(errorMessage);
+            return;
+        }
+
+        statusMessage = errorMessage;
+        captcha?.Reset();
+    }
+
+    /// <summary>
+    /// Shows an accepted submission and refreshes the public figures.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The average will not move until the address confirms, which
+    /// is exactly what the outcome message tells the visitor.</para>
+    /// <para><b>Side Effects:</b> Reloads the statistics, issues a new captcha challenge.</para>
+    /// </remarks>
+    /// <param name="message">The outcome message from the service.</param>
+    /// <returns>A task that completes when the refreshed figures have been read.</returns>
+    private async Task ShowSuccessAsync(string message)
+    {
+        isStatusError = false;
+        statusMessage = string.IsNullOrWhiteSpace(message) ? "Thank you for rating this post." : message;
+        isIdentifyStepVisible = false;
+        // Back to empty stars, so a visitor who changes their mind can pick the SAME score
+        // again and still raise ValueChanged.
+        selectedRating = 0;
+        await LoadStatsAsync();
+    }
+
+    /// <summary>
+    /// Tests whether a service failure came from the captcha gate.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> <c>CaptchaSvc</c> owns a small set of visitor-facing messages,
+    /// all of which name the verification image, the verification challenge, the verification
+    /// question or the characters on the image. The "question" wording arrived with the
+    /// accessible alternative challenge. [REQ-UI-057]</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <param name="message">The failure message under test.</param>
+    /// <returns>True when the message came from the captcha service.</returns>
+    private static bool IsCaptchaFailure(string message)
+    {
+        return !string.IsNullOrEmpty(message)
+            && (message.Contains("verification image", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("verification challenge", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("verification question", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("characters did not match", StringComparison.OrdinalIgnoreCase));
+    }
+}

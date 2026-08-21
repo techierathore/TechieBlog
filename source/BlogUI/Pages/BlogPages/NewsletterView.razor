@@ -1,0 +1,110 @@
+@*
+    NewsletterView.razor
+    Purpose: Public read view of one sent newsletter issue.
+
+    REQ-UI-054 (BRD-101) — issue number, title, sent date, rendered body,
+    previous/next navigation by send order, and a compact subscribe CTA.
+    An unknown or unsent slug is a 404: NewsletterSvc's published predicate
+    (sent + public + slugged) is the only way in, so a draft is unreachable.
+
+    Dependencies: INewsletterService (slug resolution + prev/next, REQ-FN-050),
+                  MarkdownRenderer (body), NewsletterSubscribeCard, BlogBreadcrumb.
+    Layout: FullWidthLayout — content-focused, no blog sidebar (matches mockup 43).
+    Mockup: docs/mockups/43-newsletter-view.html
+*@
+
+@page "/newsletter/{Slug}"
+@layout FullWidthLayout
+
+@if (isLoading)
+{
+    <div class="mx-auto flex w-full max-w-[820px] flex-col gap-4" data-testid="newsletter-view-loading">
+        <Skeleton Class="h-6 w-32 rounded-md" />
+        <Skeleton Class="h-10 w-full rounded-md" />
+        <Skeleton Class="h-64 w-full rounded-md" />
+    </div>
+}
+else if (issue != null)
+{
+    <PageTitle>Issue #@issueNumber — @issue.Title · TechieBlog</PageTitle>
+
+    <article class="mx-auto w-full max-w-[820px]" data-testid="newsletter-view">
+
+        <BlogBreadcrumb Items="@breadcrumbItems" />
+
+        @* ---- Header ------------------------------------------------------ *@
+        <header class="mb-6 mt-5 flex flex-col gap-3">
+            <div>
+                <Badge data-testid="newsletter-view-number">Issue #@issueNumber</Badge>
+            </div>
+
+            <h1 class="text-balance text-4xl font-bold tracking-tight text-foreground"
+                data-testid="newsletter-view-title">@issue.Title</h1>
+
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                <span class="inline-flex items-center gap-2" data-testid="newsletter-view-date">
+                    <LucideIcon Name="calendar" Size="16" />
+                    Sent @FormatSentOn()
+                </span>
+                @if (issue.RecipientCount > 0)
+                {
+                    <span aria-hidden="true">·</span>
+                    <span class="inline-flex items-center gap-2" data-testid="newsletter-view-recipients">
+                        <LucideIcon Name="users" Size="16" />
+                        Sent to @issue.RecipientCount.ToString("N0") subscribers
+                    </span>
+                }
+            </div>
+        </header>
+
+        <Separator />
+
+        @* ---- Issue body — rendered from the stored content --------------- *@
+        <div class="markdown-content mt-6" data-testid="newsletter-view-body">
+            @((MarkupString)renderedBody)
+        </div>
+
+        @* ---- Previous / next issue --------------------------------------- *@
+        <Card Class="my-8" data-testid="newsletter-view-nav">
+            <CardContent Class="flex flex-wrap items-center gap-4 p-6">
+                <div class="min-w-[14rem] flex-1">
+                    <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                         data-testid="newsletter-view-position">
+                        Issue @issueNumber of @totalIssues · Newsletter
+                    </div>
+                    <a href="/newsletters"
+                       class="text-base font-semibold text-primary hover:underline"
+                       data-testid="newsletter-view-all">All issues</a>
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                    @if (navigation.HasPrevious)
+                    {
+                        <Button Href="@($"/newsletter/{navigation.PreviousIssue.Slug}")"
+                                Variant="ButtonVariant.Outline"
+                                data-testid="newsletter-view-previous">
+                            <LucideIcon Name="arrow-left" Size="16" />
+                            Issue #@(issueNumber - 1)
+                        </Button>
+                    }
+                    @if (navigation.HasNext)
+                    {
+                        <Button Href="@($"/newsletter/{navigation.NextIssue.Slug}")"
+                                data-testid="newsletter-view-next">
+                            Issue #@(issueNumber + 1)
+                            <LucideIcon Name="arrow-right" Size="16" />
+                        </Button>
+                    }
+                </div>
+            </CardContent>
+        </Card>
+
+        <Separator />
+
+        @* ---- Compact subscribe CTA (double opt-in, BRD-98) ---------------- *@
+        <div class="my-6">
+            <NewsletterSubscribeCard Compact="true" TestId="newsletter-view-subscribe" />
+        </div>
+
+    </article>
+}

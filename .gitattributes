@@ -61,3 +61,12 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+
+
+# TechieFlow — LF working tree on every platform (CRLF only where Windows demands it),
+# and append-only telemetry logs that keep BOTH sides on merge.
+# Managed by scaffold/update-framework.sh.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+docs/metrics/*.jsonl text eol=lf merge=union
