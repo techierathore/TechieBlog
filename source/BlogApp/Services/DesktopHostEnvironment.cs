@@ -15,10 +15,15 @@ namespace BlogApp.Services;
 /// <c>FileStorageFactory</c> reads <see cref="WebRootPath"/> when site settings select the local
 /// storage provider.</para>
 /// <para><b>Dependencies:</b> <see cref="PhysicalFileProvider"/>.</para>
-/// <para><b>Usage:</b> Uploads made from BlogApp with the *local* storage provider land in the
-/// desktop machine's app-data folder rather than on the web server's disk, so a site that serves
-/// images from its own <c>wwwroot</c> should be switched to the configured cloud provider before
-/// uploading from the desktop head. Database-recorded image metadata is shared either way.</para>
+/// <para><b>Usage:</b> This type answers "where is this head's web root", and on a desktop machine
+/// the only truthful answer is a local folder. That is no longer where uploads go: as this class
+/// warned, an upload landing here reaches the desktop's own disk while the database row it writes
+/// points at <c>/uploads/…</c> on the web server, so the image exists nowhere the site can serve
+/// it — which is exactly what owner UAT found on 2026-08-22. <see cref="DesktopFileStorageFactory"/>
+/// now redirects filesystem uploads to the media folder configured on the connection-setup screen
+/// (REQ-FN-062), and this root is the fallback for a head that has not configured one. Cloud
+/// storage was, and remains, the other correct answer. Database-recorded image metadata is shared
+/// either way.</para>
 /// </remarks>
 public class DesktopHostEnvironment : IWebHostEnvironment
 {

@@ -1,0 +1,302 @@
+@*
+    SpeakerProfile.razor
+    Purpose: Public "Speaker Profile" page — the owner's conference and meetup talks, split into
+             Future Sessions (with a registration link) and Past Sessions.
+
+    Usage: Navigate to /speaker-profile
+    Dependencies: TrBlazeUI.Components, IUserEventRepo (rows of type 'Speaking'), IBlogUserRepo
+    Authorization: anonymous — this is a public page.
+
+    Why the two tables are ordered in opposite directions: Future Sessions reads soonest-first,
+    because the next thing happening is the one a visitor can still act on; Past Sessions reads
+    newest-first, because a speaking history is read as a track record and the most recent talk is
+    the most relevant. Sorting both the same way would bury one of those.
+*@
+@page "/speaker-profile"
+@layout FullWidthLayout
+@using BlogModels
+@using BlogModels.Models
+
+<PageTitle>Speaker Profile · TechieBlog</PageTitle>
+
+@*
+    `page-container` is a real CSS rule matching the mockups' `.container` (1120px). It replaced an
+    inert `max-w-[1100px]`: this build ships TrBlazeUI's PREBUILT stylesheet with no Tailwind JIT, so
+    an arbitrary-value utility is never generated and quietly does nothing.
+*@
+<div class="page-container py-10 space-y-10" data-testid="speaker-profile-page">
+
+    @* ---- Banner masthead ------------------------------------------------ *@
+    @*
+        The photograph is the site owner speaking at a conference. It already existed in the
+        repository as `images/SpeakingBg.jpg` — an orphan from the pre-TrBlazeUI design, referenced
+        by nothing — so this revives an asset rather than adding one.
+
+        It is served from a DOWNSCALED copy (`speaking-banner.jpg`, 1920x652, 141 KB) rather than the
+        5973x2029 / 1.51 MB original. The original is nearly eleven times the bytes for pixels no
+        viewport can show, and it would have been the page's LCP element; shipping it as-is would
+        have put a megabyte and a half in front of REQ-NFR-001's budget for a decorative masthead.
+
+        `width`/`height` are declared so the browser reserves the box from the first paint — the
+        heading below must not jump when the image lands. It is NOT lazy-loaded: it is the topmost
+        element on the page, and deferring it would delay the very thing the viewer is waiting for.
+    *@
+    <header class="speaker-banner" data-testid="speaker-banner">
+        <img src="_content/BlogUI/images/speaking-banner.jpg"
+             width="1920"
+             height="652"
+             decoding="async"
+             alt="S Ravi Kumar speaking at a conference podium"
+             data-testid="speaker-banner-image" />
+        <div class="speaker-banner__scrim" aria-hidden="true"></div>
+        <div class="speaker-banner__content">
+            <h1 class="speaker-banner__title" data-testid="speaker-profile-heading">
+                Speaker Profile
+            </h1>
+            <p class="speaker-banner__sub" data-testid="speaker-profile-intro">
+                Conference sessions, meetups and workshops — what I spoke about, and where.
+            </p>
+        </div>
+    </header>
+
+    @if (isLoading)
+    {
+        <div class="flex items-center justify-center gap-3 py-16" data-testid="speaker-profile-loading">
+            <Spinner />
+            <span class="text-sm text-muted-foreground">Loading sessions…</span>
+        </div>
+    }
+    else
+    {
+        @* ---- Future sessions -------------------------------------------- *@
+        @*
+            Rendered ONLY when there is something upcoming. An empty "Future Sessions" table on a
+            speaker page reads as "nobody books this person any more", which is a worse message
+            than saying nothing at all — so the whole section is omitted rather than shown empty.
+        *@
+        @if (upcomingSessions.Count > 0)
+        {
+            <section class="space-y-4" data-testid="speaker-future-section">
+                <div class="flex items-center gap-3">
+                    <h2 class="text-2xl font-semibold tracking-tight" data-testid="speaker-future-heading">
+                        Future Sessions
+                    </h2>
+                    <Badge data-testid="speaker-future-count">@upcomingSessions.Count</Badge>
+                </div>
+
+                @* Wide tables must scroll inside their own container, never widen the page. *@
+                <div class="overflow-x-auto rounded-lg border border-border">
+                    <table class="w-full min-w-[820px] text-sm" data-testid="speaker-future-table">
+                        <thead class="bg-muted/50">
+                            <tr class="text-left">
+                                <th scope="col" class="px-4 py-3 font-semibold w-[130px]">Date</th>
+                                <th scope="col" class="px-4 py-3 font-semibold w-[220px]">Event</th>
+                                <th scope="col" class="px-4 py-3 font-semibold w-[220px]">Session</th>
+                                <th scope="col" class="px-4 py-3 font-semibold">Details</th>
+                                <th scope="col" class="px-4 py-3 font-semibold w-[130px]">Registration</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var session in upcomingSessions)
+                            {
+                                <tr class="border-t border-border align-top" data-testid="speaker-future-row">
+                                    <td class="px-4 py-3 whitespace-nowrap text-muted-foreground"
+                                        data-testid="speaker-future-date">@FormatDate(session)</td>
+                                    <td class="px-4 py-3">@RenderEventCell(session)</td>
+                                    <td class="px-4 py-3 font-medium text-foreground"
+                                        data-testid="speaker-future-session">@Display(session.SessionTitle)</td>
+                                    <td class="px-4 py-3 text-muted-foreground"
+                                        data-testid="speaker-future-details">@Display(session.Description)</td>
+                                    <td class="px-4 py-3">
+                                        @if (!string.IsNullOrWhiteSpace(session.RegistrationUrl))
+                                        {
+                                            <a href="@session.RegistrationUrl"
+                                               target="_blank"
+                                               rel="noopener noreferrer"
+                                               class="inline-flex items-center gap-1 text-primary underline"
+                                               aria-label="@($"Register for {session.SessionTitle} (opens in a new tab)")"
+                                               data-testid="speaker-future-register">
+                                                Register<LucideIcon Name="external-link" Size="13" />
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted-foreground" aria-label="No registration link">—</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        }
+
+        @* ---- Past sessions ---------------------------------------------- *@
+        <section class="space-y-4" data-testid="speaker-past-section">
+            <div class="flex items-center gap-3">
+                <h2 class="text-2xl font-semibold tracking-tight" data-testid="speaker-past-heading">
+                    Past Sessions
+                </h2>
+                <Badge Variant="BadgeVariant.Secondary" data-testid="speaker-past-count">@pastSessions.Count</Badge>
+            </div>
+
+            @if (pastSessions.Count == 0)
+            {
+                <Empty Title="No sessions recorded yet"
+                       Description="Speaking engagements will appear here once they are added."
+                       data-testid="speaker-past-empty">
+                    <Icon><LucideIcon Name="mic-off" Size="48" /></Icon>
+                </Empty>
+            }
+            else
+            {
+                <div class="overflow-x-auto rounded-lg border border-border">
+                    <table class="w-full min-w-[760px] text-sm" data-testid="speaker-past-table">
+                        <thead class="bg-muted/50">
+                            <tr class="text-left">
+                                <th scope="col" class="px-4 py-3 font-semibold w-[130px]">Date</th>
+                                <th scope="col" class="px-4 py-3 font-semibold w-[240px]">Event</th>
+                                <th scope="col" class="px-4 py-3 font-semibold w-[240px]">Session</th>
+                                <th scope="col" class="px-4 py-3 font-semibold">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var session in pastSessions)
+                            {
+                                <tr class="border-t border-border align-top" data-testid="speaker-past-row">
+                                    <td class="px-4 py-3 whitespace-nowrap text-muted-foreground"
+                                        data-testid="speaker-past-date">@FormatDate(session)</td>
+                                    <td class="px-4 py-3">@RenderEventCell(session)</td>
+                                    <td class="px-4 py-3 font-medium text-foreground"
+                                        data-testid="speaker-past-session">@Display(session.SessionTitle)</td>
+                                    <td class="px-4 py-3 text-muted-foreground"
+                                        data-testid="speaker-past-details">@Display(session.Description)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    // Rendered when a field the owner has not filled in yet is displayed. An em dash reads as
+    // "deliberately empty" where a blank cell reads as a broken page.
+    private const string EmptyCell = "—";
+
+    private IReadOnlyList<UserEvent> upcomingSessions = [];
+    private IReadOnlyList<UserEvent> pastSessions = [];
+    private bool isLoading = true;
+
+    /// <summary>Repository supplying the speaking rows.</summary>
+    [Inject]
+    public IUserEventRepo EventRepo { get; set; } = default!;
+
+    /// <summary>Repository used to resolve whose profile this is.</summary>
+    [Inject]
+    public IBlogUserRepo UserRepo { get; set; } = default!;
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSessionsAsync();
+    }
+
+    /// <summary>
+    /// Loads the site owner's speaking engagements and splits them into the two tables.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The page belongs to the site owner, the same account the landing
+    /// page and <c>/resume</c> are built from, so it resolves through <c>GetSiteOwner</c> rather than
+    /// taking a user id from the route — this is a personal site, not a directory.</para>
+    /// <para><b>The split is derived from the date</b> (<see cref="UserEvent.IsUpcoming"/>), never
+    /// from a stored flag; migration 031 records why. Ordering differs per table by design: upcoming
+    /// soonest-first, past newest-first.</para>
+    /// <para><b>Side Effects:</b> A failed read leaves both lists empty and the page renders its
+    /// empty state, rather than throwing a public page away over a database blip.</para>
+    /// </remarks>
+    private async Task LoadSessionsAsync()
+    {
+        isLoading = true;
+
+        try
+        {
+            var owner = await UserRepo.GetSiteOwnerAsync();
+
+            if (owner is not null)
+            {
+                var sessions = (await EventRepo.GetByUserAndTypeAsync(owner.UserId, EventTypes.Speaking))
+                    ?.ToList() ?? [];
+
+                upcomingSessions = sessions
+                    .Where(session => session.IsUpcoming)
+                    .OrderBy(session => session.EventDate)
+                    .ToList();
+
+                pastSessions = sessions
+                    .Where(session => !session.IsUpcoming)
+                    .OrderByDescending(session => session.EventDate)
+                    .ToList();
+            }
+        }
+        catch (Exception)
+        {
+            upcomingSessions = [];
+            pastSessions = [];
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    /// <summary>Formats a session's date, or the placeholder when none was recorded.</summary>
+    /// <param name="session">The session being rendered.</param>
+    /// <returns>The formatted date.</returns>
+    private static string FormatDate(UserEvent session) =>
+        session.EventDate == default ? EmptyCell : session.EventDate.ToString("dd MMM yyyy");
+
+    /// <summary>Falls back to the placeholder for a value the owner has not supplied.</summary>
+    /// <param name="value">The value to display.</param>
+    /// <returns>The value, or the placeholder when it is blank.</returns>
+    private static string Display(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? EmptyCell : value;
+
+    /// <summary>
+    /// Renders the event cell as a link when the row carries an event URL, and as plain text
+    /// otherwise.
+    /// </summary>
+    /// <remarks>
+    /// The URL is owner-supplied and points off-site, so the link carries
+    /// <c>rel="noopener noreferrer"</c> and an accessible name that says where it goes. Blazor
+    /// HTML-encodes both the href and the text, so a hostile value cannot break out of the attribute.
+    /// </remarks>
+    /// <param name="session">The session being rendered.</param>
+    /// <returns>The cell content.</returns>
+    private RenderFragment RenderEventCell(UserEvent session) => builder =>
+    {
+        var title = Display(session.EventTitle);
+
+        if (string.IsNullOrWhiteSpace(session.EventUrl))
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "data-testid", "speaker-event-title");
+            builder.AddContent(2, title);
+            builder.CloseElement();
+            return;
+        }
+
+        builder.OpenElement(3, "a");
+        builder.AddAttribute(4, "href", session.EventUrl);
+        builder.AddAttribute(5, "target", "_blank");
+        builder.AddAttribute(6, "rel", "noopener noreferrer");
+        builder.AddAttribute(7, "class", "inline-flex items-center gap-1 text-primary underline");
+        builder.AddAttribute(8, "aria-label", $"{title} event page (opens in a new tab)");
+        builder.AddAttribute(9, "data-testid", "speaker-event-link");
+        builder.AddContent(10, title);
+        builder.CloseElement();
+    };
+}

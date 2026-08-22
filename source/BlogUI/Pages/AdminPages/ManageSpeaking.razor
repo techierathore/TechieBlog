@@ -1,0 +1,269 @@
+@*
+    ManageSpeaking.razor
+    Purpose: Admin screen for the Speaker Profile page's data — add, edit and delete the owner's
+             speaking engagements (UserEvents rows of type 'Speaking').
+
+    Usage: Navigate to /admin/speaking
+    Dependencies: TrBlazeUI.Components, IUserEventRepo
+    Authorization: EditorOrAbove — the same gate the sibling resume screens use.
+
+    The rows this screen writes are what /speaker-profile renders. Past vs Future is NOT a field
+    here: it is derived from the date (see migration 031), so the form shows which table a row will
+    land in as soon as a date is picked, rather than asking the owner to keep a flag in step.
+*@
+@page "/admin/speaking"
+@attribute [Authorize(Policy = "EditorOrAbove")]
+@layout BlogUI.Layouts.AdminLayout
+@using BlogModels
+@using BlogModels.Models
+
+<PageTitle>Speaking Engagements - TechieBlog</PageTitle>
+
+<div class="mx-auto max-w-[1400px] space-y-6" data-testid="manage-speaking-page">
+
+    @* ---- Page header --------------------------------------------------- *@
+    <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-semibold tracking-tight text-foreground">Speaking Engagements</h1>
+            <p class="text-sm text-muted-foreground">
+                The sessions listed on your public
+                <a href="/speaker-profile" class="text-primary underline" data-testid="speaking-public-link">Speaker Profile</a>
+                page.
+            </p>
+        </div>
+        <Button OnClick="@(() => ShowAddDialog())" data-testid="speaking-add">
+            <LucideIcon Name="plus" Size="16" />
+            Add Engagement
+        </Button>
+    </div>
+
+    @* ---- Status message ------------------------------------------------ *@
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <Alert Variant="@(isError ? AlertVariant.Danger : AlertVariant.Success)"
+               data-testid="speaking-status-message">
+            <LucideIcon Name="@(isError ? "circle-alert" : "circle-check")" Size="16" />
+            <AlertDescription>@statusMessage</AlertDescription>
+        </Alert>
+    }
+
+    @* ---- Engagements table ---------------------------------------------- *@
+    @if (isLoading)
+    {
+        <div class="flex flex-col items-center gap-2 py-8" data-testid="speaking-loading">
+            <Spinner />
+            <span class="text-sm text-muted-foreground">Loading…</span>
+        </div>
+    }
+    else if (engagements.Count == 0)
+    {
+        <Empty Title="No engagements yet"
+               Description="Add your first speaking engagement to build the public page."
+               data-testid="speaking-empty">
+            <Icon><LucideIcon Name="mic" Size="48" /></Icon>
+            <ChildContent>
+                <Button OnClick="@(() => ShowAddDialog())" data-testid="speaking-empty-add">Add Engagement</Button>
+            </ChildContent>
+        </Empty>
+    }
+    else
+    {
+        <div class="overflow-x-auto rounded-lg border border-border">
+            <table class="w-full min-w-[900px] text-sm" data-testid="speaking-grid">
+                <thead class="bg-muted/50">
+                    <tr class="text-left">
+                        <th scope="col" class="px-4 py-3 font-semibold w-[120px]">Date</th>
+                        <th scope="col" class="px-4 py-3 font-semibold w-[110px]">Table</th>
+                        <th scope="col" class="px-4 py-3 font-semibold w-[230px]">Event</th>
+                        <th scope="col" class="px-4 py-3 font-semibold w-[230px]">Session</th>
+                        <th scope="col" class="px-4 py-3 font-semibold">Details</th>
+                        <th scope="col" class="px-4 py-3 font-semibold w-[110px]">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in engagements)
+                    {
+                        <tr class="border-t border-border align-top" data-testid="speaking-row">
+                            <td class="px-4 py-3 whitespace-nowrap text-muted-foreground" data-testid="speaking-row-date">
+                                @(row.EventDate == default ? "—" : row.EventDate.ToString("dd MMM yyyy"))
+                            </td>
+                            <td class="px-4 py-3">
+                                @if (row.IsUpcoming)
+                                {
+                                    <Badge data-testid="speaking-row-bucket">Future</Badge>
+                                }
+                                else
+                                {
+                                    <Badge Variant="BadgeVariant.Secondary" data-testid="speaking-row-bucket">Past</Badge>
+                                }
+                            </td>
+                            <td class="px-4 py-3 text-foreground" data-testid="speaking-row-event">
+                                @(string.IsNullOrWhiteSpace(row.EventTitle) ? "—" : row.EventTitle)
+                            </td>
+                            <td class="px-4 py-3 text-foreground" data-testid="speaking-row-session">
+                                @(string.IsNullOrWhiteSpace(row.SessionTitle) ? "—" : row.SessionTitle)
+                            </td>
+                            <td class="px-4 py-3 text-muted-foreground" data-testid="speaking-row-details">
+                                @(string.IsNullOrWhiteSpace(row.Description) ? "—" : Truncate(row.Description))
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-nowrap items-center gap-1">
+                                    <Button Size="ButtonSize.IconSmall"
+                                            Variant="ButtonVariant.Ghost"
+                                            OnClick="@(() => ShowEditDialog(row))"
+                                            Disabled="@isSaving"
+                                            AriaLabel="Edit engagement"
+                                            title="Edit this engagement"
+                                            data-testid="speaking-edit">
+                                        <LucideIcon Name="pencil" Size="16" />
+                                    </Button>
+                                    <Button Size="ButtonSize.IconSmall"
+                                            Variant="ButtonVariant.Ghost"
+                                            OnClick="@(() => ShowDeleteDialog(row))"
+                                            Disabled="@isSaving"
+                                            AriaLabel="Delete engagement"
+                                            title="Delete this engagement"
+                                            data-testid="speaking-delete">
+                                        <LucideIcon Name="trash-2" Size="16" Class="text-destructive" />
+                                    </Button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="flex justify-end">
+            <span class="text-sm text-muted-foreground" data-testid="speaking-count">
+                @engagements.Count engagement@(engagements.Count == 1 ? "" : "s") ·
+                @engagements.Count(e => e.IsUpcoming) upcoming
+            </span>
+        </div>
+    }
+</div>
+
+@* ---- Add / edit dialog --------------------------------------------------- *@
+<Dialog @bind-Open="showEditDialog">
+    <DialogContent data-testid="speaking-edit-dialog">
+        <DialogHeader>
+            <DialogTitle>@(isNewEngagement ? "Add Engagement" : "Edit Engagement")</DialogTitle>
+            <DialogDescription>
+                Fields left blank show as a dash on the public page.
+            </DialogDescription>
+        </DialogHeader>
+
+        <div class="space-y-4">
+            @if (validationMessage != null)
+            {
+                <Alert Variant="AlertVariant.Danger" data-testid="speaking-validation">
+                    <LucideIcon Name="circle-alert" Size="16" />
+                    <AlertDescription>@validationMessage</AlertDescription>
+                </Alert>
+            }
+
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div class="space-y-2">
+                    <Label For="speaking-date">Date</Label>
+                    <Input Id="speaking-date"
+                           Type="InputType.Date"
+                           @bind-Value="formDateText"
+                           data-testid="speaking-form-date" />
+                    @*
+                        Live feedback rather than a rule the owner has to remember: the date alone
+                        decides which table the row lands in, so the form says which one as soon as
+                        a date is entered.
+                    *@
+                    <FieldDescription data-testid="speaking-form-bucket-hint">
+                        @BucketHint
+                    </FieldDescription>
+                </div>
+                <div class="space-y-2">
+                    <Label For="speaking-event-title">Event title</Label>
+                    <Input Id="speaking-event-title"
+                           @bind-Value="formEventTitle"
+                           Placeholder="e.g. .NET Conference 2023"
+                           data-testid="speaking-form-event-title" />
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <Label For="speaking-event-url">Event page URL</Label>
+                <Input Id="speaking-event-url"
+                       @bind-Value="formEventUrl"
+                       Placeholder="https://…"
+                       data-testid="speaking-form-event-url" />
+                <FieldDescription>The event title links here on the public page.</FieldDescription>
+            </div>
+
+            <div class="space-y-2">
+                <Label For="speaking-session-title">Session title</Label>
+                <Input Id="speaking-session-title"
+                       @bind-Value="formSessionTitle"
+                       Placeholder="The talk you gave"
+                       data-testid="speaking-form-session-title" />
+            </div>
+
+            <div class="space-y-2">
+                <Label For="speaking-description">Session details</Label>
+                <Textarea Id="speaking-description"
+                          @bind-Value="formDescription"
+                          Rows="4"
+                          Placeholder="What the session covered"
+                          data-testid="speaking-form-description" />
+            </div>
+
+            @*
+                Only meaningful for an upcoming session, so the field appears only when the date puts
+                the row in the Future table. Showing it always would invite a registration link on a
+                talk from 2016, which the public page would then never render.
+            *@
+            @if (FormIsUpcoming)
+            {
+                <div class="space-y-2">
+                    <Label For="speaking-registration-url">Registration link</Label>
+                    <Input Id="speaking-registration-url"
+                           @bind-Value="formRegistrationUrl"
+                           Placeholder="https://…"
+                           data-testid="speaking-form-registration-url" />
+                    <FieldDescription>Shown in the Registration column of Future Sessions.</FieldDescription>
+                </div>
+            }
+        </div>
+
+        <DialogFooter>
+            <Button Variant="ButtonVariant.Outline" OnClick="@CancelEdit" data-testid="speaking-form-cancel">
+                Cancel
+            </Button>
+            <Button OnClick="@SaveEngagement" Disabled="@isSaving" data-testid="speaking-form-save">
+                Save
+            </Button>
+        </DialogFooter>
+    </DialogContent>
+</Dialog>
+
+@* ---- Delete confirmation ------------------------------------------------- *@
+<Dialog @bind-Open="showDeleteDialog">
+    <DialogContent data-testid="speaking-delete-dialog">
+        <DialogHeader>
+            <DialogTitle>Delete Engagement</DialogTitle>
+            <DialogDescription>This removes the session from your public Speaker Profile.</DialogDescription>
+        </DialogHeader>
+        <p class="text-sm text-foreground">
+            Delete
+            <strong data-testid="speaking-delete-target">@(rowToDelete?.SessionTitle ?? rowToDelete?.EventTitle)</strong>?
+            This cannot be undone.
+        </p>
+        <DialogFooter>
+            <Button Variant="ButtonVariant.Outline" OnClick="@CancelDelete" data-testid="speaking-delete-cancel">
+                Cancel
+            </Button>
+            <Button Variant="ButtonVariant.Destructive"
+                    OnClick="@ConfirmDelete"
+                    Disabled="@isSaving"
+                    data-testid="speaking-delete-confirm">
+                Delete
+            </Button>
+        </DialogFooter>
+    </DialogContent>
+</Dialog>

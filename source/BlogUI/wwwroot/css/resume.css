@@ -216,6 +216,77 @@
 }
 
 /* --------------------------------------------------------------------------
+   HERO HEADLINE — mockup fidelity (UAT-008)
+   --------------------------------------------------------------------------
+   Matches `.hero h1{font-size:clamp(30px,5vw,46px);font-weight:800;margin:18px 0 6px}`
+   from docs/mockups/trblazeui.css, which both 01-home.html and 10-resume.html use.
+
+   This lives here rather than as a Tailwind arbitrary value because the build
+   ships TrBlazeUI's PREBUILT CSS and runs no JIT pass — an arbitrary class is
+   simply never generated, so it contributes nothing and the heading falls back
+   to the inherited size. Utilities that already exist in the shipped sheet are
+   fine; anything bespoke has to be a real rule like this one.
+   -------------------------------------------------------------------------- */
+
+.resume-name {
+    font-size: clamp(30px, 5vw, 46px);
+    font-weight: 800;
+    line-height: 1.15;
+    margin: 18px 0 6px;
+}
+
+/* --------------------------------------------------------------------------
+   SOCIAL ROW — mockup fidelity (UAT-008)
+   --------------------------------------------------------------------------
+   Both hero mockups render the social links as 42px bordered circles sitting on
+   the card surface with a small shadow, not as bare ghost buttons:
+
+       .social-row a{width:42px;height:42px;border:1px solid var(--border);
+                     border-radius:50%;background:var(--card);
+                     box-shadow:var(--shadow-sm)}
+       .social-row a:hover{transform:translateY(-2px)}
+
+   The markup uses TrBlazeUI <Button Href> for each link, so these rules target
+   the anchors inside .resume-social rather than replacing the component. Sizing
+   is pinned with min-width/min-height as well as width/height because the button
+   component sets its own padding, which would otherwise win and oval the circle.
+   -------------------------------------------------------------------------- */
+
+.resume-social a {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: var(--card);
+    box-shadow: var(--shadow-sm, 0 1px 2px rgb(0 0 0 / .05));
+    color: var(--muted-foreground);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.resume-social a:hover {
+    transform: translateY(-2px);
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+/* The lift is decoration, not information — respect a reduced-motion request. */
+@media (prefers-reduced-motion: reduce) {
+    .resume-social a {
+        transition: none;
+    }
+
+    .resume-social a:hover {
+        transform: none;
+    }
+}
+
+/* --------------------------------------------------------------------------
    PRINT
    -------------------------------------------------------------------------- */
 

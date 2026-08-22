@@ -290,12 +290,46 @@ cannot build this solution because `source/BlogApp` targets `net10.0-windows`.*
 - **REQ-FN-033 — real SMTP delivery is unexercised** (no SMTP host on this machine).
 - **Never driven end to end:** profile save, newsletter Send, subscriber toggles. `newsletter` has
   0 rows, so REQ-UI-054 / REQ-FN-050 are unexercised.
-- **BlogApp (MAUI) is build-verified only** — no runtime coverage (REQ-UI-051/052, REQ-FN-046/047).
+- **BlogApp (MAUI): "build-verified only" is RETIRED (2026-08-22).** The real desktop head was driven
+  over its own WebView2 CDP through the landing route, the connection-settings screen (probe, save,
+  restart), an end-to-end image upload asserted at byte level, `/admin/skills`, `/admin/experience`,
+  `/admin/images` and `/resume`. Owner UAT found three defects there, all fixed (REQ-UI-063,
+  REQ-FN-062, REQ-UI-064). What is still undriven is the rest of the admin surface, not the head.
+- **⚠ BlogApp: choose how images reach the server before uploading any.** Images are not stored in
+  the database — the website serves them from a directory on the server's disk — so a desktop head
+  that knows only where the *database* lives writes every upload to your own machine. In BlogApp go
+  to **Change connection → Media storage** and pick one:
+  - **Send to the server over SSH (SFTP)** — the right choice for this deployment. The site is a
+    Linux VPS answering on 443 and 22 only, so its uploads directory cannot be mounted as a Windows
+    path. Enter the SSH host, username, a password *or* a private-key file, and the server's own
+    uploads directory: `/srv/data/techieblog/uploads`.
+  - **Write to a mapped drive or network share** — only if the server's uploads directory really is
+    reachable as a path. **A folder on this computer is refused**, however it is named: writing
+    there cannot get an image onto the website, which is the whole point of the setting.
+  - **Keep uploads on this machine** — the default, and legal. Nothing you upload will appear on the
+    website. Right if you only edit text from the desktop.
+
+  Press **Test** before saving. It writes a file to the destination, **reads it back** and deletes
+  it, so a pass means the bytes genuinely made the journey — not merely that a folder was writable.
+  The optional **Website address** (`https://techierathore.com`) is only used to *display* images
+  inside BlogApp; stored paths are unchanged and the website does not need it.
+
+  The SSH private key is chosen with a **Browse** button — you do not type the path.
+
+  **⚠ Historical note, and a one-click recovery.** Before 2026-08-22 the screen offered only a folder
+  box and its probe reported success for a folder on the local C: drive. Any image uploaded from
+  BlogApp before that is still on this machine. **You do not need to re-upload them, and you do not
+  need `scp`:** once the SSH transport is configured and tested, use **Send to server** on the same
+  panel. Point it at a folder that plays the part of `uploads` and it pushes everything underneath,
+  preserving the `logos/`, `awards/` … layout. Run it for
+  `%LOCALAPPDATA%\TechieBlog\BlogApp\wwwroot\uploads` (the default) and for
+  `C:\srv\data\techieblog\uploads`. The filenames already match what the database rows point at,
+  so the existing images simply start working — nothing is written to the database.
 - **Accessibility rests on a workaround** — axe reports 0/0 via an `App.razor` MutationObserver
   (TR-054/063/064); **no screen-reader pass has ever been run**.
 
 *(Removed at handoff because each was verified false: the `NU1605` build failure — REQ-FN-043 is
 `Verified` and the build is green 7/7; in-memory reset tokens — `017-SecurityAndTokenPersistence.sql`
-persists them; "no automated tests and no CI" — 1 490 tests and two workflows exist; "the seeded
+persists them; "no automated tests and no CI" — 1 496 tests and two workflows exist; "the seeded
 admin password is plaintext" — it is PBKDF2-HMAC-SHA256 at 210 000 iterations.)*
 - No TrBlazeUI or TechieRag library dependency, so there are no `TR-` / `TR-RAG-` feedback items for this project.

@@ -287,6 +287,18 @@ public class AuthSvc
         if (user == null)
             return LoginAttempt.Refused(credential.UserId);
 
+        // A deactivated or soft-deleted account is refused here, AFTER the password check rather than
+        // before it, so the response is indistinguishable from a wrong password and cannot be used to
+        // enumerate which addresses belong to disabled accounts. The candidate id is still reported,
+        // so the audit trail (REQ-FN-051) records the refusal against the right account.
+        //
+        // One flag covers both states: SoftDeleteBlogUser (migration 030) clears IsConfirmed in the
+        // same statement that sets IsDeleted, so a deleted account is by construction an unconfirmed
+        // one. Until that migration this check did not exist at all, which made the Activate /
+        // Deactivate control on /users decorative on the enforcement side as well as the write side.
+        if (!user.IsConfirmed)
+            return LoginAttempt.Refused(credential.UserId);
+
         user.MustChangePassword = credential.MustChangePassword;
         return new LoginAttempt(user, credential.UserId);
     }

@@ -3,8 +3,16 @@
 <!-- Produced by *mockups on 2026-08-06 per the amended BRD (BRD-92 TrBlazeUI adoption, BRD-30 revised
      portfolio home, BRD-93 no public admin entry, BRD-94…97 BlogApp desktop). This spec + the rendered
      docs/mockups/*.html are the visual contract the build matches and the verifier's visual-truth gate
-     diffs against. The legacy Fluent-styled set at repo-root mockups/ (28 files) is superseded and kept
-     read-only for history. -->
+     diffs against — they are the ONLY mockup set, and every "Mockup:" link below is relative to this
+     docs/ folder.
+
+     A second, older set used to sit at repo-root mockups/ (the pre-REQ-UI-048 Fluent design, last
+     touched 2025-12-16, no TrBlazeUI anywhere in it). It was DELETED on 2026-08-22 at the owner's
+     instruction. The reason is worth keeping: an `@mockups/` reference resolves from the repo root,
+     so a comparison meant for THIS set silently ran against that one, and the resulting "the site
+     looks nothing like the mockups" was a folder mix-up rather than a defect (checklist UAT-008).
+     There is now exactly one folder named mockups in the repository, and it is this one. Do not
+     re-create the other. -->
 
 **Component library:** TrBlazeUI (`TrBlazeUI.Components`, GitHub Packages feed) — shadcn/ui-compatible,
 CSS-variable theming, dark mode via `.dark` on `<html>`, `<PortalHost />` required in root layouts.

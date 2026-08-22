@@ -102,7 +102,8 @@ public partial class AdminLayout
             new("Experience", "/admin/experience", "briefcase", AppPolicies.AuthorOrAbove, "nav-experience"),
             new("Skills", "/admin/skills", "zap", AppPolicies.AuthorOrAbove, "nav-skills"),
             new("Awards", "/admin/awards", "award", AppPolicies.AuthorOrAbove, "nav-awards"),
-            new("Statistics", "/admin/stats", "trending-up", AppPolicies.AuthorOrAbove, "nav-stats")
+            new("Statistics", "/admin/stats", "trending-up", AppPolicies.AuthorOrAbove, "nav-stats"),
+            new("Speaking", "/admin/speaking", "mic", AppPolicies.EditorOrAbove, "nav-speaking")
         }),
         new("Audience", new List<NavEntry>
         {

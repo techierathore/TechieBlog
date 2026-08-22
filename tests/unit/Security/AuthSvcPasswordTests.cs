@@ -67,6 +67,33 @@ public class AuthSvcPasswordTests
     }
 
     /// <summary>
+    /// An account whose IsConfirmed flag is false is refused even when the password is correct.
+    /// This is the enforcement half of UAT-003: before it, deactivating a user from the admin screen
+    /// changed nothing, because AuthenticateAsync never consulted the flag and the write that set it
+    /// was being discarded by a stored function that has no such parameter. The refusal is also what
+    /// makes a soft-deleted account unable to sign in, since SoftDeleteBlogUser clears IsConfirmed
+    /// in the same statement.
+    /// </summary>
+    [Fact]
+    public async Task DeactivatedAccountCannotSignIn()
+    {
+        GivenStoredCredential(PasswordHasher.HashPassword(SamplePassword));
+        userRepo.GetSingleAsync(7L, Arg.Any<CancellationToken>()).Returns(new AppUser
+        {
+            UserId = 7L,
+            FirstName = "Deactivated",
+            LastName = "Member",
+            EmailId = SampleEmail,
+            UserRole = "Author",
+            IsConfirmed = false
+        });
+
+        var result = await BuildService().AppLoginAsync(BuildEnvelope(SampleEmail, SamplePassword));
+
+        Assert.Null(result);
+    }
+
+    /// <summary>
     /// The hash written back by the upgrade verifies the very password that was just used, which
     /// is what guarantees the account still works on the following sign-in.
     /// </summary>
@@ -269,13 +296,17 @@ public class AuthSvcPasswordTests
             MustChangePassword = false
         });
 
+        // IsConfirmed must be set explicitly: AuthenticateAsync refuses an unconfirmed or
+        // soft-deleted account after the password check (UAT-003), and the property defaults to
+        // false. A fake that omits it is modelling a DEACTIVATED user, not an ordinary one.
         userRepo.GetSingleAsync(7L, Arg.Any<CancellationToken>()).Returns(new AppUser
         {
             UserId = 7L,
             FirstName = "Legacy",
             LastName = "Member",
             EmailId = SampleEmail,
-            UserRole = "Author"
+            UserRole = "Author",
+            IsConfirmed = true
         });
     }
 

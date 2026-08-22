@@ -88,10 +88,17 @@ else if (skillsByCategory is not null && skillsByCategory.Count > 0)
         {
             var skills = await SkillsRepo.GetByUserIdAsync(UserId);
 
-            // Group by Category and order each group by DisplayOrder
+            // REQ-UI-064: categories are ordered by the LOWEST DisplayOrder they contain, not
+            // alphabetically. The skills always carried the author's intended sequence; ordering
+            // the groups by name discarded it at the category level, so /admin/skills offered no
+            // move that could reach this page's category order. The two-key rule here is the same
+            // one ManageSkills.OrderCategories applies, so what an author arranges in the admin
+            // screen is what a visitor sees. Name remains the tie-break, which keeps the order
+            // stable when numbers are equal or absent.
             skillsByCategory = skills
                 .GroupBy(s => s.Category)
-                .OrderBy(g => g.Key)
+                .OrderBy(g => g.Min(s => s.DisplayOrder))
+                .ThenBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(
                     g => g.Key,
                     g => g.OrderBy(s => s.DisplayOrder).ToList()

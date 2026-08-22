@@ -145,7 +145,11 @@
         new("Series", "/series", "book-open", "nav-series"),
         new("Newsletter", "/newsletters", "mail", "nav-newsletter"),
         new("Resume", "/resume", "file-text", "nav-resume"),
-        new("About", "/about", "info", "nav-about")
+        new("Speaking", "/speaker-profile", "mic", "nav-speaker-profile")
+        // "About" deliberately NOT listed (owner, 2026-08-22): the footer already links it, and a
+        // second copy in the primary nav spends prime navigation space on a page nobody arrives
+        // looking for. The ROUTE is untouched — /about still resolves, the footer link still works,
+        // and the home page's About section still deep-links to it.
     };
 
     /// <summary>

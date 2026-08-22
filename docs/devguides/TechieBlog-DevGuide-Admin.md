@@ -15,7 +15,7 @@ snapshot proved unsafe — sibling agents moved the data mid-run).
 |--------|----------|--------|
 | `/admin` dashboard | **renders ✓ (runtime-confirmed)** | Posts 10, Users 4, Comments 16, Subscribers 7 — every tile an exact psql match. Needs-Attention 6/1/1 exact. Quick actions genuinely role-gated: an Editor is offered only the 2 non-`AdminOnly` destinations and both open without an access-denied bounce |
 | `/admin` popular posts | **renders-empty (NO-DATA, downstream defect)** | shows an explicit empty state rather than a fabricated ranking — correct behaviour, but it can never populate because view tracking is dead code (`REQ-FN-034`) |
-| `/users`, `/AddUser` | **renders ✓** | 4 rows with email + role badge, search narrows 4→1, all 7 create-form controls present. **Mutation half unproven** — the change-role Select's option list could not be driven, so role persistence is unverified |
+| `/users`, `/AddUser` | **renders ✓ (re-confirmed 2026-08-22)** | 4 rows with email + role badge, search narrows 4→1, all 7 create-form controls present. **Edit / activate / delete added and runtime-proven** (checklist `UAT-002`, `UAT-003`): the edit dialog prefills and its save survives a reload, deactivation now actually persists, delete removes the row (4→3), and the self / site-owner / last-admin guards render disabled with the reason in the tooltip. Screenshots `tests/.artifacts/harness/uat-users/` |
 | `/CommentsList` | **renders ✓** | 16/16 rows all cells populated, tabs exact vs psql, 26 per-row controls + bulk actions; delete dialog opened and **cancelled** |
 | `/admin/categories`, `/admin/tags` | **renders ✓** | 5 and 15 rows; per-row counts sum to the published-only totals exactly (8 and 27); editors load populated; delete dialogs opened and **cancelled** |
 | `/admin/subscribers` | **renders ✓** | 7 rows = psql, summary "7 total (6 active)" exact, CSV export produced a real download. **Gap:** no delete/remove control exists — `Unsubscribe` is reachable only from the public token |
@@ -24,8 +24,8 @@ snapshot proved unsafe — sibling agents moved the data mid-run).
 | `/admin/analytics` | **renders-empty (NO-DATA, downstream defect)** | rating and comment tiles carry real numbers and the date range provably moves them; Views/Unique are 0 and the trend, popular and category panels show empty states — because `postviews` is never written (`REQ-FN-034`) |
 | `AdminLayout` | **renders ✓** | 6 group headings, 17 entries for Admin vs 10 for Editor — refused groups are **hidden, not rendered empty**; exactly one active highlight; account menu names the identity |
 | `/admin/images` | **render-error (DEFECT)** | gallery and per-category validation work end to end (upload → serve → delete), but the **user-filter Select displays the raw value `0`** instead of its "All Users" label. Reproduced on both heads |
-| `/admin/skills` | **render-error (DEFECT)** | 13 skills in 5 categories = psql, but the **admin user selector shows the raw id `1`** instead of a user name — same defect class as above |
-| `/admin/experience`, `/admin/awards` | **render-error (DEFECT)** | lists, ordering, add/edit/delete and the user selector all render, but the acceptance-named **company-logo picker and badge-image picker do not exist** — both are plain text path inputs with 0 `ImagePicker` instances |
+| `/admin/skills` | **render-error (DEFECT)** | 13 skills in 5 categories = psql, but the **admin user selector shows the raw id `1`** instead of a user name — same defect class as above. **Updated 2026-08-22 (REQ-UI-064, owner UAT):** the screen now orders CATEGORIES by the lowest `DisplayOrder` they contain instead of alphabetically, carries category Move up / Move down controls, and shows a per-skill order badge — driven live in the BlogApp head, and the public `/resume` was confirmed to render the identical category sequence. The per-skill Move up / Move down chevrons were already present and working; what did not work was a swap between two skills sharing a `DisplayOrder`, which wrote two rows and moved nothing. Both moves now run through one renumbering pass |
+| `/admin/experience`, `/admin/awards` | **render-error (DEFECT), one half CORRECTED** | lists, ordering, add/edit/delete and the user selector all render. **The "company-logo picker and badge-image picker do not exist" finding is STALE and is withdrawn (2026-08-22):** `/admin/experience` was driven live in the BlogApp head and its `experience-logo-picker` contains a real `ImagePicker` — the gallery and upload dialogs both open, and an upload through it was completed end to end and asserted at byte level. REQ-UI-037/039 built the pickers after this row was written; the plain path input beside the picker is a documented alternative, not its absence. The user-selector raw-value defect above is unaffected |
 | `/admin/profile` | **visual-broken (DEFECT)** | all 10 fields match psql byte-for-byte and the **`REQ-FN-053` data-loss regression holds** (md5 over the nine at-risk columns identical across a no-edit save). At 390 `clear-image` **overlaps** `upload-new-image` and is invisible in the render |
 | `/admin/newsletter` | **renders ✓ with a dead link (DEFECT)** | compose, preview, live audience estimate, send and per-recipient delivery log all work — but every message carries an unsubscribe link to `/unsubscribe/{token}`, which **404s with a zero-byte body**. No page is routed there |
 | `/ManagePost` (see Author guide) | **render-error (DEFECT)** | the Markdown textarea **loses and reorders keystrokes**; saving with no category selected surfaces a **raw PostgreSQL FK violation** to the user |
@@ -44,16 +44,45 @@ directly; there is no user service.**
 
 | Control | What it does | Source call | Render status |
 |---------|--------------|-------------|---------------|
-| User table | Lists all users | `BlogUserRepo.GetAll(...)` | static-only (unconfirmed) |
-| Role change / enable-disable | Persists the edited user | `BlogUserRepo.Update(...)` | static-only (unconfirmed) |
+| User table | Lists all **live** users (soft-deleted rows excluded) | `BlogUserRepo.GetAllAsync(...)` → `SELECT * FROM BlogUser WHERE IsDeleted = FALSE` | **renders ✓ (runtime-confirmed 2026-08-22)** — 4 rows |
+| Edit user (`user-edit`) | Opens a dialog for first name, last name, email and role; validates blanks, malformed and duplicate email, and last-admin demotion | `BlogUserRepo.UpdateAsync(...)` → `UpdateBlogUser(...)` | **renders ✓ (runtime-confirmed)** — edit persisted across a reload |
+| Activate / deactivate (`user-activate` / `user-deactivate`) | Writes `IsConfirmed` **only** | `BlogUserRepo.SetUserActiveAsync(...)` → `SetBlogUserActive(...)` | **renders ✓ (runtime-confirmed)** — deactivation persisted across a reload |
+| Delete user (`user-delete`) | Confirmation dialog, then a **soft** delete | `BlogUserRepo.SoftDeleteUserAsync(...)` → `SoftDeleteBlogUser(...)` | **renders ✓ (runtime-confirmed)** — row removed from the list |
 
-**Data lineage:** page → `IBlogUserRepo` → `BlogUserRepo.cs` → `SELECT * FROM BlogUser` (and the
-stored function `SelectBlogUserById` for single reads) / inline `UPDATE BlogUser`.
+**Data lineage:** page → `IBlogUserRepo` → `BlogUserRepo.cs` → `SELECT * FROM BlogUser WHERE
+IsDeleted = FALSE` (and the stored function `SelectBlogUserById` for single reads) /
+`UpdateBlogUser` · `SetBlogUserActive` · `SoftDeleteBlogUser` (migration
+`030-UserAdminEditDelete.sql`).
 
-**Known issues (static):** Story 2.6 specifies search/filter, last-login display, delete with
-confirmation and an audit-log entry per admin action. Only list + update were found —
-`{unresolved — TODO: confirm whether search/delete exist in the markup}`. No audit-log write was
-located anywhere in the codebase.
+**Why activation has its own write path — do not "simplify" it back.** `UpdateBlogUser` has thirteen
+parameters and `IsConfirmed` is not one of them. Until 2026-08-22 the toggle flipped the flag on the
+in-memory model and called the general `Update`, so the write was silently discarded and the badge
+reverted on the next load (UAT-003). `SetBlogUserActive` writes that one column and nothing else;
+folding it back into `Update` would also mean any caller holding a projection without the column
+could clobber a live account's activation during an unrelated profile save.
+
+**Delete is a soft delete, and that is deliberate.** `BlogUser` is the target of **16** foreign keys
+and only 4 declare `ON DELETE CASCADE`, so a hard `DELETE` would be refused outright for any account
+that has written a post or left a comment — the exact account an administrator wants to remove —
+while succeeding for a new one and taking its ratings and favourites with it. The row is flagged
+instead: the account disappears from every list and every identity lookup (`GetUserByEmail`,
+`GetLoginUser`, username and site-owner lookups all filter it), while its posts and comments stay
+published and attributed. `SoftDeleteBlogUser` clears `IsConfirmed` in the same statement, so the
+single confirmation check in `AuthSvc.AuthenticateAsync` refuses deleted and deactivated accounts
+alike. **`GetSingle` / `GetAllById` are deliberately NOT filtered** — a caller holding a `UserId` is
+resolving a specific row to render authorship, and hiding it there would blank the author name on
+every post a departed writer left behind.
+
+**Guards (code-behind, re-checked at click time — not merely rendered disabled):** you cannot delete
+your own account, the site owner (also enforced in the database, because that row drives the public
+home page and `/resume`), or the last active administrator; the same last-admin and self rules block
+deactivation and last-admin demotion. Each refusal is surfaced in the button's `title`, because a
+greyed control with no explanation is what made this screen read as having no delete at all.
+
+**Known issues (static):** Story 2.6 also specifies **last-login display** and an **audit-log entry
+per admin action**. Neither exists — no audit-log write for user administration was located anywhere
+in the codebase. (Search/filter, delete-with-confirmation and edit were the other Story 2.6 gaps and
+are now closed; see checklist `UAT-002` / `UAT-003`.)
 
 ## Admin · Add user (`/AddUser`)
 
@@ -206,6 +235,90 @@ The missing `ManageStats` screen (for `UserStats`, whose repository *is* registe
 Admins inherit the Editor screens (dashboard, comment moderation, all posts — see the
 [Editor guide](./TechieBlog-DevGuide-Editor.md)), the Author screens, and every public screen.
 
+## Admin · BlogApp desktop head (added 2026-08-22)
+
+The desktop head hosts the SAME `BlogUI` pages as the website — one RCL, two heads — so everything
+above applies there unchanged. Two things belong to the desktop head alone, and both were owner-UAT
+defects fixed on 2026-08-22.
+
+**Where the app opens (REQ-UI-063).** `MainPage.xaml.cs` sets `blazorWebView.StartPath`. A
+configured install now starts on `Components/Pages/DesktopStart.razor` (`/blogapp/start`), which
+reads the authentication state on its first interactive render and forwards to
+`RoleLandingRoutes.ResolveFor(role)` — `/admin` for Admin and Editor, `/BlogsList` for an Author —
+or to `/login` when nobody is signed in. An unconfigured install still starts on
+`ConnectionSetup.SetupRoute`.
+
+*Why it is a BlogApp page and not a shared one:* the head used to start on `/login` directly, and
+`LoginPage.OnInitializedAsync` sends an already-signed-in visitor to
+`RoleLandingRoutes.PublicHome` when there is no `returnUrl`. That is right for the website, where
+`/login` is a page a reader wandered onto, and wrong for an admin tool where it was the front door —
+so every warm start opened the public blog. Fixing it inside `LoginPage` would have changed the
+website; owning the entry point does not, and it also avoids a second navigation racing the first.
+
+**Where uploaded images go (REQ-FN-062) — rebuilt 2026-08-22b after the first version failed UAT.**
+The desktop head has no web root of its own worth writing to, so before this REQ every upload landed
+under `%LOCALAPPDATA%` while the database row pointed at `/uploads/…` on the web server.
+
+*The first fix was wrong, and the way it was wrong is the lesson.* It offered a folder box and
+assumed the server's uploads directory could be mounted. This site is a Linux VPS answering on
+**443 and 22 only** — no Windows path reaches `/srv/data/techieblog/uploads`. The operator typed the
+server's path with a drive letter in front, Windows created it, the probe reported **"Media folder
+OK"**, and five uploads went to the laptop. **Writability is not reachability**, and a probe that
+cannot tell those apart is worse than none.
+
+Media delivery is now an **explicit transport** (`Services/MediaTransports.cs`):
+
+| Transport | What happens | Implementation |
+|-----------|--------------|----------------|
+| `None` (default) | Uploads stay on this machine. Legal, and the screen says so plainly. | engine `FileStorageFactory`, unchanged |
+| `Sftp` | Written over SSH straight into the server's uploads directory. The deployment's route. | `Services/SftpFileStorage.cs` (SSH.NET) |
+| `Folder` | Written to a path that genuinely reaches the server — a mapped drive or UNC share. | `NetworkFileStorage` rooted at the configured path |
+
+`SftpFileStorage` reuses `FileSystemStorage.NormalizeRelativePath`, so the traversal contract is the
+engine's rather than a second opinion — which matters more over SFTP than on local disk, because the
+remote root is a live server. It reports `ProviderName = Network` and returns the same site-relative
+`/uploads/{category}/{file}` URL the website writes, so a row created from the desktop is
+indistinguishable from one created in a browser and the website knows nothing about SSH. Connections
+are per-operation: a session held open behind a desktop app dies with the laptop's wifi and fails the
+*next* upload with a confusing error.
+
+`MediaLocationProbe` now proves a **round trip** — write, **read back**, compare, delete — against
+the actual destination, names that destination in its success message, and **refuses a local fixed
+drive before creating anything** (`ConnectionSettings.IsLocalFixedDrivePath`; a UNC path or mapped
+network drive passes, a fixed/removable local one does not). Ordering matters: the old probe created
+the directory first, so by the time it said "OK" the wrong folder existed.
+
+`Components/UploadsUrlRewriter.razor` plus a MutationObserver in `wwwroot/index.html` resolve stored
+`/uploads/…` paths against `SiteBaseUrl` **at display time**. That is what fixes "images do not show
+in the Experience screen": the BlazorWebView serves only the app's packaged `wwwroot`, so a
+site-relative uploads path resolves to nothing here whatever the transport. Stored data is untouched.
+
+**Recovering images stranded by the old behaviour (`Services/MediaMigrator.cs`).** Every upload made
+before the SFTP transport existed went to the operator's disk, but its `blogimage` row already records
+`/uploads/{category}/{file}` on the server — so the ROWS are correct and only the FILES are misplaced.
+The **Send to server** button walks a local folder that plays the part of `uploads` and pushes each
+file over the configured SSH connection at the matching remote path. It writes nothing to the
+database, and it overwrites by path, so re-running it is a no-op rather than a duplication.
+
+*This replaced an `scp` instruction that failed on first use:* the advice carried a literal
+`you@host` placeholder, was run verbatim, and produced a password prompt for an account that does not
+exist. Worth keeping as a design note — the app already held credentials the operator had just proved
+with **Test**, and already knew the server path, so sending them to a terminal to restate both was
+work the product could do. Related: being connected to the site database on `localhost:5433` is a
+forwarded port, not an SSH session `scp` can reuse.
+
+**Paths are chosen, not typed (`Services/FilePickerService.cs`).** The SSH private key and the
+migration folder both have **Browse** buttons. On Windows the folder picker is the WinUI one, bound
+to the app window — MAUI Essentials 9 ships a file picker but no folder picker, and an
+uninitialised WinUI picker throws rather than opening, which is the classic "the button does
+nothing" symptom in an unpackaged desktop app. Elsewhere the operator picks a file inside the folder
+and its directory is used. A hand-typed path is a path nobody checked, which is how this REQ's second
+round began.
+
+**Do not "fix" any of this by editing `Storage.LocalRootPath` in site settings.** Those rows are read
+by the website out of the same database, so a Windows path there moves the SERVER's uploads to
+somewhere that does not exist.
+
 ## Admin-relevant cross-cutting risks
 
 | Risk | Where | REQ |
@@ -217,4 +330,5 @@ Admins inherit the Editor screens (dashboard, comment moderation, all posts — 
 | DbUp runs with DDL rights at every startup | `Program.cs:110-135` | operational note |
 
 ---
-Generated 2026-08-02 · reflects code as built · ⚠ STATIC-ONLY
+Generated 2026-08-02 · reflects code as built · ⚠ STATIC-ONLY except where a dated note says otherwise
+(2026-08-22: the skills, experience and BlogApp desktop entries above were observed live on the running desktop head)

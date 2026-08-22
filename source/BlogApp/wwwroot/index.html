@@ -77,6 +77,59 @@
             root.classList.toggle('dark', isDarkMode === true || isDarkMode === 'dark' || isDarkMode === 'true');
         }
 
+        // REQ-FN-062 — make server-hosted images visible INSIDE the desktop app.
+        //
+        // Uploaded media is recorded as a site-relative "/uploads/{category}/{file}" path, exactly
+        // as the website records it, and the file lives on the server. The BlazorWebView serves only
+        // this app's own packaged wwwroot, so that path resolves to nothing here and every logo
+        // renders broken — which is what owner UAT saw on the Experience screen.
+        //
+        // This rewrites those URLs against the site's own address at DISPLAY time. Nothing about the
+        // stored data changes: the database keeps the site-relative path the website needs, and a
+        // head with no site address configured simply shows what it always showed.
+        window.blogAppUploads = (function () {
+            var baseUrl = '';
+            var prefix = '/uploads/';
+
+            function rewrite(image) {
+                var src = image.getAttribute('src');
+                // Idempotent by construction: once rewritten the src is absolute and no longer
+                // starts with the prefix, so the attribute mutation this causes is a no-op.
+                if (baseUrl && src && src.lastIndexOf(prefix, 0) === 0) {
+                    image.setAttribute('src', baseUrl + src);
+                }
+            }
+
+            function scan(node) {
+                if (!node || node.nodeType !== 1) { return; }
+                if (node.tagName === 'IMG') { rewrite(node); }
+                if (node.querySelectorAll) {
+                    Array.prototype.forEach.call(node.querySelectorAll('img'), rewrite);
+                }
+            }
+
+            var observer = new MutationObserver(function (records) {
+                if (!baseUrl) { return; }
+                records.forEach(function (record) {
+                    Array.prototype.forEach.call(record.addedNodes, scan);
+                    if (record.type === 'attributes' && record.target.tagName === 'IMG') {
+                        rewrite(record.target);
+                    }
+                });
+            });
+
+            return {
+                setBaseUrl: function (value) {
+                    baseUrl = (value || '').replace(/\/+$/, '');
+                    if (!baseUrl) { return; }
+                    scan(document.body);
+                    observer.observe(document.body, {
+                        childList: true, subtree: true, attributes: true, attributeFilter: ['src']
+                    });
+                }
+            };
+        })();
+
         // CSV download used by the admin export actions.
         function downloadCsv(fileName, csvContent) {
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

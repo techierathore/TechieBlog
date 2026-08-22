@@ -39,6 +39,26 @@ namespace BlogEngine.DbAccess;
 /// </remarks>
 public class BlogUserRepo : GenericRepository<AppUser>, IBlogUserRepo
 {
+    // Soft-deleted accounts (migration 030) are excluded from the projections below, but the filter
+    // is applied IN C#, by NotDeleted, and deliberately NOT in these SQL statements.
+    //
+    // WHY — this is a versioning constraint, not a style choice. BlogApp is a SEPARATE, separately
+    // installed desktop head that connects to the SAME database and, by design, never runs DbUp:
+    // "the website owns the schema" (MauiProgram.cs:14). So a BlogApp build is routinely NEWER than
+    // the database it is pointed at — the migration only lands when the WEBSITE is deployed. A
+    // `WHERE IsDeleted = FALSE` here made every one of the six admin screens that loads the user
+    // list (Statistics, Skills, Experience, Awards, Images, Users) die with
+    // `42703: column "isdeleted" does not exist` against any database still on migration 029.
+    // That was found in owner UAT the same day it was introduced.
+    //
+    // `SELECT *` returns whatever columns the database actually has, and Dapper leaves an unmapped
+    // property at its default — so on a pre-030 database IsDeleted arrives false for every row and
+    // NotDeleted filters nothing out. That is not a fudge: on a database with no soft-delete column,
+    // no account HAS been soft-deleted, so "keep them all" is the correct answer. On a migrated
+    // database the column maps and the filter does exactly what it says.
+    //
+    // Do not "optimise" these predicates back into the SQL. The correctness gain is nil at this
+    // table's size and the cost is re-breaking every desktop admin screen on the next migration.
     private const string SelectAllSql = "SELECT * FROM BlogUser ORDER BY UserId";
 
     private const string SelectByIdListSql = "SELECT * FROM BlogUser WHERE UserId = @UserId";
@@ -67,6 +87,8 @@ public class BlogUserRepo : GenericRepository<AppUser>, IBlogUserRepo
 
     private const string SelectSiteOwnerSql = "SELECT * FROM BlogUser WHERE IsSiteOwner = TRUE LIMIT 1";
 
+    // The POST's IsDeleted stays in the SQL: that column has existed since an early migration, so it
+    // carries no version risk. Only the USER's IsDeleted — added by 030 — is filtered in C#.
     private const string SelectAuthorsSql = @"
             SELECT DISTINCT u.* FROM BlogUser u
             INNER JOIN BlogPost p ON u.UserId = p.UserID
@@ -83,6 +105,16 @@ public class BlogUserRepo : GenericRepository<AppUser>, IBlogUserRepo
 
     private const string CountByUsernameSql =
         "SELECT COUNT(*) FROM BlogUser WHERE LOWER(Username) = LOWER(@Username)";
+
+    // Both of these return the function's own BOOLEAN rather than a row count, so they are read with
+    // ExecuteScalar and not Execute. SetBlogUserActive reports whether a live row matched;
+    // SoftDeleteBlogUser additionally reports FALSE when it refused to delete the site owner, which
+    // is why the caller cannot infer success from "no exception was thrown".
+    private const string SetUserActiveSql =
+        "SELECT SetBlogUserActive(@pUserId, @pIsConfirmed)";
+
+    private const string SoftDeleteUserSql =
+        "SELECT SoftDeleteBlogUser(@pUserId)";
 
     private const string UpdateResumeFieldsSql = @"
             UPDATE BlogUser SET
@@ -118,7 +150,7 @@ public class BlogUserRepo : GenericRepository<AppUser>, IBlogUserRepo
     /// <returns>All users, or an empty sequence when the table holds no rows.</returns>
     public override async Task<IEnumerable<AppUser>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        return await QueryAsync<AppUser>(SelectAllSql, null, cancellationToken).ConfigureAwait(false);
+        return NotDeleted(await QueryAsync<AppUser>(SelectAllSql, null, cancellationToken).ConfigureAwait(false));
     }
 
     /// <summary>
@@ -315,8 +347,8 @@ public class BlogUserRepo : GenericRepository<AppUser>, IBlogUserRepo
     /// <returns>The requested page, or an empty sequence when the offset is past the end.</returns>
     public override async Task<IEnumerable<AppUser>> GetPagedDataAsync(int pageSize, int offSet, CancellationToken cancellationToken = default)
     {
-        return await QueryAsync<AppUser>(
-            SelectPagedSql, new { PageSize = pageSize, OffSet = offSet }, cancellationToken).ConfigureAwait(false);
+        return NotDeleted(await QueryAsync<AppUser>(
+            SelectPagedSql, new { PageSize = pageSize, OffSet = offSet }, cancellationToken).ConfigureAwait(false));
     }
 
     /// <summary>
@@ -333,8 +365,8 @@ public class BlogUserRepo : GenericRepository<AppUser>, IBlogUserRepo
     /// <returns>The matching user, or <c>null</c> when the username is unknown.</returns>
     public async Task<AppUser?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default)
     {
-        return await QueryFirstOrDefaultAsync<AppUser>(
-            SelectByUsernameSql, new { Username = username }, cancellationToken).ConfigureAwait(false);
+        return LiveOrNull(await QueryFirstOrDefaultAsync<AppUser>(
+            SelectByUsernameSql, new { Username = username }, cancellationToken).ConfigureAwait(false));
     }
 
     /// <summary>
@@ -350,8 +382,8 @@ public class BlogUserRepo : GenericRepository<AppUser>, IBlogUserRepo
     /// <returns>The site owner, or <c>null</c> when none is flagged.</returns>
     public async Task<AppUser?> GetSiteOwnerAsync(CancellationToken cancellationToken = default)
     {
-        return await QueryFirstOrDefaultAsync<AppUser>(
-            SelectSiteOwnerSql, null, cancellationToken).ConfigureAwait(false);
+        return LiveOrNull(await QueryFirstOrDefaultAsync<AppUser>(
+            SelectSiteOwnerSql, null, cancellationToken).ConfigureAwait(false));
     }
 
     /// <summary>
@@ -367,7 +399,7 @@ public class BlogUserRepo : GenericRepository<AppUser>, IBlogUserRepo
     /// <returns>The authors, or an empty sequence when nobody has published.</returns>
     public async Task<IEnumerable<AppUser>> GetAllAuthorsAsync(CancellationToken cancellationToken = default)
     {
-        return await QueryAsync<AppUser>(SelectAuthorsSql, null, cancellationToken).ConfigureAwait(false);
+        return NotDeleted(await QueryAsync<AppUser>(SelectAuthorsSql, null, cancellationToken).ConfigureAwait(false));
     }
 
     /// <summary>
@@ -475,6 +507,53 @@ public class BlogUserRepo : GenericRepository<AppUser>, IBlogUserRepo
         return rowsAffected > 0;
     }
 
+    /// <summary>
+    /// Activates or deactivates a user account, without blocking the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Writes <c>IsConfirmed</c> alone. <c>UpdateBlogUser</c> — the
+    /// function behind <see cref="Update"/> — has no such parameter, so before migration 030 every
+    /// activation change made from <c>/users</c> was discarded without an error.</para>
+    /// <para><b>Flow:</b> helper opens the connection asynchronously → the function returns its own
+    /// boolean, which is read as a scalar rather than inferred from a row count.</para>
+    /// <para><b>Side Effects:</b> Updates one row's <c>IsConfirmed</c> and <c>UpdatedOn</c>.</para>
+    /// </remarks>
+    /// <param name="userId">The account to activate or deactivate.</param>
+    /// <param name="isActive">True to activate the account, false to deactivate it.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns><c>true</c> when a live row was updated.</returns>
+    public async Task<bool> SetUserActiveAsync(long userId, bool isActive, CancellationToken cancellationToken = default)
+    {
+        return await ExecuteScalarAsync<bool>(
+            SetUserActiveSql,
+            new { pUserId = userId, pIsConfirmed = isActive },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Soft-deletes a user account, without blocking the calling thread.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> See <see cref="IBlogUserRepo.SoftDeleteUser"/> — the row is
+    /// flagged rather than removed, and is deactivated in the same statement so the sign-in path
+    /// refuses it.</para>
+    /// <para><b>Flow:</b> helper opens the connection asynchronously → the function's boolean is read
+    /// as a scalar. A <c>false</c> here is a refusal (already deleted, or the site owner), not a
+    /// fault, so it is returned rather than thrown.</para>
+    /// <para><b>Side Effects:</b> Updates one row's <c>IsDeleted</c>, <c>IsConfirmed</c> and
+    /// <c>UpdatedOn</c>. Content authored by the account keeps its attribution.</para>
+    /// </remarks>
+    /// <param name="userId">The account to delete.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns><c>true</c> when the account was deleted.</returns>
+    public async Task<bool> SoftDeleteUserAsync(long userId, CancellationToken cancellationToken = default)
+    {
+        return await ExecuteScalarAsync<bool>(
+            SoftDeleteUserSql,
+            new { pUserId = userId },
+            cancellationToken).ConfigureAwait(false);
+    }
+
     // =================================================================================================
     // Legacy blocking surface — REQ-NFR-026 deletes these once every caller has migrated.
     // Each one executes the same SQL constant as its async twin, so the two cannot drift.
@@ -487,7 +566,7 @@ public class BlogUserRepo : GenericRepository<AppUser>, IBlogUserRepo
     public override IEnumerable<AppUser> GetAll()
     {
         using var connection = GetOpenConnection();
-        return connection.Query<AppUser>(SelectAllSql).ToList();
+        return NotDeleted(connection.Query<AppUser>(SelectAllSql)).ToList();
     }
 
     /// <summary>
@@ -597,7 +676,7 @@ public class BlogUserRepo : GenericRepository<AppUser>, IBlogUserRepo
     public override IEnumerable<AppUser> GetPagedData(int pageSize, int offSet)
     {
         using var connection = GetOpenConnection();
-        return connection.Query<AppUser>(SelectPagedSql, new { PageSize = pageSize, OffSet = offSet }).ToList();
+        return NotDeleted(connection.Query<AppUser>(SelectPagedSql, new { PageSize = pageSize, OffSet = offSet })).ToList();
     }
 
     /// <summary>
@@ -608,7 +687,7 @@ public class BlogUserRepo : GenericRepository<AppUser>, IBlogUserRepo
     public AppUser? GetByUsername(string username)
     {
         using var connection = GetOpenConnection();
-        return connection.QueryFirstOrDefault<AppUser>(SelectByUsernameSql, new { Username = username });
+        return LiveOrNull(connection.QueryFirstOrDefault<AppUser>(SelectByUsernameSql, new { Username = username }));
     }
 
     /// <summary>
@@ -618,7 +697,7 @@ public class BlogUserRepo : GenericRepository<AppUser>, IBlogUserRepo
     public AppUser? GetSiteOwner()
     {
         using var connection = GetOpenConnection();
-        return connection.QueryFirstOrDefault<AppUser>(SelectSiteOwnerSql);
+        return LiveOrNull(connection.QueryFirstOrDefault<AppUser>(SelectSiteOwnerSql));
     }
 
     /// <summary>
@@ -628,7 +707,7 @@ public class BlogUserRepo : GenericRepository<AppUser>, IBlogUserRepo
     public IEnumerable<AppUser> GetAllAuthors()
     {
         using var connection = GetOpenConnection();
-        return connection.Query<AppUser>(SelectAuthorsSql).ToList();
+        return NotDeleted(connection.Query<AppUser>(SelectAuthorsSql)).ToList();
     }
 
     /// <summary>
@@ -690,6 +769,69 @@ public class BlogUserRepo : GenericRepository<AppUser>, IBlogUserRepo
         using var connection = GetOpenConnection();
         return connection.Execute(UpdateResumeFieldsSql, BuildResumeParameters(userId, resumeData)) > 0;
     }
+
+    /// <summary>
+    /// Activates or deactivates a user account.
+    /// </summary>
+    /// <param name="userId">The account to activate or deactivate.</param>
+    /// <param name="isActive">True to activate the account, false to deactivate it.</param>
+    /// <returns>True if a live row was updated, false otherwise.</returns>
+    public bool SetUserActive(long userId, bool isActive)
+    {
+        using var connection = GetOpenConnection();
+        return connection.ExecuteScalar<bool>(
+            SetUserActiveSql, new { pUserId = userId, pIsConfirmed = isActive });
+    }
+
+    /// <summary>
+    /// Soft-deletes a user account.
+    /// </summary>
+    /// <param name="userId">The account to delete.</param>
+    /// <returns>True if the account was deleted; false if it does not exist, was already deleted,
+    /// or is the site owner.</returns>
+    public bool SoftDeleteUser(long userId)
+    {
+        using var connection = GetOpenConnection();
+        return connection.ExecuteScalar<bool>(SoftDeleteUserSql, new { pUserId = userId });
+    }
+
+    // =================================================================================================
+    // Soft-delete filters — the C# half of the versioning decision documented on SelectAllSql.
+    // =================================================================================================
+
+    /// <summary>
+    /// Drops soft-deleted accounts from a projection.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The exclusion lives here rather than in the SQL so the reads keep
+    /// working against a database that predates migration 030 — see the note on
+    /// <c>SelectAllSql</c>. On such a database <see cref="AppUser.IsDeleted"/> is never populated and
+    /// stays <c>false</c>, so nothing is filtered, which is the correct outcome for a schema in which
+    /// nothing can have been deleted.</para>
+    /// <para><b>Materialised, not lazy.</b> The result is buffered with <c>ToList</c> because every
+    /// caller here returns it after the Dapper connection has been disposed; a deferred
+    /// <c>Where</c> would enumerate against a closed connection.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <param name="users">The rows as read from the database.</param>
+    /// <returns>The rows that are not soft-deleted.</returns>
+    private static IEnumerable<AppUser> NotDeleted(IEnumerable<AppUser> users) =>
+        users.Where(user => !user.IsDeleted).ToList();
+
+    /// <summary>
+    /// Returns a single row unless it is soft-deleted.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The single-row counterpart of <see cref="NotDeleted"/>, used by
+    /// the username and site-owner lookups. A deleted account must read as absent to those callers —
+    /// its public profile URL stops resolving — rather than as a row they then have to remember to
+    /// check.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <param name="user">The row as read from the database, or <c>null</c>.</param>
+    /// <returns>The row, or <c>null</c> when it is absent or soft-deleted.</returns>
+    private static AppUser? LiveOrNull(AppUser? user) =>
+        user is null || user.IsDeleted ? null : user;
 
     // =================================================================================================
     // Parameter builders — shared by both twins so the bound columns cannot drift either.

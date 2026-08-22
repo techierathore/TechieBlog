@@ -33,7 +33,7 @@
     {
         @* All Series Listing *@
         <header class="my-6 flex flex-col gap-2">
-            <TypographyH1>All Series</TypographyH1>
+            <TypographyH1 Class="page-title">Article Series</TypographyH1>
             <p class="text-muted-foreground">Browse all multi-part blog series.</p>
         </header>
 
@@ -102,7 +102,7 @@
             <div>
                 <Badge>Series</Badge>
             </div>
-            <TypographyH1>@series.Name</TypographyH1>
+            <TypographyH1 Class="page-title">@series.Name</TypographyH1>
             <p class="text-muted-foreground" data-testid="series-description">@series.Description</p>
             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                 <span data-testid="series-part-count"><strong class="text-foreground">@series.PostCount</strong> Parts</span>

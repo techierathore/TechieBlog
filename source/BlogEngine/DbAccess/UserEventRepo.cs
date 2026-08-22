@@ -35,7 +35,7 @@ public class UserEventRepo : GenericRepository<UserEvent>, IUserEventRepo
     private const string EventColumns = @"
                      eventid, logoiconpath, eventtitle, sessiontitle, eventurl,
                      eventdate, type AS eventtype, userid, startdate, description,
-                     displayorder, iscurrent";
+                     displayorder, iscurrent, registrationurl";
 
     private const string SelectAllSql = @"
             SELECT " + EventColumns + @"
@@ -68,9 +68,10 @@ public class UserEventRepo : GenericRepository<UserEvent>, IUserEventRepo
     private const string InsertSql = @"
             INSERT INTO userevents (logoiconpath, eventtitle, sessiontitle, eventurl,
                                     eventdate, type, userid, startdate, description,
-                                    displayorder, iscurrent)
+                                    displayorder, iscurrent, registrationurl)
             VALUES (@LogoIconPath, @EventTitle, @SessionTitle, @EventUrl, @EventDate,
-                    @EventType, @UserID, @StartDate, @Description, @DisplayOrder, @IsCurrent)";
+                    @EventType, @UserID, @StartDate, @Description, @DisplayOrder, @IsCurrent,
+                    @RegistrationUrl)";
 
     private const string InsertReturningIdSql = InsertSql + @"
             RETURNING eventid";
@@ -87,7 +88,8 @@ public class UserEventRepo : GenericRepository<UserEvent>, IUserEventRepo
                 startdate = @StartDate,
                 description = @Description,
                 displayorder = @DisplayOrder,
-                iscurrent = @IsCurrent
+                iscurrent = @IsCurrent,
+                registrationurl = @RegistrationUrl
             WHERE eventid = @EventID";
 
     private const string DeleteSql = "DELETE FROM userevents WHERE eventid = @EventId";
@@ -482,7 +484,13 @@ public class UserEventRepo : GenericRepository<UserEvent>, IUserEventRepo
             StartDate = DbTimestamp.AsTimestamp(userEvent.StartDate),
             userEvent.Description,
             userEvent.DisplayOrder,
-            userEvent.IsCurrent
+            userEvent.IsCurrent,
+            // Normalised to null rather than passed through: the admin form posts an empty string
+            // for an untouched field, and storing "" would make "no registration link" and "a link
+            // not filled in yet" indistinguishable — see the remarks on UserEvent.RegistrationUrl.
+            RegistrationUrl = string.IsNullOrWhiteSpace(userEvent.RegistrationUrl)
+                ? null
+                : userEvent.RegistrationUrl.Trim()
         };
     }
 
@@ -511,7 +519,13 @@ public class UserEventRepo : GenericRepository<UserEvent>, IUserEventRepo
             StartDate = DbTimestamp.AsTimestamp(userEvent.StartDate),
             userEvent.Description,
             userEvent.DisplayOrder,
-            userEvent.IsCurrent
+            userEvent.IsCurrent,
+            // Normalised to null rather than passed through: the admin form posts an empty string
+            // for an untouched field, and storing "" would make "no registration link" and "a link
+            // not filled in yet" indistinguishable — see the remarks on UserEvent.RegistrationUrl.
+            RegistrationUrl = string.IsNullOrWhiteSpace(userEvent.RegistrationUrl)
+                ? null
+                : userEvent.RegistrationUrl.Trim()
         };
     }
 }

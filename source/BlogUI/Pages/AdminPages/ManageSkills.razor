@@ -103,6 +103,27 @@
                                 data-testid="add-skill-to-category">
                             <LucideIcon Name="plus" Size="16" />
                         </Button>
+
+                        @* REQ-UI-064: categories used to render alphabetically, so an author could
+                           move a skill within its group and never move the group itself. These move
+                           whole blocks; the numbering behind them is the same DisplayOrder the
+                           per-skill buttons use, so both levels stay one source of truth. *@
+                        <Button Variant="ButtonVariant.Ghost"
+                                Size="ButtonSize.IconSmall"
+                                AriaLabel="@($"Move the {category} category up")"
+                                Disabled="@IsFirstCategory(category)"
+                                OnClick="@(() => MoveCategoryUp(category))"
+                                data-testid="move-category-up">
+                            <LucideIcon Name="chevrons-up" Size="16" />
+                        </Button>
+                        <Button Variant="ButtonVariant.Ghost"
+                                Size="ButtonSize.IconSmall"
+                                AriaLabel="@($"Move the {category} category down")"
+                                Disabled="@IsLastCategory(category)"
+                                OnClick="@(() => MoveCategoryDown(category))"
+                                data-testid="move-category-down">
+                            <LucideIcon Name="chevrons-down" Size="16" />
+                        </Button>
                     </CardHeader>
 
                     @if (!isCollapsed)
@@ -156,6 +177,12 @@
                                     }
                                     else
                                     {
+                                        @* REQ-UI-064: /admin/experience has shown an order badge on
+                                           every row since REQ-UI-037, and this screen showed no
+                                           number at all — so the position was real data with no
+                                           visible handle, and the move buttons read as decoration. *@
+                                        <Badge Variant="BadgeVariant.Outline"
+                                               data-testid="skill-order">@current.DisplayOrder</Badge>
                                         <span class="text-sm" data-testid="skill-name">@current.SkillName</span>
                                         <div class="flex-1"></div>
                                         <Button Variant="ButtonVariant.Ghost"

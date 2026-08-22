@@ -45,7 +45,7 @@ else if (showCategoryList)
     <BlogBreadcrumb Items="@breadcrumbItems" />
 
     <header class="my-6 flex flex-col gap-2">
-        <TypographyH1>All Categories</TypographyH1>
+        <TypographyH1 Class="page-title">All Categories</TypographyH1>
         <p class="text-muted-foreground">Browse all blog post categories.</p>
     </header>
 
@@ -88,7 +88,7 @@ else
     <BlogBreadcrumb Items="@breadcrumbItems" />
 
     <header class="my-6 flex flex-col gap-2">
-        <TypographyH1>@category.CategoryName</TypographyH1>
+        <TypographyH1 Class="page-title">@category.CategoryName</TypographyH1>
         <p class="text-muted-foreground" data-testid="category-description">
             @(string.IsNullOrEmpty(category.Description) ? "Browse posts in this category." : category.Description)
         </p>

@@ -167,6 +167,23 @@ public class AppUser
     public bool IsConfirmed { get; set; }
 
     /// <summary>
+    /// Whether the account has been soft-deleted by an administrator
+    /// (<c>IsDeleted BOOLEAN NOT NULL DEFAULT FALSE</c>, migration 030).
+    /// </summary>
+    /// <remarks>
+    /// <para>Deleting a user is a flag, not a <c>DELETE</c>. <c>BlogUser</c> is the target of sixteen
+    /// foreign keys and only four of them cascade, so a hard delete would be refused for any account
+    /// that has ever written a post or left a comment — the very account an administrator wants to
+    /// remove — while succeeding for a brand-new one and silently taking its ratings with it. The flag
+    /// keeps referential integrity intact and keeps authored posts attributed to their author.</para>
+    /// <para><b>A deleted row is also deactivated.</b> <c>SoftDeleteBlogUser</c> sets
+    /// <see cref="IsConfirmed"/> to false in the same statement, so the single confirmation check on
+    /// the sign-in path refuses deleted and deactivated accounts alike. Do not write a sign-in guard
+    /// against this property expecting it to be the only one that matters.</para>
+    /// </remarks>
+    public bool IsDeleted { get; set; }
+
+    /// <summary>
     /// Site-relative path to the profile photograph (<c>ProfileImagePath VARCHAR(255)</c>).
     /// </summary>
     /// <remarks>
