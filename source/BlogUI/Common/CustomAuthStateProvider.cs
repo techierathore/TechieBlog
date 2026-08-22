@@ -364,12 +364,43 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
     /// <returns>A task that completes once the signed-out state has been published.</returns>
     public async Task MarkUserAsLoggedOut()
     {
-        await LocalStorageSvc.RemoveItemAsync(AppConstants.RefreshKey);
-        await LocalStorageSvc.RemoveItemAsync(AppConstants.AccessKey);
-        await ClearSessionCookieAsync();
+        await ClearPersistedSessionAsync();
 
         var anonymousUser = new ClaimsPrincipal(new ClaimsIdentity());
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(anonymousUser)));
+    }
+
+    /// <summary>
+    /// Destroys the persisted session WITHOUT publishing an authentication-state change.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Does the security-relevant half of signing out — both
+    /// local-storage slots and the session cookie — and deliberately stops short of notifying.</para>
+    ///
+    /// <para><b>Why the notification is separable, and why it matters.</b>
+    /// <see cref="NotifyAuthenticationStateChanged"/> re-renders the CURRENT route synchronously. If
+    /// the user is standing on a protected page when it fires — which, signing out of the admin
+    /// shell, they always are — <c>AuthorizeRouteView</c> immediately re-evaluates that page against
+    /// the now-anonymous principal, falls into <c>&lt;NotAuthorized&gt;</c>, and
+    /// <c>RedirectToLogin</c> force-navigates to <c>/login?returnUrl=…</c>. That navigation wins the
+    /// race against whatever the caller intended to do next, so a caller that wanted to send the
+    /// visitor to the public home page silently could not: its own <c>NavigateTo</c> never landed,
+    /// and the code read as though it did (UAT-018).</para>
+    ///
+    /// <para><b>Use this overload when the caller is about to force a full reload</b>, which tears
+    /// the circuit down and re-reads the (now empty) storage as anonymous anyway — making the
+    /// notification redundant, and its redirect actively unwanted. Use
+    /// <see cref="MarkUserAsLoggedOut"/> when the caller intends to stay on the current circuit and
+    /// needs the UI to react.</para>
+    ///
+    /// <para><b>Side Effects:</b> Clears browser state. Raises nothing.</para>
+    /// </remarks>
+    /// <returns>A task that completes once the persisted session is gone.</returns>
+    public async Task ClearPersistedSessionAsync()
+    {
+        await LocalStorageSvc.RemoveItemAsync(AppConstants.RefreshKey);
+        await LocalStorageSvc.RemoveItemAsync(AppConstants.AccessKey);
+        await ClearSessionCookieAsync();
     }
 
     /// <summary>

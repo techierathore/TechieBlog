@@ -2,82 +2,120 @@
 project: TechieBlog
 stack: .NET 10 / Blazor Server / TrBlazeUI / PostgreSQL + Dapper + DbUp / Serilog / BlogApp MAUI (Windows)
 last_updated: 2026-08-22
-current_phase: UAT round 2 COMPLETE — UAT-001…013 all closed; awaiting a website deploy (prod on migration 028, local on 031)
+current_phase: UAT round 2 VERIFIED — scoped verify run 2026-08-22: 4 Verified, 1 demoted to Needs re-verify (REQ-FN-020, unobservable with 0 posts); DEPLOYED (prod on migration 031)
 last_verified_build: PASS
 last_verified_date: 2026-08-22
 ---
 ## Where I am
 
-**Phase: UAT, round 2 complete.** The owner ran a second UAT pass against the live website (the first
-covered the BlogApp desktop head). Thirteen items were raised or found (UAT-001…013); **all thirteen are closed**. No
-`REQ-*` row was added — at the owner's instruction UAT findings are logged as `UAT-nnn` in
-`docs/TechieBlog-Checklist.md` → **UAT Bugs**, because a defect is evidence a shipped requirement did
-not hold, not a new requirement. Requirement counts are therefore unchanged: **160 terminal / 4 open**.
+**Phase: UAT round 2 complete, and DEPLOYED.** The owner ran a second UAT pass against the live
+website (the first covered the BlogApp desktop head). **Eighteen items** were raised or found —
+`UAT-001…018` — and **all eighteen are closed**. No `REQ-*` row was added: at the owner's instruction
+UAT findings are logged as `UAT-nnn` in `docs/TechieBlog-Checklist.md` → **UAT Bugs**, because a
+defect is evidence a shipped requirement did not hold, not a new requirement. Requirement counts are
+unchanged: **160 terminal / 4 open**.
+
+### Production — verified live, 2026-08-22
+
+Not inferred from the working tree; each row was checked against `https://techierathore.com`.
+
+| Signal | State |
+|---|---|
+| Schema | `/healthz` → *"DbUp journal records all **30** migration scripts"* — **030 and 031 are live** |
+| `/speaker-profile` | **HTTP 200**, banner rendering, Past Sessions showing its empty state |
+| Primary nav | `Speaking` present · **`About` removed** (UAT-009 is live) |
+| Home page | Blog-Archive link live and pointing at C# Corner (UAT-005) |
+| Speaking data | ⏳ **NOT loaded** — 0 rows, count badge `0` |
 
 ### Health
 
 | Signal | State |
 |---|---|
 | Build (rung #4, whole solution) | **0 Error(s), 7 / 7 projects** |
-| Unit + integration tests | **1 503** — 1 500 pass · 0 fail · 3 skip |
-| Live smokes this round | **14/14**, **28/28**, **13/13** — all green |
+| Tests | **1 512** — 1 509 pass · 0 fail · 3 skip |
+| Live smokes this round | 13/13 · 14/14 · 28/28 — all green |
 | Mockup fidelity sweep | **CLEAN** — 27 web screens vs `docs/mockups/`, 0 outstanding defects |
-| Migrations | local at **031**; **production still at 028** ⚠ |
+| Executed verify run | **2026-08-22** — 5 REQs graded · 11/11 Playwright · gates: acceptance + data-render + visual-truth |
 | Dev servers left running | none (port 5399 released) |
 | Seeded test users | restored to the documented state (`MustChangePassword = TRUE`) |
 
-### What changed this round
+### What changed
 
 | ID | Item | Outcome |
 |---|---|---|
-| UAT-001 | Deleted articles still shown on the public site | Cache-coherence gap, self-healing; added **Settings → Maintenance → Clear cached content** |
-| UAT-002 | `/users` had no edit and no delete | Full edit dialog + **soft** delete, guarded against self / site-owner / last-admin |
-| UAT-003 | Activate/Deactivate had **never** worked (found in triage) | Three breaks fixed in migration 030 + `AuthSvc`, with a lock-out-proof backfill |
-| UAT-004 | Desktop Statistics page died on a missing column | **My own regression.** Fixed, and the ship-order rule below now exists because of it |
-| UAT-005 | Blog-Archive link on the home page | Added, off-site-safe |
-| UAT-006 | **Speaker Profile page + admin screen** | Built on the existing `UserEvents` table; migration 031 adds one column |
+| UAT-001 | Deleted articles still shown publicly | Cache-coherence gap; added **Settings → Maintenance → Clear cached content** |
+| UAT-002 | `/users` had no edit and no delete | Edit dialog + **soft** delete, guarded against self / site-owner / last-admin |
+| UAT-003 | Activate/Deactivate had **never** worked | Three breaks fixed in migration 030 + `AuthSvc`, with a lock-out-proof backfill |
+| UAT-004 | Desktop Statistics died on a missing column | **My regression.** Fixed; produced the ship-order rule below |
+| UAT-005 | Blog-Archive link | Added, off-site-safe — **live** |
+| UAT-006 | **Speaker Profile page + admin screen** | Built on existing `UserEvents`; migration 031 adds one column |
 | UAT-007 | Demo data mistaken for real figures | Seed PARTS C–G removed; test accounts kept |
-| UAT-008 | "Site looks different from the mockups" | Full sweep; 3 real gaps fixed, rest proved to be empty-DB artifacts |
-| UAT-009 | About in the primary nav | Removed (route and footer link untouched) |
+| UAT-008 | "Looks different from the mockups" | Full sweep; 3 real gaps fixed, rest proved empty-DB artifacts |
+| UAT-009 | About in the primary nav | Removed — **live** |
 | UAT-010 | Data script should be deletable | Moved to `docs/data/` |
 | UAT-011 | Two folders named `mockups` | Repo-root set **deleted** (36 files) |
-| UAT-012 | A wrong claim I made about the mockups | Corrected in every document; provenance not falsified |
-| UAT-013 | Speaker Profile banner | Owner's conference photograph, downscaled 1.51 MB → **141 KB** |
+| UAT-012 | A wrong claim I made about the mockups | Corrected everywhere; provenance not falsified |
+| UAT-013 | Speaker Profile banner | Owner's conference photo, 1.51 MB → **141 KB** — **live** |
+| UAT-014 | `README.md` stale | Rewritten; wrong tech, wrong architecture, retired features, dead theming advice |
+| UAT-015 | `GETTING_STARTED.md` stale | Rewritten; **three errors would have stopped a fresh clone dead** |
+| UAT-016 | Docs could drift back | **Build-time guard**, 6 checks, all mutation-tested |
+| UAT-017 | Stale rate-limit entries | `/register` and `/logout` removed — neither was ever a route |
+| UAT-018 | Logout redirect | `NavigateTo("/")` was **dead code**; split clear-from-notify, regression-pinned |
 
 ### ⚠ Owner actions outstanding
 
-1. **Deploy the website.** Production is on migration **028**; local is on **031**. Migrations 030
-   (user admin) and 031 (speaking engagements) reach production only via a website deploy.
-2. **Then** run `docs/data/speaking-engagements.sql` against production to load the 21 speaking
-   sessions. Re-runnable; delete the file afterwards.
-3. **Order matters, and this is the one rule to remember:** *website first, BlogApp second.* BlogApp
-   deliberately never runs DbUp — the website owns the schema — so a desktop build newer than the
-   database breaks on the missing column. That is exactly what UAT-004 was.
-4. **Optional:** 21 sessions have no description and 7 have no session title, because no C# Corner
-   event page publishes them. Fill them in via `/admin/speaking`.
-5. **Optional:** enter real `UserStats` — the home page's stats band is hidden only because there are
-   no rows, and returns the moment there are.
+1. **Load the speaking data.** This is the only thing left. Migration 031 is on production, but the
+   21 sessions are not — the page is live and empty. Run
+   `docs/data/speaking-engagements.sql` against production; it is re-runnable, and the file is
+   disposable once the rows are in.
+2. *Optional:* 21 sessions have no description and 7 no session title, because no C# Corner event page
+   publishes them. Fill them in at `/admin/speaking`.
+3. *Optional:* enter real `UserStats` — the home stats band is hidden only because there are no rows,
+   and returns the moment there are.
 
 ### Settled decisions (do not "fix" these back)
 
-- **Dark by default is intentional.** Migration 025 / BRD-66. The mockups render light; the owner
+- **Dark by default is intentional** (migration 025 / BRD-66). The mockups render light; the owner
   confirmed on 2026-08-22 that he is happy with the site dark and the mockups light. A verifier
   finding "site does not match the mockup's light theme" is **not** a defect.
-- **About is not in the primary nav** (owner, UAT-009) even though the mockup lists it.
-- **The home page's contact block is headed "Contact"**, not the home mockup's "Get In Touch" —
-  REQ-UI-049 reuses `ResumeContact`, and `10-resume.html` heads that section "Contact" too.
+- **About is not in the primary nav** (UAT-009) even though the mockup lists it.
+- **The home contact block is headed "Contact"**, not the home mockup's "Get In Touch" — REQ-UI-049
+  reuses `ResumeContact`, and `10-resume.html` heads that section "Contact" too.
 - **`docs/mockups/` is the ONLY mockup set.** The repo-root folder is deleted; do not re-create it.
+- **`ClearPersistedSessionAsync` and `MarkUserAsLoggedOut` are deliberately separate** (UAT-018).
+  Re-merging them silently restores the wrong logout destination; `LogoutStateTests` catches it.
 
 ### Standing engineering rules earned this round
 
+- **Ship order: website first, BlogApp second.** BlogApp never runs DbUp — the website owns the
+  schema — so a desktop build newer than the database breaks on the missing column (UAT-004).
 - **Prefer schema-tolerant reads in shared code.** `SELECT *` plus a C# predicate degrades safely on
-  an older schema; `WHERE new_column = …` cannot. This is why `BlogUserRepo` filters `IsDeleted` in
-  C#, and that decision is load-bearing (UAT-004).
+  an older schema; `WHERE new_column = …` cannot (UAT-004).
 - **No Tailwind arbitrary values.** The build ships TrBlazeUI's **prebuilt** CSS with no JIT pass, so
-  `text-[clamp(...)]` / `max-w-[1100px]` are never generated — they render as unknown classes and
-  silently do nothing. Bespoke values must be real CSS rules (UAT-008, UAT-013).
+  `text-[clamp(...)]` / `max-w-[1100px]` are never generated and silently do nothing (UAT-008/013).
+- **Guard claims by executing them, and mutation-test the guard.** The longest-lived bugs this round
+  — dead `NavigateTo`, a stale `/register` entry, docs describing an imaginary project — all shared
+  one property: **no test failed and the wrong behaviour looked plausible.** Reading cannot catch
+  that. Every guard added here was mutation-tested, and two of them were blind on first write.
 - **Smoke is not verify.** Everything above is `Fixed (self-smoked)`; only an executed verify-phase
   run may write `Verified`.
+
+### Next command
+
+```
+/TechieFlow:agents:verifier *verify REQ-FN-020
+```
+
+**That run has been executed** (2026-08-22): `REQ-UI-005`, `REQ-UI-020`, `REQ-UI-049` and
+`REQ-FN-058` are now **`Verified`** — graded against the running app with the acceptance,
+data-render and visual-truth gates, not a self-smoke.
+
+**`REQ-FN-020` was DEMOTED to `Needs re-verify`**, and deliberately not passed. Its data-bearing half
+— published listings, featured-post selection, related posts, reading-time rendering — cannot be
+exercised while the database holds **0 published posts** (UAT-007 retired the demo content). The
+empty-state contract verified clean and 19 unit assertions cover the logic, but passing a REQ on unit
+tests alone would breach the strict gate: `Verified` means its controls were *seen* to render their
+data. **No code defect is implied.** Re-run the command above once the site has published content.
 
 ---
 
@@ -512,6 +550,8 @@ buttons render and are wired, not that the dialogs open.)*
 **Smoke 11/11 PASS against a real SSH server** (upload arrived on the server, 70 bytes matching, 0 files written locally); **negative control: the owner's exact path is now REFUSED and a fresh local path is refused and not created**. Build 0 errors 7/7; suite 1 496 (1 493 pass / 0 fail). Owner correction recorded: `localhost:5433` **is** the server database, so the DB half was never at fault | docs/TechieBlog-Checklist.md#requirements-status |
 | 2026-08-22 | ***fix-issues*** (owner UAT, BlogApp desktop head) | **3 defects reproduced live, fixed, smoke-proven: REQ-UI-063 / REQ-FN-062 / REQ-UI-064, all `Implemented`.** Build rung #4 **0 Error(s) 7/7**; suite **1 490 → 1 496** (1 493 pass / 0 fail / 3 skip). Live smoke **14/14 PASS** over CDP against a harness-launched BlogApp.exe. **REQ-UI-063:** first diagnosis (base href) was WRONG and was killed by instrumenting the running app — real cause `MainPage.StartPath = "/login"` → `LoginPage`'s already-signed-in branch → `PublicHome`; fixed with a BlogApp-owned `/blogapp/start` entry point; now lands on `/admin`. **REQ-FN-062:** the owner's failed upload was found still on the desktop at `%LOCALAPPDATA%\…\wwwroot\uploads\logos\`; the head had no media connection at all. Added one (media folder + probe + `DesktopFileStorageFactory`), proven end to end — bytes landed in the configured folder, **0** new files under `%LOCALAPPDATA%`, stored path still the site-relative `/uploads/…`. Also fixed the prefill gap that made the settings screen unusable without re-typing both site secrets. **REQ-UI-064:** half the report did not reproduce (the per-skill chevrons work); the real gaps were alphabetical CATEGORY order on BOTH the admin screen and the public resume, no visible order, and a per-skill swap that was a silent no-op on tied values. 6 new Facts, **mutation-tested** (revert the resume only → 2 fail; revert the admin helper only → 3 fail; restored → 6/6). Zero changes to `source/TechieBlog`; the only non-BlogApp changes are the two skills surfaces. DB and settings left as found | docs/TechieBlog-Checklist.md#requirements-status |
 | 2026-08-22c | ***fix-issues*** (owner UAT round 2 — **website**, not the desktop head) | **2 reported defects + 1 found while triaging; all 3 fixed and smoke-proven. Logged as `UAT-001…003` in the new checklist "UAT Bugs" section, NOT as new `REQ-*` rows** (owner's instruction — a UAT defect is a broken requirement, not a new one; requirement counts unchanged at 160 terminal / 4 open). Build rung #4 **0 Error(s) 7/7**. Live smoke **13/13 PASS** (Playwright vs the web host on `:5399`, screenshots `tests/.artifacts/harness/uat-users/`); host killed by PID afterwards and the four seeded users restored to their documented state. **UAT-001 — the featured article surviving a database purge was a CACHE artifact, and the site had already self-corrected:** fetching the live home page during triage returned `home-articles-empty` with no featured block, proving delete and query were both right. The public pages read a **10-minute in-process cache** (`MemoryCacheService.cs:96,152`, keys `content:posts:featured` / `content:posts:published:*`) that a delete made from the **desktop client straight to the database** can never invalidate, because it never enters the web host's process. Fixed with a `Clear cached content` control on `/settings` → Maintenance; the underlying gap is inherent to per-process caching, not a coding error. **UAT-002 — `/users` had no edit and no delete** (confirmed at `UsersList.razor:151-185`): added a full Edit dialog and a **soft** Delete (16 FKs point at `BlogUser`, only 4 cascade, so a hard delete would be refused for any author who has posted), guarded against deleting yourself, the site owner or the last active admin, each refusal explained on the button. **UAT-003 — found while triaging, not reported: the existing Activate/Deactivate button had NEVER worked** — three independent breaks (never persisted, since `UpdateBlogUser` has no `IsConfirmed` parameter; never enforced at sign-in; never set at creation, so every admin-created account is stored *Inactive* yet can still sign in). Fixed in migration `030-UserAdminEditDelete.sql` + `AuthSvc`, **with an explicit backfill so switching enforcement on cannot lock anyone out**. Owner question answered from file evidence: the BlogApp upload work does **not** touch the website admin — `DesktopFileStorageFactory` replaces `IFileStorageFactory` in BlogApp's own container only | docs/TechieBlog-Checklist.md#uat-bugs |
+| 2026-08-22d | ***fix-issues*** rounds 3-6 (owner UAT, website) | **UAT-001…018 all closed; DEPLOYED to production and verified live.** Prod `/healthz` now reports all **30** migration scripts (was 28), `/speaker-profile` returns 200 with its banner, the nav shows Speaking and no About, and the Blog-Archive link is live — each checked against `https://techierathore.com`, not inferred. Highlights: **UAT-004** a regression I introduced four hours earlier (schema-coupled read broke all six desktop admin screens — produced the website-first ship rule); **UAT-006** Speaker Profile + admin screen on the existing `UserEvents` table; **UAT-007** demo seed data retired; **UAT-008** full 27-screen mockup sweep, 3 real gaps fixed, remainder proved to be empty-DB artifacts; **UAT-011/012** the duplicate `mockups/` folder deleted and a wrong claim of mine corrected without falsifying the 2025 set's provenance; **UAT-014/015** both onboarding docs rewritten (three errors in GETTING_STARTED would have stopped a fresh clone dead); **UAT-016** a mutation-tested build-time docs guard, blind on 2 of 4 faults when first written; **UAT-018** logout's `NavigateTo("/")` was dead code — the documented destination and the real one had disagreed silently. Build 0 errors 7/7; suite 1 490 → **1 512**, 0 failures. ⏳ Only the production speaking-data load remains | docs/TechieBlog-Checklist.md#uat-bugs |
+| 2026-08-22e | ***verify*** REQ-UI-005 · REQ-UI-020 · REQ-UI-049 · REQ-FN-020 · REQ-FN-058 (executed run) | **4 Verified · 1 Needs re-verify.** Booted rung #4 on `:5099`; `tests/verify/req-list-ui.spec.ts` **11/11 passed**; `dotnet test` **1 509 passed / 0 failed**; gates applied = acceptance + data-render + visual-truth (**no `perf-budget:` declared on any scoped REQ, so §4c did not run** — not a gap). **REQ-UI-005** PASS incl. the previously-failing *no horizontal scroll at 320px* criterion, now clean on 6 routes. **REQ-UI-020** PASS — 4 rows, non-empty cells in all four columns, count badge agrees with visible rows, Add/Edit/Delete present, search narrows 4→1. **REQ-UI-049** PASS — hero two-tone heading, social circles, centred sections, clean at 1280+390; ⚠ the stats band and Download-CV CTA were **not observable** (no `UserStats` rows, no `CVFilePath`) and are explicitly not claimed. **REQ-FN-058** PASS — deep links to `/admin/speaking` and `/users` keep the session. **REQ-FN-020 DEMOTED** — 0 published posts, so listings/featured/related/reading-time could not be observed; empty-state contract verified and 19 unit assertions cover the logic, but a runtime observation nobody made will not be claimed. No gate telemetry emitted for it: it was unobservable, not a gate catch, and a `render` record would have inflated that gate's catch rate. Ledger `docs/.last-verify.json`; Admin DevGuide runtime-stamped | docs/TechieBlog-Checklist.md#requirements-status |
 
 ## Library feedback summary
 

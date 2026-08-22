@@ -161,13 +161,28 @@ public partial class AdminLayout
     /// Signs the current user out and returns them to the public home page.
     /// </summary>
     /// <remarks>
-    /// Clears the persisted tokens through <see cref="CustomAuthStateProvider"/>,
-    /// which also notifies the authentication state change, then forces a full
-    /// reload so no stale circuit state survives.
+    /// <para><b>Business Logic:</b> Destroys the persisted session — both local-storage tokens and
+    /// the session cookie — then forces a full reload of <c>/</c>, so no stale circuit state
+    /// survives and the reloaded app re-reads the now-empty storage as anonymous.</para>
+    ///
+    /// <para><b>Clearing and notifying are deliberately NOT done together here, and swapping this
+    /// back to <c>MarkUserAsLoggedOut</c> will silently break the destination.</b> That method
+    /// publishes the anonymous principal synchronously, which re-renders the admin route the user is
+    /// still standing on; <c>AuthorizeRouteView</c> then falls into <c>&lt;NotAuthorized&gt;</c> and
+    /// <c>RedirectToLogin</c> force-navigates to <c>/login?returnUrl=%2Fadmin</c> before the line
+    /// below ever runs. The summary above said "returns them to the public home page" while the
+    /// application actually sent them to the login screen with a return link back into admin — for
+    /// long enough that the <c>NavigateTo</c> here was simply dead code nobody had noticed (UAT-018).
+    /// <see cref="CustomAuthStateProvider.ClearPersistedSessionAsync"/> does the security-relevant
+    /// half without the notification, and the forced reload supplies the anonymous state.</para>
+    ///
+    /// <para><b>Side Effects:</b> Clears browser session state and reloads the application at the
+    /// public home page.</para>
     /// </remarks>
+    /// <returns>A task that completes once the session has been cleared and navigation started.</returns>
     public async Task LogoutAsync()
     {
-        await ((CustomAuthStateProvider)AuthStateProvider).MarkUserAsLoggedOut();
+        await ((CustomAuthStateProvider)AuthStateProvider).ClearPersistedSessionAsync();
         NavigationManager.NavigateTo("/", forceLoad: true);
     }
 

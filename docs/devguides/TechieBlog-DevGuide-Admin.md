@@ -1,5 +1,7 @@
 # TechieBlog — Developer Guide · Admin
 
+> **Runtime-verified 2026-08-22 as Admin** (verify-phase, scope REQ-UI-020 · REQ-FN-058). `/users` render + visual gates PASS at 1280 and 390; deep-linking into `/admin/speaking` and `/users` keeps the session. Screenshots: `tests/.artifacts/verify/users-{1280,390}.png`.
+
 > ✅ **Runtime-verified 2026-08-09 as Admin and Editor** — supersedes the 2026-08-02 `STATIC-ONLY`
 > banner, whose stated reason (solution does not compile, REQ-FN-043) is stale. Every screen below was
 > exercised on **both heads**: the web host and the BlogApp desktop head.
@@ -15,7 +17,7 @@ snapshot proved unsafe — sibling agents moved the data mid-run).
 |--------|----------|--------|
 | `/admin` dashboard | **renders ✓ (runtime-confirmed)** | Posts 10, Users 4, Comments 16, Subscribers 7 — every tile an exact psql match. Needs-Attention 6/1/1 exact. Quick actions genuinely role-gated: an Editor is offered only the 2 non-`AdminOnly` destinations and both open without an access-denied bounce |
 | `/admin` popular posts | **renders-empty (NO-DATA, downstream defect)** | shows an explicit empty state rather than a fabricated ranking — correct behaviour, but it can never populate because view tracking is dead code (`REQ-FN-034`) |
-| `/users`, `/AddUser` | **renders ✓ (re-confirmed 2026-08-22)** | 4 rows with email + role badge, search narrows 4→1, all 7 create-form controls present. **Edit / activate / delete added and runtime-proven** (checklist `UAT-002`, `UAT-003`): the edit dialog prefills and its save survives a reload, deactivation now actually persists, delete removes the row (4→3), and the self / site-owner / last-admin guards render disabled with the reason in the tooltip. Screenshots `tests/.artifacts/harness/uat-users/` |
+| `/users`, `/AddUser` | **renders ✓ · looks-right ✓ (runtime-verified 2026-08-22 as Admin)** | 4 rows with email + role badge, search narrows 4→1, all 7 create-form controls present. **Edit / activate / delete added and runtime-proven** (checklist `UAT-002`, `UAT-003`): the edit dialog prefills and its save survives a reload, deactivation now actually persists, delete removes the row (4→3), and the self / site-owner / last-admin guards render disabled with the reason in the tooltip. Screenshots `tests/.artifacts/harness/uat-users/` |
 | `/CommentsList` | **renders ✓** | 16/16 rows all cells populated, tabs exact vs psql, 26 per-row controls + bulk actions; delete dialog opened and **cancelled** |
 | `/admin/categories`, `/admin/tags` | **renders ✓** | 5 and 15 rows; per-row counts sum to the published-only totals exactly (8 and 27); editors load populated; delete dialogs opened and **cancelled** |
 | `/admin/subscribers` | **renders ✓** | 7 rows = psql, summary "7 total (6 active)" exact, CSV export produced a real download. **Gap:** no delete/remove control exists — `Unsubscribe` is reachable only from the public token |
