@@ -29,9 +29,32 @@
         </Avatar>
     }
 
-    <p class="text-sm text-muted-foreground" data-testid="resume-greeting">Hi, I'm</p>
+    @*
+        The greeting and the name are ONE heading, with the name in the primary colour — this is the
+        signature of the hero in both mockups that use it (docs/mockups/01-home.html and 10-resume.html
+        are byte-identical here: `<h1>Hi, I'm <span class="accent">Name</span></h1>`, styled
+        `.hero h1{font-size:clamp(30px,5vw,46px);font-weight:800}` with `.accent{color:var(--primary)}`).
 
-    <h1 class="text-4xl font-bold text-foreground" data-testid="resume-name">@User?.FullName</h1>
+        It previously rendered as a separate small <p> above a plain 36px black <h1>, which lost both
+        the two-tone treatment and most of the scale. Keeping them in one <h1> is also the correct
+        document outline: "Hi, I'm" is not a heading of its own, and a screen reader announcing an
+        orphan paragraph followed by a bare name reads worse than the single phrase.
+
+        `data-testid="resume-greeting"` is retained on the inner span so existing selectors that
+        assert the greeting still resolve.
+    *@
+    @*
+        Sized by a real CSS rule (.resume-name in resume.css), NOT a Tailwind arbitrary value.
+        This project consumes TrBlazeUI's PREBUILT stylesheet and runs no Tailwind JIT pass, so a
+        class like `text-[clamp(30px,5vw,46px)]` is never generated — it renders as an unknown class,
+        contributes nothing, and the heading silently collapses to the inherited font size. That is
+        exactly what happened on the first attempt at this fix. Only utilities that already exist in
+        the shipped CSS can be used here; anything bespoke belongs in a stylesheet.
+    *@
+    <h1 class="resume-name text-foreground" data-testid="resume-name">
+        <span data-testid="resume-greeting">Hi, I'm</span>
+        <span class="text-primary">@User?.FullName</span>
+    </h1>
 
     @if (!string.IsNullOrWhiteSpace(User?.Title))
     {

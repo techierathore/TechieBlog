@@ -19,6 +19,7 @@
 using BlogApp.Services;
 using BlogEngine;
 using BlogEngine.Common;
+using BlogEngine.Storage;
 using BlogModels;
 using BlogModels.Interfaces;
 using BlogUI;
@@ -270,6 +271,12 @@ public static class MauiProgram
         services.AddSingleton(new ConnectionContext(storedSettings));
         services.AddSingleton<AppRestarter>();
         services.AddTransient<ConnectionProbe>();
+        services.AddTransient<MediaLocationProbe>();
+
+        // REQ-FN-062 - OS pickers for the two settings that are paths on THIS machine, and the
+        // one-click migration that sends already-stranded images up over the same SSH connection.
+        services.AddSingleton<FilePickerService>();
+        services.AddTransient<MediaMigrator>();
 
         // Hosting environment stand-in required by BlogEngine.Storage.FileStorageFactory.
         services.AddSingleton<IWebHostEnvironment>(new DesktopHostEnvironment(ResolveAppDataRoot()));
@@ -278,6 +285,20 @@ public static class MauiProgram
         // The shared engine graph - one definition, two heads (REQ-FN-046)
         // ---------------------------------------------------------------------
         BlogSvcInitializer.Initialize(services, connectionString);
+
+        // REQ-FN-062 - the desktop head's MEDIA connection, the counterpart to its database one.
+        // Registered AFTER the engine graph so it REPLACES the engine's IFileStorageFactory rather
+        // than competing with it (last registration wins for a single resolve). Without it every
+        // image uploaded here is written to DesktopHostEnvironment.WebRootPath - a folder under
+        // this operator's %LOCALAPPDATA% - while the database row points at /uploads/... on the
+        // web server, so the picture exists nowhere the site can serve it. The decorator falls
+        // straight through to the engine factory when no media folder has been configured, which
+        // is why adding it cannot change the behaviour of a head that has not opted in.
+        services.AddSingleton<FileStorageFactory>();
+        services.AddSingleton<IFileStorageFactory>(provider => new DesktopFileStorageFactory(
+            provider.GetRequiredService<FileStorageFactory>(),
+            provider.GetRequiredService<ConnectionContext>(),
+            provider.GetRequiredService<ILoggerFactory>()));
 
         // Backs BlogEngine's ICacheService and CaptchaSvc, exactly as on the web head.
         services.AddMemoryCache();

@@ -21,12 +21,32 @@
 
 <section id="articles" class="py-10" data-testid="home-latest-articles">
 
-    <h2 class="text-3xl font-bold tracking-tight" data-testid="home-articles-heading">Latest Articles</h2>
-    <p class="mb-6 text-sm text-muted-foreground">
+    @* UAT-008 — centred to match .section-title / .section-sub in the mockup. *@
+    <h2 class="text-2xl font-bold tracking-tight text-center" data-testid="home-articles-heading">Latest Articles</h2>
+    <p class="mb-6 text-center text-sm text-muted-foreground">
         Fresh from the editor —
         @* REQ-NFR-007 / WCAG 1.4.1: a link inside a text block must not be identified by
            colour alone, so it stays underlined rather than underlining only on hover. *@
         <a href="/search" class="text-primary underline" data-testid="home-articles-browse-link">browse all articles</a>.
+        @*
+            Blog-Archive — the owner's earlier writing on C# Corner, which predates this site and is
+            not being migrated into it. Deliberately rendered here rather than in the nav: it is a
+            pointer to a body of work, not a section of this site.
+
+            It leaves the site, so it carries the three things an off-site link owes the reader:
+            target="_blank" with rel="noopener noreferrer" (noopener denies the opened tab a
+            window.opener handle back into this page; noreferrer also withholds the Referer),
+            a visible external-link icon, and an aria-label that says where it goes — an icon alone
+            is invisible to a screen reader, and "opens in a new tab" is exactly the thing a
+            sighted user infers from the icon and a non-sighted user cannot.
+        *@
+        Earlier writing lives in the
+        <a href="https://www.c-sharpcorner.com/members/s.ravi-kumar/top-articles"
+           target="_blank"
+           rel="noopener noreferrer"
+           class="inline-flex items-center gap-1 text-primary underline"
+           aria-label="Blog-Archive on C# Corner (opens in a new tab)"
+           data-testid="home-blog-archive-link">Blog-Archive<LucideIcon Name="external-link" Size="13" /></a>.
     </p>
 
     @if (IsLoading)

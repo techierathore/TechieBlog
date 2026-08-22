@@ -1,0 +1,74 @@
+@*
+    UploadsUrlRewriter.razor
+    Purpose: Makes server-hosted images visible inside the desktop app (REQ-FN-062).
+
+    Uploaded media is recorded as a site-relative "/uploads/{category}/{file}" path —
+    the same shape the website records, deliberately, so a row written from the desktop
+    is indistinguishable from one written in a browser. The file itself lives on the
+    server. The BlazorWebView serves only this app's own packaged wwwroot, so that path
+    resolves to nothing here and every logo renders broken; owner UAT saw exactly that on
+    the Experience screen.
+
+    This component renders nothing. It hands the configured website address to the host
+    page's rewriter, which resolves those URLs at display time. Nothing about the stored
+    data changes, and a head with no address configured behaves as it always did.
+*@
+
+@implements IAsyncDisposable
+
+@using Microsoft.Extensions.Logging
+
+@inject ConnectionContext ConnectionContext
+@inject IJSRuntime JSRuntime
+@inject ILogger<UploadsUrlRewriter> Logger
+
+@code {
+    /// <summary>
+    /// Host-page function that installs the rewriter. Defined in <c>wwwroot/index.html</c>.
+    /// </summary>
+    private const string SetBaseUrlFunction = "blogAppUploads.setBaseUrl";
+
+    /// <summary>
+    /// Arms the host page's rewriter once the WebView can accept interop.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Deferred to the first render because JavaScript interop is not
+    /// available during the initial synchronous render. A blank site address is passed through
+    /// rather than skipped — the host function treats it as "do nothing", which keeps the decision
+    /// in one place instead of splitting it between C# and JavaScript.</para>
+    /// <para>An interop failure is logged and swallowed. This is a display convenience layered over
+    /// pages that are already rendering; letting it reach the error boundary would replace a working
+    /// admin screen with an error card over a broken thumbnail.</para>
+    /// <para><b>Flow:</b> first-render guard → read the configured address → call the host function.</para>
+    /// <para><b>Side Effects:</b> Installs a MutationObserver in the host page.</para>
+    /// </remarks>
+    /// <param name="firstRender">Whether this is the component's first render.</param>
+    /// <returns>A task that completes once the rewriter has been armed.</returns>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        var siteBaseUrl = ConnectionContext.Settings?.SiteBaseUrl ?? string.Empty;
+
+        try
+        {
+            await JSRuntime.InvokeVoidAsync(SetBaseUrlFunction, siteBaseUrl);
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException)
+        {
+            Logger.LogWarning(ex, "Could not arm the uploads URL rewriter; server-hosted images may not display");
+        }
+    }
+
+    /// <summary>
+    /// Nothing to release: the observer belongs to the host page, which outlives every circuit.
+    /// </summary>
+    /// <returns>A completed task.</returns>
+    public ValueTask DisposeAsync()
+    {
+        return ValueTask.CompletedTask;
+    }
+}

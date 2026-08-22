@@ -258,7 +258,9 @@ public class LoginAuditTests
             FirstName = "Audited",
             LastName = "Member",
             EmailId = SampleEmail,
-            UserRole = "Author"
+            UserRole = "Author",
+            // Required since UAT-003 — an unconfirmed account is refused after the password check.
+            IsConfirmed = true
         });
     }
 

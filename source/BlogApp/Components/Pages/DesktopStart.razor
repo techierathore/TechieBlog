@@ -1,0 +1,130 @@
+@*
+    DesktopStart.razor
+    Purpose: The desktop head's own entry point (REQ-UI-063).
+
+    BlogApp is the blog's ADMIN application, but a warm start used to open the public
+    blog. The chain was: MainPage set the WebView's StartPath to the shared /login
+    screen, LoginPage saw a remembered session and took its "already signed in" branch,
+    and that branch — with no returnUrl to honour — sends the visitor to
+    RoleLandingRoutes.PublicHome. Correct for the website, where /login is somewhere a
+    reader wandered onto; wrong for a desktop admin tool, where it is the front door.
+
+    The desktop head therefore starts HERE instead and decides for itself. This page owns
+    one decision and nothing else:
+        signed in  -> the route this ROLE lands on (/admin, or /BlogsList for an Author)
+        anonymous  -> /login, whose post-sign-in path is already role-aware
+
+    Deciding it in a BlogApp page rather than in a shared one keeps the website's /login
+    behaviour untouched, and deciding it BEFORE the shared screen renders means there is
+    no second navigation racing this one.
+*@
+
+@page "/blogapp/start"
+@layout BlogApp.Components.Layout.DesktopSetupLayout
+
+@using System.Security.Claims
+@using Microsoft.Extensions.Logging
+
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<DesktopStart> Logger
+
+<PageTitle>Opening BlogApp</PageTitle>
+
+<div class="flex h-[60vh] items-center justify-center" data-testid="desktop-start">
+    <Spinner Size="SpinnerSize.Large" Class="text-primary" />
+</div>
+
+@code {
+    /// <summary>
+    /// Route this page is published at; <c>MainPage</c> uses it as the WebView's start path.
+    /// </summary>
+    /// <remarks>
+    /// Stated as a constant so the window and the page cannot disagree about the entry point —
+    /// a mismatch would open the app on a route that does not exist and show the NotFound card.
+    /// </remarks>
+    public const string Route = "/blogapp/start";
+
+    /// <summary>
+    /// Route an operator who is not signed in is sent to.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately carries no <c>returnUrl</c>. <c>LoginPage.ResolveDestination</c> already picks
+    /// the role's landing route after a successful sign-in, and it can do that better than this
+    /// page can — at that point the role is known. A returnUrl here would only be a guess, and a
+    /// wrong guess lands an Author on <c>/access-denied</c>.
+    /// </remarks>
+    private const string AnonymousDestination = "/login";
+
+    private bool hasNavigated;
+
+    /// <summary>
+    /// Resolves the operator's role and forwards to the route it belongs on.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The decision waits for the first render because
+    /// <c>DesktopAuthStateProvider</c> reads the remembered token out of the WebView's local
+    /// storage through JavaScript interop, which is not available during the initial synchronous
+    /// render — asking there reports anonymous for everybody and would send a remembered admin
+    /// back to the sign-in screen. The forward REPLACES the history entry, so this page is not
+    /// left behind a Back gesture.</para>
+    /// <para><b>Flow:</b> first-render guard → read the authentication state → map the role →
+    /// navigate.</para>
+    /// <para><b>Side Effects:</b> Changes the route.</para>
+    /// </remarks>
+    /// <param name="firstRender">Whether this is the component's first render.</param>
+    /// <returns>A task that completes once the forward has been issued.</returns>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || hasNavigated)
+        {
+            return;
+        }
+
+        hasNavigated = true;
+
+        var destination = await ResolveDestinationAsync();
+        Logger.LogInformation("BlogApp opening on {Destination}", destination);
+        NavigationManager.NavigateTo(destination, replace: true);
+    }
+
+    /// <summary>
+    /// Chooses the route this operator's role belongs on.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Reuses <c>RoleLandingRoutes</c>, the same map the shared login
+    /// screen uses, so the desktop head and the website can never disagree about where a role
+    /// lands — and so a role with no staff surface is never sent to a route it would only be
+    /// refused from. A Reader or Contributor therefore lands on the public home page, which is the
+    /// honest answer for an account that has nothing to administer.</para>
+    /// <para>A failure to resolve the state is treated as "not signed in" rather than allowed to
+    /// escape: this is the app's first screen, and an exception here would replace the whole
+    /// window with the error boundary before the operator had any way to act on it. The sign-in
+    /// screen is both the safe destination and the useful one.</para>
+    /// <para><b>Flow:</b> read the authentication state → anonymous check → read the role claim →
+    /// map it.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <returns>A site-relative route the operator is permitted to open.</returns>
+    private async Task<string> ResolveDestinationAsync()
+    {
+        try
+        {
+            var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            if (state?.User?.Identity?.IsAuthenticated != true)
+            {
+                return AnonymousDestination;
+            }
+
+            // ResolveFor maps a blank role to the public home page, which is the right answer for
+            // a principal that authenticated but carries no role claim.
+            var role = state.User.FindFirst(ClaimTypes.Role)?.Value;
+            return RoleLandingRoutes.ResolveFor(role ?? string.Empty);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not resolve the signed-in role; opening the sign-in screen");
+            return AnonymousDestination;
+        }
+    }
+}

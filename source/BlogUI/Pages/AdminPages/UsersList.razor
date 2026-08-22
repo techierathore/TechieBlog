@@ -148,38 +148,51 @@
                     </CellTemplate>
                 </DataTableColumn>
 
-                <DataTableColumn TData="AppUser" TValue="long" Property="@(u => u.UserId)" Header="Actions" Width="130px">
+                @*
+                    Three actions, and the two destructive ones carry their refusal reason in the
+                    title attribute rather than only disabling the button — a greyed-out control with
+                    no explanation is the reason this screen was reported as having "no option to
+                    delete" in the first place. The guards live in the code-behind
+                    (DeleteBlockReason / StatusBlockReason) and are re-checked at click time.
+                *@
+                <DataTableColumn TData="AppUser" TValue="long" Property="@(u => u.UserId)" Header="Actions" Width="170px">
                     <CellTemplate Context="row">
                         <div class="flex flex-nowrap items-center gap-1">
                             <Button Size="ButtonSize.IconSmall"
                                     Variant="ButtonVariant.Ghost"
-                                    OnClick="@(() => ShowEditRoleDialog(row))"
-                                    AriaLabel="Change role"
-                                    data-testid="user-change-role">
-                                <LucideIcon Name="user-cog" Size="16" />
+                                    OnClick="@(() => ShowEditUserDialog(row))"
+                                    Disabled="@IsProcessing"
+                                    AriaLabel="Edit user"
+                                    title="Edit name, email and role"
+                                    data-testid="user-edit">
+                                <LucideIcon Name="pencil" Size="16" />
                             </Button>
-                            @if (row.IsConfirmed)
-                            {
-                                <Button Size="ButtonSize.IconSmall"
-                                        Variant="ButtonVariant.Ghost"
-                                        OnClick="@(() => ToggleUserStatus(row))"
-                                        Disabled="@IsProcessing"
-                                        AriaLabel="Deactivate user"
-                                        data-testid="user-deactivate">
-                                    <LucideIcon Name="user-x" Size="16" />
-                                </Button>
+
+                            @{
+                                var statusBlock = StatusBlockReason(row);
                             }
-                            else
-                            {
-                                <Button Size="ButtonSize.IconSmall"
-                                        Variant="ButtonVariant.Ghost"
-                                        OnClick="@(() => ToggleUserStatus(row))"
-                                        Disabled="@IsProcessing"
-                                        AriaLabel="Activate user"
-                                        data-testid="user-activate">
-                                    <LucideIcon Name="user-check" Size="16" />
-                                </Button>
+                            <Button Size="ButtonSize.IconSmall"
+                                    Variant="ButtonVariant.Ghost"
+                                    OnClick="@(() => ToggleUserStatus(row))"
+                                    Disabled="@(IsProcessing || statusBlock != null)"
+                                    AriaLabel="@(row.IsConfirmed ? "Deactivate user" : "Activate user")"
+                                    title="@(statusBlock ?? (row.IsConfirmed ? "Deactivate this account" : "Activate this account"))"
+                                    data-testid="@(row.IsConfirmed ? "user-deactivate" : "user-activate")">
+                                <LucideIcon Name="@(row.IsConfirmed ? "user-x" : "user-check")" Size="16" />
+                            </Button>
+
+                            @{
+                                var deleteBlock = DeleteBlockReason(row);
                             }
+                            <Button Size="ButtonSize.IconSmall"
+                                    Variant="ButtonVariant.Ghost"
+                                    OnClick="@(() => ShowDeleteUserDialog(row))"
+                                    Disabled="@(IsProcessing || deleteBlock != null)"
+                                    AriaLabel="Delete user"
+                                    title="@(deleteBlock ?? "Delete this account")"
+                                    data-testid="user-delete">
+                                <LucideIcon Name="trash-2" Size="16" Class="text-destructive" />
+                            </Button>
                         </div>
                     </CellTemplate>
                 </DataTableColumn>
@@ -194,37 +207,119 @@
     }
 </div>
 
-@* ---- Change role dialog -------------------------------------------------- *@
-<Dialog @bind-Open="ShowRoleDialog">
-    <DialogContent data-testid="user-role-dialog">
+@* ---- Edit user dialog ---------------------------------------------------- *@
+@*
+    Replaces the former role-only dialog. Role was the single editable field on this screen, which
+    is why a wrong name or a mistyped email address could only be fixed in the database.
+*@
+<Dialog @bind-Open="ShowEditDialog">
+    <DialogContent data-testid="user-edit-dialog">
         <DialogHeader>
-            <DialogTitle>Change User Role</DialogTitle>
-            <DialogDescription>Pick the permission level for this account.</DialogDescription>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>Update the account's details and permission level.</DialogDescription>
         </DialogHeader>
-        <div class="space-y-3">
-            <p class="text-sm text-foreground">
-                Change role for
-                <strong data-testid="user-role-target">@UserToEdit?.FirstName @UserToEdit?.LastName</strong>
-            </p>
-            <Select TValue="string" @bind-Value="SelectedRole" Class="w-full">
-                <SelectTrigger data-testid="user-role-select">
-                    <SelectValue Placeholder="Select a role" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem TValue="string" Value="@("Admin")" Text="Admin">Admin</SelectItem>
-                    <SelectItem TValue="string" Value="@("Editor")" Text="Editor">Editor</SelectItem>
-                    <SelectItem TValue="string" Value="@("Author")" Text="Author">Author</SelectItem>
-                    <SelectItem TValue="string" Value="@("Contributor")" Text="Contributor">Contributor</SelectItem>
-                    <SelectItem TValue="string" Value="@("Reader")" Text="Reader">Reader</SelectItem>
-                </SelectContent>
-            </Select>
+
+        <div class="space-y-4">
+            @if (EditValidationMessage != null)
+            {
+                <Alert Variant="AlertVariant.Danger" data-testid="user-edit-validation">
+                    <LucideIcon Name="circle-alert" Size="16" />
+                    <AlertDescription>@EditValidationMessage</AlertDescription>
+                </Alert>
+            }
+
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div class="space-y-2">
+                    <Label For="edit-first-name">First name</Label>
+                    <Input Id="edit-first-name"
+                           @bind-Value="EditFirstName"
+                           Placeholder="First name"
+                           data-testid="user-edit-first-name" />
+                </div>
+                <div class="space-y-2">
+                    <Label For="edit-last-name">Last name</Label>
+                    <Input Id="edit-last-name"
+                           @bind-Value="EditLastName"
+                           Placeholder="Last name"
+                           data-testid="user-edit-last-name" />
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <Label For="edit-email">Email</Label>
+                <Input Id="edit-email"
+                       Type="InputType.Email"
+                       @bind-Value="EditEmail"
+                       Placeholder="name@example.com"
+                       data-testid="user-edit-email" />
+            </div>
+
+            <div class="space-y-2">
+                <Label>Role</Label>
+                <Select TValue="string" @bind-Value="SelectedRole" Class="w-full">
+                    <SelectTrigger data-testid="user-role-select">
+                        <SelectValue Placeholder="Select a role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem TValue="string" Value="@("Admin")" Text="Admin">Admin</SelectItem>
+                        <SelectItem TValue="string" Value="@("Editor")" Text="Editor">Editor</SelectItem>
+                        <SelectItem TValue="string" Value="@("Author")" Text="Author">Author</SelectItem>
+                        <SelectItem TValue="string" Value="@("Contributor")" Text="Contributor">Contributor</SelectItem>
+                        <SelectItem TValue="string" Value="@("Reader")" Text="Reader">Reader</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
         </div>
+
         <DialogFooter>
-            <Button Variant="ButtonVariant.Outline" OnClick="@CancelRoleEdit" data-testid="user-role-cancel">
+            <Button Variant="ButtonVariant.Outline" OnClick="@CancelUserEdit" data-testid="user-edit-cancel">
                 Cancel
             </Button>
-            <Button OnClick="@SaveRoleChange" Disabled="@IsProcessing" data-testid="user-role-save">
+            <Button OnClick="@SaveUserChanges" Disabled="@IsProcessing" data-testid="user-edit-save">
                 Save
+            </Button>
+        </DialogFooter>
+    </DialogContent>
+</Dialog>
+
+@* ---- Delete confirmation dialog ------------------------------------------ *@
+@*
+    Spells out what a delete does and does NOT do. Deleting a user here is a soft delete: the
+    account stops existing for every list and every sign-in, but the row survives so that posts and
+    comments it is referenced by stay attributed instead of being cascaded away or blocking the
+    delete outright.
+*@
+<Dialog @bind-Open="ShowDeleteDialog">
+    <DialogContent data-testid="user-delete-dialog">
+        <DialogHeader>
+            <DialogTitle>Delete User</DialogTitle>
+            <DialogDescription>This removes the account's access to the site.</DialogDescription>
+        </DialogHeader>
+
+        <div class="space-y-3">
+            <p class="text-sm text-foreground">
+                Delete
+                <strong data-testid="user-delete-target">@UserToDelete?.FirstName @UserToDelete?.LastName</strong>
+                (@UserToDelete?.EmailId)?
+            </p>
+            <Alert data-testid="user-delete-note">
+                <LucideIcon Name="info" Size="16" />
+                <AlertDescription>
+                    The account can no longer sign in and disappears from this list. Any posts and
+                    comments it wrote stay published and still show the author's name.
+                </AlertDescription>
+            </Alert>
+        </div>
+
+        <DialogFooter>
+            <Button Variant="ButtonVariant.Outline" OnClick="@CancelDelete" data-testid="user-delete-cancel">
+                Cancel
+            </Button>
+            <Button Variant="ButtonVariant.Destructive"
+                    OnClick="@ConfirmDelete"
+                    Disabled="@IsProcessing"
+                    data-testid="user-delete-confirm">
+                Delete user
             </Button>
         </DialogFooter>
     </DialogContent>

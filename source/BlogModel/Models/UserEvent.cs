@@ -99,4 +99,36 @@ public class UserEvent
     /// row per user is current.
     /// </summary>
     public bool IsCurrent { get; set; }
+
+    /// <summary>
+    /// Speaking rows only: where an upcoming session can be registered for
+    /// (<c>RegistrationUrl VARCHAR(500)</c>, migration 031).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Null is meaningful and must stay null.</b> A past talk has nowhere to register and an
+    /// <c>Experience</c> row never did, so this is <c>null</c> for both — the Speaker Profile page
+    /// renders the Registration column only in its Future Sessions table and shows a dash where the
+    /// value is absent. Writing an empty string instead would make "no link" and "a link I have not
+    /// filled in yet" indistinguishable at the database, which is exactly the distinction the admin
+    /// screen needs in order to leave the field blank.</para>
+    /// <para>Never rendered as a bare interpolation — it is owner-supplied and leaves the site, so it
+    /// goes out with <c>rel="noopener noreferrer"</c> like every other outbound link here.</para>
+    /// </remarks>
+    public string? RegistrationUrl { get; set; }
+
+    /// <summary>
+    /// True when this engagement is still in the future, and therefore belongs in the Speaker
+    /// Profile page's "Future Sessions" table rather than "Past Sessions".
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Derived from <see cref="EventDate"/> rather than stored, so the
+    /// split cannot go stale — see migration 031 for why no <c>IsPast</c> column exists. The
+    /// comparison is against <b>today's date</b>, not <c>DateTime.Now</c>: a session is "upcoming"
+    /// for the whole of the day it runs on, so a talk at 09:00 does not silently move itself into
+    /// the past table while it is still being delivered.</para>
+    /// <para><b>A row with no date counts as PAST.</b> The alternative — treating an unset date as
+    /// upcoming — would put every legacy row with a missing date into Future Sessions, where a
+    /// visitor would read them as announcements.</para>
+    /// </remarks>
+    public bool IsUpcoming => EventDate.Date >= DateTime.Today;
 }

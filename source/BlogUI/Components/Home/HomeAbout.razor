@@ -19,8 +19,11 @@
 @if (!string.IsNullOrWhiteSpace(Summary))
 {
     <section id="about-summary" class="py-10" data-testid="home-about">
-        <h2 class="text-3xl font-bold tracking-tight" data-testid="home-about-heading">About</h2>
-        <p class="mb-6 text-sm text-muted-foreground">
+        @* UAT-008 — the mockup centres every section title and its sub-line
+           (.section-title{font-size:24px;font-weight:700;text-align:center} and
+           .section-sub{text-align:center}). These were left-aligned. *@
+        <h2 class="text-2xl font-bold tracking-tight text-center" data-testid="home-about-heading">About</h2>
+        <p class="mb-6 text-center text-sm text-muted-foreground">
             A short introduction — the full story lives on the
             @* REQ-NFR-007 / WCAG 1.4.1: a link inside a text block must not be identified by
                colour alone, so it stays underlined rather than underlining only on hover. *@

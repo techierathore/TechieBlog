@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TechieBlog — Development Metrics</title>
+<script>
+/* Resolve the theme BEFORE first paint (no flash). Saved choice wins; otherwise
+   pick by time of day — light 07:00–19:00 local, softened dark at night. */
+(function(){
+  try{
+    var t = localStorage.getItem('tf-theme');
+    if(t!=='light' && t!=='dark'){ var h = new Date().getHours(); t = (h>=7 && h<19) ? 'light' : 'dark'; }
+    document.documentElement.setAttribute('data-theme', t);
+  }catch(e){ document.documentElement.setAttribute('data-theme','light'); }
+})();
+</script>
+<style>
+/* LIGHT is the default theme — a warm off-white, easy on the eyes (never bright white). */
+:root{
+  --bg:#f4f1e9; --panel:#efe9db; --panel2:#e7e0cd; --line:#d8cfb6;
+  --ink:#2e2a22; --muted:#6f6857; --accent:#2f6f9f; --accent2:#3f7d54;
+  --warn:#9a6b15; --danger:#b03a52; --ok:#3f7d54;
+  --code-bg:#ece5d3; --code-ink:#332f26; --row-alt:#eae2cf;
+  --h3:#3a352b; --h4:#2f6f9f; --quote:#4a4537; --cta-bg:#e6eef5;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+/* DARK — softened near-black (warmer / less harsh than pure #0f1115). */
+html[data-theme="dark"]{
+  --bg:#11141a; --panel:#171b23; --panel2:#1e2430; --line:#2b3240;
+  --ink:#dfe3ea; --muted:#99a2b1; --accent:#7cc4ff; --accent2:#a6e3a1;
+  --warn:#f9c74f; --danger:#f38ba8; --ok:#a6e3a1;
+  --code-bg:#0c1016; --code-ink:#d8dde8; --row-alt:#141821;
+  --h3:#cfd5e3; --h4:#7cc4ff; --quote:#cfd5e3; --cta-bg:#0d2030;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;font-size:15px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:var(--mono);font-size:13px;background:var(--code-bg);color:var(--code-ink);padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+pre{font-family:var(--mono);font-size:12.5px;background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto;color:var(--code-ink);position:relative}
+pre code{background:none;border:none;padding:0}
+.copy{position:absolute;top:8px;right:8px;background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:11px;font-family:var(--sans);cursor:pointer}
+.copy:hover{color:var(--accent);border-color:var(--accent)}
+/* floating light/dark toggle (top-right) */
+.theme-toggle{position:fixed;top:12px;right:14px;z-index:10000;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12.5px;font-family:var(--sans);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.theme-toggle:hover{color:var(--accent);border-color:var(--accent)}
+
+.layout{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+.layout.no-toc{grid-template-columns:1fr}
+nav.side{position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--line);background:var(--panel);padding:18px 14px}
+nav.side h1{font-size:14px;margin:0 0 4px;letter-spacing:.5px;color:var(--ink)}
+nav.side .sub{font-size:11.5px;color:var(--muted);margin-bottom:14px}
+nav.side ol,nav.side ul{list-style:none;padding:0;margin:0}
+nav.side li{font-size:13px;margin:2px 0}
+nav.side li a{display:block;padding:5px 8px;color:var(--ink);border-radius:6px}
+nav.side li a:hover{background:var(--panel2);text-decoration:none}
+nav.side li.h3 a{padding-left:22px;font-size:12.5px;color:var(--h3)}
+nav.side .group{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin:14px 8px 4px}
+
+main{padding:28px 40px 80px;max-width:1100px}
+.layout.no-toc main{margin:0 auto}
+
+h1{font-size:28px;margin:0 0 6px}
+h2{font-size:22px;margin:32px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);scroll-margin-top:16px}
+h3{font-size:17px;margin:22px 0 6px;color:var(--h3);scroll-margin-top:16px}
+h4{font-size:14px;margin:14px 0 4px;color:var(--h4);scroll-margin-top:16px}
+.subtitle{color:var(--muted);font-size:14px;margin-top:-4px;margin-bottom:18px}
+p{margin:6px 0 10px}
+blockquote{border-left:3px solid var(--accent);background:var(--panel);margin:8px 0;padding:8px 14px;color:var(--quote)}
+ul,ol{padding-left:22px}
+li{margin:2px 0}
+
+table{border-collapse:collapse;width:100%;font-size:13.5px;margin:8px 0}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--panel2);color:var(--h3);font-weight:600}
+tr:nth-child(even) td{background:var(--row-alt)}
+
+hr{border:none;border-top:1px solid var(--line);margin:24px 0}
+.anchor-link{color:var(--muted);font-weight:400;font-size:0.85em;margin-left:8px;opacity:0;transition:opacity .15s;text-decoration:none}
+h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
+
+/* inline TOC at top of main content */
+.toc-inline{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 16px;margin:14px 0 24px}
+.toc-inline > div{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.toc-inline ol,.toc-inline ul{margin:4px 0;padding-left:18px}
+.toc-inline li{font-size:13px;margin:1px 0}
+.toc-inline a{color:var(--h3)}
+
+/* mermaid diagram wrapper + toolbar */
+.diagram{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--code-bg);margin:14px 0;overflow:hidden}
+.diagram .mermaid{padding:14px;margin:0;background:transparent;border:none;overflow:auto}
+.diagram .dt{display:flex;gap:6px;justify-content:flex-end;padding:6px 8px;background:var(--row-alt);border-bottom:1px solid var(--line)}
+.diagram .dt button{background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 10px;font-size:12px;font-family:var(--sans);cursor:pointer;min-width:30px}
+.diagram .dt button:hover{color:var(--accent);border-color:var(--accent)}
+.diagram .dt .zlabel{padding:3px 6px;font-size:11px;color:var(--muted);font-family:var(--mono);align-self:center}
+.diagram.fs{position:fixed;inset:0;z-index:9999;border-radius:0;border:none}
+.diagram.fs .mermaid{height:calc(100vh - 40px);display:flex;align-items:center;justify-content:center}
+
+@media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{position:static;height:auto}}
+</style>
+</head>
+<body>
+<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">☾ Dark</button>
+<div class="layout no-toc">
+  <main>
+    <h1>TechieBlog — Development Metrics</h1>
+    <div class="subtitle">Snapshot as of 2026-08-20 · project_type <code>app</code> · schema v1</div>
+
+    <div class="toc-inline">
+      <div>Contents</div>
+      <ol>
+        <li><a href="#first-pass-rate">1. First-pass rate</a></li>
+        <li><a href="#gate-catch-distribution">2. Gate catch distribution</a></li>
+        <li><a href="#escape-rate">3. Escape rate</a></li>
+        <li><a href="#throughput-and-rework-poolable">4. Throughput and rework — poolable</a></li>
+        <li><a href="#what-is-missing">5. What is missing</a></li>
+      </ol>
+    </div>
+
+    <!-- Written by .tfcore/tasks/metrics-report.md (`*metrics`). Regenerated on demand,
+         never hand-edited. Source: docs/metrics/*.jsonl (append-only) — schema at
+         .tfcore/telemetry/SCHEMA.md.
+
+         THE ONE RULE FOR THIS DOCUMENT: no combined first-pass rate, gate catch
+         distribution, or escape rate across live/backfilled or across project_type.
+         No "total" row, no "overall" line, no averaged intro sentence. If you are
+         tempted to add one, re-read metrics-report.md §2 — the reason is not
+         cosmetic. Commit-derived metrics are exempt from both separations. -->
+
+    <table>
+      <thead>
+        <tr><th>Stream</th><th>Records</th><th>Span</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>runs.jsonl</code></td><td>13</td><td>2026-08-09 → 2026-08-14</td></tr>
+        <tr><td><code>gates.jsonl</code></td><td>190 (0 backfilled)</td><td>2026-08-09 → 2026-08-14</td></tr>
+        <tr><td><code>sessions.jsonl</code></td><td>14</td><td>2026-08-08 → 2026-08-20</td></tr>
+        <tr><td><code>commits.jsonl</code></td><td>93</td><td>2024-10-18 → 2026-08-11</td></tr>
+      </tbody>
+    </table>
+
+    <p>Every record in every stream is <strong>live</strong> (written at the moment of the event —
+    zero backfilled) and carries <code>project_type: app</code>. No provenance separation is
+    required beyond this statement; there is no backfilled column anywhere on this page.</p>
+
+    <hr>
+
+    <h2 id="first-pass-rate">1. First-pass rate<a class="anchor-link" href="#first-pass-rate">#</a></h2>
+
+    <p><em>What fraction of REQs reach <code>Verified</code> on attempt 1.</em></p>
+
+    <table>
+      <thead>
+        <tr><th>Provenance</th><th>project_type</th><th>REQs scored</th><th>First-pass</th><th>Rate</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Live</strong></td><td>app</td><td>151</td><td>121</td><td>80%</td></tr>
+      </tbody>
+    </table>
+
+    <p>There is no backfilled row: <code>gates_backfilled = 0</code>.</p>
+
+    <p><strong>Excluded from the live rate:</strong> 0 REQs. No <code>req_id</code> in this repo carries any
+    backfilled history, so the live <code>attempt</code> numbering is trustworthy and nothing
+    was excluded.</p>
+
+    <hr>
+
+    <h2 id="gate-catch-distribution">2. Gate catch distribution<a class="anchor-link" href="#gate-catch-distribution">#</a></h2>
+
+    <p><em>Of all failures, which gate caught them.</em></p>
+
+    <h3 id="live-app-36-failures">Live · <code>app</code> — 36 failures<a class="anchor-link" href="#live-app-36-failures">#</a></h3>
+
+    <table>
+      <thead>
+        <tr><th>Gate</th><th>Caught</th><th>Share</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>build</td><td>4</td><td>11%</td></tr>
+        <tr><td>acceptance</td><td>19</td><td>53%</td></tr>
+        <tr><td>render (§4a data-render)</td><td>7</td><td>19%</td></tr>
+        <tr><td>visual (§4b visual-truth)</td><td>5</td><td>14%</td></tr>
+        <tr><td>standards</td><td>1</td><td>3%</td></tr>
+        <tr><td><strong>escaped</strong> — no gate caught it</td><td>0</td><td>0%</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Most common failure classes:</strong> <code>other</code> ×15, <code>assert-fail</code> ×7, <code>blank-data</code> ×5.</p>
+
+    <p><strong><code>perf</code> — insufficient data (n=1).</strong> The perf gate entered the enum on
+    2026-08-10, mid-stream. Every record written before that date had zero chance of
+    recording it, and the gate only fires for a REQ carrying a <code>perf-budget:</code>. In
+    this repo <code>perf</code> ran on exactly 1 record and caught 0. Its catch rate is read
+    against that coverage, not against the 36-failure total above — a share computed
+    against the total would structurally understate it.</p>
+
+    <hr>
+
+    <h2 id="escape-rate">3. Escape rate<a class="anchor-link" href="#escape-rate">#</a></h2>
+
+    <p><em>What fraction of defective REQs reached UAT/production instead of a gate.</em></p>
+
+    <table>
+      <thead>
+        <tr><th>Provenance</th><th>project_type</th><th>REQs with any failure</th><th>Escaped to UAT/prod</th><th>Rate</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Live</strong></td><td>app</td><td>34</td><td>0</td><td>0%</td></tr>
+      </tbody>
+    </table>
+
+    <p>Escapes are the <code>gate:"escaped"</code> records written by <code>*triage-issues</code> — a human
+    found the defect after every gate passed it. There are none in this stream; the
+    zero is real (the field exists in the data and never fired), not an absent field.</p>
+
+    <hr>
+
+    <h2 id="throughput-and-rework-poolable">4. Throughput and rework — poolable<a class="anchor-link" href="#throughput-and-rework-poolable">#</a></h2>
+
+    <p><em>These are comparable across <code>project_type</code> and across provenance, so they are
+    pooled deliberately.</em></p>
+
+    <table>
+      <tbody>
+        <tr><td>Runs total</td><td>13 (build-phase=7, verify-phase=5, handoff-phase=1)</td></tr>
+        <tr><td>Rework ratio (fix-mode ÷ build-phase runs)</td><td>71%</td></tr>
+        <tr><td>Batch size — median REQs per <code>build-phase</code> run</td><td>4</td></tr>
+        <tr><td>REQ throughput — median REQs/hour</td><td>5.04</td></tr>
+        <tr><td>Sessions / total tokens</td><td>14 / 4,430,759</td></tr>
+        <tr><td>Tokens per <code>Verified</code> REQ</td><td>28,771.2</td></tr>
+        <tr><td>Commit cadence</td><td>1.13 commits/active day over 82 days</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Cost in USD is not reported.</strong> Claude Code transcripts carry token counts but
+    no per-message dollar cost, and this framework runs on a subscription where
+    marginal per-token cost is not the real unit. Multiplying tokens by a rate card
+    would be an estimate presented as a measurement, so the row says tokens and
+    stops. Two OpenCode sessions carry real <code>cost_usd</code>, but dollars are never pooled
+    across harness (Claude records are <code>null</code>; a mixed sum silently under-reports),
+    so the pooled figure stays tokens.</p>
+
+    <p><code>commits.jsonl</code> is written by this repo's <code>pre-commit</code> hook, which is present
+    here (<code>commit_hook: true</code>) and reconciles against the log rather than appending
+    a single line. The stream lags reality by one commit — at <code>pre-commit</code> time HEAD
+    is still the previous commit, so the newest record ships in the next one.
+    Unavoidable in either direction, and the reconcile means the lag never becomes a
+    loss. Zero duplicate shas were collapsed at read time.</p>
+
+    <hr>
+
+    <h2 id="what-is-missing">5. What is missing<a class="anchor-link" href="#what-is-missing">#</a></h2>
+
+    <ul>
+      <li><code>perf</code> gate catch rate — <code>insufficient data (n=1)</code>; the gate has run on only 1
+      record since its 2026-08-10 introduction. Needs ≥3 supporting records to read
+      a share.</li>
+      <li><code>cost_usd</code> (pooled) — <code>null</code> across the mixed-harness stream; two OpenCode
+      sessions carry real cost but pooling dollars across harness is forbidden by
+      the schema. Reported in tokens instead.</li>
+      <li>No backfilled records exist in any stream — nothing was reconstructed, so no
+      metric here was guessed. This is the ideal state for every number on the page.</li>
+      <li>Single-repo report. No cross-project rollup was requested; gates/runs/sessions
+      here cover TechieBlog only.</li>
+    </ul>
+
+    <hr>
+
+    <!-- Privacy: this document may only contain IDs, counts, durations, verdicts and
+         file paths — exactly like the streams it summarises. Never requirement text,
+         never prompt text, never a commit subject, never a failure description in
+         prose. Assume it could become public. -->
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+<script>
+// Light/dark toggle. The initial theme was already applied flash-free by the
+// <head> script (saved choice, else time-of-day). Clicking flips it, saves the
+// choice, and reloads so Mermaid re-renders in the matching theme.
+(function(){
+  var btn = document.getElementById('themeToggle');
+  if(!btn) return;
+  var relabel = function(){
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    btn.textContent = dark ? '☀ Light' : '☾ Dark';
+  };
+  relabel();
+  btn.addEventListener('click', function(){
+    var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    try{ localStorage.setItem('tf-theme', next); }catch(e){}
+    location.reload();
+  });
+})();
+
+// Copy buttons on every code <pre> — but NEVER on a `pre.mermaid`:
+// mermaid reads the <pre>'s textContent as the diagram source, so a button
+// appended here glues "copy" onto the last line and breaks the parse
+// (flowcharts → "Syntax error"; sequence diagrams silently absorb it).
+// Mermaid blocks get copy/export from their own .diagram toolbar instead.
+document.querySelectorAll('pre:not(.mermaid)').forEach(pre => {
+  const btn = document.createElement('button');
+  btn.className = 'copy';
+  btn.textContent = 'copy';
+  btn.addEventListener('click', () => {
+    const text = pre.querySelector('code') ? pre.querySelector('code').innerText : pre.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'copied';
+      setTimeout(() => { btn.textContent = 'copy'; }, 1200);
+    });
+  });
+  pre.appendChild(btn);
+});
+
+// Mermaid init — theme follows the resolved light/dark theme
+if (window.mermaid) {
+  var mermaidTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
+  mermaid.initialize({ startOnLoad: true, theme: mermaidTheme, securityLevel: 'loose' });
+}
+
+// Mermaid toolbar wiring — run after mermaid renders
+function wireMermaidToolbars() {
+  document.querySelectorAll('.diagram').forEach(dia => {
+    if (dia.dataset.wired) return;
+    const merm = dia.querySelector('.mermaid');
+    const svg = merm && merm.querySelector('svg');
+    if (!svg) return;
+    dia.dataset.wired = '1';
+    let scale = 1;
+    const label = dia.querySelector('.zlabel');
+    const apply = () => {
+      svg.style.transform = `scale(${scale})`;
+      svg.style.transformOrigin = 'top left';
+      if (label) label.textContent = Math.round(scale * 100) + '%';
+    };
+    const setScale = (s) => { scale = Math.max(0.25, Math.min(4, s)); apply(); };
+    dia.querySelector('[data-zin]').onclick = () => setScale(scale * 1.2);
+    dia.querySelector('[data-zout]').onclick = () => setScale(scale / 1.2);
+    dia.querySelector('[data-fit]').onclick = () => {
+      svg.style.transform = '';
+      svg.removeAttribute('width');
+      svg.style.maxWidth = '100%';
+      svg.style.height = 'auto';
+      scale = 1;
+      if (label) label.textContent = 'Fit';
+    };
+    dia.querySelector('[data-one]').onclick = () => {
+      svg.style.transform = '';
+      svg.style.maxWidth = 'none';
+      svg.style.width = '';
+      svg.style.height = '';
+      scale = 1;
+      if (label) label.textContent = '100%';
+    };
+    dia.querySelector('[data-fs]').onclick = () => {
+      dia.classList.toggle('fs');
+      if (dia.classList.contains('fs')) {
+        document.addEventListener('keydown', escFs);
+      } else {
+        document.removeEventListener('keydown', escFs);
+      }
+    };
+    function escFs(e) { if (e.key === 'Escape') { dia.classList.remove('fs'); document.removeEventListener('keydown', escFs); } }
+    dia.querySelector('[data-pop]').onclick = () => openInNewTab(svg);
+    // Ctrl+wheel zoom
+    merm.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setScale(scale * (e.deltaY < 0 ? 1.1 : 1/1.1));
+    }, { passive: false });
+  });
+}
+
+function openInNewTab(svg) {
+  const svgSource = new XMLSerializer().serializeToString(svg);
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Diagram</title>
+<style>
+  html,body{margin:0;height:100%;background:#0f1115;color:#e6e8ee;font-family:system-ui,sans-serif}
+  .bar{position:fixed;top:0;left:0;right:0;padding:8px 12px;background:#161a22;border-bottom:1px solid #2a3142;display:flex;gap:8px;z-index:10}
+  .bar button{background:#1c2230;color:#9aa3b2;border:1px solid #2a3142;border-radius:6px;padding:5px 12px;font-size:13px;cursor:pointer}
+  .bar button:hover{color:#7cc4ff;border-color:#7cc4ff}
+  .bar .hint{margin-left:auto;color:#9aa3b2;font-size:11.5px;align-self:center}
+  #stage{position:absolute;top:42px;bottom:0;left:0;right:0;overflow:hidden}
+  #stage svg{width:100%;height:100%}
+</style>
+</head><body>
+<div class="bar">
+  <button onclick="zpz.zoomIn()">+</button>
+  <button onclick="zpz.zoomOut()">−</button>
+  <button onclick="zpz.fit();zpz.center()">Fit</button>
+  <button onclick="zpz.resetZoom();zpz.center()">1:1</button>
+  <button onclick="window.print()">Print</button>
+  <button onclick="dlPng()">PNG</button>
+  <button onclick="dlSvg()">SVG</button>
+  <span class="hint">Drag to pan · Ctrl+wheel to zoom · + / − keys</span>
+</div>
+<div id="stage">${svgSource}</div>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"><\/script>
+<script>
+  const el = document.querySelector('#stage svg');
+  const zpz = svgPanZoom(el, { zoomScaleSensitivity: .3, minZoom: .2, maxZoom: 10, controlIconsEnabled: false, fit: true, center: true });
+  document.addEventListener('keydown', e => {
+    if (e.key === '+' || e.key === '=') zpz.zoomIn();
+    if (e.key === '-' || e.key === '_') zpz.zoomOut();
+    if (e.key === '0') { zpz.resetZoom(); zpz.center(); }
+  });
+  function dlSvg() {
+    const blob = new Blob([new XMLSerializer().serializeToString(el)], { type: 'image/svg+xml' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'diagram.svg'; a.click();
+  }
+  function dlPng() {
+    const src = new XMLSerializer().serializeToString(el);
+    const img = new Image();
+    const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(src)));
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = el.clientWidth * 2; c.height = el.clientHeight * 2;
+      const ctx = c.getContext('2d'); ctx.scale(2,2); ctx.drawImage(img, 0, 0);
+      c.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'diagram.png'; a.click(); });
+    };
+    img.src = url;
+  }
+<\/script>
+</body></html>`;
+  const w = window.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+// Run wiring after mermaid finishes (it renders async)
+if (window.mermaid) {
+  setTimeout(wireMermaidToolbars, 400);
+  setTimeout(wireMermaidToolbars, 1200);  // safety re-run for slow renders
+}
+</script>
+</body>
+</html>

@@ -155,11 +155,252 @@
             <span class="text-sm text-muted-foreground">Runs a read-only probe against the server.</span>
         </div>
 
+        <Separator />
+
+        @* REQ-FN-062: the desktop head's MEDIA connection. Images are NOT stored in the database —
+           the website serves them from a directory on the server's disk — so a head that knows only
+           where the database lives writes every upload to its own machine and the picture never
+           reaches the site.
+
+           The transport is an explicit choice, not something inferred from a path. The first version
+           of this screen offered only a folder box and assumed the server's uploads directory could
+           be mounted; for a Linux VPS answering on 443 and 22 it cannot, and typing the server's
+           path into that box silently created a same-named folder on the local C: drive. Naming the
+           transport makes "which machine do these bytes end up on" a question the screen asks. *@
+        <h2 class="text-base font-semibold" data-testid="media-setup-heading">Media storage</h2>
+        <p class="text-sm text-muted-foreground" data-testid="media-setup-note">
+            Images live on the server's disk, not in the database. Choose how BlogApp gets them
+            there — and press <strong>Test</strong>, which proves a file really made the journey
+            rather than just checking a folder is writable.
+        </p>
+
+        <Field>
+            <FieldLabel For="media-transport">How images reach the site</FieldLabel>
+            <FieldContent>
+                <Select TValue="string" @bind-Value="Settings.MediaTransport" Class="w-full">
+                    <SelectTrigger data-testid="media-transport">
+                        <SelectValue Placeholder="Choose a transport" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        @foreach (var transport in MediaTransports.All)
+                        {
+                            var label = MediaTransports.LabelFor(transport);
+                            <SelectItem TValue="string" Value="@transport" Text="@label">@label</SelectItem>
+                        }
+                    </SelectContent>
+                </Select>
+            </FieldContent>
+        </Field>
+
+        @if (Settings.IsSftpTransport())
+        {
+            <div class="grid grid-cols-2 gap-x-4">
+                <Field>
+                    <FieldLabel For="sftp-host">Server host</FieldLabel>
+                    <FieldContent>
+                        <Input Id="sftp-host"
+                               Placeholder="techierathore.com"
+                               @bind-Value="Settings.SftpHost"
+                               data-testid="sftp-host" />
+                    </FieldContent>
+                </Field>
+
+                <Field>
+                    <FieldLabel For="sftp-port">SSH port</FieldLabel>
+                    <FieldContent>
+                        <Input Id="sftp-port"
+                               Type="InputType.Number"
+                               @bind-Value="SftpPortText"
+                               data-testid="sftp-port" />
+                    </FieldContent>
+                </Field>
+            </div>
+
+            <Field>
+                <FieldLabel For="sftp-username">SSH username</FieldLabel>
+                <FieldContent>
+                    <Input Id="sftp-username"
+                           @bind-Value="Settings.SftpUsername"
+                           data-testid="sftp-username" />
+                </FieldContent>
+            </Field>
+
+            <Field>
+                <FieldLabel For="sftp-password">SSH password</FieldLabel>
+                <FieldContent>
+                    <Input Id="sftp-password"
+                           Type="InputType.Password"
+                           @bind-Value="Settings.SftpPassword"
+                           data-testid="sftp-password" />
+                </FieldContent>
+                <FieldDescription>Leave blank if you use a private key below.</FieldDescription>
+            </Field>
+
+            <div class="grid grid-cols-2 gap-x-4">
+                <Field>
+                    <FieldLabel For="sftp-key-path">Private key file (optional)</FieldLabel>
+                    <FieldContent>
+                        @* A hand-typed path is a path nobody checked - which is how REQ-FN-062's
+                           second round started. The picker cannot return one that does not exist. *@
+                        <div class="flex items-center gap-2">
+                            <Input Id="sftp-key-path"
+                                   Class="flex-1"
+                                   Placeholder="Choose your OpenSSH private key"
+                                   @bind-Value="Settings.SftpPrivateKeyPath"
+                                   data-testid="sftp-key-path" />
+                            <Button Variant="ButtonVariant.Outline"
+                                    Type="ButtonType.Button"
+                                    OnClick="BrowseForPrivateKey"
+                                    Disabled="@IsBusy"
+                                    data-testid="sftp-key-browse">
+                                <LucideIcon Name="folder-open" Size="16" />
+                                Browse
+                            </Button>
+                        </div>
+                    </FieldContent>
+                    <FieldDescription>Usually <code>id_ed25519</code> or <code>id_rsa</code> in your <code>.ssh</code> folder.</FieldDescription>
+                </Field>
+
+                <Field>
+                    <FieldLabel For="sftp-key-passphrase">Key passphrase</FieldLabel>
+                    <FieldContent>
+                        <Input Id="sftp-key-passphrase"
+                               Type="InputType.Password"
+                               @bind-Value="Settings.SftpPrivateKeyPassphrase"
+                               data-testid="sftp-key-passphrase" />
+                    </FieldContent>
+                </Field>
+            </div>
+
+            <Field>
+                <FieldLabel For="sftp-uploads-path">Uploads directory ON THE SERVER</FieldLabel>
+                <FieldContent>
+                    <Input Id="sftp-uploads-path"
+                           Placeholder="/srv/data/techieblog/uploads"
+                           @bind-Value="Settings.SftpUploadsPath"
+                           data-testid="sftp-uploads-path" />
+                </FieldContent>
+                <FieldDescription>
+                    The server's own path — the directory the site serves at <code>/uploads</code>.
+                    For this deployment that is <code>/srv/data/techieblog/uploads</code>.
+                </FieldDescription>
+            </Field>
+
+            @* REQ-FN-062: images uploaded before this transport existed are on THIS machine, while
+               their database rows already point at /uploads/... on the server. So the rows are
+               right and only the files are misplaced - sending them up repairs the rows outright,
+               with no re-upload and no database writes. Done here rather than with an scp command
+               because the app already holds the credentials and the server path. *@
+            <div class="rounded-lg border border-border p-4 flex flex-col gap-3" data-testid="media-migrate-panel">
+                <div class="text-sm font-medium">Images already on this machine</div>
+                <p class="text-sm text-muted-foreground">
+                    Anything uploaded before you set this up is still here, and its database row
+                    already points at the server. Send the files up and those images start working —
+                    nothing needs re-uploading.
+                </p>
+
+                <div class="flex items-center gap-2">
+                    <Input Class="flex-1"
+                           Placeholder="Folder holding the images"
+                           @bind-Value="MigrateFromFolder"
+                           data-testid="media-migrate-folder" />
+                    <Button Variant="ButtonVariant.Outline"
+                            Type="ButtonType.Button"
+                            OnClick="BrowseForMigrationFolder"
+                            Disabled="@IsBusy"
+                            data-testid="media-migrate-browse">
+                        <LucideIcon Name="folder-open" Size="16" />
+                        Browse
+                    </Button>
+                    <Button Variant="ButtonVariant.Outline"
+                            Type="ButtonType.Button"
+                            OnClick="MigrateLocalMedia"
+                            Disabled="@IsBusy"
+                            data-testid="media-migrate-run">
+                        @if (isMigrating)
+                        {
+                            <Spinner Size="SpinnerSize.Small" Class="mr-2" />
+                            <span>Sending...</span>
+                        }
+                        else
+                        {
+                            <span>Send to server</span>
+                        }
+                    </Button>
+                </div>
+                <p class="text-xs text-muted-foreground">
+                    Point at the folder that plays the part of <code>uploads</code> — its
+                    sub-folders are reproduced on the server exactly.
+                </p>
+            </div>
+        }
+        else if (Settings.IsFolderTransport())
+        {
+            <Field>
+                <FieldLabel For="media-root-path">Uploads folder</FieldLabel>
+                <FieldContent>
+                    <Input Id="media-root-path"
+                           Placeholder="\\server\techieblog\uploads"
+                           @bind-Value="Settings.MediaRootPath"
+                           data-testid="media-root-path" />
+                </FieldContent>
+                <FieldDescription>
+                    Must genuinely lead to the server — a mapped drive or a UNC share. A folder on
+                    this computer is rejected, however it is named.
+                </FieldDescription>
+            </Field>
+        }
+        else
+        {
+            <Alert Variant="AlertVariant.Warning" AccentBorder="true" data-testid="media-none-warning">
+                <LucideIcon Name="triangle-alert" Size="16" />
+                <AlertTitle>Uploads stay on this machine</AlertTitle>
+                <AlertDescription>
+                    Images you upload from BlogApp will be written to this computer and will not
+                    appear on the website. That is fine if you only edit text here.
+                </AlertDescription>
+            </Alert>
+        }
+
+        <Field>
+            <FieldLabel For="site-base-url">Website address (optional)</FieldLabel>
+            <FieldContent>
+                <Input Id="site-base-url"
+                       Placeholder="https://techierathore.com"
+                       @bind-Value="Settings.SiteBaseUrl"
+                       data-testid="site-base-url" />
+            </FieldContent>
+            <FieldDescription>
+                Only used to DISPLAY images inside BlogApp — stored paths are unchanged. Without it
+                the desktop app cannot show pictures that live on the server, because it can only
+                serve its own files.
+            </FieldDescription>
+        </Field>
+
+        <div class="flex items-center gap-3">
+            <Button Variant="ButtonVariant.Outline"
+                    Type="ButtonType.Button"
+                    OnClick="TestMediaLocation"
+                    Disabled="@IsBusy"
+                    data-testid="media-test">
+                @if (isTestingMedia)
+                {
+                    <Spinner Size="SpinnerSize.Small" Class="mr-2" />
+                    <span>Testing...</span>
+                }
+                else
+                {
+                    <span>Test media destination</span>
+                }
+            </Button>
+            <span class="text-sm text-muted-foreground">Writes a file, reads it back, then removes it.</span>
+        </div>
+
         @if (!string.IsNullOrEmpty(successMessage))
         {
             <Alert Variant="AlertVariant.Success" AccentBorder="true" data-testid="connection-success">
                 <LucideIcon Name="circle-check" Size="16" />
-                <AlertTitle>Connection OK</AlertTitle>
+                <AlertTitle>@ResultTitle</AlertTitle>
                 <AlertDescription>@successMessage</AlertDescription>
             </Alert>
         }
@@ -168,7 +409,7 @@
         {
             <Alert Variant="AlertVariant.Danger" AccentBorder="true" data-testid="connection-error">
                 <LucideIcon Name="circle-alert" Size="16" />
-                <AlertTitle>Connection failed</AlertTitle>
+                <AlertTitle>@FailureTitle</AlertTitle>
                 <AlertDescription>@errorMessage</AlertDescription>
             </Alert>
         }

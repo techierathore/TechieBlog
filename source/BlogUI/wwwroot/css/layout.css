@@ -740,3 +740,155 @@
         margin-left: auto;
     }
 }
+
+/* --------------------------------------------------------------------------
+   PUBLIC PAGE TITLES — mockup fidelity (UAT-008 sweep)
+   --------------------------------------------------------------------------
+   Every public page title in docs/mockups/ is drawn the same way:
+
+       <h1 style="font-size:clamp(24px,4vw,32px);font-weight:800">
+
+   (08-about, 07-search-results, 05-series-list, 03-category-archive and the
+   rest all carry that identical inline style.) TrBlazeUI's <TypographyH1> bakes
+   in text-4xl / lg:text-5xl, so those headings rendered at 48px — half again the
+   design's 32px at desktop width, which is what made the public pages read as
+   "different" even where the layout was right.
+
+   The selector is `h1.page-title`, not `.page-title`: element+class (0,1,1)
+   outranks the component's bare utility class (0,1,0), so this wins no matter
+   how the stylesheets are ordered. That matters here because the utility comes
+   from the library sheet, not from ours.
+
+   NOTE this project ships TrBlazeUI's PREBUILT css with no Tailwind JIT — a
+   `text-[clamp(...)]` utility is never generated. Bespoke values must be real
+   rules like this one.
+   -------------------------------------------------------------------------- */
+
+h1.page-title {
+    font-size: clamp(24px, 4vw, 32px);
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+/* The mockups centre the title only where the whole header block is centred
+   (08-about wraps it in `<header style="text-align:center">`). Applied per page
+   rather than globally, so list pages keep their left-aligned headers. */
+h1.page-title-centered {
+    text-align: center;
+}
+
+/* --------------------------------------------------------------------------
+   PAGE CONTAINER — mockup fidelity
+   --------------------------------------------------------------------------
+   docs/mockups/trblazeui.css: `.container{max-width:1120px;margin:0 auto;padding:0 24px}`.
+   A real rule, not `max-w-[1120px]` — see the note on h1.page-title: this build
+   ships prebuilt CSS with no Tailwind JIT, so arbitrary-value utilities are
+   never generated and silently do nothing. SpeakerProfile.razor shipped with an
+   inert `max-w-[1100px]` for exactly that reason until this landed.
+   -------------------------------------------------------------------------- */
+
+.page-container {
+    max-width: 1120px;
+    margin-inline: auto;
+    padding-inline: 24px;
+}
+
+/* --------------------------------------------------------------------------
+   SPEAKER PROFILE BANNER
+   --------------------------------------------------------------------------
+   A photograph of the site owner speaking, used as the page's masthead with the
+   title overlaid.
+
+   `aspect-ratio` (not a fixed height) keeps the 1920x652 source uncropped at
+   every width, and reserves the box before the image arrives so the heading
+   below it does not jump — the layout-shift half of the perf budget.
+
+   The scrim is a bottom-up gradient rather than a flat tint: the photo's own
+   lower-left is already dark, so a flat overlay would wash out the bright
+   backdrop for no gain. It sits BELOW the text and ABOVE the image, and is what
+   makes white text legible over an image the theme cannot control. That is why
+   the overlaid title is not theme-tokened — it sits on a photograph in both
+   light and dark mode, so it is white in both.
+   -------------------------------------------------------------------------- */
+
+.speaker-banner {
+    position: relative;
+    /* `width:100%` is load-bearing, not decoration. With `aspect-ratio` set and no
+       definite width, a `min-height` makes the HEIGHT authoritative and the browser
+       derives width from it — 160px x 2.94 = 471px, which overflowed a 390px
+       viewport by 121px. Pinning the width makes width authoritative, so the ratio
+       can only ever compute the height. The min-height that caused it is gone. */
+    width: 100%;
+    aspect-ratio: 1920 / 652;
+    overflow: hidden;
+    border-radius: var(--radius, 0.625rem);
+    border: 1px solid var(--border);
+    background: var(--muted);
+}
+
+.speaker-banner img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* The subject stands right of centre; favouring that side keeps him in frame
+       when a narrow viewport crops the sides. */
+    object-position: 60% 30%;
+    display: block;
+}
+
+.speaker-banner__scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        to top,
+        rgb(0 0 0 / .78) 0%,
+        rgb(0 0 0 / .45) 38%,
+        rgb(0 0 0 / .05) 70%,
+        transparent 100%);
+}
+
+.speaker-banner__content {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: clamp(14px, 3vw, 30px);
+    color: #fff;
+}
+
+.speaker-banner__title {
+    font-size: clamp(24px, 4vw, 32px);
+    font-weight: 800;
+    line-height: 1.15;
+    margin: 0;
+    color: #fff;
+    text-shadow: 0 1px 3px rgb(0 0 0 / .5);
+}
+
+.speaker-banner__sub {
+    margin: 6px 0 0;
+    font-size: clamp(12.5px, 1.6vw, 15px);
+    /* Not --muted-foreground: that token is tuned for the page background, and
+       over a photograph it fails contrast in light mode. */
+    color: rgb(255 255 255 / .88);
+    text-shadow: 0 1px 3px rgb(0 0 0 / .5);
+    max-width: 62ch;
+}
+
+/* A 2.94:1 strip is only ~116px tall on a phone — too little to hold a title, and
+   it crops the speaker to a sliver. Narrow viewports get a taller crop instead, so
+   the subject and the overlaid text both have room. object-position keeps him in
+   frame as the sides are cut. */
+@media (max-width: 560px) {
+    .speaker-banner {
+        aspect-ratio: 16 / 10;
+    }
+}
+
+/* Under ~420px even the taller crop cannot hold two lines comfortably, so the
+   caption drops and the title alone carries the banner. */
+@media (max-width: 420px) {
+    .speaker-banner__sub {
+        display: none;
+    }
+}

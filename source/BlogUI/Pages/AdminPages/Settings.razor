@@ -19,6 +19,7 @@
 @inject ThemeService ThemeService
 @inject ISiteSettingsService SiteSettingsService
 @inject ToastService ToastService
+@inject ICacheService CacheService
 
 <PageTitle>Settings - TechieBlog</PageTitle>
 
@@ -88,6 +89,46 @@
                                 <Input Id="admin-email" Type="InputType.Email" @bind-Value="settings.AdminEmail"
                                        Placeholder="admin@example.com" data-testid="admin-email" />
                                 <FieldDescription>Where system notifications are delivered.</FieldDescription>
+                            </FieldContent>
+                        </Field>
+                    </CardContent>
+                </Card>
+
+                @*
+                    UAT-001. The public pages read through a ten-minute in-memory cache that lives in
+                    THIS process. Every write made through the web application evicts it automatically,
+                    so this button is not needed for ordinary editing. It exists for the case that has
+                    no write path to hook: the database being changed from OUTSIDE this process — the
+                    BlogApp desktop client connected straight to the same database, a psql session, a
+                    restore. Those leave the site serving posts that no longer exist, or hiding posts
+                    that do, until the entries age out on their own.
+                *@
+                <Card Class="mt-6">
+                    <CardHeader>
+                        <CardTitle>Maintenance</CardTitle>
+                        <CardDescription>Tools for when the site and the database disagree.</CardDescription>
+                    </CardHeader>
+                    <CardContent Class="flex flex-col gap-4">
+                        <Field>
+                            <FieldLabel>Cached content</FieldLabel>
+                            <FieldContent>
+                                <div class="flex flex-wrap items-center gap-3">
+                                    <Button Variant="ButtonVariant.Outline"
+                                            OnClick="@ClearContentCache"
+                                            Disabled="@isClearingCache"
+                                            data-testid="clear-cache">
+                                        <LucideIcon Name="refresh-cw" Size="16" />
+                                        Clear cached content
+                                    </Button>
+                                </div>
+                                <FieldDescription>
+                                    Post listings, the featured article, categories, tags and series are
+                                    held for up to 10 minutes to keep the public pages fast. Editing
+                                    through this site refreshes them for you. Use this only after the
+                                    database was changed from somewhere else — the desktop app, a
+                                    restore, or a direct SQL session — to make the public pages match
+                                    it immediately instead of waiting for the cache to expire.
+                                </FieldDescription>
                             </FieldContent>
                         </Field>
                     </CardContent>
@@ -478,6 +519,9 @@
     private bool isLoading = true;
     private bool isSaving;
 
+    /// <summary>True while the maintenance cache flush is running (UAT-001).</summary>
+    private bool isClearingCache;
+
     private static readonly string[] storageProviders =
     {
         StorageProviderNames.Local,
@@ -574,6 +618,57 @@
         finally
         {
             isSaving = false;
+        }
+    }
+
+    /// <summary>
+    /// Drops every cached content, taxonomy and settings entry so the public pages re-read the
+    /// database on the next request (UAT-001).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Evicts all three tags rather than trying to be surgical. The
+    /// administrator reaching for this button has just changed the database from outside the
+    /// application and cannot be expected to know which of "content", "taxonomy" or "settings" their
+    /// change landed under — and getting that guess wrong would leave exactly the stale page they
+    /// came here to fix. The cost of over-evicting is a handful of queries on the next request.</para>
+    /// <para><b>This clears one server.</b> The cache is per-process, so behind a multi-instance
+    /// deployment this refreshes the instance that served the click. TechieBlog ships single-instance;
+    /// a scaled deployment would need a shared or broadcast invalidation instead.</para>
+    /// <para><b>Side Effects:</b> Expires every entry under the content, taxonomy and settings tags.
+    /// Nothing is written to the database.</para>
+    /// </remarks>
+    private async Task ClearContentCache()
+    {
+        if (isClearingCache)
+        {
+            return;
+        }
+
+        isClearingCache = true;
+
+        try
+        {
+            CacheService.EvictTag(CacheTags.Content);
+            CacheService.EvictTag(CacheTags.Taxonomy);
+            CacheService.EvictTag(CacheTags.Settings);
+
+            // The settings tag was just dropped, so the aggregate this screen is bound to is now
+            // uncached too. Re-read the editable copy (REQ-FN-061 — never the shared instance), or the
+            // page would keep showing values it can no longer prove.
+            settings = await SiteSettingsService.GetEditableSettingsAsync();
+            settings.SiteTheme = ThemeService.NormaliseTheme(settings.SiteTheme);
+
+            ToastService.Success(
+                "Cached content cleared. The public pages now read straight from the database.",
+                "Maintenance");
+        }
+        catch (Exception)
+        {
+            ToastService.Error("Could not clear the cache.", "Maintenance");
+        }
+        finally
+        {
+            isClearingCache = false;
         }
     }
 

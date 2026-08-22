@@ -127,6 +127,45 @@ public interface IBlogUserRepo : IGenericRepository<AppUser>
     /// <returns>True if successful, false otherwise.</returns>
     bool UpdateResumeFields(long userId, AppUser resumeData);
 
+    /// <summary>
+    /// Activates or deactivates a user account.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Writes <c>IsConfirmed</c> and nothing else (migration 030,
+    /// <c>SetBlogUserActive</c>). It exists as its own member rather than as a field on
+    /// <see cref="IGenericRepository{TEntity}.Update"/> because <c>UpdateBlogUser</c> does not carry
+    /// the column at all — <c>Update</c> silently discarded every activation change made through the
+    /// administration screen until this member was added, which is the defect it was written to
+    /// fix.</para>
+    /// <para><b>Side Effects:</b> Updates one row's <c>IsConfirmed</c> and <c>UpdatedOn</c>. Refuses
+    /// a soft-deleted row, which reports as <c>false</c>.</para>
+    /// </remarks>
+    /// <param name="userId">The account to activate or deactivate.</param>
+    /// <param name="isActive">True to activate the account, false to deactivate it.</param>
+    /// <returns>True when a row was updated; false when no such live user exists.</returns>
+    bool SetUserActive(long userId, bool isActive);
+
+    /// <summary>
+    /// Soft-deletes a user account.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Sets <c>IsDeleted</c> and clears <c>IsConfirmed</c> in one
+    /// statement (migration 030, <c>SoftDeleteBlogUser</c>), so the sign-in path's confirmation check
+    /// refuses the account without needing to know about deletion at all. The row itself is kept:
+    /// sixteen foreign keys point at <c>BlogUser</c> and a hard delete would be refused for any
+    /// author who has posted, while orphaning the content of one who has not.</para>
+    /// <para><b>Refusals are not failures.</b> The site owner cannot be deleted — that row drives the
+    /// public home page and <c>/resume</c> — and neither can an already-deleted one. Both report
+    /// <c>false</c>, matching the convention on the other bool-returning members here, where
+    /// <c>false</c> means "no row matched" and a genuine fault is thrown.</para>
+    /// <para><b>Side Effects:</b> Updates one row's <c>IsDeleted</c>, <c>IsConfirmed</c> and
+    /// <c>UpdatedOn</c>. Authored posts and comments are left attributed and visible.</para>
+    /// </remarks>
+    /// <param name="userId">The account to delete.</param>
+    /// <returns>True when the account was deleted; false when it does not exist, was already
+    /// deleted, or is the site owner.</returns>
+    bool SoftDeleteUser(long userId);
+
     // ---------------------------------------------------------------------------------------------
     // Async surface — REQ-NFR-026. Preferred over every member above.
     //
@@ -265,4 +304,34 @@ public interface IBlogUserRepo : IGenericRepository<AppUser>
     /// <returns><c>true</c> when a row was updated.</returns>
     Task<bool> UpdateResumeFieldsAsync(long userId, AppUser resumeData, CancellationToken cancellationToken = default)
         => Task.FromResult(UpdateResumeFields(userId, resumeData));
+
+    /// <summary>
+    /// Activates or deactivates a user account, without blocking the caller.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Async counterpart of <see cref="SetUserActive"/>.</para>
+    /// <para><b>Side Effects:</b> Updates one <c>BlogUser</c> row's <c>IsConfirmed</c>.</para>
+    /// </remarks>
+    /// <param name="userId">The account to activate or deactivate.</param>
+    /// <param name="isActive">True to activate the account, false to deactivate it.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns><c>true</c> when a row was updated.</returns>
+    Task<bool> SetUserActiveAsync(long userId, bool isActive, CancellationToken cancellationToken = default)
+        => Task.FromResult(SetUserActive(userId, isActive));
+
+    /// <summary>
+    /// Soft-deletes a user account, without blocking the caller.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Async counterpart of <see cref="SoftDeleteUser"/>. A
+    /// <c>false</c> result means the account does not exist, was already deleted, or is the site
+    /// owner — none of which is a fault.</para>
+    /// <para><b>Side Effects:</b> Updates one <c>BlogUser</c> row's <c>IsDeleted</c> and
+    /// <c>IsConfirmed</c>.</para>
+    /// </remarks>
+    /// <param name="userId">The account to delete.</param>
+    /// <param name="cancellationToken">Cancels the update.</param>
+    /// <returns><c>true</c> when the account was deleted.</returns>
+    Task<bool> SoftDeleteUserAsync(long userId, CancellationToken cancellationToken = default)
+        => Task.FromResult(SoftDeleteUser(userId));
 }

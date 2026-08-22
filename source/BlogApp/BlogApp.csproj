@@ -72,6 +72,15 @@
     <!-- Direct PostgreSQL reachability probe for the connection-setup screen (REQ-FN-047). -->
     <PackageReference Include="Npgsql" Version="9.0.2" />
 
+    <!--
+      SFTP upload transport (REQ-FN-062). The site's uploads live on a Linux VPS that exposes only
+      443 and 22 — there is no filesystem path a Windows desktop can reach — so the desktop head
+      writes media over SSH. Deliberately referenced HERE and not in BlogEngine: the website has a
+      local volume and needs none of this, and keeping the dependency in the desktop head is what
+      makes "the web app is unaffected" a fact about the project file rather than a claim.
+    -->
+    <PackageReference Include="SSH.NET" Version="2026.0.0" />
+
     <!-- DPAPI fallback for unpackaged WinUI builds where SecureStorage is unavailable (REQ-FN-047). -->
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.0" />
 

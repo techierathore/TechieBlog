@@ -20,6 +20,12 @@
 {
     @ChildContent
 
+    @* REQ-FN-062 — resolves stored /uploads/... paths against the site's own address so images
+       that live on the server are visible here. Renders nothing; sits beside the status bar for
+       the same reason it does — once, above every shared page, so no BlogUI page needs a
+       desktop-specific edit. *@
+    <UploadsUrlRewriter />
+
     @* The connection chip the desktop mockups call for, rendered once above every shared
        BlogUI page so none of them needs a desktop-specific edit. *@
     <DesktopStatusBar />

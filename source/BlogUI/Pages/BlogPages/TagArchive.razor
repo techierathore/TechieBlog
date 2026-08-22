@@ -46,7 +46,7 @@ else if (showTagList)
     <BlogBreadcrumb Items="@breadcrumbItems" />
 
     <header class="my-6 flex flex-col gap-2">
-        <TypographyH1>All Tags</TypographyH1>
+        <TypographyH1 Class="page-title">All Tags</TypographyH1>
         <p class="text-muted-foreground">Browse all blog post tags.</p>
     </header>
 
@@ -80,7 +80,7 @@ else
     <BlogBreadcrumb Items="@breadcrumbItems" />
 
     <header class="my-6 flex flex-col gap-2">
-        <TypographyH1>#@tagInfo.TagName</TypographyH1>
+        <TypographyH1 Class="page-title">#@tagInfo.TagName</TypographyH1>
         <p class="text-muted-foreground" data-testid="tag-description">Posts tagged with "@tagInfo.TagName"</p>
         <div>
             <Badge Variant="BadgeVariant.Secondary" data-testid="tag-post-count">@totalPosts posts</Badge>
