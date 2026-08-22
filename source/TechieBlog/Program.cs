@@ -809,11 +809,33 @@ public static class AuthRateLimit
     /// <summary>
     /// Request paths whose HTTP surface is rate limited.
     /// </summary>
+    /// <remarks>
+    /// <para><b>Every entry must be a route the application actually serves.</b> A path listed here
+    /// that no longer exists is not merely inert — it is a claim that the route is live, and
+    /// something eventually reads it as one. <c>"/register"</c> sat here after public registration
+    /// was retired (~~BRD-1~~), and on 2026-08-22 the documentation guard
+    /// (<c>DocumentationClaimTests</c>) used its presence as evidence that <c>/register</c> was a
+    /// real route — which made the guard certify the very stale documentation it exists to catch
+    /// (UAT-016).</para>
+    ///
+    /// <para><b>Two entries were removed on 2026-08-22</b> (UAT-017): <c>"/register"</c>, and
+    /// <c>"/logout"</c> — which never existed as an HTTP endpoint at all. Signing out is a component
+    /// action, not a request: <c>AdminLayout.LogoutAsync</c> calls
+    /// <c>CustomAuthStateProvider.MarkUserAsLoggedOut</c> and then navigates to <c>/</c>. Nothing is
+    /// ever posted to <c>/logout</c>, so rate-limiting it protected nothing.</para>
+    ///
+    /// <para><b>This list cannot rate-limit a Blazor component action.</b> That is the constraint to
+    /// understand before adding to it: these paths are matched against the REQUEST path, so they
+    /// cover form posts and full page loads only. An interaction that happens over the SignalR
+    /// circuit — which is most of this application, sign-out included — never presents a matching
+    /// path and is throttled by <c>ILoginThrottle</c> per account instead (REQ-NFR-005). Adding a
+    /// component route here buys nothing and implies protection that is not there.</para>
+    ///
+    /// <para>When a route is retired, delete it from this list in the same change.</para>
+    /// </remarks>
     public static readonly string[] Paths =
     {
         "/login",
-        "/logout",
-        "/register",
         "/forgot-password",
         "/reset-password",
         "/change-password"
