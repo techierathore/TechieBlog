@@ -119,6 +119,7 @@ public static class SiteSettingsMapper
     {
         settings.SiteTitle = ReadText(values, SiteSettingKeys.SiteTitle, settings.SiteTitle);
         settings.SiteTagline = ReadText(values, SiteSettingKeys.SiteTagline, settings.SiteTagline);
+        settings.SiteLogoPath = ReadText(values, SiteSettingKeys.SiteLogo, settings.SiteLogoPath);
         settings.AdminEmail = ReadText(values, SiteSettingKeys.AdminEmail, settings.AdminEmail);
     }
 
@@ -236,6 +237,7 @@ public static class SiteSettingsMapper
         const string group = SiteSettingKeys.Groups.General;
         yield return Row(SiteSettingKeys.SiteTitle, settings.SiteTitle, group);
         yield return Row(SiteSettingKeys.SiteTagline, settings.SiteTagline, group);
+        yield return Row(SiteSettingKeys.SiteLogo, settings.SiteLogoPath, group);
         yield return Row(SiteSettingKeys.AdminEmail, settings.AdminEmail, group);
     }
 

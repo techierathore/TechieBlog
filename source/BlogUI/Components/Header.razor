@@ -10,9 +10,19 @@
     single component, so this one composes NavigationMenu (desktop) + Sheet (mobile
     drawer) + a ghost ThemeToggle, exactly as recorded in
     docs/TechieBlog-TrBlazeUI-Feedback.md.
-*@
 
+    UAT-021 / UAT-022: the brand mark reads the configured site title and logo
+    (BlogEngine.Common.SiteIdentityExtensions), falling back to "TechieBlog" and the
+    built-in glyph. This layout persists for the life of the circuit — client-side
+    navigation does not recreate it — so it subscribes to SiteSettingsService.SettingsChanged
+    to pick up a save made on /settings without a restart or a hard refresh.
+*@
+@implements IDisposable
+@using BlogModels.Interfaces
+@using BlogModels.Models
+@using BlogEngine.Common
 @inject NavigationManager Navigation
+@inject ISiteSettingsService SiteSettingsService
 
 <header class="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
         data-testid="public-header">
@@ -33,10 +43,22 @@
         <a href="/"
            class="flex min-w-0 items-center gap-2 font-semibold text-foreground no-underline"
            data-testid="brand-link">
-            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <LucideIcon Name="code" Size="16" />
-            </span>
-            <span class="truncate text-base">TechieBlog</span>
+            @if (!string.IsNullOrEmpty(identity.SiteLogoPath))
+            {
+                <span class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary text-primary-foreground">
+                    <img src="@identity.SiteLogoPath"
+                         alt="@($"{identity.SiteTitle} logo")"
+                         class="h-full w-full object-contain"
+                         data-testid="site-logo" />
+                </span>
+            }
+            else
+            {
+                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                    <LucideIcon Name="code" Size="16" />
+                </span>
+            }
+            <span class="truncate text-base">@identity.SiteTitle</span>
         </a>
 
         @* Desktop navigation — TrBlazeUI's own NavigationMenu.
@@ -97,7 +119,7 @@
                    imported globally (its primitive types would shadow the styled Sheet family). *@
                 <SheetContent Side="TrBlazeUI.Primitives.Sheet.SheetSide.Right" Class="w-[280px]" data-testid="mobile-nav-drawer">
                     <SheetHeader>
-                        <SheetTitle>TechieBlog</SheetTitle>
+                        <SheetTitle>@identity.SiteTitle</SheetTitle>
                         <SheetDescription>Browse the site</SheetDescription>
                     </SheetHeader>
                     <nav class="mt-4 flex flex-col gap-1">
@@ -121,6 +143,50 @@
 
 @code {
     private bool isDrawerOpen;
+
+    /// <summary>
+    /// The site's public identity (title, logo). Defaults to the built-in fallback so the very
+    /// first render — before <see cref="OnInitializedAsync"/> completes — shows real content
+    /// rather than a blank brand mark.
+    /// </summary>
+    private SiteIdentity identity = new("TechieBlog", string.Empty, string.Empty);
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        identity = await SiteSettingsService.GetSiteIdentityAsync();
+
+        // This layout persists for the life of the circuit — client-side navigation does not
+        // recreate it — so without this subscription an administrator who saves a new title on
+        // /settings would not see their own header update until a hard refresh (UAT-021 §2).
+        SiteSettingsService.SettingsChanged += OnSettingsChanged;
+    }
+
+    /// <summary>
+    /// Refreshes the rendered identity when a save is published elsewhere in the app.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ISiteSettingsService.SettingsChanged"/> is raised on the saving circuit's
+    /// thread, which is not necessarily this component's renderer, so the update is marshalled
+    /// through <see cref="ComponentBase.InvokeAsync(Func{Task})"/>.
+    /// </remarks>
+    private void OnSettingsChanged(object? sender, SiteSettings settings)
+    {
+        _ = InvokeAsync(async () =>
+        {
+            identity = await SiteSettingsService.GetSiteIdentityAsync();
+            StateHasChanged();
+        });
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        // The settings service is a singleton (REQ-NFR — see its own remarks); an unsubscribed
+        // handler here would keep every disposed circuit's Header alive for the life of the
+        // process.
+        SiteSettingsService.SettingsChanged -= OnSettingsChanged;
+    }
 
     /// <summary>
     /// Describes one entry in the public navigation, shared by the desktop

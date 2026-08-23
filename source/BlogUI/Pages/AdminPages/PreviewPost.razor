@@ -13,6 +13,8 @@
 @inject BlogEngine.Services.BlogSvc BlogService
 @inject BlogEngine.Common.MarkdownRenderer MarkdownRenderer
 @inject NavigationManager Navigation
+@* UAT-024: opens a published post's public URL outside this admin window. *@
+@inject IExternalLinkOpener LinkOpener
 
 @* [REQ-NFR-007] WCAG 2.4.2 Page Titled (Level A) — without this the page inherits the
    shell title and every admin screen announces itself as just the site name. *@
@@ -78,7 +80,7 @@ else
         }
         else
         {
-            <Button Href="@($"/post/{blogPost.Slug}")" data-testid="preview-view-live-post">
+            <Button OnClick="@ViewLivePostAsync" data-testid="preview-view-live-post">
                 <LucideIcon Name="external-link" Size="16" />
                 <span>View Live Post</span>
             </Button>
@@ -256,6 +258,29 @@ else
         {
             isPublishing = false;
         }
+    }
+
+    /// <summary>
+    /// Opens the published post's public URL outside this admin window (UAT-024).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Replaced a plain <c>Href="/post/{slug}"</c> link, which
+    /// navigated the CURRENT window — harmless on the website (Back exists) but, inside BlogApp's
+    /// chrome-less <c>BlazorWebView</c>, left the only way back as restarting the app. Only reachable
+    /// when <see cref="blogPost"/> is published (see the <c>else</c> branch this button renders in),
+    /// so there is no unpublished-post case to guard against here.</para>
+    /// <para><b>Flow:</b> delegate to <see cref="LinkOpener"/> with the post's site-relative URL.</para>
+    /// <para><b>Side Effects:</b> Opens a new browser tab (website) or the OS default browser
+    /// (BlogApp). This admin page is left exactly where it was.</para>
+    /// </remarks>
+    private async Task ViewLivePostAsync()
+    {
+        if (blogPost == null)
+        {
+            return;
+        }
+
+        await LinkOpener.OpenAsync($"/post/{blogPost.Slug}");
     }
 
     /// <summary>Gets the first tag, used as the display category.</summary>

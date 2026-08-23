@@ -36,11 +36,20 @@ public class MarkupAccessibilityContractTests
     /// Every routable Razor page declares a PageTitle, so no screen announces itself as nothing
     /// but the site name (WCAG 2.4.2 Page Titled, Level A).
     /// </summary>
+    /// <remarks>
+    /// <para>A page satisfies this either with a literal <c>&lt;PageTitle&gt;</c> or with
+    /// <c>&lt;SiteBrandTitle /&gt;</c>, the shared component UAT-021 introduced so the document title
+    /// follows the configured site name instead of a hardcoded one. <c>SiteBrandTitle.razor</c>
+    /// renders a real <c>&lt;PageTitle&gt;</c>, so both spellings meet WCAG 2.4.2 — but only the
+    /// literal one was recognised when the component landed, which turned this guard's zero into a
+    /// 37-page failure. Accepting the component keeps the guard LIVE; deleting the check would have
+    /// made it pass while measuring nothing.</para>
+    /// </remarks>
     [Fact]
     public void EveryRoutablePageDeclaresAPageTitle()
     {
         var offenders = RoutablePages()
-            .Where(p => !File.ReadAllText(p).Contains("<PageTitle>", StringComparison.Ordinal))
+            .Where(p => !DeclaresATitle(File.ReadAllText(p)))
             .Select(Path.GetFileName)
             .Where(name => !PagesAwaitingTitle.Contains(name))
             .OrderBy(name => name)
@@ -55,14 +64,19 @@ public class MarkupAccessibilityContractTests
     /// No two routable pages share the same title text, because a title that does not distinguish
     /// the page fails WCAG 2.4.2 just as surely as a missing one.
     /// </summary>
+    /// <remarks>
+    /// <para>Reads BOTH title spellings. After UAT-021 most pages declare their title as
+    /// <c>&lt;SiteBrandTitle Page="…" /&gt;</c>, whose distinguishing text is the <c>Page</c>
+    /// attribute — the site name that follows it is identical on every page by design. Matching only
+    /// the literal <c>&lt;PageTitle&gt;</c> left this guard reading a handful of pages and passing
+    /// vacuously, which is worse than failing: a dead guard still reports green.</para>
+    /// </remarks>
     [Fact]
     public void PageTitlesAreDistinct()
     {
         var duplicates = RoutablePages()
             .Select(File.ReadAllText)
-            .Select(source => Regex.Match(source, @"<PageTitle>(?<title>[^<]*)</PageTitle>"))
-            .Where(match => match.Success)
-            .Select(match => match.Groups["title"].Value.Trim())
+            .SelectMany(DeclaredTitles)
             .Where(title => !title.Contains('@'))          // templated titles vary at runtime
             .GroupBy(title => title, StringComparer.OrdinalIgnoreCase)
             .Where(group => group.Count() > 1)
@@ -116,6 +130,43 @@ public class MarkupAccessibilityContractTests
     /// </remarks>
     /// <param name="markup">Razor source.</param>
     /// <returns>The source with comment bodies removed.</returns>
+    /// <summary>
+    /// Whether a page declares a document title by either supported spelling.
+    /// </summary>
+    /// <param name="markup">The page's raw Razor source.</param>
+    /// <returns><c>true</c> when a literal PageTitle or a SiteBrandTitle is present.</returns>
+    private static bool DeclaresATitle(string markup)
+    {
+        var source = StripComments(markup);
+        return source.Contains("<PageTitle>", StringComparison.Ordinal)
+            || source.Contains("<SiteBrandTitle", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The distinguishing title text a page declares, by either supported spelling.
+    /// </summary>
+    /// <remarks>
+    /// For a <c>SiteBrandTitle</c> the distinguishing part is its <c>Page</c> attribute; a
+    /// <c>SiteBrandTitle</c> with no <c>Page</c> renders the bare site name, which only the home
+    /// page may do, so it contributes nothing to compare.
+    /// </remarks>
+    /// <param name="markup">The page's raw Razor source.</param>
+    /// <returns>Every title string the page declares, trimmed.</returns>
+    private static IEnumerable<string> DeclaredTitles(string markup)
+    {
+        var source = StripComments(markup);
+
+        foreach (Match match in Regex.Matches(source, @"<PageTitle>(?<title>[^<]*)</PageTitle>"))
+        {
+            yield return match.Groups["title"].Value.Trim();
+        }
+
+        foreach (Match match in Regex.Matches(source, @"<SiteBrandTitle[^>]*?\sPage=""(?<title>[^""]*)"""))
+        {
+            yield return match.Groups["title"].Value.Trim();
+        }
+    }
+
     private static string StripComments(string markup)
     {
         var withoutRazorComments = Regex.Replace(markup, @"@\*.*?\*@", string.Empty, RegexOptions.Singleline);

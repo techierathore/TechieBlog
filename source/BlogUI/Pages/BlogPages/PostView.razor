@@ -48,7 +48,7 @@
 @inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
 
 @* REQ-NFR-007 / WCAG 2.4.2 Page Titled — every route needs a unique, descriptive title. *@
-<PageTitle>@(blogPost == null ? "Post · TechieBlog" : $"{blogPost.Title} · TechieBlog")</PageTitle>
+<SiteBrandTitle Page="@(blogPost == null ? "Post" : blogPost.Title)" Separator=" · " />
 
 @if (isLoading)
 {

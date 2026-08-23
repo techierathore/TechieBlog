@@ -35,6 +35,14 @@ namespace BlogApp.Services;
 /// nothing to correct. With <see cref="MediaTransports.None"/> the engine factory answers every
 /// call, so a head that has not opted in behaves precisely as it did before this type existed.</para>
 ///
+/// <para><b>Configuring media storage is OPTIONAL, deliberately.</b> A local-only workflow — a dev
+/// machine, or an operator who only edits text — must work with nothing set up, so the unconfigured
+/// case writes locally rather than failing. The cost is stated where the operator chooses it: the
+/// setup screen's <c>media-none-warning</c> says "Images you upload from BlogApp will be written to
+/// this computer and will not appear on the website." A 2026-08-23 change that REFUSED the upload
+/// instead was reverted — it turned an optional convenience into a mandatory setup step and broke
+/// local use, which is a worse defect than the one it was trying to prevent.</para>
+///
 /// <para><b>Why an SFTP provider at all (2026-08-22).</b> The first version of this offered only the
 /// folder redirect and assumed the server&#39;s uploads directory could be mounted. For this
 /// deployment it cannot: the site runs on a Linux VPS answering on 443 and 22 only. The folder box
@@ -127,6 +135,14 @@ public class DesktopFileStorageFactory : IFileStorageFactory
         var settings = connectionContext.Settings;
         if (settings?.HasMediaLocation() != true)
         {
+            // No media location configured: write locally, exactly as before this type existed.
+            // Configuring media storage is OPTIONAL and stays that way - a local-only workflow
+            // (dev machine, or an operator who only edits text) must work with nothing set up. The
+            // setup screen's `media-none-warning` already states the trade-off in the operator's
+            // own words: "Images you upload from BlogApp will be written to this computer and will
+            // not appear on the website." That warning is the right place for this - refusing the
+            // upload here was tried on 2026-08-23 and REVERTED: it turned an optional convenience
+            // into a mandatory setup step and broke local use entirely.
             return engineStorage;
         }
 

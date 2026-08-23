@@ -131,6 +131,15 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     <div class="subtitle">Runtime-verified 2026-08-14 (REQ-NFR-001 scope); full sweep 2026-08-09</div>
 
 <h1>TechieBlog — Developer Guide · Guest (anonymous)</h1>
+<blockquote>
+<p><strong>Runtime-verified 2026-08-23 as Guest (anonymous)</strong> (verify-phase, scope REQ-UI-053 · REQ-NFR-018).</p>
+<ul>
+<li><code>/newsletters</code> and <code>/newsletter/{slug}</code> — <strong>renders ✓ · looks-right ✓ (runtime-confirmed 2026-08-23)</strong>. Every listed control reported RENDERS with non-empty data (issue position "Issue 1 of 2", all-issues link, compact subscribe CTA + heading); visual gate clean at <strong>1280 and 390</strong> — <code>overlaps=[] zeroSize=[] offViewport=[] hScroll=0 consoleErrors=[]</code>. Only-sent-issues, pending-subscriber-until-confirmed and the TbEmpty no-data state all hold.</li>
+<li><code>/sitemap.xml</code>, <code>/feed.xml</code> and <code>/rss.xml</code> — <strong>output cache confirmed live</strong> (runtime-confirmed 2026-08-23): rising <code>Age</code> on repeat requests, feeds served as <code>application/rss+xml</code>.</li>
+<li><strong>Correction (2026-08-23):</strong> an earlier note here said "<code>/rss</code> returns <code>no-cache, no-store</code>, so the RSS half is not implemented". That was a testing error — <strong><code>/rss</code> is not a feed route</strong>, it is an ordinary Blazor HTML page and is correctly uncached. The feed is <code>RssFeedSvc.FeedPath</code> = <strong><code>/feed.xml</code></strong>, aliased as <strong><code>/rss.xml</code></strong>, both output-cached under the <code>Feed</code> policy tagged <code>CacheTags.Content</code>.</li>
+<li>⚠ <strong>Public content can be stale after a write from the BlogApp desktop head</strong> — <code>MemoryCacheService</code> is per-process, so one head's write cannot evict the other's cache. BlogApp calls <code>POST /api/admin/cache/refresh</code> automatically to close this, <strong>provided its Website address is configured</strong>.</li>
+</ul>
+</blockquote>
 <p>&gt; ✅ <strong>Runtime-verified 2026-08-09 as Guest (anonymous)</strong> — supersedes the 2026-08-02 <code>STATIC-ONLY</code> &gt; banner, whose stated reason (solution does not compile, REQ-FN-043) is stale. See &gt; <strong>Runtime verification (2026-08-09)</strong> below for what was actually observed.</p>
 <p>Index: <a href="./TechieBlog-DevGuide.md">TechieBlog-DevGuide.md</a> · Architecture: <code>docs/TechieBlog-Architecture.md</code></p>
 <p>Every screen below is reachable <strong>without signing in</strong>. Signed-in roles see the same pages plus their own.</p>

@@ -5,6 +5,11 @@ using BlogModels;
 
 using BlogUI.Common;
 
+// IExternalLinkOpener lives in the BlogUI RCL's root namespace (UAT-024) — same reasoning
+// DesktopAuthStateProvider.cs documents for CustomAuthStateProvider: this file's own namespace is
+// a CHILD of BlogUI, and C# does not implicitly bring a parent namespace's members into scope.
+using BlogUI;
+
 namespace BlogUI.Pages.AdminPages;
 
 /// <summary>
@@ -25,6 +30,12 @@ partial class BlogsList : ComponentBase
     /// <summary>Navigation manager used for preview redirects.</summary>
     [Inject]
     public NavigationManager NavigationManager { get; set; } = default!;
+
+    /// <summary>
+    /// Opens a published post's public URL outside the current admin window (UAT-024).
+    /// </summary>
+    [Inject]
+    public IExternalLinkOpener LinkOpener { get; set; } = default!;
 
     /// <summary>All posts visible to the signed-in user.</summary>
     public List<BlogPost> ObjectList { get; set; } = new();
@@ -187,11 +198,27 @@ partial class BlogsList : ComponentBase
         }
     }
 
-    private void NavigateToPreview(BlogPost post)
+    /// <summary>
+    /// Opens a post's preview from the posts list.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic (UAT-024):</b> A published post has a public URL, so its preview
+    /// opens OUTSIDE the current admin window via <see cref="LinkOpener"/> — a new browser tab on
+    /// the website, the OS default browser from BlogApp — leaving this list exactly where it was,
+    /// still signed in. This replaced <c>NavigationManager.NavigateTo($"/post/{{slug}}")</c>, which
+    /// navigated the CURRENT window: harmless on the website (the browser Back button exists) but
+    /// stranding in BlogApp, whose <c>BlazorWebView</c> has no chrome to go back with — the reported
+    /// defect, where the only escape was restarting the app. An unpublished post has no public URL
+    /// at all, so it keeps navigating the current window to the in-app preview, unchanged.</para>
+    /// <para><b>Flow:</b> published check → external open or in-window navigate.</para>
+    /// <para><b>Side Effects:</b> Opens an external tab/browser, or navigates this window.</para>
+    /// </remarks>
+    /// <param name="post">The post whose preview was requested.</param>
+    private async Task NavigateToPreviewAsync(BlogPost post)
     {
         if (post.Published)
         {
-            NavigationManager.NavigateTo($"/post/{post.Slug}");
+            await LinkOpener.OpenAsync($"/post/{post.Slug}");
         }
         else
         {

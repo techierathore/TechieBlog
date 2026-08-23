@@ -32,6 +32,9 @@ public static class SiteSettingKeys
     /// <summary>Short strapline displayed under the site title.</summary>
     public const string SiteTagline = "General.SiteTagline";
 
+    /// <summary>Path or URL of the configured site logo, or empty when none is set (UAT-022).</summary>
+    public const string SiteLogo = "General.SiteLogo";
+
     /// <summary>Address that receives administrative notifications.</summary>
     public const string AdminEmail = "General.AdminEmail";
 

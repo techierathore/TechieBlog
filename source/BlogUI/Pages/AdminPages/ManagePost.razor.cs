@@ -40,6 +40,14 @@ partial class ManagePost : ComponentBase
     [Inject]
     public AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
 
+    /// <summary>
+    /// Asks the website to refresh its cached content after a save (UAT-023 mechanism B). A no-op
+    /// on the website itself (its own save already invalidated the in-process cache); on BlogApp
+    /// this is what makes an edit visible on the public page without a ten-minute wait.
+    /// </summary>
+    [Inject]
+    public BlogEngine.Services.ISiteCacheNotifier CacheNotifier { get; set; } = default!;
+
     /// <summary>Panel heading shown above the editor.</summary>
     public string PageHeader { get; set; } = "New Post";
 
@@ -63,6 +71,57 @@ partial class ManagePost : ComponentBase
 
     /// <summary>Identifies which action is currently saving, for per-button spinners.</summary>
     public string SaveAction { get; set; } = string.Empty;
+
+    /// <summary>
+    /// "N / limit characters" label for the title field, or an over-limit warning.
+    /// </summary>
+    /// <remarks>
+    /// UAT-023 mechanism A. Reads live off <see cref="PageObj"/> because <c>Input</c>'s
+    /// <c>ValueChanged</c> fires on every keystroke (not on blur), so this recomputes on each
+    /// render without a separate tracked field. Reflects <see cref="BlogPost.TitleMaxLength"/> —
+    /// the same constant the shared <c>BlogSvc.ValidateFieldLengths</c> enforces server-side — so the
+    /// editor and the service can never disagree about the limit. A bUnit test asserting this label
+    /// turns into "X characters over the limit" at 551 characters would have caught the original
+    /// defect (a save that silently lost the edit with no on-screen warning at all).
+    /// </remarks>
+    protected string TitleCharCountLabel
+    {
+        get
+        {
+            var length = PageObj?.Title?.Length ?? 0;
+            return length > BlogPost.TitleMaxLength
+                ? $"{length} / {BlogPost.TitleMaxLength} characters — {length - BlogPost.TitleMaxLength} over the limit"
+                : $"{length} / {BlogPost.TitleMaxLength} characters";
+        }
+    }
+
+    /// <summary>CSS class for <see cref="TitleCharCountLabel"/> — flags red once over the limit.</summary>
+    protected string TitleCharCountClass =>
+        (PageObj?.Title?.Length ?? 0) > BlogPost.TitleMaxLength ? "text-destructive" : string.Empty;
+
+    /// <summary>
+    /// "N / limit characters" label for the abstract field, or an over-limit warning.
+    /// </summary>
+    /// <remarks>
+    /// See <see cref="TitleCharCountLabel"/> — same rationale, same live-recompute reasoning, but for
+    /// <see cref="BlogPost.AbstractMaxLength"/>. This is the field the owner actually hit in UAT-023:
+    /// a 468-character abstract edited past 550 saved silently as "Failed to update post. Please try
+    /// again later." with no indication of why or where.
+    /// </remarks>
+    protected string AbstractCharCountLabel
+    {
+        get
+        {
+            var length = PageObj?.Abstract?.Length ?? 0;
+            return length > BlogPost.AbstractMaxLength
+                ? $"{length} / {BlogPost.AbstractMaxLength} characters — {length - BlogPost.AbstractMaxLength} over the limit"
+                : $"{length} / {BlogPost.AbstractMaxLength} characters";
+        }
+    }
+
+    /// <summary>CSS class for <see cref="AbstractCharCountLabel"/> — flags red once over the limit.</summary>
+    protected string AbstractCharCountClass =>
+        (PageObj?.Abstract?.Length ?? 0) > BlogPost.AbstractMaxLength ? "text-destructive" : string.Empty;
 
     /// <summary>Categories offered by the category picker.</summary>
     public List<Category> Categories { get; set; } = new();
@@ -262,6 +321,34 @@ partial class ManagePost : ComponentBase
     }
 
     /// <summary>
+    /// Appends the outcome of a site cache refresh attempt onto <see cref="StatusMessage"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic (UAT-023 mechanism B):</b> Called after every successful write below.
+    /// On the website <see cref="CacheNotifier"/> resolves to a no-op (<c>NotApplicable</c>) — the
+    /// save already invalidated the in-process cache, so nothing is appended and the existing
+    /// message is left exactly as it was. On BlogApp a real HTTP call was made: a success is
+    /// confirmed in words rather than left implicit, and a failure is surfaced verbatim rather than
+    /// swallowed — an earlier round of this feature shipped a probe that answered "OK" for
+    /// something it had not actually verified, and this is the guard against repeating that.</para>
+    /// <para><b>Flow:</b> call the notifier → branch on outcome → append or leave the message alone.</para>
+    /// <para><b>Side Effects:</b> May extend <see cref="StatusMessage"/>. Never throws — a failure to
+    /// refresh the site's cache must not be mistaken for a failure to save the post, which already
+    /// succeeded by the time this runs.</para>
+    /// </remarks>
+    private async Task NotifySiteCacheRefreshAsync()
+    {
+        var result = await CacheNotifier.RefreshAsync();
+
+        StatusMessage = result.Outcome switch
+        {
+            BlogEngine.Services.CacheRefreshOutcome.Succeeded => $"{StatusMessage} Site cache refreshed.",
+            BlogEngine.Services.CacheRefreshOutcome.Failed => $"{StatusMessage} {result.Detail}",
+            _ => StatusMessage
+        };
+    }
+
+    /// <summary>
     /// Saves the post from the EditForm submit, preserving its current publish state.
     /// </summary>
     protected async Task SaveData()
@@ -311,6 +398,7 @@ partial class ManagePost : ComponentBase
 
                 StatusMessage = PageId > 0 ? "Post updated successfully!" : "Post created successfully!";
                 IsError = false;
+                await NotifySiteCacheRefreshAsync();
                 // Navigate to blog list after short delay
                 await Task.Delay(500);
                 AppNavManager.NavigateTo("/BlogsList");
@@ -474,6 +562,9 @@ partial class ManagePost : ComponentBase
                 PageObj.Published = false;
                 StatusMessage = "Post unpublished successfully!";
                 IsError = false;
+                // UAT-023 mechanism B: unpublishing removes the post from public view, which is
+                // exactly as cache-relevant as adding it.
+                await NotifySiteCacheRefreshAsync();
             }
             else
             {
@@ -578,6 +669,15 @@ partial class ManagePost : ComponentBase
                     StatusMessage = PageId > 0 ? "Draft saved successfully!" : "Draft created successfully!";
                 }
                 IsError = false;
+
+                // UAT-023 mechanism B: only a PUBLISHED post is visible on the public site, so a
+                // draft save has nothing for the site to refresh — this fires for "Publish Now"
+                // and for "Save Changes" on an already-published post (SaveAction "save", the
+                // case the owner actually hit: editing the abstract of a live post).
+                if (publish)
+                {
+                    await NotifySiteCacheRefreshAsync();
+                }
 
                 // If publishing, redirect to list after short delay
                 if (publish)

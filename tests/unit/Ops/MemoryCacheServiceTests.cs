@@ -150,6 +150,57 @@ public class MemoryCacheServiceTests
     }
 
     /// <summary>
+    /// An eviction that lands WHILE a slow factory is still loading must not be lost: the value
+    /// that factory eventually returns was read before the write, so it is stale and must not be
+    /// served afterwards.
+    /// </summary>
+    /// <remarks>
+    /// This is the REQ-FN-061 / REQ-NFR-018 defect. The tag token used to be read AFTER the factory
+    /// ran, so a mid-load <see cref="ICacheService.EvictTag"/> cancelled the OLD source while the
+    /// entry was stored under the freshly minted one — stale data with a full lifetime ahead of it
+    /// and no pending invalidation. Observed as a site-settings Save taking ~45s to reach visitors
+    /// instead of ~2s whenever a concurrent render was mid-read.
+    /// </remarks>
+    [Fact]
+    public void EvictionDuringASlowFactoryIsNotLost()
+    {
+        var service = BuildService();
+
+        // The factory evicts the tag while it is running — exactly what a Save on another thread
+        // does to a render that is already loading the settings aggregate.
+        var stale = service.GetOrCreate("settings:effective", CacheTags.Settings, () =>
+        {
+            service.EvictTag(CacheTags.Settings);
+            return "stale";
+        });
+
+        var next = service.GetOrCreate("settings:effective", CacheTags.Settings, () => "fresh");
+
+        Assert.Equal("stale", stale);
+        Assert.Equal("fresh", next);
+    }
+
+    /// <summary>
+    /// The guard above must not cost the ordinary case its cache: with no eviction in flight the
+    /// entry still survives and the factory still runs exactly once.
+    /// </summary>
+    [Fact]
+    public void EntryStillCachesWhenNoEvictionRaces()
+    {
+        var service = BuildService();
+        var factoryCalls = 0;
+
+        var first = service.GetOrCreate("settings:effective", CacheTags.Settings,
+            () => { factoryCalls++; return "value"; });
+        var second = service.GetOrCreate("settings:effective", CacheTags.Settings,
+            () => { factoryCalls++; return "other"; });
+
+        Assert.Equal("value", first);
+        Assert.Equal("value", second);
+        Assert.Equal(1, factoryCalls);
+    }
+
+    /// <summary>
     /// Builds a cache service over a real in-memory cache and a null logger.
     /// </summary>
     /// <returns>The service under test.</returns>

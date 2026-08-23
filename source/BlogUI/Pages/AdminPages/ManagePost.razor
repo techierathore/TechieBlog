@@ -16,6 +16,8 @@
 @* TrBlazeUI.Components.TimePicker is not in the shared _Imports.razor. *@
 @using TrBlazeUI.Components.TimePicker
 
+<SiteBrandTitle Page="Edit post" />
+
 <ContentPanel PanelTitle="@PageHeader">
     <RightSection></RightSection>
     <PanelContent>
@@ -47,7 +49,11 @@
                                        ValueChanged="@OnTitleChanged"
                                        Placeholder="Enter your blog title"
                                        Required="true"
+                                       maxlength="@BlogPost.TitleMaxLength"
                                        data-testid="post-title-input" />
+                                <FieldDescription Class="@TitleCharCountClass" data-testid="post-title-char-count">
+                                    @TitleCharCountLabel
+                                </FieldDescription>
                             </FieldContent>
                         </Field>
 
@@ -72,7 +78,11 @@
                                 <Textarea Id="post-excerpt"
                                           @bind-Value="PageObj.Abstract"
                                           Placeholder="Brief summary shown in post listings"
+                                          MaxLength="@BlogPost.AbstractMaxLength"
                                           data-testid="post-excerpt-input" />
+                                <FieldDescription Class="@AbstractCharCountClass" data-testid="post-abstract-char-count">
+                                    @AbstractCharCountLabel
+                                </FieldDescription>
                             </FieldContent>
                         </Field>
 

@@ -18,7 +18,7 @@
 @inject NavigationManager Navigation
 
 @* REQ-NFR-007 / WCAG 2.4.2 Page Titled. *@
-<PageTitle>@(category == null ? "Categories · TechieBlog" : $"{category.CategoryName} · TechieBlog")</PageTitle>
+<SiteBrandTitle Page="@(category == null ? "Categories" : category.CategoryName)" Separator=" · " />
 
 @if (isLoading)
 {

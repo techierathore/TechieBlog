@@ -1,0 +1,106 @@
+@*
+    SiteBrandTitle.razor
+    Purpose: Renders <PageTitle> from the configured site name (UAT-021) instead of a hardcoded
+    "TechieBlog", so every page's document title stays in sync with Settings -> General -> Site
+    title without a restart. This is the ONE shared place a page reaches for the site identity —
+    it injects ISiteSettingsService itself so the ~35 pages that render a <PageTitle> do not each
+    have to (see the requirement's "not 30 files" constraint and BlogEngine.Common.SiteIdentityExtensions).
+
+    A page component IS recreated on every client-side navigation (routing swaps @Body), so a
+    fresh OnInitializedAsync here already re-reads the settings cache on every navigation with no
+    extra plumbing — unlike the persistent layout chrome (Header/Footer/AdminLayout/AuthLayout),
+    which subscribes to SiteSettingsService.SettingsChanged for the same reason.
+
+    Usage:
+      <SiteBrandTitle Page="Settings" />                              -> "Settings - {SiteTitle}"
+      <SiteBrandTitle Page="Media Library" AdminSuffix=" Admin" />    -> "Media Library - {SiteTitle} Admin"
+      <SiteBrandTitle Page="Resume" Separator=" · " />                -> "Resume · {SiteTitle}"
+      <SiteBrandTitle Tagline="notes on .NET, Blazor and shipping software" />
+                                                                        -> "{SiteTitle} — notes on .NET, Blazor and shipping software"
+*@
+@namespace BlogUI.Components
+@using BlogModels.Interfaces
+@using BlogEngine.Common
+@inject ISiteSettingsService SiteSettingsService
+
+<PageTitle>@BuildTitle()</PageTitle>
+
+@code {
+    /// <summary>Page-specific text shown before the separator; omit for a bare site-name title (e.g. Home).</summary>
+    [Parameter]
+    public string? Page { get; set; }
+
+    /// <summary>Separator between <see cref="Page"/> and the site name.</summary>
+    [Parameter]
+    public string Separator { get; set; } = " - ";
+
+    /// <summary>Literal text appended after the site name, e.g. <c>" Admin"</c>.</summary>
+    [Parameter]
+    public string AdminSuffix { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Tagline appended after the site name (Home-style titles only).
+    /// </summary>
+    /// <remarks>
+    /// <b>Leave this unset to use the CONFIGURED tagline</b>, which is almost always what you want.
+    /// It exists only for a caller that needs a fixed phrase regardless of settings. Passing a
+    /// literal here is how the browser tab came to ignore the owner's Settings entirely: Home.razor
+    /// hard-coded "notes on .NET, Blazor and shipping software", so editing the tagline in Settings
+    /// changed the database and nothing else (2026-08-23).
+    /// </remarks>
+    [Parameter]
+    public string? Tagline { get; set; }
+
+    /// <summary>Separator between the site name and the tagline.</summary>
+    [Parameter]
+    public string TaglineSeparator { get; set; } = " — ";
+
+    /// <summary>
+    /// When true and no explicit <see cref="Tagline"/> is given, the configured site tagline is
+    /// appended. Off by default so the ~36 per-page titles stay "{Page} - {SiteTitle}".
+    /// </summary>
+    [Parameter]
+    public bool UseConfiguredTagline { get; set; }
+
+    /// <summary>
+    /// The configured site name. Defaults to the built-in fallback so the very first render — before
+    /// <see cref="OnInitializedAsync"/> completes — shows a real title rather than a blank one.
+    /// </summary>
+    private string siteTitle = "TechieBlog";
+
+    /// <summary>
+    /// The configured tagline, used when the caller does not pass an explicit <see cref="Tagline"/>.
+    /// Empty until <see cref="OnInitializedAsync"/> completes, and empty when none is configured —
+    /// in both cases the title is just the site name, with no dangling separator.
+    /// </summary>
+    private string configuredTagline = string.Empty;
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        var identity = await SiteSettingsService.GetSiteIdentityAsync();
+        siteTitle = identity.SiteTitle;
+        configuredTagline = identity.SiteTagline;
+    }
+
+    /// <summary>
+    /// Composes the document title from the page text, the site name and the optional tagline /
+    /// admin suffix.
+    /// </summary>
+    /// <returns>The text to render inside <c>&lt;PageTitle&gt;</c>.</returns>
+    private string BuildTitle()
+    {
+        var title = string.IsNullOrEmpty(Page) ? siteTitle : $"{Page}{Separator}{siteTitle}";
+
+        // An explicit Tagline wins; otherwise the CONFIGURED one is used, so editing it in Settings
+        // actually changes the browser tab. Only Home-style titles pass UseConfiguredTagline.
+        var tagline = string.IsNullOrEmpty(Tagline) && UseConfiguredTagline ? configuredTagline : Tagline;
+
+        if (!string.IsNullOrEmpty(tagline))
+        {
+            title = $"{title}{TaglineSeparator}{tagline}";
+        }
+
+        return $"{title}{AdminSuffix}";
+    }
+}

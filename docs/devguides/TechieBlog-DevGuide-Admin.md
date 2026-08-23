@@ -1,5 +1,12 @@
 # TechieBlog — Developer Guide · Admin
 
+> **Runtime-verified 2026-08-23 as Admin on BOTH heads** (verify-phase, scope REQ-UI-052 · REQ-FN-047 · REQ-FN-061 · REQ-NFR-018). Desktop head driven over the launched PID's WebView2 CDP; web head on rung #4 (0.0.0.0:5099).
+> - **All 19 admin routes open ✓** — zero ErrorBoundary, zero access-denied, zero not-routed; sidebar renders 18 nav links; theme toggle flips the root `dark` class both ways. `pageOverflowX=false`, `zeroSize=[]` on every route → **looks-right ✓ (runtime-confirmed 2026-08-23)**.
+> - ⚠ **Read the counts below with today's data in mind.** The development database now holds **0 posts / 0 series / 0 comments / 0 skills / 0 experience / 0 awards / 0 stats** (it held 10/2/7/18/3/3/4 on 2026-08-09). Those screens therefore render **correct EMPTY STATES**, not defects — `/admin/series` was opened and visually confirmed as a well-formed "No series yet" panel with its Add-New CTA. Any harness that asserts the 2026-08-09 counts will report false GAPs until it is re-seeded.
+> - `/settings` — **renders ✓ · looks-right ✓** at 1280 + 390, but see the Known issue below: a Save that follows an abandoned unsaved edit takes **~45 s** to reach visitors instead of ~2 s (REQ-FN-061 / REQ-NFR-018).
+> - ⚠ Desktop head only: the window lays out at **950×574 CSS px** (WinUI DPI-unaware, `devicePixelRatio` 1.5), so setup-screen controls read off-viewport and `/users` action controls read clippedX until the grid's own container is scrolled — both reachable by scrolling, both previously measured.
+> - ⚠ **Cross-head staleness (new, 2026-08-23):** a post *deleted* in BlogApp stayed publicly reachable and listed on the web host for the **full 10-minute cache lifetime**. `MemoryCacheService` is per-process, so one head's write never evicts the other's cache. Publishing appears immediate only when the key happens to be a miss.
+
 > **Runtime-verified 2026-08-22 as Admin** (verify-phase, scope REQ-UI-020 · REQ-FN-058). `/users` render + visual gates PASS at 1280 and 390; deep-linking into `/admin/speaking` and `/users` keeps the session. Screenshots: `tests/.artifacts/verify/users-{1280,390}.png`.
 
 > ✅ **Runtime-verified 2026-08-09 as Admin and Editor** — supersedes the 2026-08-02 `STATIC-ONLY`
@@ -198,30 +205,31 @@ flowchart LR
 
 | Control | What it claims to do | What it actually does | Render status |
 |---------|----------------------|-----------------------|---------------|
-| Theme selector | Set the **site** theme | `ThemeService.SetThemeAsync(...)` → writes `techieblog-theme` to **browser local storage** (`Common/ThemeService.cs:46`) | **DEFECT (static) — per-visitor, not site-wide** |
-| Pagination word count | Persist a blog setting | `LocalStorage.SetItemAsync(PaginationWordCountKey, ...)` (`Settings.razor:335`) | static-only — browser-scoped |
-| General settings (site title, tagline) | Persist | **nothing** — `// TODO: Implement actual save to database for other settings when settings service is created` (`Settings.razor:337`) | **DEFECT (static) — silently discarded** |
-| Blog settings (posts per page, comment moderation) | Persist | **nothing** — same TODO | **DEFECT (static) — silently discarded** |
-| SEO settings | Persist | **nothing** — same TODO | **DEFECT (static) — silently discarded** |
-| Social media settings | Persist | **nothing** — same TODO | **DEFECT (static) — silently discarded** |
-| Save button | Confirms success | Sets `StatusMessage = "Settings saved successfully."` regardless (`Settings.razor:338-339`) | **DEFECT (static) — false success message** |
+| Theme selector | Set the **site** theme | `ThemeService` → the `SiteSetting` row; a visitor's own light/dark toggle still layers on top | renders |
+| General settings (site title, tagline, admin email) | Persist | `SiteSettingsService.SaveSettingsAsync` → `SiteSetting` rows, cache dropped on save | renders |
+| **Site logo** (added UAT-022, 2026-08-23) | Choose the brand mark | `ImagePicker Category="logos"` → `General.SiteLogo`; consumed by the public header, admin sidebar and sign-in shell, falling back to the built-in glyph when blank | **observed 2026-08-23** |
+| Blog / SEO / Social / Email / Storage sections | Persist | Same service; `Smtp.Password` and `Storage.CloudAccessKey` are encrypted at rest under `AppEncryptionKey` | renders |
+| **Clear cached content** (Maintenance, UAT-001) | Evict the public-page caches | `CacheService.EvictTag` for Content / Taxonomy / Settings | renders |
+| Save button | Confirms success | Reports the actual outcome of the save | renders |
 
-**This is the second-highest-value finding.** The page presents five settings sections and reports
-success, but only the pagination word count is written — to the current browser's local storage, not
-the database. `LoadDefaultSettings()` even carries the comment
-*"In a real implementation, other settings would be loaded from a database"* (`Settings.razor:325`).
-There is no `SiteSettings` table in any migration and no settings repository or service in
-`BlogEngine`. Logged to REQ-FN-040 (dropped from `In Progress 90%`) and REQ-UI-026.
+> ⚠ **This section was substantially WRONG until 2026-08-23 and is corrected here.** It described the
+> pre-REQ-FN-061 state — "there is no `SiteSettings` table in any migration", every section
+> "silently discarded", the Save button a "false success message". All of that has been untrue since
+> REQ-FN-061 shipped: `016-SiteSettings.sql` creates the table, `SiteSettingsService` +
+> `SiteSettingsMapper` persist and project it, and the values are cached and re-read on save. It was
+> observed working directly on 2026-08-23 while fixing UAT-021/022. The stale text is called out
+> rather than quietly deleted because a DevGuide that confidently describes a defect that no longer
+> exists sends the next reader to rebuild something that is already there — the UAT-014/015 problem.
 
-**Knock-on effects:**
-- BRD-68 ("admin selects the site theme") is not met — the selection is per-visitor.
-- BRD-69 (site title, tagline, posts-per-page, SMTP, storage settings) is not met.
-- The comment-moderation toggle has no persistent home, so whatever gates comment approval at runtime
-  is `{unresolved — TODO}`.
+**What was actually wrong on this screen, and is now fixed (UAT-021 / UAT-022, 2026-08-23):**
+the settings **saved** correctly but almost nothing **read** them. `SiteTitle` had exactly one
+consumer (`RssFeedSvc.cs:162`) while the header, footer, admin sidebar, sign-in shell and ~35 page
+titles had `"TechieBlog"` typed into the markup — so changing the title appeared to do nothing. Both
+are now served by the narrow `SiteIdentity` projection (`SiteTitle` + `SiteLogoPath` only).
 
-**Fix sketch:** add a `SiteSettings` table + migration, a `SettingsRepo` and `SettingsSvc` (both are
-named in the archived architecture doc §5.1/§7.2 but were never built), load through them at startup,
-and cache per the caching design (REQ-NFR-018).
+⚠ **Do not widen that projection.** `SiteSettings` carries two live credentials (`Smtp.Password`,
+`Storage.CloudAccessKey`) plus the admin email, and public chrome renders anonymously; a unit test
+pins the projection to exactly two members for that reason.
 
 ## Admin · Resume data screens
 
@@ -242,6 +250,36 @@ Admins inherit the Editor screens (dashboard, comment moderation, all posts — 
 The desktop head hosts the SAME `BlogUI` pages as the website — one RCL, two heads — so everything
 above applies there unchanged. Two things belong to the desktop head alone, and both were owner-UAT
 defects fixed on 2026-08-22.
+
+**Connection banner (UAT-020, 2026-08-23).** `Components/DesktopStatusBar.razor` renders the
+"● Connected · *host*" chip and **Change connection**, once, from `ConnectionGuard.razor` above the
+router — so no shared `BlogUI` page needs a desktop-specific edit. It is an **in-flow
+`sticky top-0 w-full` top banner**: it occupies real layout space and the whole shell flows beneath
+it. It was previously `fixed bottom-3 left-3`, which floated it directly over the expanded sidebar's
+Settings entry. ⚠ **`<DesktopStatusBar />` must stay the FIRST child of `ConnectionGuard`** — a
+`sticky` element only pins to the top of the window when it is first in the DOM. That ordering is
+pinned by `tests/unit/DesktopApp/DesktopStatusBarPlacementTests.cs`, which also rejects any return to
+`fixed`. Measured on the running head 2026-08-23: `top=0px`, `position: sticky`, 0 overlaps across
+all 18 sidebar entries.
+
+**Preview opens OUTSIDE this window (UAT-024, 2026-08-23).** Previewing a **published** post used to
+navigate this very WebView to `/post/{slug}`, which renders `MainLayout` — no admin chrome, no route
+back, and no browser chrome in a hybrid head, so the only escape was restarting the app. Both call
+sites (`BlogsList.razor.cs` `NavigateToPreviewAsync`, `PreviewPost.razor` `ViewLivePostAsync`) now go
+through `IExternalLinkOpener`: `window.open(url, "_blank")` on the website, `Launcher.OpenAsync` —
+the OS default browser — in BlogApp. An **unpublished** post has no public URL and still opens
+`/admin/preview/{id}` in the current window.
+
+**Making a desktop edit visible on the website (UAT-023, 2026-08-23).** BlogApp writes straight to
+the database and never enters the web host's process, so it cannot invalidate the website's
+ten-minute content cache — an edit stays invisible on the public pages until the entry ages out.
+`Services/RemoteSiteCacheNotifier.cs` now calls `POST /api/admin/cache/refresh` on the address stored
+in `ConnectionSettings.SiteBaseUrl` after every publish-affecting save, authenticating with the
+operator's own access token (the same `GetUserByAccessTokenAsync` lookup the website's cookie handler
+uses — no new secret) and reporting the real outcome rather than assuming success. ⚠ That endpoint
+needs **both** `DisableAntiforgery()` and `/api` in `NotFoundPage.InfrastructurePrefixes`; without the
+first it answers 400 before reading the token, and without the second its own 401 is rewritten into a
+400 HTML page. `tests/unit/Ops/CacheRefreshEndpointTests.cs` pins both.
 
 **Where the app opens (REQ-UI-063).** `MainPage.xaml.cs` sets `blazorWebView.StartPath`. A
 configured install now starts on `Components/Pages/DesktopStart.razor` (`/blogapp/start`), which

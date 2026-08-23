@@ -44,6 +44,36 @@ namespace BlogModels;
 public class BlogPost
 {
     /// <summary>
+    /// Column width of <see cref="Title"/> — <c>Title VARCHAR(550)</c>.
+    /// </summary>
+    /// <remarks>
+    /// UAT-023 mechanism A: nothing checked this before an over-length value reached Npgsql and
+    /// failed with a raw <c>22001</c>, which the caller then reported as a generic failure with no
+    /// indication of which field or limit was at fault. Both <c>BlogSvc</c> (service-side, shared by
+    /// the website and BlogApp) and <c>ManagePost.razor</c> (the editor's own <c>MaxLength</c> and
+    /// character-count indicator) read this single constant so the two layers cannot drift apart.
+    /// </remarks>
+    public const int TitleMaxLength = 550;
+
+    /// <summary>
+    /// Column width of <see cref="Abstract"/> — <c>Abstract VARCHAR(550)</c>. See
+    /// <see cref="TitleMaxLength"/> for why this lives here rather than in each caller.
+    /// </summary>
+    public const int AbstractMaxLength = 550;
+
+    /// <summary>
+    /// Column width of <see cref="Tags"/> — <c>Tags VARCHAR(550)</c>. See
+    /// <see cref="TitleMaxLength"/> for why this lives here rather than in each caller.
+    /// </summary>
+    public const int TagsMaxLength = 550;
+
+    /// <summary>
+    /// Column width of <see cref="FeaturedImage"/> — <c>FeaturedImage VARCHAR(550)</c>. See
+    /// <see cref="TitleMaxLength"/> for why this lives here rather than in each caller.
+    /// </summary>
+    public const int FeaturedImageMaxLength = 550;
+
+    /// <summary>
     /// Surrogate primary key (<c>PostId</c>, <c>BIGSERIAL</c>).
     /// </summary>
     /// <remarks>

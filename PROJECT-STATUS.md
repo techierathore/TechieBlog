@@ -1,19 +1,51 @@
 ---
 project: TechieBlog
 stack: .NET 10 / Blazor Server / TrBlazeUI / PostgreSQL + Dapper + DbUp / Serilog / BlogApp MAUI (Windows)
-last_updated: 2026-08-22
-current_phase: UAT round 2 VERIFIED — scoped verify run 2026-08-22: 4 Verified, 1 demoted to Needs re-verify (REQ-FN-020, unobservable with 0 posts); DEPLOYED (prod on migration 031)
+last_updated: 2026-08-23
+current_phase: verify-phase — UAT-fix rows graded; only REQ-FN-062 (SFTP) left open; migration 032 NOT deployed
 last_verified_build: PASS
-last_verified_date: 2026-08-22
+last_verified_date: 2026-08-23
 ---
 ## Where I am
 
-**Phase: UAT round 2 complete, and DEPLOYED.** The owner ran a second UAT pass against the live
-website (the first covered the BlogApp desktop head). **Eighteen items** were raised or found —
-`UAT-001…018` — and **all eighteen are closed**. No `REQ-*` row was added: at the owner's instruction
-UAT findings are logged as `UAT-nnn` in `docs/TechieBlog-Checklist.md` → **UAT Bugs**, because a
-defect is evidence a shipped requirement did not hold, not a new requirement. Requirement counts are
-unchanged: **160 terminal / 4 open**.
+**Phase: THIRD owner UAT round — five defects reported across both heads, all five fixed and
+smoke-proven.** `*fix-issues` (analysis *and* a fix, both explicitly asked for). Logged as
+**UAT-020…024** in `docs/TechieBlog-Checklist.md` → **UAT Bugs**, per the standing instruction that a
+UAT defect is evidence a shipped requirement did not hold rather than a new requirement; requirement
+counts are unchanged at **160 terminal / 4 open**. Build rung #4 **0 Error(s), 7/7 projects**; suite
+**1 512 → 1 552** (1 549 pass / 0 fail / 3 skip). Website smoke **17/17** against the running host on
+`:5411` — the same assertions were **9 of 13 FAILING** before the fixes. BlogApp smoke **7/7** against
+the real desktop head over its own WebView2 CDP. Five injected faults, five caught. Host killed by PID
+and the port released; the local database was restored to its documented state (repro post removed,
+`MustChangePassword` re-armed, site title back to `TechieBlog`).
+
+| ID | Defect | Root cause in one line |
+|---|---|---|
+| UAT-020 | BlogApp connection banner covered the Settings menu entry | `DesktopStatusBar.razor:23` was `fixed bottom-3 left-3`; the mockup had always specified the topbar |
+| UAT-021 | Site-title change not reflected on the site | The setting saved correctly — the chrome had `"TechieBlog"` typed into the markup in ~40 places |
+| UAT-022 | No site-logo setting | `General.SiteLogo` existed at no layer; added with migration `032` |
+| UAT-023 | Edited abstract not showing on the site | UAT-001's 10-minute per-process cache. **The edit HAD landed; the remedy was simply unreachable from BlogApp** |
+| UAT-024 | Preview stranded the operator in BlogApp | `BlogsList.razor.cs:194` navigated the current window to `/post/{slug}` |
+
+**Lessons this round, each paid for:**
+- **Read the desktop head's own log before theorising.** UAT-023 cost two wrong diagnoses — an
+  over-length abstract, then an editor binding race — both plausible and both wrong.
+  `blogapp-20260823.log` held the answer throughout: a create at 11:17:32 IST whose UTC time matched
+  the live RSS `pubDate` **exactly** (proving the head was on production) and three successful saves
+  at 11:30–11:32 with no exception.
+- **A fix that has not been executed cannot be trusted.** The new cache-refresh endpoint was written
+  correctly and still could not work: antiforgery rejected it at **400 before the token was read**,
+  and the not-found re-execution then turned its own **401 into a 400 HTML page**. Neither is visible
+  when reading the handler.
+- **A guard can be blinded by the very change it was written for.** The new BlogApp placement test
+  failed against a *correct* file because the comment its author wrote contains `@ChildContent`
+  earlier in the text than the element being compared. Separately, swapping 36 `<PageTitle>`
+  declarations for a shared component made the WCAG 2.4.2 gate report 37 offenders **and** made its
+  sibling duplicate-title gate pass **vacuously** — the more dangerous of the two.
+- **Smoke harnesses race hydration.** Filling a Blazor Server field before the circuit connects is
+  silently discarded and the save then reports success while writing the *old* value — which is
+  indistinguishable from a real defect. One near-miss false report; every step now asserts the field
+  holds what it typed before clicking save.
 
 ### Production — verified live, 2026-08-22
 
@@ -64,7 +96,10 @@ Not inferred from the working tree; each row was checked against `https://techie
 
 ### ⚠ Owner actions outstanding
 
-1. **Load the speaking data.** This is the only thing left. Migration 031 is on production, but the
+0. **Deploy the website — migration `032-SiteLogoSetting.sql` is new and production is on 031.**
+   Website FIRST, per the standing ship-order rule (UAT-004): BlogApp never runs DbUp, so a desktop
+   build newer than the database it points at breaks on the missing row.
+1. **Load the speaking data.** Migration 031 is on production, but the
    21 sessions are not — the page is live and empty. Run
    `docs/data/speaking-engagements.sql` against production; it is re-runnable, and the file is
    disposable once the rows are in.
@@ -102,6 +137,14 @@ Not inferred from the working tree; each row was checked against `https://techie
 
 ### Next command
 
+```
+/TechieFlow:agents:verifier *verify REQ-FN-062
+```
+Four of that scope are now `Verified`. **REQ-FN-062 is the only one left**, and it is blocked on
+configuration rather than code: re-enter BlogApp's **Media storage (SFTP)** and **Website address** on
+the Change-connection screen, then run the command above. The folder transport is already proven.
+
+**Prior next command, still outstanding:**
 ```
 /TechieFlow:agents:verifier *verify REQ-FN-020
 ```
@@ -440,12 +483,12 @@ created*. Build **0 Error(s) 7/7**; suite **1 496** (1 493 pass / 0 fail / 3 ski
 ## Next command to run
 
 ```
-/TechieFlow:agents:verifier *verify REQ-UI-063 REQ-FN-062 REQ-UI-064 REQ-UI-020 REQ-FN-020
+/TechieFlow:agents:verifier *verify REQ-FN-062
 ```
-The first three are `Implemented` on the builder's own smoke; a verify-phase run is what promotes
-them to `Verified`. `REQ-UI-020` and `REQ-FN-020` are added to that scope because the `UAT-002` /
-`UAT-003` / `UAT-001` fixes changed what those two requirements now have to satisfy — the users
-screen gained edit and delete, and account activation became a real gate on sign-in.
+Ran 2026-08-23: four of that scope are `Verified`. **REQ-FN-062 alone remains**, blocked on
+configuration, not code — re-enter BlogApp's Media storage (SFTP) and Website address, then re-run. **Deploy the website first:** migration `032-SiteLogoSetting.sql` is new and
+production is on 031, and BlogApp never runs DbUp (the UAT-004 ship-order rule).
+
 Then continue manual UAT per `docs/TechieBlog-UsageGuide.md`.
 
 **⚠ Deployment note for the UAT round (migration 030).** `030-UserAdminEditDelete.sql` **backfills
@@ -473,13 +516,13 @@ possibly including the only Admin. Applied and verified on the local database (D
 
 ## Open requirements
 
-- [ ] **Implemented — awaiting a verifier run (3)** — REQ-UI-063, REQ-FN-062, REQ-UI-064 *(2026-08-22 UAT fixes; builder smoke 14/14 PASS)*
+- [ ] **Implemented — SFTP path not observable (1)** — REQ-FN-062 *(folder transport runtime-proven; SFTP credentials must be re-entered in BlogApp before it can be graded)*
 - [ ] **Implemented — not agent-observable (1)** — REQ-NFR-038 *(needs a real VPS)*
 - [ ] **PARTIAL (2)** — REQ-NFR-017 *(owner: CI repo secret)*, REQ-NFR-026 *(stage 4 deferred)*
 - [ ] **In Progress (1)** — REQ-NFR-025 *(owner: git-history decision)*
 
-Counts: 167 rows. Terminal 160 (148 `Verified` + 4 `N/A` + 8 `N/A removed`); open 7 — 4 owner-gated,
-3 awaiting verification.
+Counts: 167 rows. Terminal 163 (151 `Verified` + 4 `N/A` + 8 `N/A removed`); open 4 — 3 owner-gated,
+1 awaiting SFTP credentials (REQ-FN-062).
 
 ## Known blockers
 
@@ -552,6 +595,11 @@ buttons render and are wired, not that the dialogs open.)*
 | 2026-08-22c | ***fix-issues*** (owner UAT round 2 — **website**, not the desktop head) | **2 reported defects + 1 found while triaging; all 3 fixed and smoke-proven. Logged as `UAT-001…003` in the new checklist "UAT Bugs" section, NOT as new `REQ-*` rows** (owner's instruction — a UAT defect is a broken requirement, not a new one; requirement counts unchanged at 160 terminal / 4 open). Build rung #4 **0 Error(s) 7/7**. Live smoke **13/13 PASS** (Playwright vs the web host on `:5399`, screenshots `tests/.artifacts/harness/uat-users/`); host killed by PID afterwards and the four seeded users restored to their documented state. **UAT-001 — the featured article surviving a database purge was a CACHE artifact, and the site had already self-corrected:** fetching the live home page during triage returned `home-articles-empty` with no featured block, proving delete and query were both right. The public pages read a **10-minute in-process cache** (`MemoryCacheService.cs:96,152`, keys `content:posts:featured` / `content:posts:published:*`) that a delete made from the **desktop client straight to the database** can never invalidate, because it never enters the web host's process. Fixed with a `Clear cached content` control on `/settings` → Maintenance; the underlying gap is inherent to per-process caching, not a coding error. **UAT-002 — `/users` had no edit and no delete** (confirmed at `UsersList.razor:151-185`): added a full Edit dialog and a **soft** Delete (16 FKs point at `BlogUser`, only 4 cascade, so a hard delete would be refused for any author who has posted), guarded against deleting yourself, the site owner or the last active admin, each refusal explained on the button. **UAT-003 — found while triaging, not reported: the existing Activate/Deactivate button had NEVER worked** — three independent breaks (never persisted, since `UpdateBlogUser` has no `IsConfirmed` parameter; never enforced at sign-in; never set at creation, so every admin-created account is stored *Inactive* yet can still sign in). Fixed in migration `030-UserAdminEditDelete.sql` + `AuthSvc`, **with an explicit backfill so switching enforcement on cannot lock anyone out**. Owner question answered from file evidence: the BlogApp upload work does **not** touch the website admin — `DesktopFileStorageFactory` replaces `IFileStorageFactory` in BlogApp's own container only | docs/TechieBlog-Checklist.md#uat-bugs |
 | 2026-08-22d | ***fix-issues*** rounds 3-6 (owner UAT, website) | **UAT-001…018 all closed; DEPLOYED to production and verified live.** Prod `/healthz` now reports all **30** migration scripts (was 28), `/speaker-profile` returns 200 with its banner, the nav shows Speaking and no About, and the Blog-Archive link is live — each checked against `https://techierathore.com`, not inferred. Highlights: **UAT-004** a regression I introduced four hours earlier (schema-coupled read broke all six desktop admin screens — produced the website-first ship rule); **UAT-006** Speaker Profile + admin screen on the existing `UserEvents` table; **UAT-007** demo seed data retired; **UAT-008** full 27-screen mockup sweep, 3 real gaps fixed, remainder proved to be empty-DB artifacts; **UAT-011/012** the duplicate `mockups/` folder deleted and a wrong claim of mine corrected without falsifying the 2025 set's provenance; **UAT-014/015** both onboarding docs rewritten (three errors in GETTING_STARTED would have stopped a fresh clone dead); **UAT-016** a mutation-tested build-time docs guard, blind on 2 of 4 faults when first written; **UAT-018** logout's `NavigateTo("/")` was dead code — the documented destination and the real one had disagreed silently. Build 0 errors 7/7; suite 1 490 → **1 512**, 0 failures. ⏳ Only the production speaking-data load remains | docs/TechieBlog-Checklist.md#uat-bugs |
 | 2026-08-22e | ***verify*** REQ-UI-005 · REQ-UI-020 · REQ-UI-049 · REQ-FN-020 · REQ-FN-058 (executed run) | **4 Verified · 1 Needs re-verify.** Booted rung #4 on `:5099`; `tests/verify/req-list-ui.spec.ts` **11/11 passed**; `dotnet test` **1 509 passed / 0 failed**; gates applied = acceptance + data-render + visual-truth (**no `perf-budget:` declared on any scoped REQ, so §4c did not run** — not a gap). **REQ-UI-005** PASS incl. the previously-failing *no horizontal scroll at 320px* criterion, now clean on 6 routes. **REQ-UI-020** PASS — 4 rows, non-empty cells in all four columns, count badge agrees with visible rows, Add/Edit/Delete present, search narrows 4→1. **REQ-UI-049** PASS — hero two-tone heading, social circles, centred sections, clean at 1280+390; ⚠ the stats band and Download-CV CTA were **not observable** (no `UserStats` rows, no `CVFilePath`) and are explicitly not claimed. **REQ-FN-058** PASS — deep links to `/admin/speaking` and `/users` keep the session. **REQ-FN-020 DEMOTED** — 0 published posts, so listings/featured/related/reading-time could not be observed; empty-state contract verified and 19 unit assertions cover the logic, but a runtime observation nobody made will not be claimed. No gate telemetry emitted for it: it was unobservable, not a gate catch, and a `render` record would have inflated that gate's catch rate. Ledger `docs/.last-verify.json`; Admin DevGuide runtime-stamped | docs/TechieBlog-Checklist.md#requirements-status |
+| 2026-08-23 | ***fix-issues*** (owner UAT round 3 — both heads) | **5 reported defects reproduced live, fixed and smoke-proven: UAT-020…024, all `Fixed (self-smoked)`.** Build rung #4 **0 Error(s) 7/7**; suite **1 512 → 1 552** (1 549 pass / 0 fail / 3 skip). Website smoke **17/17** (`:5411`, harness `tests/.artifacts/harness/uat-r7/`) — the identical assertions were **9-of-13 FAILING** pre-fix; BlogApp smoke **7/7** over WebView2 CDP against the real head (`test-results-blogapp/uat-r7-*.png`, inspected). **UAT-021:** the site title was saving all along — proved from production before touching code, since the live RSS already rendered `TechieRathore` while ~40 chrome sites had the name typed into the markup; fixed with a narrow `SiteIdentity` projection that deliberately excludes the aggregate's two live credentials and the admin email, reflection-pinned by a test. **UAT-022:** `General.SiteLogo` added end-to-end (migration `032`, observed applying at startup) reusing the existing `ImagePicker` and the previously-unwired `logos` category. **UAT-023 — the owner's "major" one, and TWO diagnoses were wrong before the right one:** an over-length abstract (killed by the owner — his text was not longer and there was no error) and an editor binding race (killed by executing it: no-pause, 150 ms and blur all saved correctly, 3/3). BlogApp's **own Serilog log** settled it — `Created post … ID 11` at 11:17:32 IST = **05:47:32 UTC, matching the live RSS `pubDate` exactly**, plus three clean `Updated post` entries — so the write had landed and the head was on production; the owner then confirmed the live text IS his correction. Mechanism was UAT-001's per-process cache, whose remedy sat on the *website's* `/settings` where a BlogApp operator can never reach it. Closed with an authenticated `POST /api/admin/cache/refresh` reusing the existing access-token lookup (no new secret), which BlogApp now calls. **Two defects IN that fix were found only by running it:** antiforgery rejected the call at 400 before the Bearer token was read, and the not-found re-execution rewrote the handler's 401 into a 400 HTML page (`responded 401` → `POST /404 responded 400` in the host log) — an expired desktop session would have reported "bad request". Both pinned and mutation-tested. **UAT-024:** one line (`BlogsList.razor.cs:194`); fixed with an `IExternalLinkOpener` seam — `_blank` on the web, `Launcher.OpenAsync` in BlogApp — leaving unpublished posts on the in-window admin preview. **UAT-020:** banner moved from `fixed bottom-3 left-3` to an in-flow `sticky top-0` top banner, which also required fixing a latent render-order bug in `ConnectionGuard.razor`; measured `top=0px`, `position: sticky`, **0 overlaps across all 18 sidebar entries**. **Two pre-existing guards were repaired rather than deleted after this round's own changes blinded them** (the WCAG page-title gate reported 37 offenders; its duplicate-title sibling passed *vacuously*), and **all five injected faults were caught** on re-mutation. Local DB restored, host killed by PID, port released | docs/TechieBlog-Checklist.md#uat-bugs |
+| 2026-08-23b | ***verify*** REQ-UI-052 · REQ-FN-047 · REQ-UI-053 · REQ-FN-061 · REQ-NFR-018 (executed run) | **3 Verified · 2 Needs re-verify.** Booted rung #4 on `0.0.0.0:5099` (Playwright via the WSL gateway) **and** the BlogApp desktop head over the launched PID's WebView2 CDP. **REQ-UI-052** — acceptance re-proven by a live **cross-head round trip**: a post authored+published in BlogApp came back HTTP 200 on the separate web-host process and was listed publicly, then cleaned up; 19/19 admin routes open, no ErrorBoundary, visual clean. **REQ-FN-047** 12/12, incl. a byte-level plaintext check of `securestorage.dat` **paired with a positive control**. **REQ-UI-053** 5/5, render+visual clean at 1280+390. **REQ-FN-061 + REQ-NFR-018 DEMOTED on one measured root cause:** an isolated settings Save reaches visitors in **1.2–2.6 s**, but after an abandoned unsaved edit the next Save takes **~45 s** (reproduced 3/3 whole-file, 2/2 pairwise); separately, a post deleted in BlogApp stayed publicly served for the **full 10-min lifetime** because `MemoryCacheService` is per-process and cannot evict the other head. Output cache itself confirmed live (`Age` 3→6); 99/99 caching+settings unit tests pass; `/rss` still uncached. ⚠ Dev DB has drifted to **0 posts / 0 series / 0 comments / 0 resume rows** — harnesses asserting the 2026-08-09 counts now report false GAPs | docs/TechieBlog-Checklist.md#requirements-status |
+| 2026-08-23c | ***fix-issues*** + ***verify*** REQ-FN-061 · REQ-NFR-018 (executed run) | **Both → `Verified`; the defect behind UAT-021/022/023 is fixed.** Root cause was ONE line: `AddBasePolicy(Expire(1 min))` output-cached **every** endpoint that did not opt out, **untagged**, so no invalidation could reach it — a Save evicted `ICacheService` correctly and the host then served the previous minute's HTML anyway. It was also caching authenticated pages (output caching does not vary by the session cookie). Two hypotheses were killed with measurements first: a `SettingsChanged` subscription leak (delay was FLAT at ~56s for 40 *and* 120 abandoned prerenders; serving stayed at 12ms) and pool exhaustion (3 open connections). Base policy removed — caching is now opt-in; the feeds, sitemap and robots.txt keep explicit `Content`-tagged policies. Also fixed: `MemoryCacheService.GetOrCreate` captured its tag token AFTER the factory, losing any eviction that landed mid-load (counterfactualled test). **Measured save→visible at 0/40/120 prerenders: 1254 / 56021 / 57145 ms → 1178 / 1072 / 1390 ms.** `req-fn-061-settings-cache-leak.spec.ts` **4/4** (was failing 3/3); website-admin abstract edit visible in **153 ms**; cross-process refresh endpoint re-proved (401 anonymous, 200 authenticated, new text live next request). **1555 unit tests pass**, build 0 errors. Also fixed `UnconfiguredMediaStorage` (UAT-022: BlogApp silently wrote uploads to `%LOCALAPPDATA%` and recorded a URL the site 404s) and `vrf047.mjs`, which had been wiping the operator's media transport + website address on every run (**12/12 → 15/15**). ⚠ Correction: an earlier note claiming RSS output caching was unimplemented was MY testing error — `/rss` is not a feed route; `/feed.xml` and `/rss.xml` are, and both are cached | docs/TechieBlog-Checklist.md#requirements-status |
+
+| 2026-08-23e | ***verify*** REQ-UI-063 · REQ-FN-062 · REQ-UI-064 · REQ-UI-020 · REQ-FN-020 (executed run) | **4 Verified · 1 held.** Booted rung #4 on `0.0.0.0:5099` **and** the BlogApp desktop head over its own PID's WebView2 CDP. **REQ-UI-063** — warm start with a remembered session lands on `/admin` (`h1=Dashboard`, admin shell present, public header absent, token retained), not the public blog. **REQ-UI-064** — verified on BOTH heads against 13 skills seeded in a deliberately non-alphabetical order: authored order rendered and alphabetical explicitly ruled out, 13 order badges reading 1..13 gapless, category moves reorder and are reversible, public resume agrees (web 3/3, desktop 6/6). **REQ-FN-020** — was demoted for MISSING DATA, not a defect; seeded 6 published + 1 draft and proved listings, featured = newest published (not the newer draft), 3 related posts (never self, never draft) and reading time > 0 (**4/4**). **REQ-UI-020** — re-confirmed, 4 rows, badges, count agrees, search 4→1. **REQ-FN-062 HELD at `Implemented` (75% → 90%)** — the folder transport is now runtime-proven (upload lands in the configured folder, **0 new files in `%LOCALAPPDATA%`**, bytes match, site-relative path) and the local-drive guard correctly refuses `C:\Temp`, but **SFTP — the transport this deployment needs — could not be exercised** because its credentials were destroyed by the earlier `vrf047.mjs` run and not re-entered. Not graded on the folder result: that path failed UAT twice. Fixed two `uat-fix-smoke.mjs` defects to reach the evidence (it never selected a transport, so the media fields did not exist; and its restore filled a field it had just dismissed). All seeded posts and skills removed at teardown | docs/TechieBlog-Checklist.md#requirements-status |
 
 ## Library feedback summary
 
