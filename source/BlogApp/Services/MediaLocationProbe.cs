@@ -263,11 +263,18 @@ public class MediaLocationProbe
             return Result<string>.Failure("Enter the folder your site serves /uploads from before testing it.");
         }
 
-        if (ConnectionSettings.IsLocalFixedDrivePath(settings.MediaRootPath))
+        // A folder on this machine is REFUSED only when the site is REMOTE. Against a local database
+        // the website is local too, and its own wwwroot/uploads IS a local fixed drive - refusing it
+        // unconditionally (as this did until 2026-08-23) made local development impossible and told
+        // the developer their correct setup was wrong. The UAT-022 incident this guard exists for was
+        // a local path chosen while the site ran on a Linux VPS, which is precisely the remote case.
+        if (ConnectionSettings.IsLocalFixedDrivePath(settings.MediaRootPath) && !settings.IsLocalSite())
         {
             logger.LogWarning(
-                "Media probe REFUSED {MediaRootPath}: it resolves to a drive on this machine",
-                settings.MediaRootPath);
+                "Media probe REFUSED {MediaRootPath}: it is a drive on this machine, but the database "
+                + "host {DatabaseHost} is remote, so the site cannot read it",
+                settings.MediaRootPath,
+                settings.Host);
             return Result<string>.Failure(LocalDriveMessage);
         }
 

@@ -274,6 +274,16 @@ public class PostEditorRouteReloadTests : BunitContext
         // in this file throw at DI resolution.
         Services.AddSingleton<ISiteCacheNotifier>(new NullSiteCacheNotifier());
 
+        // ManagePost renders <SiteBrandTitle> (added 2026-08-23 so the page has a browser-tab title
+        // at all), which resolves ISiteSettingsService to read the configured site name. Same
+        // reasoning as the notifier above: these tests assert route-reload behaviour, not branding,
+        // so the service is stubbed rather than exercised — but it must be registered or every
+        // render in this file throws at DI resolution.
+        var siteSettings = Substitute.For<BlogModels.Interfaces.ISiteSettingsService>();
+        siteSettings.GetSettingsAsync()
+            .Returns(Task.FromResult(new BlogModels.Models.SiteSettings { SiteTitle = "TechieBlog" }));
+        Services.AddSingleton(siteSettings);
+
         var authorization = AddAuthorization();
         authorization.SetAuthorized("Ravi@techieblog.com");
         authorization.SetClaims(new Claim(ClaimTypes.PrimarySid, "1"));

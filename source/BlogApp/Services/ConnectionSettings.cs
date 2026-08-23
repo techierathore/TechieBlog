@@ -222,6 +222,40 @@ public class ConnectionSettings
     /// </remarks>
     /// <param name="path">The path to classify.</param>
     /// <returns><c>true</c> when the path lives on a fixed or removable local drive.</returns>
+    /// <summary>
+    /// Reports whether this connection points at a site running on THIS machine.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The database host decides it. Working against a local database
+    /// means the website is local too, and a media folder on this machine is then exactly right —
+    /// the developer's own <c>wwwroot/uploads</c>. Working against a REMOTE database means the site
+    /// is remote, and a local folder is the UAT-022 mistake (five uploads to a laptop while the
+    /// site ran on a Linux VPS).</para>
+    /// <para><b>Why the database host and not <see cref="SiteBaseUrl"/>:</b> the database is the one
+    /// thing this head always has — it cannot run without it — whereas the site address is optional
+    /// and is blank on a fresh install. Keying the rule on a field that may be empty would make the
+    /// answer depend on unrelated configuration.</para>
+    /// <para><b>Flow:</b> treat a blank, loopback or <c>localhost</c> host as local; anything else as
+    /// remote.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <returns><c>true</c> when the database — and therefore the site — is on this machine.</returns>
+    public bool IsLocalSite()
+    {
+        if (string.IsNullOrWhiteSpace(Host))
+        {
+            return true;
+        }
+
+        var host = Host.Trim();
+        if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return System.Net.IPAddress.TryParse(host, out var address) && System.Net.IPAddress.IsLoopback(address);
+    }
+
     public static bool IsLocalFixedDrivePath(string path)
     {
         if (string.IsNullOrWhiteSpace(path))

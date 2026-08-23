@@ -46,7 +46,7 @@ public partial class AdminLayout : IDisposable
     /// UAT-022). Defaults to the built-in fallback so the very first render — before
     /// <see cref="OnInitializedAsync"/> completes — shows real content rather than a blank mark.
     /// </summary>
-    public SiteIdentity Identity { get; private set; } = new("TechieBlog", string.Empty);
+    public SiteIdentity Identity { get; private set; } = new("TechieBlog", string.Empty, string.Empty);
 
     /// <summary>
     /// Display name of the signed-in user, shown in the account menu.

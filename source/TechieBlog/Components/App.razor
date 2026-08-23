@@ -25,8 +25,24 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@siteTitle</title>
+    @*
+        NO <title> HERE — deliberately. Blazor's <HeadOutlet> below emits one from each page's
+        <PageTitle> (the shared SiteBrandTitle component), and it does so during PRERENDER, so the
+        title is already present in the first byte of HTML. A shell <title> in addition meant the
+        document carried TWO, and since the browser takes the first, the tab showed the bare site
+        name until hydration replaced it — a visible flicker on every page load, and invalid HTML.
+        All 44 routable pages under BlogUI/Pages supply a title; adding a new routable page without
+        one would leave it untitled, so give every page a <SiteBrandTitle>.
+        `siteTitle` is still read below for the RSS auto-discovery tag.
+    *@
     <meta name="description" content="@metaDescription" />
+    @* Omitted entirely when unset, rather than emitted empty — a blank keywords tag is noise in the
+       markup and says nothing. Settings stored this value from the start but nothing rendered it,
+       so editing SEO keywords changed the database and no page (found 2026-08-23). *@
+    @if (!string.IsNullOrWhiteSpace(metaKeywords))
+    {
+        <meta name="keywords" content="@metaKeywords" />
+    }
     <base href="/" />
 
     @*
@@ -173,6 +189,7 @@
     private string siteTheme = FallbackTheme;
     private string siteTitle = "Techie Blog";
     private string metaDescription = string.Empty;
+    private string metaKeywords = string.Empty;
 
     // Dark is the shipped site default (owner decision, 2026-08-10), so a settings read that
     // fails still renders class="dark" on <html> and the first paint is dark rather than a flash
@@ -221,6 +238,7 @@
             isDarkModeDefault = settings.IsDarkModeDefault;
             siteTitle = string.IsNullOrWhiteSpace(settings.SiteTitle) ? siteTitle : settings.SiteTitle;
             metaDescription = settings.MetaDescription ?? string.Empty;
+            metaKeywords = settings.MetaKeywords ?? string.Empty;
         }
         catch (Exception)
         {

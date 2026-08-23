@@ -54,6 +54,9 @@ public static class SiteIdentityExtensions
 
         var settings = await siteSettingsService.GetSettingsAsync().ConfigureAwait(false);
         var title = string.IsNullOrWhiteSpace(settings.SiteTitle) ? DefaultSiteTitle : settings.SiteTitle;
-        return new SiteIdentity(title, settings.SiteLogoPath ?? string.Empty);
+        return new SiteIdentity(
+            title,
+            settings.SiteLogoPath ?? string.Empty,
+            settings.SiteTagline ?? string.Empty);
     }
 }

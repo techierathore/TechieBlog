@@ -97,21 +97,26 @@ public class SiteIdentityExtensionsTests
 
         var identity = await service.GetSiteIdentityAsync();
 
-        // Structural guarantee: SiteIdentity exposes exactly the two identity properties, so no
+        // Structural guarantee: SiteIdentity exposes exactly these PUBLIC BRANDING properties, so no
         // future edit can quietly widen it to carry a credential through this projection.
+        // SiteTagline was added 2026-08-23: Home.razor had the tagline hard-coded, so editing it in
+        // Settings changed the database and never the browser tab. It is public text rendered in the
+        // page title, which is the same class of value as SiteTitle - widening to it is in the rule,
+        // not an exception to it. The credential assertions below are what this test actually
+        // defends, and they now cover all three members.
         var propertyNames = typeof(SiteIdentity)
             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Select(property => property.Name)
             .OrderBy(name => name, StringComparer.Ordinal)
             .ToArray();
-        Assert.Equal(new[] { "SiteLogoPath", "SiteTitle" }, propertyNames);
+        Assert.Equal(new[] { "SiteLogoPath", "SiteTagline", "SiteTitle" }, propertyNames);
 
-        // Belt-and-suspenders: the two values that DID make it through carry none of the secrets.
-        Assert.DoesNotContain("MailerSecret1", identity.SiteTitle);
-        Assert.DoesNotContain("MailerSecret1", identity.SiteLogoPath);
-        Assert.DoesNotContain("CloudSecret1", identity.SiteTitle);
-        Assert.DoesNotContain("CloudSecret1", identity.SiteLogoPath);
-        Assert.DoesNotContain("owner@techieblog.test", identity.SiteTitle);
-        Assert.DoesNotContain("owner@techieblog.test", identity.SiteLogoPath);
+        // Belt-and-suspenders: every value that DID make it through carries none of the secrets.
+        foreach (var exposed in new[] { identity.SiteTitle, identity.SiteLogoPath, identity.SiteTagline })
+        {
+            Assert.DoesNotContain("MailerSecret1", exposed);
+            Assert.DoesNotContain("CloudSecret1", exposed);
+            Assert.DoesNotContain("owner@techieblog.test", exposed);
+        }
     }
 }

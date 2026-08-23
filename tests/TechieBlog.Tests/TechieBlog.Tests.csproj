@@ -138,15 +138,6 @@
              Link="LinkedSource\LogFileSettings.cs" />
     <Compile Include="..\..\source\TechieBlog\Configuration\SeqSettings.cs"
              Link="LinkedSource\SeqSettings.cs" />
-    <!--
-      UAT-022 / REQ-FN-062: the guard that stops the desktop head writing an upload to the operator's
-      own machine and recording a URL the website can only 404. source/BlogApp targets
-      net10.0-windows10.0.19041.0, so it cannot be ProjectReferenced from this net10.0 assembly at
-      all — linking the one file is the only way to assert against the real production type, and it
-      is pure (no MAUI types, no I/O).
-    -->
-    <Compile Include="..\..\source\BlogApp\Services\UnconfiguredMediaStorage.cs"
-             Link="LinkedSource\UnconfiguredMediaStorage.cs" />
   </ItemGroup>
 
   <ItemGroup>

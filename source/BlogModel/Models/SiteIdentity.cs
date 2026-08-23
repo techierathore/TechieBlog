@@ -20,4 +20,10 @@ namespace BlogModels.Models;
 /// <param name="SiteTitle">The configured site name; never null or blank — falls back to the
 /// built-in default when the stored value is blank.</param>
 /// <param name="SiteLogoPath">The configured logo's path or URL, or empty when none is set.</param>
-public sealed record SiteIdentity(string SiteTitle, string SiteLogoPath);
+/// <param name="SiteTagline">The configured tagline, or empty when none is set. Public branding
+/// text, exactly like the title — it is what the browser tab shows after the site name, and it was
+/// added here (2026-08-23) because <c>Home.razor</c> had the tagline HARDCODED, so changing it in
+/// Settings changed nothing. Widening this record is deliberate and stays within its rule: only
+/// values that are already rendered publicly may live here — never a credential or the admin
+/// email.</param>
+public sealed record SiteIdentity(string SiteTitle, string SiteLogoPath, string SiteTagline);

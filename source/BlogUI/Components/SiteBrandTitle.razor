@@ -38,13 +38,29 @@
     [Parameter]
     public string AdminSuffix { get; set; } = string.Empty;
 
-    /// <summary>Tagline appended after the site name (Home-style titles only).</summary>
+    /// <summary>
+    /// Tagline appended after the site name (Home-style titles only).
+    /// </summary>
+    /// <remarks>
+    /// <b>Leave this unset to use the CONFIGURED tagline</b>, which is almost always what you want.
+    /// It exists only for a caller that needs a fixed phrase regardless of settings. Passing a
+    /// literal here is how the browser tab came to ignore the owner's Settings entirely: Home.razor
+    /// hard-coded "notes on .NET, Blazor and shipping software", so editing the tagline in Settings
+    /// changed the database and nothing else (2026-08-23).
+    /// </remarks>
     [Parameter]
     public string? Tagline { get; set; }
 
-    /// <summary>Separator between the site name and <see cref="Tagline"/>.</summary>
+    /// <summary>Separator between the site name and the tagline.</summary>
     [Parameter]
     public string TaglineSeparator { get; set; } = " — ";
+
+    /// <summary>
+    /// When true and no explicit <see cref="Tagline"/> is given, the configured site tagline is
+    /// appended. Off by default so the ~36 per-page titles stay "{Page} - {SiteTitle}".
+    /// </summary>
+    [Parameter]
+    public bool UseConfiguredTagline { get; set; }
 
     /// <summary>
     /// The configured site name. Defaults to the built-in fallback so the very first render — before
@@ -52,11 +68,19 @@
     /// </summary>
     private string siteTitle = "TechieBlog";
 
+    /// <summary>
+    /// The configured tagline, used when the caller does not pass an explicit <see cref="Tagline"/>.
+    /// Empty until <see cref="OnInitializedAsync"/> completes, and empty when none is configured —
+    /// in both cases the title is just the site name, with no dangling separator.
+    /// </summary>
+    private string configuredTagline = string.Empty;
+
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
         var identity = await SiteSettingsService.GetSiteIdentityAsync();
         siteTitle = identity.SiteTitle;
+        configuredTagline = identity.SiteTagline;
     }
 
     /// <summary>
@@ -68,9 +92,13 @@
     {
         var title = string.IsNullOrEmpty(Page) ? siteTitle : $"{Page}{Separator}{siteTitle}";
 
-        if (!string.IsNullOrEmpty(Tagline))
+        // An explicit Tagline wins; otherwise the CONFIGURED one is used, so editing it in Settings
+        // actually changes the browser tab. Only Home-style titles pass UseConfiguredTagline.
+        var tagline = string.IsNullOrEmpty(Tagline) && UseConfiguredTagline ? configuredTagline : Tagline;
+
+        if (!string.IsNullOrEmpty(tagline))
         {
-            title = $"{title}{TaglineSeparator}{Tagline}";
+            title = $"{title}{TaglineSeparator}{tagline}";
         }
 
         return $"{title}{AdminSuffix}";

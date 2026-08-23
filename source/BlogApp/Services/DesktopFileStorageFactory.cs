@@ -32,19 +32,16 @@ namespace BlogApp.Services;
 /// the one thing this head cannot reach. The <see cref="MediaTransports.Folder"/> transport
 /// redirects only the <i>filesystem</i> providers; cloud storage is passed straight through, because
 /// a cloud endpoint is reachable from the desktop exactly as it is from the server and there is
-/// nothing to correct. With <see cref="MediaTransports.None"/> the head now gets
-/// <see cref="UnconfiguredMediaStorage"/>, which REFUSES uploads — see below.</para>
+/// nothing to correct. With <see cref="MediaTransports.None"/> the engine factory answers every
+/// call, so a head that has not opted in behaves precisely as it did before this type existed.</para>
 ///
-/// <para><b>The unconfigured case used to fall through to the engine, and that was the UAT-022
-/// defect.</b> The original rule here was that <see cref="MediaTransports.None"/> should "behave
-/// precisely as it did before this type existed", i.e. hand back the engine's local provider. But
-/// the engine's local provider on a MAUI head is rooted under <c>%LOCALAPPDATA%</c>
-/// (<see cref="DesktopHostEnvironment"/>), while the database row it writes is saved to the SITE's
-/// database as <c>/uploads/{category}/{file}</c>. The upload reported success, the file sat on the
-/// operator's laptop, and the website answered 404 for it permanently — which is exactly how a
-/// site logo set from the desktop silently never appeared. There is no configuration of this head
-/// for which a local write is useful, because the database is never local, so the unconfigured case
-/// now refuses rather than fabricating an unusable reference.</para>
+/// <para><b>Configuring media storage is OPTIONAL, deliberately.</b> A local-only workflow — a dev
+/// machine, or an operator who only edits text — must work with nothing set up, so the unconfigured
+/// case writes locally rather than failing. The cost is stated where the operator chooses it: the
+/// setup screen's <c>media-none-warning</c> says "Images you upload from BlogApp will be written to
+/// this computer and will not appear on the website." A 2026-08-23 change that REFUSED the upload
+/// instead was reverted — it turned an optional convenience into a mandatory setup step and broke
+/// local use, which is a worse defect than the one it was trying to prevent.</para>
 ///
 /// <para><b>Why an SFTP provider at all (2026-08-22).</b> The first version of this offered only the
 /// folder redirect and assumed the server&#39;s uploads directory could be mounted. For this
@@ -138,11 +135,15 @@ public class DesktopFileStorageFactory : IFileStorageFactory
         var settings = connectionContext.Settings;
         if (settings?.HasMediaLocation() != true)
         {
-            // NOT the engine's local provider (UAT-022). This head always writes its database rows to
-            // the SITE's database, so a file written to this machine is a row the website can never
-            // serve - it 404s forever and nothing says so. Refuse the write instead of inventing a
-            // broken reference; reads still answer "nothing here".
-            return new UnconfiguredMediaStorage();
+            // No media location configured: write locally, exactly as before this type existed.
+            // Configuring media storage is OPTIONAL and stays that way - a local-only workflow
+            // (dev machine, or an operator who only edits text) must work with nothing set up. The
+            // setup screen's `media-none-warning` already states the trade-off in the operator's
+            // own words: "Images you upload from BlogApp will be written to this computer and will
+            // not appear on the website." That warning is the right place for this - refusing the
+            // upload here was tried on 2026-08-23 and REVERTED: it turned an optional convenience
+            // into a mandatory setup step and broke local use entirely.
+            return engineStorage;
         }
 
         // SFTP is a destination the engine has no provider for, so it is not a "filesystem provider

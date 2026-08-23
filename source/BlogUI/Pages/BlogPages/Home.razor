@@ -29,7 +29,9 @@
 @using BlogUI.Components.Home
 @using BlogUI.Components.Resume
 
-<SiteBrandTitle Tagline="notes on .NET, Blazor and shipping software" />
+@* The tagline comes from Settings, not from a literal here — hard-coding it meant the owner could
+   edit the tagline and the browser tab never changed (2026-08-23). *@
+<SiteBrandTitle UseConfiguredTagline="true" />
 
 @if (isLoading)
 {

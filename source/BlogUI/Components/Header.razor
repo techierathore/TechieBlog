@@ -149,7 +149,7 @@
     /// first render — before <see cref="OnInitializedAsync"/> completes — shows real content
     /// rather than a blank brand mark.
     /// </summary>
-    private SiteIdentity identity = new("TechieBlog", string.Empty);
+    private SiteIdentity identity = new("TechieBlog", string.Empty, string.Empty);
 
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
