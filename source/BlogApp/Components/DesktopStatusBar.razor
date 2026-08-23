@@ -12,7 +12,18 @@
     above the router, keeps every shared page byte-for-byte identical to the website while
     still giving the desktop head its connection affordance on every screen.
 
-    Anchored bottom-left so it clears the top-right theme toggle and the bottom-right toasts.
+    UAT-020: this used to be anchored `fixed bottom-3 left-3`, which floated on top of the
+    admin sidebar's lowest nav entry (Settings) once the sidebar was expanded — a real menu
+    item became unreachable. It is now a real, in-flow TOP banner: because ConnectionGuard
+    renders it as a sibling BEFORE the router's output, it sits above every shared layout
+    (AdminLayout, AuthLayout, DesktopSetupLayout) and pushes their content down rather than
+    floating over it — none of those layouts needed a desktop-specific edit for this. `sticky
+    top-0` keeps it reachable if the window's content ever grows tall enough to scroll (this
+    head is a WebView2 with no browser chrome, so a banner that scrolled out of view would be
+    unreachable), while still reserving its own space in normal flow so nothing beneath it —
+    sidebar entries included — is ever covered. `z-40` is intentionally below the auth/setup
+    screens' fixed top-right theme toggle (z-50) so that control always stays on top and
+    clickable if the two ever share a corner at narrow widths.
 *@
 
 @inject ConnectionContext ConnectionContext
@@ -20,8 +31,8 @@
 
 @if (ConnectionContext.IsConfigured)
 {
-    <div class="fixed bottom-3 left-3 z-50 flex items-center gap-2 rounded-full border border-border
-                bg-background/95 px-3 py-1 text-xs text-muted-foreground shadow-sm"
+    <div class="sticky top-0 z-40 flex w-full items-center justify-center gap-2 border-b border-border
+                bg-background/95 px-3 py-1.5 text-xs text-muted-foreground shadow-sm"
          data-testid="desktop-connection-status">
         <span class="flex h-2 w-2 rounded-full bg-primary" aria-hidden="true"></span>
         <span>Connected</span>

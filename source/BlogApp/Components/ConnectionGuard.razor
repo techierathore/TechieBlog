@@ -18,17 +18,24 @@
 
 @if (isAllowed)
 {
+    @* The connection chip the desktop mockups call for, rendered once above every shared
+       BlogUI page so none of them needs a desktop-specific edit.
+
+       UAT-020: this must be the FIRST child here, before @ChildContent — DesktopStatusBar
+       renders itself as a real, in-flow (`sticky top-0`) top banner rather than a floating
+       overlay, so it needs to be the top-most element in the DOM to sit above every shared
+       layout (AdminLayout, AuthLayout, DesktopSetupLayout) and push their content down. It
+       was previously rendered AFTER @ChildContent, which didn't matter while it used `fixed`
+       positioning (order-independent), but would have put a `sticky` banner at the BOTTOM of
+       the page instead of the top. *@
+    <DesktopStatusBar />
+
     @ChildContent
 
     @* REQ-FN-062 — resolves stored /uploads/... paths against the site's own address so images
-       that live on the server are visible here. Renders nothing; sits beside the status bar for
-       the same reason it does — once, above every shared page, so no BlogUI page needs a
-       desktop-specific edit. *@
+       that live on the server are visible here. Renders nothing, so its position relative to
+       the other children here doesn't matter. *@
     <UploadsUrlRewriter />
-
-    @* The connection chip the desktop mockups call for, rendered once above every shared
-       BlogUI page so none of them needs a desktop-specific edit. *@
-    <DesktopStatusBar />
 }
 
 @code {

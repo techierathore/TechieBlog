@@ -462,6 +462,10 @@ public class BlogSvc
         if (string.IsNullOrWhiteSpace(post.PostContent))
             return Result<BlogPost>.Failure("Content is required");
 
+        var lengthFailure = ValidateFieldLengths(post);
+        if (lengthFailure != null)
+            return lengthFailure;
+
         // Derive a guaranteed non-empty base slug, then suffix it until it is free (REQ-FN-054).
         post.Slug = SlugGenerator.EnsureSlug(post.Slug, post.Title, SlugPrefix);
         post.Slug = SlugGenerator.ResolveUniqueSlug(post.Slug, candidate => postRepo.SlugExists(candidate));
@@ -527,6 +531,10 @@ public class BlogSvc
 
         if (string.IsNullOrWhiteSpace(post.PostContent))
             return Result<BlogPost>.Failure("Content is required");
+
+        var lengthFailure = ValidateFieldLengths(post);
+        if (lengthFailure != null)
+            return lengthFailure;
 
         // Check if post exists
         var existing = postRepo.GetSingle(post.PostID);
@@ -1266,6 +1274,46 @@ public class BlogSvc
     }
 
     /// <summary>
+    /// Checks the post's free-text fields against their database column widths.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> UAT-023 mechanism A. <c>Title</c>/<c>Abstract</c>/<c>Tags</c>/
+    /// <c>FeaturedImage</c> are all <c>VARCHAR(550)</c> and nothing validated their length before this
+    /// existed — an over-length value reached Npgsql, failed with a raw <c>22001</c>, and
+    /// <see cref="CreatePostAsync"/>/<see cref="UpdatePostAsync"/> reported it back as the generic
+    /// <see cref="CreateFailureMessage"/>/<see cref="UpdateFailureMessage"/>, silently discarding the
+    /// author's edit without saying why. Naming the field and its limit here — before any repository
+    /// call — lets every caller of this service, including <c>BlogApp</c> which shares it, surface a
+    /// message the author can act on. A unit test would have caught the original defect by asserting
+    /// this method (or the editor's own <c>MaxLength</c>) rejects a 551-character abstract.</para>
+    /// <para><b>Flow:</b> compare each field's length to its column width in declaration order and
+    /// return the first violation found.</para>
+    /// </remarks>
+    /// <param name="post">The post about to be inserted or updated.</param>
+    /// <returns>A failed <see cref="Result{T}"/> naming the offending field and its limit, or
+    /// <c>null</c> when every field fits its column.</returns>
+    private static Result<BlogPost>? ValidateFieldLengths(BlogPost post)
+    {
+        var title = post.Title ?? string.Empty;
+        if (title.Length > BlogPost.TitleMaxLength)
+            return Result<BlogPost>.Failure($"The title is {title.Length} characters; the maximum is {BlogPost.TitleMaxLength}.");
+
+        var abstractText = post.Abstract ?? string.Empty;
+        if (abstractText.Length > BlogPost.AbstractMaxLength)
+            return Result<BlogPost>.Failure($"The abstract is {abstractText.Length} characters; the maximum is {BlogPost.AbstractMaxLength}.");
+
+        var tags = post.Tags ?? string.Empty;
+        if (tags.Length > BlogPost.TagsMaxLength)
+            return Result<BlogPost>.Failure($"The tags are {tags.Length} characters; the maximum is {BlogPost.TagsMaxLength}.");
+
+        var featuredImage = post.FeaturedImage ?? string.Empty;
+        if (featuredImage.Length > BlogPost.FeaturedImageMaxLength)
+            return Result<BlogPost>.Failure($"The featured image path is {featuredImage.Length} characters; the maximum is {BlogPost.FeaturedImageMaxLength}.");
+
+        return null;
+    }
+
+    /// <summary>
     /// Creates a new blog post with validation and slug generation, without blocking the calling thread.
     /// </summary>
     /// <remarks>
@@ -1291,6 +1339,10 @@ public class BlogSvc
 
         if (string.IsNullOrWhiteSpace(post.PostContent))
             return Result<BlogPost>.Failure("Content is required");
+
+        var lengthFailure = ValidateFieldLengths(post);
+        if (lengthFailure != null)
+            return lengthFailure;
 
         // Derive a guaranteed non-empty base slug, then suffix it until it is free (REQ-FN-054).
         post.Slug = SlugGenerator.EnsureSlug(post.Slug, post.Title, SlugPrefix);
@@ -1343,6 +1395,10 @@ public class BlogSvc
 
         if (string.IsNullOrWhiteSpace(post.PostContent))
             return Result<BlogPost>.Failure("Content is required");
+
+        var lengthFailure = ValidateFieldLengths(post);
+        if (lengthFailure != null)
+            return lengthFailure;
 
         var existing = await postRepo.GetSingleAsync(post.PostID, cancellationToken).ConfigureAwait(false);
         if (existing == null)

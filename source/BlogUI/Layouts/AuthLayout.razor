@@ -8,9 +8,19 @@
     page ever links into the admin surface.
 
     REQ-UI-048 — carries the mandatory <ToastProvider /> and <PortalHost />.
+
+    UAT-021 / UAT-022: the brand mark reads the configured site title and logo
+    (BlogEngine.Common.SiteIdentityExtensions), falling back to "TechieBlog" and the built-in
+    glyph. This layout persists for the life of the circuit, so it subscribes to
+    SiteSettingsService.SettingsChanged the same way the public Header does.
 *@
 
 @inherits LayoutComponentBase
+@implements IDisposable
+@using BlogModels.Interfaces
+@using BlogModels.Models
+@using BlogEngine.Common
+@inject ISiteSettingsService SiteSettingsService
 
 <div class="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12 text-foreground">
 
@@ -23,10 +33,22 @@
     <a href="/"
        class="mb-8 flex items-center gap-2 text-lg font-semibold text-foreground no-underline"
        data-testid="brand-link">
-        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <LucideIcon Name="code" Size="18" />
-        </span>
-        <span>TechieBlog</span>
+        @if (!string.IsNullOrEmpty(identity.SiteLogoPath))
+        {
+            <span class="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg bg-primary text-primary-foreground">
+                <img src="@identity.SiteLogoPath"
+                     alt="@($"{identity.SiteTitle} logo")"
+                     class="h-full w-full object-contain"
+                     data-testid="site-logo" />
+            </span>
+        }
+        else
+        {
+            <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <LucideIcon Name="code" Size="18" />
+            </span>
+        }
+        <span>@identity.SiteTitle</span>
     </a>
 
     <main class="w-full max-w-[420px]" data-testid="auth-content">
@@ -36,3 +58,48 @@
 
 <ToastProvider Position="ToastPosition.BottomRight" />
 <PortalHost />
+
+@code {
+    /// <summary>
+    /// The site's public identity (title, logo). Defaults to the built-in fallback so the very
+    /// first render — before <see cref="OnInitializedAsync"/> completes — shows real content
+    /// rather than a blank brand mark.
+    /// </summary>
+    private SiteIdentity identity = new("TechieBlog", string.Empty);
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        identity = await SiteSettingsService.GetSiteIdentityAsync();
+
+        // This layout persists for the life of the circuit — client-side navigation does not
+        // recreate it — so without this subscription an administrator who saves a new title on
+        // /settings would not see their own sign-in shell update until a hard refresh (UAT-021 §2).
+        SiteSettingsService.SettingsChanged += OnSettingsChanged;
+    }
+
+    /// <summary>
+    /// Refreshes the rendered identity when a save is published elsewhere in the app.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ISiteSettingsService.SettingsChanged"/> is raised on the saving circuit's
+    /// thread, which is not necessarily this component's renderer, so the update is marshalled
+    /// through <see cref="ComponentBase.InvokeAsync(Func{Task})"/>.
+    /// </remarks>
+    private void OnSettingsChanged(object? sender, SiteSettings settings)
+    {
+        _ = InvokeAsync(async () =>
+        {
+            identity = await SiteSettingsService.GetSiteIdentityAsync();
+            StateHasChanged();
+        });
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        // The settings service is a singleton; an unsubscribed handler here would keep every
+        // disposed circuit's AuthLayout alive for the life of the process.
+        SiteSettingsService.SettingsChanged -= OnSettingsChanged;
+    }
+}

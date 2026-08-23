@@ -16,7 +16,7 @@
 @inject BlogEngine.Services.BlogSvc BlogSvc
 @inject BlogEngine.Services.CategorySvc CategorySvc
 
-<PageTitle>@(string.IsNullOrWhiteSpace(searchQuery) ? "Search · TechieBlog" : $"Search: {searchQuery} · TechieBlog")</PageTitle>
+<SiteBrandTitle Page="@(string.IsNullOrWhiteSpace(searchQuery) ? "Search" : $"Search: {searchQuery}")" Separator=" · " />
 
 @* Search Header *@
 <header class="my-6 flex flex-col gap-4">

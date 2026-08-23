@@ -5,12 +5,22 @@
     REQ-UI-048 — rebuilt on TrBlazeUI utility classes.
     REQ-UI-041/042 — the "Authors" link is gone with the author-browsing screens.
     BRD-93 — no sign-in affordance here either.
+
+    UAT-021: the copyright line reads the configured site title
+    (BlogEngine.Common.SiteIdentityExtensions), falling back to "TechieBlog". This layout persists
+    for the life of the circuit, so it subscribes to SiteSettingsService.SettingsChanged the same
+    way Header.razor does, to pick up a save made on /settings without a restart.
 *@
+@implements IDisposable
+@using BlogModels.Interfaces
+@using BlogModels.Models
+@using BlogEngine.Common
+@inject ISiteSettingsService SiteSettingsService
 
 <footer class="mt-16 border-t border-border bg-background" data-testid="public-footer">
     <div class="mx-auto flex w-full max-w-7xl flex-col items-center gap-4 px-4 py-8 text-sm text-muted-foreground sm:flex-row sm:justify-between sm:px-6">
 
-        <p class="m-0">&copy; @DateTime.Now.Year TechieBlog. All rights reserved.</p>
+        <p class="m-0">&copy; @DateTime.Now.Year @siteTitle. All rights reserved.</p>
 
         <nav class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
             <a href="/about" class="text-muted-foreground no-underline hover:text-foreground" data-testid="footer-about">About</a>
@@ -24,3 +34,48 @@
         </nav>
     </div>
 </footer>
+
+@code {
+    /// <summary>
+    /// The configured site name. Defaults to the built-in fallback so the very first render —
+    /// before <see cref="OnInitializedAsync"/> completes — shows real content rather than a blank
+    /// copyright line.
+    /// </summary>
+    private string siteTitle = "TechieBlog";
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        siteTitle = (await SiteSettingsService.GetSiteIdentityAsync()).SiteTitle;
+
+        // This layout persists for the life of the circuit — client-side navigation does not
+        // recreate it — so without this subscription an administrator who saves a new title on
+        // /settings would not see their own footer update until a hard refresh (UAT-021 §2).
+        SiteSettingsService.SettingsChanged += OnSettingsChanged;
+    }
+
+    /// <summary>
+    /// Refreshes the rendered title when a save is published elsewhere in the app.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ISiteSettingsService.SettingsChanged"/> is raised on the saving circuit's
+    /// thread, which is not necessarily this component's renderer, so the update is marshalled
+    /// through <see cref="ComponentBase.InvokeAsync(Func{Task})"/>.
+    /// </remarks>
+    private void OnSettingsChanged(object? sender, SiteSettings settings)
+    {
+        _ = InvokeAsync(async () =>
+        {
+            siteTitle = (await SiteSettingsService.GetSiteIdentityAsync()).SiteTitle;
+            StateHasChanged();
+        });
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        // The settings service is a singleton; an unsubscribed handler here would keep every
+        // disposed circuit's Footer alive for the life of the process.
+        SiteSettingsService.SettingsChanged -= OnSettingsChanged;
+    }
+}

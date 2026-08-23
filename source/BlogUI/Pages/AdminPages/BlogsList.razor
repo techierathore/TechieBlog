@@ -16,7 +16,7 @@
 
 @* [REQ-NFR-007] WCAG 2.4.2 Page Titled (Level A) — without this the page inherits the
    shell title and every admin screen announces itself as just the site name. *@
-<PageTitle>Posts - TechieBlog</PageTitle>
+<SiteBrandTitle Page="Posts" />
 
 <div class="mx-auto max-w-[1400px] space-y-6">
 
@@ -181,7 +181,7 @@
                         <div class="flex flex-nowrap items-center gap-1">
                             <Button Size="ButtonSize.IconSmall"
                                     Variant="ButtonVariant.Ghost"
-                                    OnClick="@(() => NavigateToPreview(row))"
+                                    OnClick="@(() => NavigateToPreviewAsync(row))"
                                     AriaLabel="Preview post"
                                     data-testid="post-preview">
                                 <LucideIcon Name="eye" Size="16" />

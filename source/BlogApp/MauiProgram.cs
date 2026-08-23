@@ -19,6 +19,7 @@
 using BlogApp.Services;
 using BlogEngine;
 using BlogEngine.Common;
+using BlogEngine.Services;
 using BlogEngine.Storage;
 using BlogModels;
 using BlogModels.Interfaces;
@@ -335,6 +336,26 @@ public static class MauiProgram
         // LoginPage casts to that type - and adds the two guards a repointable desktop head needs.
         services.AddScoped<AuthenticationStateProvider, DesktopAuthStateProvider>();
         services.AddTransient<IAuthService, AuthService>();
+
+        // UAT-024: opening a published post's preview must leave the admin window where it was
+        // (there is no browser chrome to go "back" with in a BlazorWebView). Registered here, not
+        // in BlogSvcInitializer, for the same reason the web head registers its own new-tab
+        // implementation in Program.cs rather than there: "the current window" is head-specific.
+        services.AddSingleton<IExternalLinkOpener, DesktopLinkOpener>();
+
+        // UAT-023 mechanism B: a save made here never runs a line of the website's code, so
+        // nothing evicts the website's in-process content cache. This calls the website's
+        // authenticated refresh endpoint with the operator's own session token afterwards.
+        // A single singleton HttpClient (rather than IHttpClientFactory, which needs the
+        // Microsoft.Extensions.Http package this project does not otherwise reference) - the same
+        // choice the standard MAUI Blazor Hybrid template makes, and this client makes exactly one
+        // short-lived POST per save, not the high-churn traffic IHttpClientFactory exists for.
+        services.AddSingleton(new HttpClient());
+        services.AddScoped<ISiteCacheNotifier>(provider => new RemoteSiteCacheNotifier(
+            provider.GetRequiredService<HttpClient>(),
+            provider.GetRequiredService<ILocalStorageService>(),
+            provider.GetRequiredService<ConnectionContext>(),
+            provider.GetRequiredService<ILogger<RemoteSiteCacheNotifier>>()));
 
         // The single window, resolved from DI so it can read the connection state.
         services.AddSingleton<MainPage>();

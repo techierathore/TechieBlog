@@ -268,6 +268,12 @@ public class PostEditorRouteReloadTests : BunitContext
         Services.AddSingleton(new TagSvc(BuildTagRepo(), NullLogger<TagSvc>.Instance));
         Services.AddSingleton(new SeriesSvc(BuildSeriesRepo(), postRepo, NullLogger<SeriesSvc>.Instance));
 
+        // UAT-023 mechanism B: ManagePost now injects ISiteCacheNotifier. The website's own
+        // no-op registration is the correct stand-in here — these tests assert route-reload
+        // behaviour, not the cache-refresh call, and a null registration would make every render
+        // in this file throw at DI resolution.
+        Services.AddSingleton<ISiteCacheNotifier>(new NullSiteCacheNotifier());
+
         var authorization = AddAuthorization();
         authorization.SetAuthorized("Ravi@techieblog.com");
         authorization.SetClaims(new Claim(ClaimTypes.PrimarySid, "1"));

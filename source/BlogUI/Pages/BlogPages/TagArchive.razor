@@ -19,7 +19,7 @@
 @inject NavigationManager Navigation
 
 @* REQ-NFR-007 / WCAG 2.4.2 Page Titled. *@
-<PageTitle>@(tagInfo == null ? "Tags · TechieBlog" : $"#{tagInfo.TagName} · TechieBlog")</PageTitle>
+<SiteBrandTitle Page="@(tagInfo == null ? "Tags" : $"#{tagInfo.TagName}")" Separator=" · " />
 
 @if (isLoading)
 {

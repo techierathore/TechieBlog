@@ -117,7 +117,18 @@ public class MemoryCacheService : ICacheService
     /// <para><b>Business Logic:</b> A miss runs the factory once and stores the result under the
     /// supplied tag with an absolute expiry, so a stale entry can never outlive its lifetime even
     /// if the invalidation event is missed.</para>
-    /// <para><b>Flow:</b> try get → on miss run factory → attach tag token and expiry → store.</para>
+    /// <para><b>Flow:</b> try get → on miss <b>capture the tag token</b> → run factory → attach that
+    /// token and the expiry → store.</para>
+    /// <para><b>The token is captured BEFORE the factory runs, and the order is the whole point.</b>
+    /// <see cref="EvictTag"/> removes the tag's source and cancels it, so the next
+    /// <c>GetTagSource</c> mints a brand-new, uncancelled one. Reading the token *after* a slow
+    /// factory therefore attached the FRESH token to a value loaded BEFORE the eviction: the stale
+    /// value was stored under a token that had never been cancelled, with a full lifetime ahead of
+    /// it, and the eviction that had just happened was silently lost. Capturing first means an
+    /// eviction that lands mid-factory cancels the token this entry is about to be stored under, so
+    /// the entry is born already expired and the next read reloads. Measured before the fix: a site
+    /// settings Save reached visitors in ~2s normally but took ~45s when a concurrent render was
+    /// mid-read (the abandoned-editor case) — see REQ-FN-061 / REQ-NFR-018.</para>
     /// <para><b>Side Effects:</b> Populates the shared cache; logs the miss at debug level.</para>
     /// </remarks>
     /// <typeparam name="T">The cached value type.</typeparam>
@@ -146,12 +157,17 @@ public class MemoryCacheService : ICacheService
         if (memoryCache.TryGetValue(key, out T? cached) && cached is not null)
             return cached;
 
+        // Captured BEFORE the factory runs: an eviction landing mid-load must cancel the very token
+        // this entry is stored under, otherwise the stale value outlives the invalidation that was
+        // meant to drop it. See the remarks above.
+        var tagToken = GetTagSource(tag).Token;
+
         var value = factory();
         var options = new MemoryCacheEntryOptions
         {
             AbsoluteExpirationRelativeToNow = lifetime ?? DefaultLifetime
         };
-        options.AddExpirationToken(new CancellationChangeToken(GetTagSource(tag).Token));
+        options.AddExpirationToken(new CancellationChangeToken(tagToken));
 
         memoryCache.Set(key, value, options);
         logger.LogDebug("Cache miss for {CacheKey} under tag {CacheTag}; entry stored", key, tag);

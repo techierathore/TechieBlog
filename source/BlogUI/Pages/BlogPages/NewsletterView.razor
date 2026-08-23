@@ -26,7 +26,7 @@
 }
 else if (issue != null)
 {
-    <PageTitle>Issue #@issueNumber — @issue.Title · TechieBlog</PageTitle>
+    <SiteBrandTitle Page="@($"Issue #{issueNumber} — {issue.Title}")" Separator=" · " />
 
     <article class="mx-auto w-full max-w-[820px]" data-testid="newsletter-view">
 

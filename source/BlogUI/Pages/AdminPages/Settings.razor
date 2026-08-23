@@ -14,14 +14,17 @@
 @page "/settings"
 @attribute [Authorize(Policy = "AdminOnly")]
 @layout BlogUI.Layouts.AdminLayout
+@using System.Security.Claims
 @using BlogModels.Interfaces
 @using BlogModels.Models
+@using Microsoft.AspNetCore.Components.Authorization
 @inject ThemeService ThemeService
 @inject ISiteSettingsService SiteSettingsService
 @inject ToastService ToastService
 @inject ICacheService CacheService
+@inject AuthenticationStateProvider AuthStateProvider
 
-<PageTitle>Settings - TechieBlog</PageTitle>
+<SiteBrandTitle Page="Settings" />
 
 <div class="flex flex-col gap-6 pb-24" data-testid="settings-page">
 
@@ -81,6 +84,29 @@
                             <FieldContent>
                                 <Input Id="site-tagline" @bind-Value="settings.SiteTagline"
                                        Placeholder="A blog about technology" data-testid="site-tagline" />
+                            </FieldContent>
+                        </Field>
+                        @* UAT-022: reuses the ImagePicker every other media-bound admin screen already
+                           uses (ManageProfile's avatar/CV fields) rather than inventing a new upload
+                           path. "logos" is an existing ImageCategoryRules category (500 KB,
+                           jpg/jpeg/png/svg/webp) that was declared but never wired to a screen. *@
+                        <Field>
+                            <FieldLabel>Site logo</FieldLabel>
+                            <FieldContent>
+                                @* ImagePicker declares no CaptureUnmatchedValues, so the stable hook
+                                   the verification suite navigates by rides on a wrapper element —
+                                   the same workaround TR-040 forced on the admin shell. Every other
+                                   field on this screen carries a data-testid; without one this
+                                   control is invisible to the smoke that proves it shipped. *@
+                                <div data-testid="site-logo">
+                                    <ImagePicker Category="logos"
+                                                 @bind-SelectedImagePath="siteLogoPath"
+                                                 UserId="@currentUserId" />
+                                </div>
+                                <FieldDescription>
+                                    Shown in the public header, the admin sidebar and the sign-in
+                                    screen. Leave unset to keep the default mark.
+                                </FieldDescription>
                             </FieldContent>
                         </Field>
                         <Field>
@@ -522,6 +548,23 @@
     /// <summary>True while the maintenance cache flush is running (UAT-001).</summary>
     private bool isClearingCache;
 
+    /// <summary>
+    /// The signed-in administrator's id, passed to <c>ImagePicker</c> for the site logo field
+    /// (UAT-022) — the same claim-based lookup <c>ManageProfile</c> uses for its own image
+    /// pickers. The logo itself is a site-wide setting, not owned by this user; the id only
+    /// scopes who uploaded it and where a new upload is attributed.
+    /// </summary>
+    private long currentUserId;
+
+    /// <summary>
+    /// Nullable mirror of <see cref="SiteSettings.SiteLogoPath"/> bound to <c>ImagePicker</c>
+    /// (UAT-022), matching the same <c>string?</c> convention <c>ManageProfile</c> uses for its
+    /// own image-picker fields — <c>ImagePicker</c> clears a selection to <c>null</c>, and
+    /// <see cref="SiteSettings.SiteLogoPath"/> is the non-nullable "never null" domain value.
+    /// Synced from <c>settings</c> after every load and folded back into it just before save.
+    /// </summary>
+    private string? siteLogoPath;
+
     private static readonly string[] storageProviders =
     {
         StorageProviderNames.Local,
@@ -533,6 +576,13 @@
     protected override async Task OnInitializedAsync()
     {
         availableThemes = ThemeService.GetAvailableThemes();
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userIdClaim = authState.User.FindFirst(ClaimTypes.PrimarySid);
+        if (userIdClaim != null && long.TryParse(userIdClaim.Value, out var userId))
+        {
+            currentUserId = userId;
+        }
 
         try
         {
@@ -549,6 +599,7 @@
         }
 
         settings.SiteTheme = ThemeService.NormaliseTheme(settings.SiteTheme);
+        siteLogoPath = settings.SiteLogoPath;
         isLoading = false;
     }
 
@@ -593,6 +644,10 @@
 
         isSaving = true;
 
+        // Fold the nullable ImagePicker mirror back into the non-nullable domain value it stands
+        // in for (UAT-022) — see the field's own remarks.
+        settings.SiteLogoPath = siteLogoPath ?? string.Empty;
+
         try
         {
             var result = await SiteSettingsService.SaveSettingsAsync(settings);
@@ -604,6 +659,7 @@
                 // detached copy (REQ-FN-061), so continuing to edit after a save stays page-local.
                 settings = result.Data ?? settings;
                 settings.SiteTheme = ThemeService.NormaliseTheme(settings.SiteTheme);
+                siteLogoPath = settings.SiteLogoPath;
                 ToastService.Success("Settings saved.", "Settings");
             }
             else
@@ -657,6 +713,7 @@
             // page would keep showing values it can no longer prove.
             settings = await SiteSettingsService.GetEditableSettingsAsync();
             settings.SiteTheme = ThemeService.NormaliseTheme(settings.SiteTheme);
+            siteLogoPath = settings.SiteLogoPath;
 
             ToastService.Success(
                 "Cached content cleared. The public pages now read straight from the database.",

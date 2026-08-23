@@ -22,7 +22,7 @@
 @inject BlogEngine.Services.SeriesSvc SeriesService
 
 @* REQ-NFR-007 / WCAG 2.4.2 Page Titled. *@
-<PageTitle>@(series == null ? "Series · TechieBlog" : $"{series.Name} · TechieBlog")</PageTitle>
+<SiteBrandTitle Page="@(series == null ? "Series" : series.Name)" Separator=" · " />
 
 <div class="mx-auto w-full max-w-[860px]">
 

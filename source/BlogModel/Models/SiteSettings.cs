@@ -50,6 +50,17 @@ public class SiteSettings
     public string SiteTagline { get; set; } = string.Empty;
 
     /// <summary>
+    /// Path or URL of the configured site logo, or empty when none is set (UAT-022).
+    /// </summary>
+    /// <remarks>
+    /// Empty is indistinguishable from "never configured" — that is deliberate. Consuming chrome
+    /// (header, admin sidebar, auth shell) must render its built-in glyph whenever this is blank
+    /// rather than an <c>&lt;img&gt;</c> with an empty <c>src</c>, which would render as a broken
+    /// image icon.
+    /// </remarks>
+    public string SiteLogoPath { get; set; } = string.Empty;
+
+    /// <summary>
     /// Address that receives administrative notifications. A real mailbox, so treat it as personal
     /// data: it belongs on the Settings screen and in outbound envelopes, never rendered into a
     /// public page where it would be harvested.
@@ -183,6 +194,7 @@ public class SiteSettings
         {
             SiteTitle = SiteTitle,
             SiteTagline = SiteTagline,
+            SiteLogoPath = SiteLogoPath,
             AdminEmail = AdminEmail,
             PostsPerPage = PostsPerPage,
             PaginationWordCount = PaginationWordCount,

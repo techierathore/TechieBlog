@@ -22,11 +22,13 @@ using BlogEngine.Services;
 using BlogEngine.Storage;
 using BlogModels;
 using BlogModels.Interfaces;
+using BlogModels.Models;
 using BlogUI;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.FileProviders;
@@ -318,7 +320,30 @@ try
     builder.Services.AddMemoryCache();
     builder.Services.AddOutputCache(options =>
     {
-        options.AddBasePolicy(policy => policy.Expire(TimeSpan.FromMinutes(1)));
+        // NO BASE POLICY - opt-in only. There used to be
+        //     options.AddBasePolicy(policy => policy.Expire(TimeSpan.FromMinutes(1)));
+        // which cached EVERY endpoint that did not opt out, for one minute, with NO TAG. That one
+        // line was the real cause of "I changed the site title / logo / a post's abstract and the
+        // site still shows the old one" (UAT-021, UAT-022, UAT-023), and it defeated every
+        // invalidation this codebase has: the page HTML embeds the site title, logo and theme, so a
+        // Save correctly evicted ICacheService AND correctly re-read the database - and then the
+        // host served the previous minute's HTML anyway. Because the policy carried no tag, neither
+        // ServiceCache's EvictTag nor /api/admin/cache/refresh's EvictByTagAsync(Content) could
+        // reach it; nothing could, short of waiting it out. MEASURED: with the base policy, a
+        // settings save took ~56s to become visible whenever the page had been requested in the
+        // preceding minute, against ~1.3s with it removed - and the delay was flat at ~56s whether
+        // 40 or 120 requests had populated the cache, which is what identified a fixed expiry
+        // rather than a load-dependent effect.
+        //
+        // It was also caching authenticated pages. Output caching does not vary by the
+        // BlazorServerAuth session cookie, so a signed-in user's rendered HTML was eligible to be
+        // served to the next caller of the same URL. The `/healthz` opt-out below was written after
+        // this exact hazard was observed once (a stale `200 Healthy` with `Age: 54`); the endpoint
+        // was special-cased while the blanket policy that caused it was left in place.
+        //
+        // Caching is therefore explicit from here on: `.CacheOutput(...)` on the endpoints that
+        // genuinely serve identical bytes to everyone - the feeds and robots.txt below - each
+        // tagged CacheTags.Content so an invalidation event can actually clear them.
         options.AddPolicy(OutputCachePolicies.PublicListing, policy => policy
             .Expire(TimeSpan.FromMinutes(5))
             .Tag(CacheTags.Content));
@@ -471,6 +496,17 @@ try
     builder.Services.AddCascadingAuthenticationState();
     builder.Services.AddTransient<IAuthService, AuthService>();
     builder.Services.AddScoped<ThemeService>();
+
+    // UAT-024: the website's answer to "open this public post outside the admin window" is a
+    // new browser tab. Registered here (not BlogSvcInitializer, which defines only the shared
+    // engine graph) because "the current window" is a head-specific notion.
+    builder.Services.AddScoped<IExternalLinkOpener, BrowserTabLinkOpener>();
+
+    // UAT-023 mechanism B: the website's own answer to "notify the site to refresh its cache" is
+    // a no-op, because BlogSvc already invalidated the cache IN THIS PROCESS the moment the post
+    // was saved. BlogApp's registration of the same interface (MauiProgram.cs) is the one that
+    // actually reaches across a process boundary.
+    builder.Services.AddScoped<ISiteCacheNotifier, NullSiteCacheNotifier>();
 
     var app = builder.Build();
 
@@ -727,6 +763,44 @@ try
         return Results.Content(robotsTxt, "text/plain");
     }).CacheOutput(OutputCachePolicies.PublicListing);
 
+    // -------------------------------------------------------------------------
+    // Remote cache refresh for BlogApp (UAT-023 mechanism B, REQ-FN)
+    //
+    // Public pages read through MemoryCacheService's ten-minute cache. An edit made through the
+    // WEBSITE evicts it correctly (BlogSvc.UpdatePostAsync calls ServiceCache.InvalidateContent).
+    // An edit made through BlogApp writes straight to the database from a SEPARATE process and
+    // never runs a line of this host, so nothing evicts the entry and the public page keeps
+    // serving the stale row for up to ten minutes. Settings.razor already has a "Clear cached
+    // content" button (UAT-001) for exactly this class of problem, but it lives behind the
+    // website's own admin session, which the BlogApp operator is not signed into here - they are
+    // signed into BlogApp, against the database directly. This endpoint is the same remedy,
+    // reachable from outside the process.
+    //
+    // AUTHENTICATION IS DELIBERATELY MANUAL, NOT [Authorize(Policy = ...)]. The caller is not a
+    // browser carrying the BlazorServerAuth session cookie SessionCookieAuthenticationHandler
+    // reads - it is BlogApp, presenting the SAME access token (BlogModels.AppConstants.AccessKey)
+    // its already-signed-in operator holds, as a Bearer header. IAuthService.GetUserByAccessTokenAsync
+    // is the IDENTICAL lookup that handler performs for a website request (resolve against the
+    // UserLogin table), so a revoked, expired or tampered BlogApp session is refused exactly as a
+    // revoked website session would be. Nothing new is trusted: no shared secret, no API key, no
+    // widened surface - an anonymous caller gets 401, and a signed-in Reader (or any role below
+    // AuthorOrAbove, the same floor ManagePost.razor itself requires to save a post) gets 403.
+    // This is the least-surface option that works: it reuses a validation path that already exists
+    // and already fails safely, rather than inventing a second one.
+    // -------------------------------------------------------------------------
+    // DisableAntiforgery is REQUIRED, not a relaxation, and was found by smoking the endpoint:
+    // app.UseAntiforgery() sits in front of every POST, so this one answered 400 to BlogApp's call
+    // before the Bearer token was ever read - the remedy would have shipped permanently broken and
+    // the 400 would have read as "refused" rather than "never reached the handler".
+    // Antiforgery defends COOKIE-authenticated form posts, where the browser attaches the caller's
+    // identity automatically. This endpoint authenticates ONLY by an Authorization: Bearer header,
+    // which a cross-site form post cannot set and a cross-origin fetch cannot add without a CORS
+    // preflight this host never approves - so there is no ambient authority for CSRF to abuse.
+    // The 401/403 checks in HandleCacheRefreshAsync remain the whole access control.
+    app.MapPost("/api/admin/cache/refresh", HandleCacheRefreshAsync)
+        .DisableAntiforgery()
+        .CacheOutput(policy => policy.NoCache());
+
     app.Run();
 }
 catch (Exception ex)
@@ -774,6 +848,98 @@ static Task WriteHealthResponse(HttpContext context, HealthReport report)
         })
     };
     return context.Response.WriteAsync(JsonSerializer.Serialize(payload));
+}
+
+/// <summary>
+/// Handles <c>POST /api/admin/cache/refresh</c> — UAT-023 mechanism B's authenticated remedy for a
+/// BlogApp write that never ran through this process's own cache invalidation.
+/// </summary>
+/// <remarks>
+/// <para><b>Business Logic:</b> Authenticates the presented Bearer token through the exact same
+/// <see cref="IAuthService.GetUserByAccessTokenAsync"/> lookup <c>SessionCookieAuthenticationHandler</c>
+/// performs for a website request (resolve against the <c>UserLogin</c> table), then requires
+/// <c>AuthorOrAbove</c> — the same floor <c>ManagePost.razor</c> itself requires to save a post in
+/// the first place. On success, evicts the same three <c>ICacheService</c> tags
+/// <c>Settings.razor</c>'s "Clear cached content" button evicts (UAT-001) plus the ASP.NET Core
+/// output cache, which is a distinct store from <see cref="ICacheService"/>.</para>
+/// <para><b>Flow:</b> parse the Bearer header → resolve the token to a user → require
+/// <c>AuthorOrAbove</c> → evict every cache layer → log and confirm.</para>
+/// <para><b>Side Effects:</b> Evicts <see cref="CacheTags.Content"/>, <see cref="CacheTags.Taxonomy"/>
+/// and <see cref="CacheTags.Settings"/> from <see cref="ICacheService"/>, and
+/// <see cref="CacheTags.Content"/> from the output cache. Writes one information or warning log
+/// entry.</para>
+/// <para><b>Extracted as a named local function, not an inline lambda</b>, because the branches
+/// below return different concrete <see cref="IResult"/> implementations
+/// (<c>UnauthorizedHttpResult</c>, <c>StatusCodeHttpResult</c>, <c>Ok&lt;T&gt;</c>) and an explicit
+/// <c>Task&lt;IResult&gt;</c> return type sidesteps any ambiguity in the delegate's inferred natural
+/// type — the same reason <see cref="WriteHealthResponse"/> above is a named function rather than
+/// an inline lambda.</para>
+/// </remarks>
+/// <param name="context">The request being answered.</param>
+/// <param name="authService">Resolves the presented access token to its owner.</param>
+/// <param name="cacheService">The in-memory content/taxonomy/settings cache.</param>
+/// <param name="outputCacheStore">The ASP.NET Core output cache, evicted separately.</param>
+/// <param name="logger">Logger for the outcome and for a token-resolution failure.</param>
+/// <returns>
+/// <c>401</c> when no usable token is presented, <c>403</c> when the token's role is below
+/// <c>AuthorOrAbove</c>, otherwise <c>200</c> once every cache layer has been evicted.
+/// </returns>
+static async Task<IResult> HandleCacheRefreshAsync(
+    HttpContext context,
+    IAuthService authService,
+    ICacheService cacheService,
+    IOutputCacheStore outputCacheStore,
+    ILogger<Program> logger)
+{
+    const string bearerPrefix = "Bearer ";
+    var authHeader = context.Request.Headers.Authorization.ToString();
+    if (!authHeader.StartsWith(bearerPrefix, StringComparison.OrdinalIgnoreCase))
+    {
+        return Results.Unauthorized();
+    }
+
+    var accessToken = authHeader[bearerPrefix.Length..].Trim();
+    if (string.IsNullOrWhiteSpace(accessToken))
+    {
+        return Results.Unauthorized();
+    }
+
+    AppUser? callingUser;
+    try
+    {
+        callingUser = await authService.GetUserByAccessTokenAsync(accessToken);
+    }
+    catch (Exception ex)
+    {
+        // Never disclose ex.Message to the caller (Coding Standards, exception-text disclosure) -
+        // log with context and answer as if the token simply did not resolve.
+        logger.LogWarning(ex, "Cache refresh endpoint could not resolve the presented access token");
+        return Results.Unauthorized();
+    }
+
+    if (callingUser?.EmailId == null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!AppPolicies.IsSatisfiedBy(AppPolicies.AuthorOrAbove, callingUser.UserRole))
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    // Same three tags Settings.razor's ClearContentCache evicts for the identical UAT-001
+    // reason: the caller changed the database from outside this process and cannot know which
+    // of content/taxonomy/settings the change landed under, so over-evicting is the honest
+    // choice. The output cache is evicted separately - it is a distinct store from
+    // ICacheService, and AddOutputCache's PublicListing/Feed policies are tagged CacheTags.Content.
+    cacheService.EvictTag(CacheTags.Content);
+    cacheService.EvictTag(CacheTags.Taxonomy);
+    cacheService.EvictTag(CacheTags.Settings);
+    await outputCacheStore.EvictByTagAsync(CacheTags.Content, context.RequestAborted);
+
+    logger.LogInformation(
+        "Cache refreshed via /api/admin/cache/refresh by {Email}", callingUser.EmailId);
+    return Results.Ok(new { refreshed = true });
 }
 
 /// <summary>
@@ -921,6 +1087,13 @@ public static class NotFoundPage
         // Prefix, so it covers /health, /health/ready AND /healthz - the deployment probe's JSON
         // body is parsed by the pipeline and must never be replaced by the not-found page.
         "/health",
+        // UAT-023: BlogApp calls /api/admin/cache/refresh and PARSES the outcome, so it must get the
+        // status the handler actually returned. Without this prefix the re-execution replaced the
+        // handler's 401 with the Blazor not-found page, which itself demands an antiforgery token and
+        // answered 400 + HTML — so an expired desktop session reported "bad request" instead of
+        // "sign in again", and the endpoint looked broken while being correct. Observed in the host
+        // log: `responded 401` immediately followed by `POST /404 responded 400`.
+        "/api",
         UploadsLocation.RequestPath
     };
 

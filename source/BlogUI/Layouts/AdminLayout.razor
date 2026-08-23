@@ -12,9 +12,18 @@
 
     Every navigation entry is gated by the same policy that guards its page, so the
     menu never offers a destination that would bounce the user to /access-denied.
+
+    UAT-021 / UAT-022: the sidebar brand mark reads the configured site title and logo
+    (BlogEngine.Common.SiteIdentityExtensions), falling back to "TechieBlog" and the built-in
+    glyph. This layout persists for the life of the circuit, so it subscribes to
+    SiteSettingsService.SettingsChanged the same way the public Header does.
 *@
 
 @inherits LayoutComponentBase
+@using BlogModels.Interfaces
+@using BlogModels.Models
+@using BlogEngine.Common
+@inject ISiteSettingsService SiteSettingsService
 
 <SidebarProvider DefaultOpen="true" HeightClass="min-h-screen">
 
@@ -22,11 +31,23 @@
 
         <SidebarHeader>
             <SidebarHeaderContent>
-                <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                    <LucideIcon Name="code" Size="16" />
-                </div>
+                @if (!string.IsNullOrEmpty(Identity.SiteLogoPath))
+                {
+                    <div class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-primary text-primary-foreground">
+                        <img src="@Identity.SiteLogoPath"
+                             alt="@($"{Identity.SiteTitle} logo")"
+                             class="h-full w-full object-contain"
+                             data-testid="site-logo" />
+                    </div>
+                }
+                else
+                {
+                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                        <LucideIcon Name="code" Size="16" />
+                    </div>
+                }
                 <SidebarHeaderInfo>
-                    <span class="truncate font-semibold">TechieBlog</span>
+                    <span class="truncate font-semibold">@Identity.SiteTitle</span>
                     <span class="truncate text-xs text-muted-foreground">Admin</span>
                 </SidebarHeaderInfo>
             </SidebarHeaderContent>

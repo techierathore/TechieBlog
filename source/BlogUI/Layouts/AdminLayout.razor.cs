@@ -1,4 +1,7 @@
+using BlogEngine.Common;
 using BlogModels;
+using BlogModels.Interfaces;
+using BlogModels.Models;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Security.Claims;
@@ -14,8 +17,11 @@ namespace BlogUI.Layouts;
 /// TrBlazeUI sidebar.</para>
 /// <para><b>Dependencies:</b> <see cref="AuthenticationStateProvider"/> (as
 /// <see cref="CustomAuthStateProvider"/>) and <see cref="NavigationManager"/>.</para>
+/// <para><b>UAT-021 / UAT-022:</b> also supplies the sidebar brand mark's site title and logo,
+/// re-read on every <see cref="ISiteSettingsService.SettingsChanged"/> notification because this
+/// layout persists for the life of the circuit — see <see cref="OnSettingsChanged"/>.</para>
 /// </remarks>
-public partial class AdminLayout
+public partial class AdminLayout : IDisposable
 {
     /// <summary>
     /// Authentication state provider used to sign the current user out.
@@ -34,6 +40,13 @@ public partial class AdminLayout
     /// </summary>
     [CascadingParameter]
     private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
+    /// <summary>
+    /// The site's public identity (title, logo) shown in the sidebar brand mark (UAT-021 /
+    /// UAT-022). Defaults to the built-in fallback so the very first render — before
+    /// <see cref="OnInitializedAsync"/> completes — shows real content rather than a blank mark.
+    /// </summary>
+    public SiteIdentity Identity { get; private set; } = new("TechieBlog", string.Empty);
 
     /// <summary>
     /// Display name of the signed-in user, shown in the account menu.
@@ -133,6 +146,14 @@ public partial class AdminLayout
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
+        Identity = await SiteSettingsService.GetSiteIdentityAsync();
+
+        // This layout persists for the life of the circuit — client-side navigation does not
+        // recreate it — so without this subscription an administrator who saves a new title or
+        // logo on /settings would not see their own sidebar update until a hard refresh
+        // (UAT-021 §2).
+        SiteSettingsService.SettingsChanged += OnSettingsChanged;
+
         if (AuthStateTask is null)
         {
             return;
@@ -147,6 +168,31 @@ public partial class AdminLayout
         CurrentUserName = authState.User.FindFirst(ClaimTypes.Name)?.Value ?? "User";
         CurrentUserRole = authState.User.FindFirst(ClaimTypes.Role)?.Value ?? "Reader";
         VisibleGroups = BuildVisibleGroups(CurrentUserRole);
+    }
+
+    /// <summary>
+    /// Refreshes the rendered brand identity when a save is published elsewhere in the app.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ISiteSettingsService.SettingsChanged"/> is raised on the saving circuit's
+    /// thread, which is not necessarily this component's renderer, so the update is marshalled
+    /// through <see cref="ComponentBase.InvokeAsync(Func{Task})"/>.
+    /// </remarks>
+    private void OnSettingsChanged(object? sender, SiteSettings settings)
+    {
+        _ = InvokeAsync(async () =>
+        {
+            Identity = await SiteSettingsService.GetSiteIdentityAsync();
+            StateHasChanged();
+        });
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        // The settings service is a singleton; an unsubscribed handler here would keep every
+        // disposed circuit's AdminLayout alive for the life of the process.
+        SiteSettingsService.SettingsChanged -= OnSettingsChanged;
     }
 
     /// <summary>

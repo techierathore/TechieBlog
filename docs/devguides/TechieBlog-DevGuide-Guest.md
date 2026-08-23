@@ -1,5 +1,11 @@
 # TechieBlog — Developer Guide · Guest (anonymous)
 
+> **Runtime-verified 2026-08-23 as Guest (anonymous)** (verify-phase, scope REQ-UI-053 · REQ-NFR-018).
+> - `/newsletters` and `/newsletter/{slug}` — **renders ✓ · looks-right ✓ (runtime-confirmed 2026-08-23)**. Every listed control reported RENDERS with non-empty data (issue position "Issue 1 of 2", all-issues link, compact subscribe CTA + heading); §4b clean at **1280 and 390** — `overlaps=[] zeroSize=[] offViewport=[] hScroll=0 consoleErrors=[]`. Only-sent-issues, pending-subscriber-until-confirmed and the TbEmpty no-data state all hold.
+> - `/sitemap.xml`, `/feed.xml` and `/rss.xml` — **output cache confirmed live** (runtime-confirmed 2026-08-23): rising `Age` on repeat requests, feeds served as `application/rss+xml`.
+> - **Correction (2026-08-23):** an earlier note here said "`/rss` returns `no-cache, no-store`, so the RSS half is not implemented". That was a testing error on my part — **`/rss` is not a feed route**, it is an ordinary Blazor HTML page and is correctly uncached. The feed is `RssFeedSvc.FeedPath` = **`/feed.xml`**, aliased as **`/rss.xml`**, and both are output-cached under the `Feed` policy tagged `CacheTags.Content`.
+> - ⚠ **Public content can be stale after a write from the BlogApp desktop head** — `MemoryCacheService` is per-process, so one head's write cannot evict the other's cache (the SQL itself filters `IsDeleted` correctly). BlogApp calls `POST /api/admin/cache/refresh` automatically to close this, **provided its Website address is configured**; without it the wait is the 10-minute lifetime. Tracked on REQ-NFR-018 / UAT-023.
+
 > ✅ **Runtime-verified 2026-08-09 as Guest (anonymous)** — supersedes the 2026-08-02 `STATIC-ONLY`
 > banner, whose stated reason (solution does not compile, REQ-FN-043) is stale. See
 > **Runtime verification (2026-08-09)** below for what was actually observed.
