@@ -106,7 +106,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <div class="layout">
   <nav class="side">
     <h1>TechieBlog — Status</h1>
-    <div class="sub">Last updated: 2026-08-24</div>
+    <div class="sub">Last rendered: 2026-08-24</div>
     <div class="group">Contents</div>
     <ol>
       <li><a href="#where-i-am">Where I am</a></li>
@@ -121,14 +121,17 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   </nav>
   <main>
     <h1>TechieBlog — Status</h1>
-    <div class="subtitle">
-      <strong>Project:</strong> TechieBlog ·
-      <strong>Stack:</strong> .NET 10 / Blazor Server / TrBlazeUI / PostgreSQL + Dapper + DbUp / Serilog / BlogApp MAUI (Windows)<br>
-      <strong>Last updated:</strong> 2026-08-24 ·
-      <strong>Current phase:</strong> UAT — round 3 closed (UAT-025/026 fixed + verified); 5 open REQs, owner/env-gated<br>
-      <strong>Last verified build:</strong> PASS ·
-      <strong>Last verified date:</strong> 2026-08-24
-    </div>
+    <div class="subtitle">.NET 10 / Blazor Server / TrBlazeUI / PostgreSQL + Dapper + DbUp / Serilog / BlogApp MAUI (Windows)</div>
+
+    <table>
+      <tbody>
+        <tr><td><strong>Project</strong></td><td>TechieBlog</td></tr>
+        <tr><td><strong>Last updated</strong></td><td>2026-08-24</td></tr>
+        <tr><td><strong>Current phase</strong></td><td>UAT — round 3 closed (UAT-025..028 fixed + verified); 5 open REQs, owner/env-gated</td></tr>
+        <tr><td><strong>Last verified build</strong></td><td>PASS</td></tr>
+        <tr><td><strong>Last verified date</strong></td><td>2026-08-24</td></tr>
+      </tbody>
+    </table>
 
     <div class="toc-inline">
       <div>Contents</div>
@@ -146,31 +149,34 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 
     <h2 id="where-i-am">Where I am<a class="anchor-link" href="#where-i-am">#</a></h2>
 
-    <p>Owner UAT round 3 is closed. Both reported defects — the ugly banner-less article card (UAT-025) and the
-    macOS-vs-Windows typography difference (UAT-026) — were reproduced live, fixed by two parallel <code>/trblazeui</code>
-    sub-agents, re-smoked and <strong>verified</strong>; <code>REQ-UI-049</code> is restored to <code>Verified</code> and <code>REQ-UI-005</code> keeps it with
-    the gap now closed. Build is GREEN (rung #4, 0 Error(s), 7/7 projects); <code>req-list-ui.spec.ts</code> runs 11/11 and
-    the orchestrator's own re-smoke 42/42 on a cleanly rebuilt host. Five REQs remain open and each is gated on
-    the owner or the environment rather than on agent work — CI hardening, the committed-PAT rotation, the
-    async/concurrency conversion, the VPS deploy pipeline, and BlogApp SFTP media storage. Migration
-    <code>032-SiteLogoSetting.sql</code> is still NOT deployed; production is on 031, and the website must ship before
-    BlogApp per the standing ship-order rule.</p>
+    <p>Owner UAT round 3 is closed after a <strong>second pass</strong>: the first pass fixed the banner-less card (UAT-025) and
+    the missing webfont (UAT-026), the owner deployed, and correctly reported the UI still looked different on
+    Mac vs Windows. The font fix was real and is live, but it was the wrong diagnosis — re-measuring his
+    screenshots showed the difference was <strong>width</strong>, not typeface: six disagreeing fixed container caps meant the
+    content filled 45.6% of his macOS viewport and 54.3% of his Windows/RDP one. Fixed as UAT-027/028 with one
+    two-tier width system — <code>.site-container</code> fluid to 1600px for layout, <code>.prose-container</code> capped at 820px for
+    reading — plus a rebuilt post page (full-bleed title band + sticky TOC rail). Header now matches body width
+    to the pixel; screen filled is 71.2% / 89.0%. Build GREEN (rung #4, 0 Error(s), 7/7); own re-smoke 152/152 at
+    the owner's real viewports, <code>req-list-ui.spec.ts</code> 11/11, unit suite 1555 pass / 0 fail / 3 skip. Five REQs
+    remain open, each gated on the owner or the environment — CI hardening, the committed-PAT rotation, the
+    async/concurrency conversion, the VPS deploy pipeline, and BlogApp SFTP media storage. <strong>Nothing above is
+    visible until the site is deployed;</strong> migration <code>032-SiteLogoSetting.sql</code> is still NOT deployed and
+    production is on 031, so the website must ship before BlogApp per the standing ship-order rule.</p>
 
     <h2 id="next-command-to-run">Next command to run<a class="anchor-link" href="#next-command-to-run">#</a></h2>
 
 <pre><code>/TechieFlow:agents:verifier *verify REQ-FN-062      (OpenCode: /flow-verifier *verify REQ-FN-062)
 </code></pre>
-
     <p>Blocked on configuration, not code — re-enter BlogApp's Media storage (SFTP) + Website address first, and deploy the website before BlogApp (migration <code>032</code> is new; production is on <code>031</code>).</p>
 
     <h2 id="open-requirements">Open requirements<a class="anchor-link" href="#open-requirements">#</a></h2>
 
     <ul>
-      <li><input type="checkbox" disabled> REQ-NFR-017 — CI pipeline: build, test, artifacts on push and PR (PARTIAL)</li>
-      <li><input type="checkbox" disabled> REQ-NFR-025 — Revoke and rotate the committed GitHub PAT out of nuget.config (In Progress, owner-gated)</li>
-      <li><input type="checkbox" disabled> REQ-NFR-026 — Convert DbAccess to async and fix the concurrency ceiling (PARTIAL)</li>
-      <li><input type="checkbox" disabled> REQ-NFR-038 — Containerised production deployment pipeline to the VPS (Implemented, never executed on the server)</li>
-      <li><input type="checkbox" disabled> REQ-FN-062 — BlogApp SFTP media storage (Implemented, blocked on owner credentials)</li>
+      <li>☐ REQ-NFR-017 — CI pipeline: build, test, artifacts on push and PR (PARTIAL)</li>
+      <li>☐ REQ-NFR-025 — Revoke and rotate the committed GitHub PAT out of nuget.config (In Progress, owner-gated)</li>
+      <li>☐ REQ-NFR-026 — Convert DbAccess to async and fix the concurrency ceiling (PARTIAL)</li>
+      <li>☐ REQ-NFR-038 — Containerised production deployment pipeline to the VPS (Implemented, never executed on the server)</li>
+      <li>☐ REQ-FN-062 — BlogApp SFTP media storage (Implemented, blocked on owner credentials)</li>
     </ul>
 
     <h2 id="known-blockers">Known blockers<a class="anchor-link" href="#known-blockers">#</a></h2>
@@ -194,17 +200,43 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
         <tr><th>Date</th><th>Phase</th><th>Result</th><th>Status table</th></tr>
       </thead>
       <tbody>
-        <tr><td>2026-08-24</td><td>fix-issues + scoped verify</td><td>UAT-025/026 fixed; REQ-UI-049 restored to Verified, REQ-UI-005 held; 11/11 acceptance, 42/42 re-smoke</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
-        <tr><td>2026-08-23</td><td>verify (scoped)</td><td>4 of 5 Verified; REQ-FN-062 config-blocked</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
-        <tr><td>2026-08-22</td><td>verify (scoped)</td><td>5 REQs graded, 11/11 Playwright</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
-        <tr><td>2026-08-11</td><td>verify (all)</td><td>render + visual gates across public and admin</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+        <tr>
+          <td>2026-08-24</td>
+          <td>fix-issues pass 2 + scoped verify</td>
+          <td>UAT-027/028 (fluid width system + post-page rebuild); header==body to the pixel, screen filled 45.6%→71.2% @2246 and 54.3%→89.0% @1798; 152/152 re-smoke, 11/11 acceptance, 1555 unit</td>
+          <td>docs/TechieBlog-Checklist.md#requirements-status</td>
+        </tr>
+        <tr>
+          <td>2026-08-24</td>
+          <td>fix-issues + scoped verify</td>
+          <td>UAT-025/026 fixed; REQ-UI-049 restored to Verified, REQ-UI-005 held; 11/11 acceptance, 42/42 re-smoke</td>
+          <td>docs/TechieBlog-Checklist.md#requirements-status</td>
+        </tr>
+        <tr>
+          <td>2026-08-23</td>
+          <td>verify (scoped)</td>
+          <td>4 of 5 Verified; REQ-FN-062 config-blocked</td>
+          <td>docs/TechieBlog-Checklist.md#requirements-status</td>
+        </tr>
+        <tr>
+          <td>2026-08-22</td>
+          <td>verify (scoped)</td>
+          <td>5 REQs graded, 11/11 Playwright</td>
+          <td>docs/TechieBlog-Checklist.md#requirements-status</td>
+        </tr>
+        <tr>
+          <td>2026-08-11</td>
+          <td>verify (all)</td>
+          <td>render + visual gates across public and admin</td>
+          <td>docs/TechieBlog-Checklist.md#requirements-status</td>
+        </tr>
       </tbody>
     </table>
 
     <h2 id="library-feedback-summary">Library feedback summary<a class="anchor-link" href="#library-feedback-summary">#</a></h2>
 
     <ul>
-      <li>TrBlazeUI: 0 major, 1 minor new this round (<strong>TR-073</strong> — the prebuilt bundle ships <code>bg-gradient-to-*</code> direction utilities but no <code>from-*</code>/<code>to-*</code> colour-stop utilities for any colour) — docs/TechieBlog-TrBlazeUI-Feedback.md</li>
+      <li>TrBlazeUI: 0 major, 2 minor new this round — <strong>TR-073</strong> (prebuilt bundle ships <code>bg-gradient-to-*</code> but no <code>from-*</code>/<code>to-*</code> colour-stop utilities) and <strong>TR-074</strong> (<code>AnchorNav</code> emits bare <code>href="#id"</code>, which resolves against <code>&lt;base href="/"&gt;</code> and navigates the app away from the current page instead of scrolling) — docs/TechieBlog-TrBlazeUI-Feedback.md</li>
       <li>TechieRag: not used in this project (no AI/RAG features)</li>
     </ul>
 
@@ -221,12 +253,17 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     <ul>
       <li>Local database holds no published content by design. <code>blogpost</code> #45 <code>Fix Test Post No Banner</code> (a prior
       session's repro fixture) is left <strong>unpublished</strong>, not deleted — restore with
-      <code>update blogpost set published=true where postid=45;</code></li>
+      <code>update blogpost set published=true where postid=45;</code>. Its body was replaced with heading-bearing sample
+      text so the new post-page TOC rail had something real to build against.</li>
+      <li><strong>Owner decision left open:</strong> on the post page the full-bleed title band spans the full 1600px while the
+      TOC+article block below is centred at 1108px — a symmetric 246px offset each side. Deliberate
+      hero-over-centred-content pattern, not breakage; <code>justify-content: start</code> in <code>post.css</code> left-aligns them.</li>
       <li>Home stats band and Download-CV CTA stay unobservable until <code>UserStats</code> rows and a <code>CVFilePath</code> exist.</li>
       <li>Undriven surfaces: profile save, newsletter Send, subscriber toggles, comment/rating/subscribe submits;
       Firefox + WebKit for REQ-NFR-009; a real screen-reader pass; the macOS BlogApp head.</li>
       <li><code>.buildout/*/logs</code> holds ~133 MB of leftover agent logs (gitignored, safe to delete).</li>
     </ul>
+
   </main>
 </div>
 

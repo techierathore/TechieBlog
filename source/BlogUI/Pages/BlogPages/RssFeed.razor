@@ -19,7 +19,10 @@
    public routes but missed this one, so /rss announced itself as just the site name. *@
 <SiteBrandTitle Page="RSS feed" />
 
-<div class="mx-auto w-full max-w-[800px] py-8" data-testid="rss-page">
+@* UAT-027: `.prose-container` (READING tier, 820px cap) — was an inert `max-w-[800px]`
+   (no Tailwind JIT in this build, so the arbitrary value never applied). This page is
+   predominantly instructional prose, so it takes the reading cap. *@
+<div class="prose-container py-8" data-testid="rss-page">
 
     <header class="mb-8 flex items-center gap-4">
         <LucideIcon Name="rss" Size="40" />

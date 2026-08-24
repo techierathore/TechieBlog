@@ -493,8 +493,13 @@
 
     /* --- Layout metrics ---------------------------------------------------- */
     --header-height: 60px;
-    --max-content-width: 1200px;
-    --article-max-width: 760px;
+
+    /* UAT-027 (2026-08-24): --max-content-width (1200px) and --article-max-width (760px) removed.
+       Both were unused by every Razor component (verified: no consumer anywhere under
+       source/BlogUI) — dead leftovers from the pre-TrBlazeUI mockup CSS, and a third/fourth
+       width number competing with the site width system now owns: .site-container (fluid,
+       caps 1600px) and .prose-container (820px), both defined in layout.css. Do not
+       reintroduce a page-width custom property here — add to the two-tier system instead. */
 
     /* [REQ-NFR-007] Smallest square pointer target the site ships. The BRD-84 acceptance
        names 44x44 px; that figure is WCAG 2.5.5 Target Size, level AAA (the AA-level rule,

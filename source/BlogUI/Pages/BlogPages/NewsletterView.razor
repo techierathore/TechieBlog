@@ -18,7 +18,10 @@
 
 @if (isLoading)
 {
-    <div class="mx-auto flex w-full max-w-[820px] flex-col gap-4" data-testid="newsletter-view-loading">
+    @* UAT-027: `.prose-container` (READING tier, 820px cap) — was an inert `max-w-[820px]`
+       (no Tailwind JIT in this build, so the arbitrary value never applied). A single
+       newsletter issue is article-style reading content. *@
+    <div class="prose-container flex flex-col gap-4" data-testid="newsletter-view-loading">
         <Skeleton Class="h-6 w-32 rounded-md" />
         <Skeleton Class="h-10 w-full rounded-md" />
         <Skeleton Class="h-64 w-full rounded-md" />
@@ -28,7 +31,8 @@ else if (issue != null)
 {
     <SiteBrandTitle Page="@($"Issue #{issueNumber} — {issue.Title}")" Separator=" · " />
 
-    <article class="mx-auto w-full max-w-[820px]" data-testid="newsletter-view">
+    @* UAT-027: `.prose-container` — see the note on the loading skeleton above. *@
+    <article class="prose-container" data-testid="newsletter-view">
 
         <BlogBreadcrumb Items="@breadcrumbItems" />
 

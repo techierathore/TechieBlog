@@ -1,0 +1,148 @@
+@*
+    PostTocRail.razor
+    Purpose: Sticky in-page table-of-contents rail for the post detail page, built from the
+    rendered article's h2/h3 headings.
+
+    REQ-UI-045 / UAT-027 — post detail page rebuild (owner: "lot of gap on both sides" — the page
+    around the 820px article column was empty; this rail is one of the two structures that now use
+    that space). Wraps TrBlazeUI's <AnchorNav> for the list markup and scroll-spy "current section"
+    highlighting (its own IntersectionObserver-driven JS, shipped as anchor-nav.js).
+
+    Click handling is NOT left to AnchorNav's own <a href="#id">, though — measured live on this app:
+    a bare "#id" href resolves against <base href="/">, not the current document path, so on any post
+    page ("/post/{slug}") the browser (and Blazor's own click interception, which performs the same
+    base-relative resolution to decide whether a click is a same-page fragment jump) computes the
+    target as "/#id" and silently navigates the whole app to Home, discarding the article. post-toc-
+    rail.js intercepts the click on this component's own root — an ANCESTOR of the links — in the
+    bubble phase, which always runs ahead of Blazor's document-level listener regardless of
+    attachment order, calls preventDefault() before Blazor ever sees the click, then scrolls and
+    updates the address bar itself using the current pathname. See that file's header comment for the
+    full write-up; filed as TR-074 in docs/TechieBlog-TrBlazeUI-Feedback.md.
+
+    Deliberately renders NOTHING when fewer than 2 headings are supplied — a single-entry TOC is
+    noise, not navigation. PostView.razor already gates on the same rule before instantiating this
+    component; the check is repeated here so the component is safe to reuse on its own.
+
+    Visibility below ~1024px is CSS-only — see `.post-toc-rail { display: none; }` in post.css,
+    lifted at the >=1024px breakpoint — so the rail is genuinely absent from the layout on a laptop
+    or phone (offsetParent === null), not merely squashed by a narrower grid track.
+
+    AnchorNavSection carries only (Id, Label) — no heading-level parameter — so level-3 headings are
+    given a non-breaking-space indent in their label text to keep the visual hierarchy without
+    forking the library's own item rendering.
+
+    Dependencies: TrBlazeUI.Components.AnchorNav (AnchorNav, AnchorNavSection, AnchorNavOrientation);
+    wwwroot/js/post-toc-rail.js.
+*@
+
+@using TrBlazeUI.Components.AnchorNav
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@if (Headings is { Count: >= 2 })
+{
+    <div class="post-toc-rail" data-testid="post-toc-rail" @ref="railElement">
+        <TypographySmall Class="post-toc-rail__heading">On this page</TypographySmall>
+        <AnchorNav Sections="@sections"
+                   @bind-ActiveId="activeId"
+                   TopOffset="96"
+                   Orientation="AnchorNavOrientation.Vertical"
+                   AriaLabel="Table of contents"
+                   data-testid="post-toc-rail-nav" />
+    </div>
+}
+
+@code {
+    /// <summary>
+    /// Non-breaking space used to visually indent a level-3 heading's label, since
+    /// <see cref="AnchorNavSection"/> carries no heading-level parameter of its own and a regular
+    /// space would collapse in the rendered HTML.
+    /// </summary>
+    private const string SubHeadingIndent = "   ";
+
+    private const string ModulePath = "/_content/BlogUI/js/post-toc-rail.js";
+
+    /// <summary>
+    /// The headings to list, in document order. Fewer than two renders nothing.
+    /// </summary>
+    [Parameter]
+    public List<TocHeading>? Headings { get; set; }
+
+    private List<AnchorNavSection> sections = new();
+    private string? activeId;
+    private ElementReference railElement;
+    private IJSObjectReference? module;
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        sections = (Headings ?? new List<TocHeading>())
+            .Select(ToSection)
+            .ToList();
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The click-interception script (post-toc-rail.js) is bound to the
+    /// rail's own root element, so it only needs (re-)attaching once that element exists — which is
+    /// every render where the rail itself is present, since the whole rail is conditionally omitted
+    /// rather than hidden. The module's own <c>init</c> is idempotent (guards on a data attribute),
+    /// so calling it again after a later render is harmless.</para>
+    /// <para><b>Side Effects:</b> Imports and caches <see cref="module"/> on first use; attaches a
+    /// click listener to <see cref="railElement"/> via JS interop.</para>
+    /// </remarks>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Headings is not { Count: >= 2 })
+        {
+            return;
+        }
+
+        try
+        {
+            module ??= await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
+            await module.InvokeVoidAsync("init", railElement);
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or ObjectDisposedException or TaskCanceledException)
+        {
+            // Best effort — a reader can still use the anchors' native fragment scroll if this fails
+            // to attach; losing the TOC's click fix is not worth failing the article render over.
+        }
+    }
+
+    /// <summary>
+    /// Builds one AnchorNav section from a heading.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> <see cref="AnchorNavSection"/> has no heading-level parameter of
+    /// its own, so a level-3 heading is indented with <see cref="SubHeadingIndent"/> baked into its
+    /// label text — the only lever this library API exposes for visual hierarchy without a custom
+    /// item template.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <param name="heading">Source heading.</param>
+    /// <returns>The section AnchorNav renders and scroll-spies against.</returns>
+    private static AnchorNavSection ToSection(TocHeading heading)
+    {
+        var label = heading.Level >= 3 ? SubHeadingIndent + heading.Text : heading.Text;
+        return new AnchorNavSection(heading.Id, label);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync()
+    {
+        if (module is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await module.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuit already gone — nothing left to release.
+        }
+    }
+}
