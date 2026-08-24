@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Developer Guide · Guest (anonymous) — TechieBlog</title>
+<title>TechieBlog — Developer Guide · Guest (anonymous)</title>
 <script>
 /* Resolve the theme BEFORE first paint (no flash). Saved choice wins; otherwise
    pick by time of day — light 07:00–19:00 local, softened dark at night. */
@@ -106,7 +106,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <div class="layout">
   <nav class="side">
     <h1>DevGuide · Guest</h1>
-    <div class="sub">TechieBlog — anonymous screens · last rendered 2026-08-24</div>
+    <div class="sub">TechieBlog — anonymous surfaces<br>Last rendered: 2026-08-24</div>
     <div class="group">Contents</div>
     <ol>
       <li><a href="#runtime-verification-2026-08-14-req-nfr-001-scope-only">Runtime verification (2026-08-14) — REQ-NFR-001 scope only</a></li>
@@ -127,7 +127,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   </nav>
   <main>
     <h1>TechieBlog — Developer Guide · Guest (anonymous)</h1>
-    <div class="subtitle">Every screen reachable without signing in · reflects code as built</div>
+    <div class="subtitle">Every screen reachable without signing in — controls, source calls, data lineage and observed render status.</div>
 
     <div class="toc-inline">
       <div>Contents</div>
@@ -274,6 +274,30 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 
     <p><strong>Cross-cutting artefact (not a screen defect):</strong> the host prerenders and then re-renders interactively, and for ~1.5s <strong>both shells are in the DOM</strong> — a visibly duplicated header over a still-loading page. It self-resolves, but any measurement inside that window reads a doubled shell or phantom zero rows. This is the root cause of the post page's blank flash and its <code>document-title</code> accessibility violation.</p>
 
+    <p><strong>Cross-cutting layout contract (UAT-027 / UAT-028, 2026-08-24) — read this before touching any public screen's width.</strong> Every public surface now shares ONE two-tier width system, defined as real CSS rules in <code>source/BlogUI/wwwroot/css/layout.css</code>:</p>
+
+    <table>
+      <thead>
+        <tr><th>Class</th><th>Rule</th><th>Use for</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>.site-container</code></td>
+          <td><code>width: min(100% - 3rem, 1600px)</code> (<code>- 2rem</code> below 640px), <code>margin-inline: auto</code></td>
+          <td><strong>Layout tier</strong> — header, footer, page shells, card grids, hero and stat bands. Fluid: grows with the viewport, stops at 1600.</td>
+        </tr>
+        <tr>
+          <td><code>.prose-container</code></td>
+          <td><code>max-width: 820px</code></td>
+          <td><strong>Reading tier</strong> — article body only. Capped <em>deliberately</em>: line length drives reading accuracy, and uncapped prose on a 4K panel runs ~250 characters per line.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>It replaced six disagreeing fixed caps (header/footer 1280, home/resume <strong>1024</strong>, search 880, post text 820, <code>--max-content-width</code> 1200, mockups 1120), which made the header bar render visibly wider than the content beneath it on every page, and made the site fill 45.6% of a 2246px macOS viewport but 54.3% of a 1798px Windows/RDP one — the owner's "looks different on Mac and Windows" report. Now <strong>header width == body container width to the pixel</strong> (verified across 24 page × width × theme combinations) and the page fills <strong>71.2% @2246 / 89.0% @1798 / 96.3% @1280</strong>.</p>
+
+    <p>Applied at <code>Header.razor:40</code>, <code>Footer.razor:21</code>, <code>FullWidthLayout.razor:16</code>, <code>MainLayout.razor:20</code>. The dead <code>--max-content-width</code>, <code>--article-max-width</code>, <code>.page-container</code> and <code>.main-content--full</code> are <strong>deleted</strong> — do not reintroduce a page-level width number. ⚠ Two traps: (1) <strong>never nest <code>.site-container</code> inside another <code>.site-container</code></strong> — the rule computes against its immediate parent, so nesting subtracts the gutter twice (caught on <code>SpeakerProfile.razor</code>, which measured 1552px instead of 1600px); (2) this build ships TrBlazeUI's <strong>prebuilt</strong> CSS with no Tailwind JIT, so <code>max-w-[1600px]</code> and friends are never generated and silently do nothing — six such inert values were found and removed during this work.</p>
+
     <h2 id="guest-home">Guest · Home (<code>/</code>)<a class="anchor-link" href="#guest-home">#</a></h2>
 
     <p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/Home.razor</code> · <strong>Layout:</strong> <code>MainLayout</code></p>
@@ -338,6 +362,18 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     <p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/PostView.razor</code> · <strong>Layout:</strong> <code>FullWidthLayout</code></p>
 
     <p>This is the densest public screen — seven injected dependencies.</p>
+
+    <p><strong>Rebuilt 2026-08-24 (UAT-027).</strong> The owner reported "a lot of gap on both sides, be it Windows or Mac": on a 2246px viewport the page was header 1280 / <code>main</code> 1024 / article text 820, leaving ~1220px of empty gutter with nothing using it. The <strong>article measure was NOT the bug and was not widened</strong> — 820px is already ~90 characters per line, and stretching it would make posts harder to read. What changed is the structure around the text:</p>
+
+    <ul>
+      <li><strong>Full-bleed title band</strong> (<code>.post-title-band</code>, <code>post.css</code>) — badge, title, author, date, reading time and view count, spanning the whole <code>.site-container</code> width. Two variants: a theme-token gradient when the post has no <code>FeaturedImage</code>, or the image as a backdrop with a scrim when it does (same reasoning as <code>.speaker-banner</code> — the overlaid title is <code>#fff</code> in both light and dark because it sits on a photograph the theme cannot control). Height is content-driven with a <code>min-height</code> for CLS, deliberately <em>not</em> <code>aspect-ratio</code>-locked, because the wrapping meta row would clip at narrow widths.</li>
+      <li><strong>Sticky TOC rail</strong> — <code>PostTocRail.razor</code> + <code>PostTocHeading.cs</code>, built from the rendered markdown's <code>&lt;h2&gt;</code>/<code>&lt;h3&gt;</code> headings with slugified, de-duplicated ids. Renders <strong>only at ≥1024px</strong> and only when the post has <strong>2+ headings</strong> (a one-item TOC is noise); below that it is <code>display: none</code>, genuinely out of the layout (<code>offsetParent === null</code>), not merely squashed.</li>
+      <li>Body stays in <code>.prose-container</code>; comments, ratings and related posts use the fluid width.</li>
+    </ul>
+
+    <p>⚠ <strong><code>post-toc-rail.js</code> exists because of a TrBlazeUI defect (TR-074).</strong> <code>AnchorNav</code> emits bare <code>href="#id"</code> links, which resolve against this app's <code>&lt;base href="/"&gt;</code> and so navigated the whole app <em>away</em> from the article instead of scrolling. The script intercepts the click on an ancestor in the bubble phase — reliably ahead of Blazor's own listener regardless of attachment order — and does the scroll plus <code>history.replaceState</code> itself. Remove the workaround only after confirming the library fix.</p>
+
+    <p>⚠ <strong>Open owner decision:</strong> the title band spans the full 1600px while the TOC+article block below is centred at 1108px — a symmetric 246px offset each side. Deliberate hero-over-centred-content pattern, not breakage; <code>justify-content: start</code> on <code>.post-toc-layout--with-rail</code> in <code>post.css</code> left-aligns them.</p>
 
     <div class="diagram">
       <div class="dt">
@@ -544,7 +580,8 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 
     <p><strong>Lineage:</strong> <code>ResumePage.razor.cs:47</code> <code>siteOwner = UserRepo.GetSiteOwner();</code> → <code>BlogUserRepo</code> inline SQL on <code>BlogUser</code> filtered by <code>IsSiteOwner</code> (uniqueness enforced by the partial index in migration <code>012</code>).</p>
 
-    <p><strong>Business rules:</strong> if no user has <code>IsSiteOwner = true</code>, the whole page has nothing to render. <strong>Known issue (static):</strong> no fallback/empty state was located for that case — <code>{unresolved — TODO: confirm ResumePage behaviour when GetSiteOwner() returns null}</code>.</p>
+    <p><strong>Business rules:</strong> if no user has <code>IsSiteOwner = true</code>, the whole page has nothing to render.<br>
+    <strong>Known issue (static):</strong> no fallback/empty state was located for that case — <code>{unresolved — TODO: confirm ResumePage behaviour when GetSiteOwner() returns null}</code>.</p>
 
     <h2 id="guest-about-about-and-404-404">Guest · About (<code>/about</code>) and 404 (<code>/404</code>)<a class="anchor-link" href="#guest-about-about-and-404-404">#</a></h2>
 
@@ -590,6 +627,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     </ol>
 
     <hr>
+
     <p>Generated 2026-08-02 · reflects code as built · ⚠ STATIC-ONLY</p>
   </main>
 </div>

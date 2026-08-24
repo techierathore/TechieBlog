@@ -1646,7 +1646,58 @@ writing them to this file.
   not hold for this one family.
 
 TR-073 recorded 2026-08-24 by *trblazeui (UAT-025 / REQ-UI-049 — PostCard no-banner fallback).
-**Next free ID: TR-074.**
+
+- **TR-074 — `AnchorNav`'s `<a href="#id">` links silently navigate the whole app away from the
+  current page on any app with `<base href="/">` and a non-root current path — a real, reproducible
+  loss of the page being viewed, not a cosmetic bug.**
+
+  *Severity:* **High.** Not a rendering glitch — clicking a TOC entry made the entire article
+  disappear with no error and no console warning.
+  *Repro (measured 2026-08-24 on the 2.0.2 bundle, REQ-UI-045/UAT-027, post detail page rebuild):*
+  `AnchorNav` renders each `AnchorNavSection` as a plain `<a href="#{Id}">` (confirmed via the
+  rendered DOM — `<a href="#where-i-was-wrong" ...>`). This host declares `<base href="/">` in
+  `App.razor`, standard for a Blazor Web App with client-side routing. Per the HTML spec, a bare
+  fragment `href` is resolved **against the base URI**, not the current document path — so on
+  `/post/{slug}` a click on `href="#where-i-was-wrong"` resolves to `/#where-i-was-wrong`
+  (the post's whole path silently dropped). Playwright reproduction: `window.scrollY` stayed `0`
+  after the click (no scroll happened at all), and `page.url()` became
+  `http://host/#where-i-was-wrong` — origin only, no `/post/{slug}`. The article's own DOM was
+  found to still be technically present in one run but the browser had genuinely navigated
+  (`framenavigated` fired for the bad URL); in an adjacent run the SPA fully swapped to the site's
+  Home page instead (its `<a>` click interception performs the *same* base-relative URL resolution
+  to decide whether a click is a "same page, just the hash changed" no-op, computes the same wrong
+  path, and — since the path now differs from the current one — treats it as a genuine internal
+  navigation to `/`). Either outcome fails the one job a TOC link has: reliably reaching its own
+  heading.
+  *Root cause, restated precisely:* `AnchorNav` has no parameter for a base path/prefix, and always
+  renders exactly `"#" + Id` with no way for a consumer to supply a full relative URL through the
+  public API (`AnchorNavSection(string Id, string Label)` — no path field, and the `#` is
+  hard-baked into the template, so passing a longer `Id` just produces a longer, still-fragment-only,
+  still-broken `href`).
+  *Workaround (adopted, app-side):* `source/BlogUI/wwwroot/js/post-toc-rail.js` intercepts the click
+  on an **ancestor** of the `AnchorNav` links (this app's own rail wrapper) in the bubble phase.
+  Bubble-phase dispatch always visits an ancestor element before it reaches `document`, regardless of
+  when each listener was attached, so this reliably runs ahead of Blazor's own document-level click
+  listener and can call `preventDefault()` before Blazor's handler — which itself bails out
+  immediately once `event.defaultPrevented` is already true — ever sees the click. The workaround
+  then performs the scroll itself (compensating for the app's sticky header) and records the fragment
+  with `history.replaceState` using `location.pathname` explicitly, sidestepping the same base-href
+  trap for the address bar. Confirmed fixed: `window.scrollY` moves correctly and `page.url()`
+  correctly retains `/post/{slug}#{id}`.
+  *Suggested fix:* either (a) have `AnchorNav` do its own `preventDefault()` + `scrollIntoView` +
+  `history.replaceState(..., location.pathname + '#' + id)` internally in `anchor-nav.js`, so the
+  component is correct out of the box regardless of the host's `<base href>`, or (b) add an optional
+  `Href`/`BasePath` parameter to `AnchorNavSection`/`AnchorNav` so a consumer on a nested route can
+  supply the full relative target instead of a bare fragment. Given this bug reproduces on **any**
+  Blazor Web App using the (default, documented) global-interactivity setup with a non-root current
+  page — which is most of them — this is not an edge case.
+  *Also worth stating in the AI reference:* `AnchorNavSection` has no heading-level field, so a
+  consumer wanting to distinguish h2/h3 entries visually has no lever except baking indentation
+  characters into the label string (which is what this app did — see `PostTocRail.razor`). Worth
+  either adding a `Level`/`Depth` parameter or documenting the label-prefix workaround directly.
+
+TR-074 recorded 2026-08-24 by *trblazeui (UAT-027 / REQ-UI-045 — post detail page rebuild, TOC rail).
+**Next free ID: TR-075.**
 
 > **Note on this file's own "next free ID" bookkeeping:** the task brief that led to TR-073 named
 > **TR-067** as the next free id, following the SUMMARY section at the top of this file rather than

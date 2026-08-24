@@ -15,7 +15,11 @@
 
 <SiteBrandTitle Page="About" Separator=" · " />
 
-<div class="mx-auto w-full max-w-[760px] py-8" data-testid="about-page">
+@* UAT-027: `.prose-container` — the READING tier of the site width system (layout.css),
+   capped at 820px. Was an inert `max-w-[760px]` (arbitrary-value utility; this build has
+   no Tailwind JIT, so it never applied). About is reading content (prose sections), so it
+   takes the reading cap rather than growing to the fluid `.site-container` width. *@
+<div class="prose-container py-8" data-testid="about-page">
 
     <header class="mb-8 flex items-center gap-4">
         <Avatar Size="AvatarSize.ExtraLarge">

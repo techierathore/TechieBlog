@@ -25,10 +25,25 @@
                  (TR-059 resolved), which gives table/pre/img/iframe their own overflow
                  context; the WrapTablesInScrollContainer string transform this page used
                  to apply to Markdig's output is gone. ConstrainWidth is false because the
-                 <article> above already caps the measure at 820px.
+                 .prose-container wrapper (see below) already caps the measure at 820px.
+    REQ-UI-045 / UAT-027 — page rebuilt around the two-tier width system in layout.css.
+                 Owner report: "lot of gap on both sides" — the article text correctly
+                 stays at 820px (line-length is a readability decision, not the bug), but
+                 everything around it used to sit in that same 820px column too, leaving
+                 ~1220px of empty gutter on a wide screen. Now: (1) a full-bleed title band
+                 spans the fluid .site-container width FullWidthLayout's <main> already
+                 provides; (2) a sticky, scroll-spied table-of-contents rail
+                 (PostTocRail, wrapping TrBlazeUI's <AnchorNav>) sits beside the article
+                 body at >=1024px and is fully removed from the layout below it; (3) the
+                 article body itself, plus the rating panel and author card, stay inside
+                 .prose-container at 820px, unchanged; (4) related posts and comments move
+                 out of the 820px column to use the fluid width, since both benefit from
+                 more room than a reading column. The TOC's heading ids are read back out
+                 of Markdig's own UseAutoIdentifiers() output (MarkdownRenderer.cs) rather
+                 than re-derived, so its anchors always match what is actually in the DOM.
 
-    Dependencies: BlogBreadcrumb, PostRatingPanel, CommentThread, CommentForm components;
-    FullWidthLayout, BlogSvc, SeriesSvc, CommentSvc, MarkdownRenderer,
+    Dependencies: BlogBreadcrumb, PostRatingPanel, PostTocRail, CommentThread, CommentForm
+    components; FullWidthLayout, BlogSvc, SeriesSvc, CommentSvc, MarkdownRenderer,
     IPostViewTracker, IAnalyticsService
     Layout: Uses FullWidthLayout (no sidebar - content focused)
 *@
@@ -36,6 +51,7 @@
 @page "/post/{Slug}"
 @page "/post/{Slug}/{PageNumber:int}"
 @layout FullWidthLayout
+@using System.Text.RegularExpressions
 @inject BlogEngine.Services.BlogSvc BlogService
 @inject BlogEngine.Services.SeriesSvc SeriesService
 @inject BlogEngine.Services.CommentSvc CommentService
@@ -71,71 +87,87 @@ else if (notFound)
 }
 else if (blogPost != null)
 {
-    <article class="mx-auto w-full max-w-[820px]">
+    <article class="w-full" data-testid="post-article">
 
-        @* Breadcrumb Navigation *@
+        @* Breadcrumb Navigation — fluid width, above the title band *@
         <BlogBreadcrumb Items="@breadcrumbItems" />
 
-        @* Article Header *@
-        <header class="mt-6 flex flex-col gap-4">
-            <div>
-                <a href="/category/@GetSlug(GetCategory(blogPost.Tags))" class="no-underline" data-testid="post-category">
-                    <Badge Variant="BadgeVariant.Secondary">@GetCategory(blogPost.Tags)</Badge>
-                </a>
-            </div>
+        @* Full-bleed title band (REQ-UI-045 / UAT-027). Spans the fluid .site-container width
+           FullWidthLayout's <main> already provides — NOT the 820px reading column. Uses the
+           FeaturedImage as a photo backdrop with a scrim when present, following the
+           .speaker-banner precedent in layout.css; falls back to a token-based gradient surface
+           otherwise. See post.css for the (documented, deliberately non-tokened-when-on-a-photo)
+           colour rules. *@
+        <header class="post-title-band @(HasFeaturedImage ? "post-title-band--photo" : "")" data-testid="post-title-band">
+            @if (HasFeaturedImage)
+            {
+                <img src="@blogPost.FeaturedImage" alt="" class="post-title-band__img" data-testid="post-title-band-image" />
+                <div class="post-title-band__scrim" aria-hidden="true"></div>
+            }
+            <div class="post-title-band__inner">
+                <div>
+                    <a href="/category/@GetSlug(GetCategory(blogPost.Tags))" class="no-underline" data-testid="post-category">
+                        <Badge Variant="BadgeVariant.Secondary">@GetCategory(blogPost.Tags)</Badge>
+                    </a>
+                </div>
 
-            <h1 class="text-balance text-4xl font-bold tracking-tight text-foreground" data-testid="post-title">@blogPost.Title</h1>
+                <h1 class="post-title-band__title text-balance text-4xl font-bold tracking-tight" data-testid="post-title">@blogPost.Title</h1>
 
-            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                <span class="text-muted-foreground" data-testid="post-author">
-                    @(string.IsNullOrEmpty(blogPost.BlogWriter) ? "Unknown Author" : blogPost.BlogWriter)
-                </span>
-                @* [REQ-FN-057] Date is the PUBLICATION date, not the creation date. This page must
-                   agree with its own listing card: Home, HomeLatestArticles, CategoryArchive,
-                   SearchResults and the RSS feed all resolve the date as PublishedOn ?? CreatedOn,
-                   so dating the detail page by CreatedOn made /post/{slug} contradict the card the
-                   reader clicked to reach it. *@
-                <span data-testid="post-date">@((blogPost.PublishedOn ?? blogPost.CreatedOn).ToString("MMMM dd, yyyy"))</span>
-                <span data-testid="post-readtime">@GetReadingTime(blogPost.PostContent)</span>
-                @* REQ-FN-035 — per-post engagement, read straight from the recorded views *@
-                <span class="inline-flex items-center gap-1" data-testid="post-views">
-                    <LucideIcon Name="eye" Size="14" />
-                    <span data-testid="post-views-total">@viewCounts.TotalViews.ToString("N0")</span>
-                    <span>@(viewCounts.TotalViews == 1 ? "view" : "views")</span>
-                    <span class="text-xs" data-testid="post-views-unique">(@viewCounts.UniqueViews.ToString("N0") unique)</span>
-                </span>
+                <div class="post-title-band__meta flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                    <span data-testid="post-author">
+                        @(string.IsNullOrEmpty(blogPost.BlogWriter) ? "Unknown Author" : blogPost.BlogWriter)
+                    </span>
+                    @* [REQ-FN-057] Date is the PUBLICATION date, not the creation date. This page must
+                       agree with its own listing card: Home, HomeLatestArticles, CategoryArchive,
+                       SearchResults and the RSS feed all resolve the date as PublishedOn ?? CreatedOn,
+                       so dating the detail page by CreatedOn made /post/{slug} contradict the card the
+                       reader clicked to reach it. *@
+                    <span data-testid="post-date">@((blogPost.PublishedOn ?? blogPost.CreatedOn).ToString("MMMM dd, yyyy"))</span>
+                    <span data-testid="post-readtime">@GetReadingTime(blogPost.PostContent)</span>
+                    @* REQ-FN-035 — per-post engagement, read straight from the recorded views *@
+                    <span class="inline-flex items-center gap-1" data-testid="post-views">
+                        <LucideIcon Name="eye" Size="14" />
+                        <span data-testid="post-views-total">@viewCounts.TotalViews.ToString("N0")</span>
+                        <span>@(viewCounts.TotalViews == 1 ? "view" : "views")</span>
+                        <span class="text-xs" data-testid="post-views-unique">(@viewCounts.UniqueViews.ToString("N0") unique)</span>
+                    </span>
+                </div>
             </div>
         </header>
 
-        @* Cover Image *@
-        @if (!string.IsNullOrEmpty(blogPost.FeaturedImage))
-        {
-            <div class="mt-6 aspect-video w-full overflow-hidden rounded-lg bg-muted">
-                <img src="@blogPost.FeaturedImage"
-                     alt="@blogPost.Title"
-                     class="h-full w-full object-cover"
-                     data-testid="post-cover-image" />
-            </div>
-        }
-
-        @* Article Content *@
-        <div class="mt-8">
-            @if (!string.IsNullOrEmpty(blogPost.Abstract))
+        @* Article body + TOC rail (REQ-UI-045 / UAT-027). Below ~1024px the rail is CSS
+           display:none (post.css), not conditionally omitted from the DOM, so it is genuinely
+           absent from the layout rather than visually squashed by a narrower grid track. The
+           article column itself never leaves .prose-container — the 820px reading measure is
+           unchanged. *@
+        <div class="post-toc-layout @(ShowTocRail ? "post-toc-layout--with-rail" : "")" data-testid="post-toc-layout">
+            @if (ShowTocRail)
             {
-                <p class="mb-6 border-l-2 border-border pl-4 italic text-muted-foreground" data-testid="post-abstract">
-                    @blogPost.Abstract
-                </p>
+                <PostTocRail Headings="@tocHeadings" />
             }
-            @* Render paginated content. <Prose> supplies the reflow rules (REQ-UI-007 / TR-059);
-               `markdown-content` in wwwroot/css/base.css keeps this site's own typography. *@
-            <Prose ConstrainWidth="false" Class="markdown-content" data-testid="post-content">
-                @((MarkupString)GetPaginatedContent())
-            </Prose>
-        </div>
 
-        @* In-post Pagination Controls — server-side, one URL per page *@
-        @if (totalPages > 1)
-        {
+            <div class="prose-container" data-testid="post-article-column">
+                @* Article Content *@
+                <div class="mt-8">
+                    @if (!string.IsNullOrEmpty(blogPost.Abstract))
+                    {
+                        <p class="mb-6 border-l-2 border-border pl-4 italic text-muted-foreground" data-testid="post-abstract">
+                            @blogPost.Abstract
+                        </p>
+                    }
+                    @* Render paginated content. <Prose> supplies the reflow rules (REQ-UI-007 / TR-059);
+                       `markdown-content` in wwwroot/css/base.css keeps this site's own typography.
+                       currentContentHtml is cached once per page load (see LoadPost) rather than
+                       re-rendering the Markdown pipeline on every markup evaluation — it also backs
+                       the TOC heading extraction below, so both must read the exact same HTML. *@
+                    <Prose ConstrainWidth="false" Class="markdown-content" data-testid="post-content">
+                        @((MarkupString)currentContentHtml)
+                    </Prose>
+                </div>
+
+                @* In-post Pagination Controls — server-side, one URL per page *@
+                @if (totalPages > 1)
+                {
             <nav class="my-8 rounded-lg border border-border bg-muted p-6" aria-label="Article pagination" data-testid="post-paginator">
                 <div class="mb-4 text-center text-sm text-muted-foreground" data-testid="post-paginator-info">
                     Page @currentPage of @totalPages
@@ -274,26 +306,32 @@ else if (blogPost != null)
             </div>
         }
 
-        @* Rate this article — anonymous, email-keyed, captcha-gated (REQ-UI-027 / REQ-UI-056) *@
-        <PostRatingPanel PostId="@blogPost.PostID" />
+                @* Rate this article — anonymous, email-keyed, captcha-gated (REQ-UI-027 / REQ-UI-056) *@
+                <PostRatingPanel PostId="@blogPost.PostID" />
 
-        @* Author byline card — plain text, no profile link (REQ-UI-041/042) *@
-        <Card Class="my-8" data-testid="post-author-card">
-            <CardContent Class="flex items-center gap-4 p-6">
-                <Avatar Size="AvatarSize.Large">
-                    <AvatarFallback>@GetInitials(blogPost.BlogWriter)</AvatarFallback>
-                </Avatar>
-                <div class="flex flex-col">
-                    <span class="font-semibold" data-testid="post-author-name">@blogPost.BlogWriter</span>
-                    <span class="text-sm text-muted-foreground">Author of this post.</span>
-                </div>
-            </CardContent>
-        </Card>
+                @* Author byline card — plain text, no profile link (REQ-UI-041/042) *@
+                <Card Class="my-8" data-testid="post-author-card">
+                    <CardContent Class="flex items-center gap-4 p-6">
+                        <Avatar Size="AvatarSize.Large">
+                            <AvatarFallback>@GetInitials(blogPost.BlogWriter)</AvatarFallback>
+                        </Avatar>
+                        <div class="flex flex-col">
+                            <span class="font-semibold" data-testid="post-author-name">@blogPost.BlogWriter</span>
+                            <span class="text-sm text-muted-foreground">Author of this post.</span>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
+
+        @* Related posts and comments (REQ-UI-045 / UAT-027) — deliberately OUTSIDE .prose-container.
+           Related Posts is a card grid and Comments can carry nested reply threads; both read better
+           using the fluid width than being squeezed into the 820px reading column. *@
 
         @* Related Posts *@
         @if (relatedPosts != null && relatedPosts.Count > 0)
         {
-            <section class="my-8" data-testid="related-posts">
+            <section class="my-8 w-full" data-testid="related-posts">
                 <TypographyH2 Class="mb-4">More Posts</TypographyH2>
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     @foreach (var related in relatedPosts)
@@ -316,7 +354,7 @@ else if (blogPost != null)
         }
 
         @* Comments Section — anonymous name + email, no sign-in prompt (REQ-UI-029) *@
-        <section class="my-8" data-testid="comments-section">
+        <section class="my-8 w-full" data-testid="comments-section">
             <TypographyH2 Class="mb-4">
                 Comments
                 <span class="text-base font-medium text-muted-foreground" data-testid="comments-count">(@GetCommentTotal())</span>
@@ -364,6 +402,45 @@ else if (blogPost != null)
     private List<string> contentPages = new();
     private const string PaginationWordCountKey = "techieblog_pagination_word_count";
 
+    /// <summary>
+    /// Rendered HTML for the current page of the article, cached once per load (see
+    /// <see cref="LoadPost"/>) rather than re-run through the Markdown pipeline on every markup
+    /// evaluation. Backs both the <c>&lt;Prose&gt;</c> body and the TOC heading extraction, so the
+    /// two always agree on exactly what is on screen.
+    /// </summary>
+    private string currentContentHtml = string.Empty;
+
+    /// <summary>
+    /// Level-2/3 headings extracted from <see cref="currentContentHtml"/>, in document order —
+    /// the data behind the table-of-contents rail (REQ-UI-045 / UAT-027).
+    /// </summary>
+    private List<TocHeading> tocHeadings = new();
+
+    /// <summary>
+    /// A single-entry table of contents is noise, not navigation — the rail only renders once
+    /// there are at least two headings to link to.
+    /// </summary>
+    private bool ShowTocRail => tocHeadings.Count >= 2;
+
+    /// <summary>
+    /// Whether the post has a cover image to use as the title band's photo backdrop.
+    /// </summary>
+    private bool HasFeaturedImage => !string.IsNullOrEmpty(blogPost?.FeaturedImage);
+
+    /// <summary>
+    /// Matches a rendered level-2 or level-3 heading that carries an id — the id Markdig's
+    /// <c>UseAutoIdentifiers()</c> pipeline step already stamped on it (see MarkdownRenderer.cs).
+    /// </summary>
+    private static readonly Regex TocHeadingPattern = new(
+        @"<h([23])[^>]*\bid=""([^""]+)""[^>]*>(.*?)</h\1>",
+        RegexOptions.Singleline | RegexOptions.Compiled);
+
+    /// <summary>
+    /// Strips any inline markup (emphasis, inline code, links) out of a heading's inner HTML so the
+    /// TOC rail shows plain text.
+    /// </summary>
+    private static readonly Regex TagStripPattern = new(@"<[^>]+>", RegexOptions.Compiled);
+
     protected override async Task OnParametersSetAsync()
     {
         currentPage = PageNumber > 0 ? PageNumber : 1;
@@ -396,6 +473,11 @@ else if (blogPost != null)
                 {
                     currentPage = totalPages;
                 }
+
+                // Render once per load and reuse for both the article body and the TOC rail
+                // (REQ-UI-045 / UAT-027) rather than re-running Markdig on every markup evaluation.
+                currentContentHtml = GetPaginatedContent();
+                tocHeadings = BuildTocHeadings(currentContentHtml);
 
                 // Setup breadcrumb
                 breadcrumbItems = new List<BlogBreadcrumbItem>
@@ -637,6 +719,45 @@ else if (blogPost != null)
         if (pageIndex >= contentPages.Count) pageIndex = contentPages.Count - 1;
 
         return RenderContent(contentPages[pageIndex]);
+    }
+
+    /// <summary>
+    /// Extracts the level-2/3 headings from the current page's rendered HTML to drive the
+    /// table-of-contents rail.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> MarkdownRenderer's pipeline runs Markdig's
+    /// <c>UseAutoIdentifiers()</c>, so every rendered heading already carries a stable,
+    /// deterministic id attribute. This method reads those ids back out rather than re-deriving its
+    /// own slugs, so the rail's anchors are guaranteed to match what the browser actually finds in
+    /// the DOM — there is no separate slugify/dedupe step to keep in sync with Markdig's.</para>
+    /// <para><b>Flow:</b> match every h2/h3 opening tag that carries an id, strip any inline markup
+    /// from the heading's inner HTML, HTML-decode the remainder.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <param name="html">Rendered HTML for the current page of the article.</param>
+    /// <returns>Headings in document order; empty when there are none.</returns>
+    private static List<TocHeading> BuildTocHeadings(string html)
+    {
+        var headings = new List<TocHeading>();
+        if (string.IsNullOrWhiteSpace(html))
+        {
+            return headings;
+        }
+
+        foreach (Match match in TocHeadingPattern.Matches(html))
+        {
+            var level = match.Groups[1].Value == "2" ? 2 : 3;
+            var id = match.Groups[2].Value;
+            var text = System.Net.WebUtility.HtmlDecode(TagStripPattern.Replace(match.Groups[3].Value, string.Empty)).Trim();
+
+            if (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(text))
+            {
+                headings.Add(new TocHeading(id, text, level));
+            }
+        }
+
+        return headings;
     }
 
     /// <summary>

@@ -20,11 +20,18 @@
 <SiteBrandTitle Page="Speaker Profile" Separator=" · " />
 
 @*
-    `page-container` is a real CSS rule matching the mockups' `.container` (1120px). It replaced an
-    inert `max-w-[1100px]`: this build ships TrBlazeUI's PREBUILT stylesheet with no Tailwind JIT, so
-    an arbitrary-value utility is never generated and quietly does nothing.
+    UAT-027 (2026-08-24): no width class needed here — this page's `@layout FullWidthLayout`
+    already wraps `@Body` in a `.site-container` <main> (fluid, caps 1600px), so this root div
+    inherits that width for free. It used to carry its own `.page-container` (a fixed 1120px
+    matching the mockups' `.container`, itself a replacement for an inert `max-w-[1100px]`
+    arbitrary-value utility — this build ships TrBlazeUI's PREBUILT stylesheet with no
+    Tailwind JIT, so those are never generated and quietly do nothing). `.page-container` has
+    been removed; putting `.site-container` here too was tried first but is WRONG — `.site-
+    container`'s `width: min(100% - 3rem, 1600px)` reads `100%` off its immediate parent, so
+    nesting it inside the already-`.site-container` <main> subtracts the 3rem gutter TWICE
+    (measured 1552px instead of 1600px at a 2246px viewport). Do not add a width class here.
 *@
-<div class="page-container py-10 space-y-10" data-testid="speaker-profile-page">
+<div class="py-10 space-y-10" data-testid="speaker-profile-page">
 
     @* ---- Banner masthead ------------------------------------------------ *@
     @*

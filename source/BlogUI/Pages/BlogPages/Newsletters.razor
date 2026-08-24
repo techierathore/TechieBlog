@@ -19,7 +19,11 @@
 
 <SiteBrandTitle Page="Newsletter — past issues" Separator=" · " />
 
-<div class="mx-auto w-full max-w-[900px]" data-testid="newsletter-archive">
+@* UAT-027: was an inert `max-w-[900px]` (arbitrary-value utility, never applied — this
+   build has no Tailwind JIT). This is a card-grid listing page, not article prose, so it
+   is LAYOUT-tier content: it takes no extra cap and simply fills FullWidthLayout's
+   `.site-container` (fluid, caps 1600px). *@
+<div data-testid="newsletter-archive">
 
     <BlogBreadcrumb Items="@breadcrumbItems" />
 
@@ -35,7 +39,11 @@
         <TypographyH1 Size="TypographySize.Xl4"
                       Class="text-balance tracking-tight text-foreground"
                       data-testid="newsletter-archive-title">Newsletter</TypographyH1>
-        <p class="max-w-[40rem] text-muted-foreground" data-testid="newsletter-archive-intro">
+        @* UAT-027: was an inert `max-w-[40rem]` arbitrary-value utility (never applied — no
+           Tailwind JIT in this build). `max-w-2xl` (672px) is a real, standard Tailwind
+           utility (shipped in the prebuilt bundle) that keeps this one-line intro from
+           stretching edge-to-edge now the page above it is fluid up to 1600px. *@
+        <p class="max-w-2xl text-muted-foreground" data-testid="newsletter-archive-intro">
             A monthly note on .NET, Blazor and things I have been building.
             No spam, unsubscribe any time.
         </p>

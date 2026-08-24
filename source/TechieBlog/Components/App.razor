@@ -75,6 +75,10 @@
     <link href="_content/BlogUI/css/layout.css" rel="stylesheet" />
     <link href="_content/BlogUI/css/resume.css" rel="stylesheet" />
 
+    @* Post detail page — full-bleed title band + TOC rail (UAT-027). Loaded after
+       layout.css because it builds on the .site-container / .prose-container tiers. *@
+    <link href="_content/BlogUI/css/post.css" rel="stylesheet" />
+
     <HeadOutlet @rendermode="InteractiveServer" />
 
     @*

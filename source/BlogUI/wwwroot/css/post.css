@@ -1,0 +1,176 @@
+/* ==========================================================================
+   post.css — post detail page (UAT-027, 2026-08-24)
+   ==========================================================================
+   Owned by the post-page rebuild. Kept OUT of layout.css and utilities.css so
+   the width-system work and the post-page work can proceed without touching the
+   same file.
+
+   Context: on a 4K display the post page rendered an 820px text column inside a
+   1024px main inside a 1280px header, leaving ~1220px of empty gutter and no
+   structure using it. The article MEASURE stays capped (see .prose-container in
+   layout.css — long lines hurt reading accuracy); what changes is that the page
+   around the text now uses the width: a full-bleed title band and a rail beside
+   the body.
+
+   Depends on the width system in layout.css:
+       .site-container   fluid layout tier, caps at 1600px
+       .prose-container  reading tier, caps at 820px
+
+   NOTE this build ships TrBlazeUI's PREBUILT css with NO Tailwind JIT pass, so
+   arbitrary-value utilities (`max-w-[820px]`, `grid-cols-[240px_1fr]`) are never
+   generated and silently do nothing. Every bespoke value here must be a real
+   rule. All colours must be theme tokens (--background, --card, --border,
+   --muted-foreground, --primary), never literals, so the page stays correct in
+   both light and dark and in all three site themes.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   TITLE BAND
+   --------------------------------------------------------------------------
+   Full-bleed: sits directly inside FullWidthLayout's <main class="site-container">,
+   so it already spans the fluid layout tier with no extra wrapper needed. Two
+   surfaces:
+     - no FeaturedImage: a token-based gradient (never a literal colour, so it
+       stays correct across all 3 site themes x light/dark).
+     - FeaturedImage present: the photo as a backdrop with a scrim, following the
+       .speaker-banner precedent above. Height is intentionally NOT aspect-ratio
+       locked here (unlike .speaker-banner) — this band carries a badge, a title
+       AND a wrapping meta row, so a fixed ratio at narrow widths would clip
+       content that overflows it. min-height reserves space for CLS; the actual
+       height is driven by .post-title-band__inner's own content, and the photo
+       + scrim (position:absolute; inset:0) stretch to match whatever that turns
+       out to be.
+   -------------------------------------------------------------------------- */
+
+.post-title-band {
+    position: relative;
+    width: 100%;
+    margin-top: 1.5rem;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 0.625rem);
+}
+
+.post-title-band:not(.post-title-band--photo) {
+    background: linear-gradient(135deg, var(--muted) 0%, var(--card) 100%);
+}
+
+.post-title-band--photo {
+    min-height: clamp(220px, 28vw, 360px);
+    /* Shows behind the image while it loads. */
+    background: var(--muted);
+}
+
+.post-title-band__img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.post-title-band__scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        to top,
+        rgb(0 0 0 / .78) 0%,
+        rgb(0 0 0 / .40) 50%,
+        rgb(0 0 0 / .05) 80%,
+        transparent 100%);
+}
+
+.post-title-band__inner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: inherit;
+    gap: 0.75rem;
+    padding: clamp(1.25rem, 4vw, 2.5rem);
+}
+
+.post-title-band__title {
+    margin: 0;
+    line-height: 1.15;
+    color: var(--foreground);
+}
+
+/* Deliberately NOT theme-tokened when sitting on a photo — same reasoning as
+   .speaker-banner__title above: white text over an unpredictable image needs a
+   guaranteed-contrast colour in both light and dark mode, not a token tuned for
+   the page background. */
+.post-title-band--photo .post-title-band__title {
+    color: #fff;
+    text-shadow: 0 1px 3px rgb(0 0 0 / .5);
+}
+
+.post-title-band__meta {
+    color: var(--muted-foreground);
+}
+
+.post-title-band--photo .post-title-band__meta {
+    color: rgb(255 255 255 / .88);
+    text-shadow: 0 1px 3px rgb(0 0 0 / .5);
+}
+
+/* --------------------------------------------------------------------------
+   ARTICLE BODY + TOC RAIL LAYOUT
+   --------------------------------------------------------------------------
+   .post-toc-layout with no modifier is a plain block: its single child,
+   .prose-container, centres itself via ITS OWN margin-inline:auto (layout.css)
+   exactly as before this rebuild — a post with fewer than 2 headings (no rail)
+   renders byte-identical to the pre-UAT-027 layout.
+
+   .post-toc-layout--with-rail only takes effect at >=1024px, matching where
+   .post-toc-rail itself stops being display:none. Below that breakpoint the
+   grid never activates, so there is nothing to "collapse" at render time — the
+   rail is simply absent (see .post-toc-rail below), and the layout is
+   identical to the no-rail case.
+
+   justify-content:center (not a fixed max-width + margin:auto on the grid
+   itself) centres the two-column track set within the full-width grid
+   container without having to compute the combined rail+gap+prose width by
+   hand.
+   -------------------------------------------------------------------------- */
+
+.post-toc-layout {
+    width: 100%;
+}
+
+@media (min-width: 1024px) {
+    .post-toc-layout--with-rail {
+        display: grid;
+        grid-template-columns: 240px minmax(0, 820px);
+        column-gap: 3rem;
+        justify-content: center;
+        align-items: start;
+    }
+}
+
+/* Hidden by default — genuinely REMOVED from the layout below 1024px
+   (offsetParent === null), not merely squashed by a narrower grid track. */
+.post-toc-rail {
+    display: none;
+}
+
+@media (min-width: 1024px) {
+    .post-toc-rail {
+        display: block;
+        position: sticky;
+        /* Clears the sticky site header (60px) plus breathing room. */
+        top: 5.5rem;
+        max-height: calc(100vh - 7rem);
+        overflow-y: auto;
+        padding-right: 0.5rem;
+    }
+}
+
+.post-toc-rail__heading {
+    display: block;
+    margin-bottom: 0.75rem;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}

@@ -24,7 +24,11 @@
 @* REQ-NFR-007 / WCAG 2.4.2 Page Titled. *@
 <SiteBrandTitle Page="@(series == null ? "Series" : series.Name)" Separator=" · " />
 
-<div class="mx-auto w-full max-w-[860px]">
+@* UAT-027: was an inert `max-w-[860px]` (arbitrary-value utility, never applied — this
+   build has no Tailwind JIT). Series list/detail is card-grid content, not article prose,
+   so it is LAYOUT-tier: it takes no extra cap and simply fills FullWidthLayout's
+   `.site-container` (fluid, caps 1600px). *@
+<div>
 
     @* Breadcrumb Navigation *@
     <BlogBreadcrumb Items="@breadcrumbItems" />

@@ -64,6 +64,30 @@ and for ~1.5s **both shells are in the DOM** — a visibly duplicated header ove
 self-resolves, but any measurement inside that window reads a doubled shell or phantom zero rows. This is
 the root cause of the post page's blank flash and its `document-title` accessibility violation.
 
+**Cross-cutting layout contract (UAT-027 / UAT-028, 2026-08-24) — read this before touching any public
+screen's width.** Every public surface now shares ONE two-tier width system, defined as real CSS rules in
+`source/BlogUI/wwwroot/css/layout.css`:
+
+| Class | Rule | Use for |
+|---|---|---|
+| `.site-container` | `width: min(100% - 3rem, 1600px)` (`- 2rem` below 640px), `margin-inline: auto` | **Layout tier** — header, footer, page shells, card grids, hero and stat bands. Fluid: grows with the viewport, stops at 1600. |
+| `.prose-container` | `max-width: 820px` | **Reading tier** — article body only. Capped *deliberately*: line length drives reading accuracy, and uncapped prose on a 4K panel runs ~250 characters per line. |
+
+It replaced six disagreeing fixed caps (header/footer 1280, home/resume **1024**, search 880, post text 820,
+`--max-content-width` 1200, mockups 1120), which made the header bar render visibly wider than the content
+beneath it on every page, and made the site fill 45.6% of a 2246px macOS viewport but 54.3% of a 1798px
+Windows/RDP one — the owner's "looks different on Mac and Windows" report. Now **header width == body
+container width to the pixel** (verified across 24 page × width × theme combinations) and the page fills
+**71.2% @2246 / 89.0% @1798 / 96.3% @1280**.
+
+Applied at `Header.razor:40`, `Footer.razor:21`, `FullWidthLayout.razor:16`, `MainLayout.razor:20`. The dead
+`--max-content-width`, `--article-max-width`, `.page-container` and `.main-content--full` are **deleted** —
+do not reintroduce a page-level width number. ⚠ Two traps: (1) **never nest `.site-container` inside another
+`.site-container`** — the rule computes against its immediate parent, so nesting subtracts the gutter twice
+(caught on `SpeakerProfile.razor`, which measured 1552px instead of 1600px); (2) this build ships TrBlazeUI's
+**prebuilt** CSS with no Tailwind JIT, so `max-w-[1600px]` and friends are never generated and silently do
+nothing — six such inert values were found and removed during this work.
+
 ## Guest · Home (`/`)
 
 **File:** `source/BlogUI/Pages/BlogPages/Home.razor` · **Layout:** `MainLayout`
@@ -107,6 +131,34 @@ flowchart LR
 **File:** `source/BlogUI/Pages/BlogPages/PostView.razor` · **Layout:** `FullWidthLayout`
 
 This is the densest public screen — seven injected dependencies.
+
+**Rebuilt 2026-08-24 (UAT-027).** The owner reported "a lot of gap on both sides, be it Windows or Mac": on a
+2246px viewport the page was header 1280 / `main` 1024 / article text 820, leaving ~1220px of empty gutter
+with nothing using it. The **article measure was NOT the bug and was not widened** — 820px is already ~90
+characters per line, and stretching it would make posts harder to read. What changed is the structure around
+the text:
+
+- **Full-bleed title band** (`.post-title-band`, `post.css`) — badge, title, author, date, reading time and
+  view count, spanning the whole `.site-container` width. Two variants: a theme-token gradient when the post
+  has no `FeaturedImage`, or the image as a backdrop with a scrim when it does (same reasoning as
+  `.speaker-banner` — the overlaid title is `#fff` in both light and dark because it sits on a photograph the
+  theme cannot control). Height is content-driven with a `min-height` for CLS, deliberately *not*
+  `aspect-ratio`-locked, because the wrapping meta row would clip at narrow widths.
+- **Sticky TOC rail** — `PostTocRail.razor` + `PostTocHeading.cs`, built from the rendered markdown's
+  `<h2>`/`<h3>` headings with slugified, de-duplicated ids. Renders **only at ≥1024px** and only when the post
+  has **2+ headings** (a one-item TOC is noise); below that it is `display: none`, genuinely out of the layout
+  (`offsetParent === null`), not merely squashed.
+- Body stays in `.prose-container`; comments, ratings and related posts use the fluid width.
+
+⚠ **`post-toc-rail.js` exists because of a TrBlazeUI defect (TR-074).** `AnchorNav` emits bare `href="#id"`
+links, which resolve against this app's `<base href="/">` and so navigated the whole app *away* from the
+article instead of scrolling. The script intercepts the click on an ancestor in the bubble phase — reliably
+ahead of Blazor's own listener regardless of attachment order — and does the scroll plus
+`history.replaceState` itself. Remove the workaround only after confirming the library fix.
+
+⚠ **Open owner decision:** the title band spans the full 1600px while the TOC+article block below is centred
+at 1108px — a symmetric 246px offset each side. Deliberate hero-over-centred-content pattern, not breakage;
+`justify-content: start` on `.post-toc-layout--with-rail` in `post.css` left-aligns them.
 
 ```mermaid
 flowchart TB
