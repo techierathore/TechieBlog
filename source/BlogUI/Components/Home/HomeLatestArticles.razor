@@ -94,7 +94,6 @@
                           Date="@((post.PublishedOn ?? post.CreatedOn).ToString("MMM dd, yyyy"))"
                           ReadTime="@GetReadingTime(post.PostContent)"
                           ImageUrl="@post.FeaturedImage"
-                          ImagePlaceholder="@post.Title"
                           ShowRating="true"
                           Rating="@GetRating(post.PostID)"
                           RatingCount="@GetRatingCount(post.PostID)" />

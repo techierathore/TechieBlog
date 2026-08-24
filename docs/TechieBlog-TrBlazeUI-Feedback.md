@@ -1617,4 +1617,41 @@ TR-070 / TR-071 recorded 2026-08-11 by *build-phase (Cluster G — REQ-NFR-007 w
 TR-072 recorded 2026-08-11 by *build-phase (Cluster F — CSS/layout workaround removal), written up
 by the orchestrator: the cluster measured and reported all four findings but returned them without
 writing them to this file.
-**Next free ID: TR-073.**
+
+- **TR-073 — the prebuilt bundle ships gradient DIRECTION utilities (`bg-gradient-to-br` etc.) but
+  NO gradient colour-STOP utilities at all, for any colour, custom token or base palette.**
+
+  *Severity:* Low-Medium (documentation/trap, same family as TR-072c). Not a functional defect —
+  Tailwind's own architecture makes stop utilities and direction utilities separable generators —
+  but the AI reference's "Tailwind utilities work in application markup … ships the standard
+  Tailwind scale" guidance reads as though the whole gradient family is available, and it silently
+  is not.
+  *Repro (measured 2026-08-24 on the 2.0.2 bundle, REQ-UI-049/UAT-025):*
+  `grep -o '\.bg-gradient-to-[a-z]*' trblazeui.css` → 8 direction classes present
+  (`to-t/tr/r/br/b/bl/l/tl`). `grep -o '\.from-[a-zA-Z0-9-]*'` and `grep -o '\.to-[a-zA-Z0-9-]*'`
+  → **zero matches, for every colour name tried, including base-palette names the library itself
+  uses elsewhere** (not just custom theme tokens like `muted`/`card`). `bg-gradient-to-br` alone
+  therefore sets `background-image: linear-gradient(to bottom right, var(--tw-gradient-stops))`
+  with `--tw-gradient-stops` never defined by anything in the bundle, i.e. an invisible gradient —
+  the exact "resolves to nothing, silently" trap `utilities.css`'s own header warns about for
+  arbitrary values, but here it is a whole utility *family*, not a bracket syntax.
+  *Workaround (adopted):* a hand-written rule in `utilities.css` —
+  `.post-card-fallback { background-image: linear-gradient(135deg, var(--muted) 0%, var(--card) 100%); }`
+  — direction and both stops in one declaration, tokens only, no bracket syntax at all.
+  *Suggested fix:* either generate `from-*`/`via-*`/`to-*` for the same semantic-colour set the
+  bundle already emits solid-background utilities for (`bg-muted`, `bg-card`, …), or state
+  explicitly in the AI reference that the gradient family ships direction-only and stop colours
+  are always a hand-written rule — the current wording ("ships the standard Tailwind scale … not
+  just the utilities the library's own components happen to use") reads as a guarantee that does
+  not hold for this one family.
+
+TR-073 recorded 2026-08-24 by *trblazeui (UAT-025 / REQ-UI-049 — PostCard no-banner fallback).
+**Next free ID: TR-074.**
+
+> **Note on this file's own "next free ID" bookkeeping:** the task brief that led to TR-073 named
+> **TR-067** as the next free id, following the SUMMARY section at the top of this file rather than
+> this counter line — the summary was not kept in step with TR-067 … TR-072d being added below it.
+> This entry used **TR-073**, matching this line, which is the authoritative counter. The top
+> summary needs its own pass to reconcile the count (66 → at least 73 entries) — out of scope for
+> a single-defect UAT fix, flagged here so the next agent that reads only the summary is not misled
+> the same way.

@@ -763,3 +763,26 @@ playwright-report/
 logs/
 /docs/.last-verify.json
 .DS_Store
+
+# TechieFlow framework — deployed copies, never commit (managed by scaffold/update-framework.sh)
+.tfcore/
+.claude/
+.opencode/
+/CLAUDE.md
+/WORKFLOW.html
+/opencode.jsonc
+/.tf-scaffold-note.txt
+
+# TechieFlow agent artifacts — machine-generated test harness & logs, never commit (managed by scaffold/update-framework.sh)
+node_modules/
+/package.json
+/package-lock.json
+tests/.artifacts/
+test-results/
+test-results-*/
+/scripts-*/
+playwright-report/
+.verify/
+logs/
+/docs/.last-verify.json
+.DS_Store

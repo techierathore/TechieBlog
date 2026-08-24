@@ -209,6 +209,27 @@ a.size-10 {
 }
 
 /* -----------------------------------------------------------------------------
+   PostCard no-banner / broken-image fallback — REQ-UI-049 / UAT-025 (2026-08-24).
+
+   "Articles without banner look ugly": the empty-image box used to render the
+   post title as its only content (identical text twice on one card) and read
+   as a broken image. The fallback is now a subtle gradient behind a centred
+   Lucide `image-off` glyph — same box for "no FeaturedImage" and for a
+   FeaturedImage URL that 404s (the `onerror` path in PostCard.razor).
+
+   Why this needs a hand-written rule rather than Tailwind's own gradient
+   utilities: `bg-gradient-to-br` ships (it only sets direction), but the
+   pre-built bundle generates NO `from-*`/`to-*` colour-stop utilities for
+   custom theme tokens — `from-muted`, `to-card` etc. resolve to nothing, the
+   exact silent-no-op trap this file exists to avoid. Both stops are theme
+   tokens (never a literal), so the gradient is correct in every site theme,
+   in both light and dark, with no separate override needed.
+   -------------------------------------------------------------------------- */
+.post-card-fallback {
+    background-image: linear-gradient(135deg, var(--muted) 0%, var(--card) 100%);
+}
+
+/* -----------------------------------------------------------------------------
    DELETED 2026-08-11 — nested dialog stacking (was REQ-UI-037 / REQ-UI-039).
 
    A scoped `z-index: 120` used to be forced onto the ImagePicker's gallery and

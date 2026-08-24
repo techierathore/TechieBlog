@@ -112,6 +112,10 @@ else
                    archive reads through BlogTagRepo.SelectPostsByTagSql, which did not project
                    PublishedOn at all, so the ?? fallback fired on every row. The projection was
                    widened first. *@
+                @* [REQ-UI-049] 2026-08-24 — ImagePlaceholder was retired from PostCard (UAT-025):
+                   it used to receive the post title here too, doubling the title onto a banner-less
+                   card. The no-image state is now a fixed designed fallback with nothing left to
+                   configure per call. *@
                 <PostCard Category="@GetCategoryName(post)"
                           Title="@post.Title"
                           Excerpt="@(string.IsNullOrEmpty(post.Abstract) ? GetExcerpt(post.PostContent) : post.Abstract)"
@@ -119,8 +123,7 @@ else
                           AuthorName="@(string.IsNullOrEmpty(post.BlogWriter) ? "Unknown" : post.BlogWriter)"
                           Date="@((post.PublishedOn ?? post.CreatedOn).ToString("MMM dd"))"
                           ReadTime="@GetReadingTime(post.PostContent)"
-                          ImageUrl="@post.FeaturedImage"
-                          ImagePlaceholder="@post.Title" />
+                          ImageUrl="@post.FeaturedImage" />
             }
         </div>
 

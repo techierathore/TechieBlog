@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TechieBlog — Developer Guide · Guest (anonymous) &mdash; TechieBlog</title>
+<title>Developer Guide · Guest (anonymous) — TechieBlog</title>
 <script>
 /* Resolve the theme BEFORE first paint (no flash). Saved choice wins; otherwise
    pick by time of day — light 07:00–19:00 local, softened dark at night. */
@@ -15,7 +15,8 @@
   }catch(e){ document.documentElement.setAttribute('data-theme','light'); }
 })();
 </script>
-<style>/* LIGHT is the default theme — a warm off-white, easy on the eyes (never bright white). */
+<style>
+/* LIGHT is the default theme — a warm off-white, easy on the eyes (never bright white). */
 :root{
   --bg:#f4f1e9; --panel:#efe9db; --panel2:#e7e0cd; --line:#d8cfb6;
   --ink:#2e2a22; --muted:#6f6857; --accent:#2f6f9f; --accent2:#3f7d54;
@@ -87,10 +88,6 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 .toc-inline li{font-size:13px;margin:1px 0}
 .toc-inline a{color:var(--h3)}
 
-/* NEXT COMMAND call-to-action box */
-.cta{background:var(--cta-bg);border:1px solid var(--accent);border-radius:8px;padding:12px 16px;margin:18px 0}
-.cta .lbl{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
-
 /* mermaid diagram wrapper + toolbar */
 .diagram{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--code-bg);margin:14px 0;overflow:hidden}
 .diagram .mermaid{padding:14px;margin:0;background:transparent;border:none;overflow:auto}
@@ -101,95 +98,258 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 .diagram.fs{position:fixed;inset:0;z-index:9999;border-radius:0;border:none}
 .diagram.fs .mermaid{height:calc(100vh - 40px);display:flex;align-items:center;justify-content:center}
 
-@media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{position:static;height:auto}}</style>
+@media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{position:static;height:auto}}
+</style>
 </head>
 <body>
 <button id="themeToggle" class="theme-toggle" title="Toggle light / dark">☾ Dark</button>
 <div class="layout">
   <nav class="side">
-    <h1>TechieBlog — Developer Guide · Guest (anonymous)</h1>
-    <div class="sub">Last rendered: 2026-08-14</div>
+    <h1>DevGuide · Guest</h1>
+    <div class="sub">TechieBlog — anonymous screens · last rendered 2026-08-24</div>
     <div class="group">Contents</div>
     <ol>
       <li><a href="#runtime-verification-2026-08-14-req-nfr-001-scope-only">Runtime verification (2026-08-14) — REQ-NFR-001 scope only</a></li>
       <li><a href="#runtime-verification-2026-08-09">Runtime verification (2026-08-09)</a></li>
-      <li><a href="#guest-home">Guest · Home (`/`)</a></li>
-      <li><a href="#guest-post-view-post-slug-post-slug-pagenumber">Guest · Post view (`/post/{Slug}`, `/post/{Slug}/{PageNumber}`)</a></li>
-      <li><a href="#guest-category-archive-category-slug-categories-categories-slug">Guest · Category archive (`/category/{Slug}`, `/categories`, `/categories/{Slug}`)</a></li>
-      <li><a href="#guest-tag-archive-tag-slug-tags-tags-slug">Guest · Tag archive (`/tag/{Slug}`, `/tags`, `/tags/{Slug}`)</a></li>
-      <li><a href="#guest-series-series-series-slug">Guest · Series (`/series`, `/series/{Slug}`)</a></li>
-      <li><a href="#guest-search-search">Guest · Search (`/search`)</a></li>
-      <li><a href="#guest-authors-authors">Guest · Authors (`/authors`)</a></li>
-      <li><a href="#guest-author-profile-author-username">Guest · Author profile (`/author/{Username}`)</a></li>
-      <li><a href="#guest-resume-resume">Guest · Resume (`/resume`)</a></li>
-      <li><a href="#guest-about-about-and-404-404">Guest · About (`/about`) and 404 (`/404`)</a></li>
-      <li><a href="#guest-rss-rss-sitemap-sitemap-xml-robots-robots-txt">Guest · RSS (`/rss`), sitemap (`/sitemap.xml`), robots (`/robots.txt`)</a></li>
+      <li><a href="#guest-home">Guest · Home (<code>/</code>)</a></li>
+      <li><a href="#guest-post-view-post-slug-post-slug-pagenumber">Guest · Post view (<code>/post/{Slug}</code>)</a></li>
+      <li><a href="#guest-category-archive-category-slug-categories-categories-slug">Guest · Category archive</a></li>
+      <li><a href="#guest-tag-archive-tag-slug-tags-tags-slug">Guest · Tag archive</a></li>
+      <li><a href="#guest-series-series-series-slug">Guest · Series</a></li>
+      <li><a href="#guest-search-search">Guest · Search (<code>/search</code>)</a></li>
+      <li><a href="#guest-authors-authors">Guest · Authors (<code>/authors</code>)</a></li>
+      <li><a href="#guest-author-profile-author-username">Guest · Author profile</a></li>
+      <li><a href="#guest-resume-resume">Guest · Resume (<code>/resume</code>)</a></li>
+      <li><a href="#guest-about-about-and-404-404">Guest · About and 404</a></li>
+      <li><a href="#guest-rss-rss-sitemap-sitemap-xml-robots-robots-txt">Guest · RSS, sitemap, robots</a></li>
       <li><a href="#guest-login-register-forgot-reset">Guest · Login / Register / Forgot / Reset</a></li>
     </ol>
   </nav>
   <main>
-    <div class="subtitle">Runtime-verified 2026-08-14 (REQ-NFR-001 scope); full sweep 2026-08-09</div>
+    <h1>TechieBlog — Developer Guide · Guest (anonymous)</h1>
+    <div class="subtitle">Every screen reachable without signing in · reflects code as built</div>
 
-<h1>TechieBlog — Developer Guide · Guest (anonymous)</h1>
-<blockquote>
-<p><strong>Runtime-verified 2026-08-23 as Guest (anonymous)</strong> (verify-phase, scope REQ-UI-053 · REQ-NFR-018).</p>
-<ul>
-<li><code>/newsletters</code> and <code>/newsletter/{slug}</code> — <strong>renders ✓ · looks-right ✓ (runtime-confirmed 2026-08-23)</strong>. Every listed control reported RENDERS with non-empty data (issue position "Issue 1 of 2", all-issues link, compact subscribe CTA + heading); visual gate clean at <strong>1280 and 390</strong> — <code>overlaps=[] zeroSize=[] offViewport=[] hScroll=0 consoleErrors=[]</code>. Only-sent-issues, pending-subscriber-until-confirmed and the TbEmpty no-data state all hold.</li>
-<li><code>/sitemap.xml</code>, <code>/feed.xml</code> and <code>/rss.xml</code> — <strong>output cache confirmed live</strong> (runtime-confirmed 2026-08-23): rising <code>Age</code> on repeat requests, feeds served as <code>application/rss+xml</code>.</li>
-<li><strong>Correction (2026-08-23):</strong> an earlier note here said "<code>/rss</code> returns <code>no-cache, no-store</code>, so the RSS half is not implemented". That was a testing error — <strong><code>/rss</code> is not a feed route</strong>, it is an ordinary Blazor HTML page and is correctly uncached. The feed is <code>RssFeedSvc.FeedPath</code> = <strong><code>/feed.xml</code></strong>, aliased as <strong><code>/rss.xml</code></strong>, both output-cached under the <code>Feed</code> policy tagged <code>CacheTags.Content</code>.</li>
-<li>⚠ <strong>Public content can be stale after a write from the BlogApp desktop head</strong> — <code>MemoryCacheService</code> is per-process, so one head's write cannot evict the other's cache. BlogApp calls <code>POST /api/admin/cache/refresh</code> automatically to close this, <strong>provided its Website address is configured</strong>.</li>
-</ul>
-</blockquote>
-<p>&gt; ✅ <strong>Runtime-verified 2026-08-09 as Guest (anonymous)</strong> — supersedes the 2026-08-02 <code>STATIC-ONLY</code> &gt; banner, whose stated reason (solution does not compile, REQ-FN-043) is stale. See &gt; <strong>Runtime verification (2026-08-09)</strong> below for what was actually observed.</p>
-<p>Index: <a href="./TechieBlog-DevGuide.md">TechieBlog-DevGuide.md</a> · Architecture: <code>docs/TechieBlog-Architecture.md</code></p>
-<p>Every screen below is reachable <strong>without signing in</strong>. Signed-in roles see the same pages plus their own.</p>
-<p>&gt; ⚠ <strong>This page's premise is out of date.</strong> It says engagement controls "require authentication". &gt; They do not: reader accounts were retired (BRD-1/13/43/44) and commenting and rating are now &gt; <strong>anonymous and email-keyed</strong> with a captcha and double opt-in. Runtime check found no sign-in gate &gt; and zero <code>/login</code> links anywhere in the comment or rating components. The <strong>Favourite toggle</strong> noted &gt; per screen no longer exists at all (REQ-UI-028 removed).</p>
-<h2 id="runtime-verification-2026-08-14-req-nfr-001-scope-only">Runtime verification (2026-08-14) — REQ-NFR-001 scope only<a class="anchor-link" href="#runtime-verification-2026-08-14-req-nfr-001-scope-only">#</a></h2>
-<p>Runtime-verified 2026-08-14 as <strong>anonymous/guest</strong>, against a genuine <strong>Release + Production</strong> host (<code>--no-launch-profile</code>; see the REQ-NFR-001 checklist row for why a bare <code>dotnet run</code> silently boots Development). This pass exercised only the four screens the performance budget is measured against — <strong>every other row in the 2026-08-09 table below is unchanged and NOT re-observed.</strong></p>
-<table><thead><tr><th>Screen</th><th>Observed 2026-08-14</th><th>Detail</th></tr></thead><tbody><tr><td><code>/</code> (portfolio home)</td><td><strong>renders ✓ (runtime-confirmed 2026-08-14)</strong> · <strong>looks-right ✓</strong></td><td>4 stat tiles with values, featured post, 3 article cards each with image/category/title/excerpt/author/date/star-rating. 0 horizontal overflow at 1280×800 and 390×844; mobile stacks to hamburger + 2-col stat grid</td></tr><tr><td><code>/post/{slug}</code></td><td><strong>renders ✓ (runtime-confirmed 2026-08-14)</strong> · <strong>looks-right ✓ — the 2026-08-09 DEFECT IS FIXED</strong></td><td>title, hero, markdown body with fenced code, series nav ("Part 2 of 3", prev/next), tags, rating 4.5 from 2 ratings, view-count aggregate, comment form + captcha. <strong>The 46px 390px table overflow is GONE:</strong> probed across three posts — <code>the-markdown-kitchen-sink</code> (1 table) <strong>0px</strong>, <code>scaling-signalr-for-blazor-server</code> (1 table) <strong>0px</strong>, <code>blazor-circuits-and-state</code> (0 tables) 0px. The table-vs-no-table comparison that isolated the defect now shows no difference</td></tr><tr><td><code>/category/{slug}</code></td><td><strong>renders ✓ (runtime-confirmed 2026-08-14)</strong> · <strong>looks-right ✓</strong></td><td>header, post list and links render real data; 0 overflow at both widths. <strong>NOTE: the 2026-08-09 <code>renders-empty</code> featured-image defect was NOT re-tested</strong> — this pass asserted list/link/heading data only, not <code>&lt;PostCard ImageUrl&gt;</code>. Treat that defect as still open</td></tr><tr><td><code>/newsletters</code></td><td><strong>renders ✓ (runtime-confirmed 2026-08-14)</strong> · <strong>looks-right ✓</strong></td><td>content and navigable links render; 0 overflow at both widths</td></tr></tbody></table>
-<p>Evidence: <code>tests/verify/req-nfr-001-render-visual.spec.ts</code> 12/12 passed; screenshots inspected in <code>tests/.artifacts/req-nfr-001/</code>. Screens NOT runtime-verified this pass: <code>/tag/{slug}</code>, <code>/series/{slug}</code>, <code>/search</code>, <code>/rss</code>, <code>/authors</code>, <code>/author/{username}</code>, <code>/resume</code>, <code>/about</code>, <code>/404</code>, the auth screens and the sidebar subscribe surface — their 2026-08-09 verdicts stand.</p>
+    <div class="toc-inline">
+      <div>Contents</div>
+      <ol>
+        <li><a href="#runtime-verification-2026-08-14-req-nfr-001-scope-only">Runtime verification (2026-08-14) — REQ-NFR-001 scope only</a></li>
+        <li><a href="#runtime-verification-2026-08-09">Runtime verification (2026-08-09)</a></li>
+        <li><a href="#guest-home">Guest · Home (<code>/</code>)</a></li>
+        <li><a href="#guest-post-view-post-slug-post-slug-pagenumber">Guest · Post view (<code>/post/{Slug}</code>, <code>/post/{Slug}/{PageNumber}</code>)</a></li>
+        <li><a href="#guest-category-archive-category-slug-categories-categories-slug">Guest · Category archive (<code>/category/{Slug}</code>, <code>/categories</code>, <code>/categories/{Slug}</code>)</a></li>
+        <li><a href="#guest-tag-archive-tag-slug-tags-tags-slug">Guest · Tag archive (<code>/tag/{Slug}</code>, <code>/tags</code>, <code>/tags/{Slug}</code>)</a></li>
+        <li><a href="#guest-series-series-series-slug">Guest · Series (<code>/series</code>, <code>/series/{Slug}</code>)</a></li>
+        <li><a href="#guest-search-search">Guest · Search (<code>/search</code>)</a></li>
+        <li><a href="#guest-authors-authors">Guest · Authors (<code>/authors</code>)</a></li>
+        <li><a href="#guest-author-profile-author-username">Guest · Author profile (<code>/author/{Username}</code>)</a></li>
+        <li><a href="#guest-resume-resume">Guest · Resume (<code>/resume</code>)</a></li>
+        <li><a href="#guest-about-about-and-404-404">Guest · About (<code>/about</code>) and 404 (<code>/404</code>)</a></li>
+        <li><a href="#guest-rss-rss-sitemap-sitemap-xml-robots-robots-txt">Guest · RSS (<code>/rss</code>), sitemap (<code>/sitemap.xml</code>), robots (<code>/robots.txt</code>)</a></li>
+        <li><a href="#guest-login-register-forgot-reset">Guest · Login / Register / Forgot / Reset</a></li>
+      </ol>
+    </div>
 
-<h2 id="runtime-verification-2026-08-09">Runtime verification (2026-08-09)<a class="anchor-link" href="#runtime-verification-2026-08-09">#</a></h2>
-<p>Observed by <code>*verify all</code> against the running app. Screens not listed rendered their data and looked right at 1280×900 and 390×844.</p>
-<table><thead><tr><th>Screen</th><th>Observed</th><th>Detail</th></tr></thead><tbody><tr><td><code>/</code> (portfolio home)</td><td><strong>renders ✓</strong></td><td>hero, 4 stat tiles, about, 3 latest articles, contact — all from the site-owner row. Visual clean at both widths. <code>Download CV</code> correctly hidden (<strong>NO-DATA</strong>: <code>cvfilepath</code> empty)</td></tr><tr><td><code>/post/{slug}</code></td><td><strong>visual-broken (DEFECT)</strong></td><td>all 11 controls render real data, but at <strong>390px the page scrolls horizontally 46px</strong> — a Markdown-rendered <code>&lt;table&gt;</code> is 420px wide with <code>overflow-x:visible</code> and is not wrapped in a scroll container. Isolated by comparing a post with a table (46px) against one without (0px)</td></tr><tr><td><code>/category/{slug}</code>, <code>/tag/{slug}</code></td><td><strong>renders-empty (DEFECT)</strong></td><td>counts and cards match the DB exactly, but <strong>featured images never render</strong> — <code>CategoryArchive.razor:117</code> and <code>TagArchive.razor:107</code> pass no <code>ImageUrl</code> to <code>&lt;PostCard&gt;</code> although every published post has one</td></tr><tr><td><code>/series/{slug}</code></td><td><strong>renders-empty (DEFECT)</strong></td><td><strong>leaks unpublished parts to anonymous visitors</strong> with title, abstract and a "Coming Soon" badge. <code>BlogPostRepo.cs:246-248</code> filters only on <code>IsDeleted</code>; <code>CountBySeriesSql:250-254</code> correctly filters <code>Published = TRUE</code>, so the list and the badge disagree</td></tr><tr><td><code>/search</code></td><td><strong>renders-empty (DEFECT)</strong></td><td>every result's category badge is the literal <code>"Blog"</code> — hardcoded at <code>SearchResults.razor:244</code>. Highlighting applies to excerpts only, so a title-only match shows no <code>&lt;mark&gt;</code></td></tr><tr><td><code>/rss</code></td><td><strong>unreachable (DEFECT)</strong></td><td>the page advertises <code>/feed.xml</code>, which <strong>404s</strong>; there is no <code>&lt;link rel="alternate"&gt;</code> in <code>&lt;head&gt;</code>. No feed is served anywhere</td></tr><tr><td>unmatched route</td><td><strong>render-error (DEFECT)</strong></td><td>returns HTTP 404 with a <strong>zero-byte body</strong> and a blank white page. <code>/404</code> renders correctly when requested directly, but nothing routes to it</td></tr><tr><td>public shell</td><td><strong>visual-broken (DEFECT)</strong></td><td>5px horizontal overflow at <strong>320px</strong> from the header actions cluster; <code>mobile-nav-trigger</code> clipped past the right edge. Clean at 390 and 1280</td></tr><tr><td>sidebar subscribe</td><td><strong>render-error (DEFECT)</strong></td><td>writes a subscriber with <strong>no captcha and <code>isconfirmed=t</code></strong>, bypassing the double opt-in every other subscribe surface enforces</td></tr><tr><td>comments / rating</td><td><strong>renders ✓</strong></td><td>anonymous, email-keyed, captcha + double opt-in all proven end to end; unapproved comments never appear publicly; the public average counts verified ratings only</td></tr><tr><td><code>/login</code>, <code>/forgot-password</code>, <code>/reset-password</code>, <code>/verify/{token}</code></td><td><strong>renders ✓</strong></td><td>all controls render; anti-enumeration message confirmed; open-redirect guard rejects absolute and protocol-relative URLs</td></tr></tbody></table>
-<p><strong>Cross-cutting artefact (not a screen defect):</strong> the host prerenders and then re-renders interactively, and for ~1.5s <strong>both shells are in the DOM</strong> — a visibly duplicated header over a still-loading page. It self-resolves, but any measurement inside that window reads a doubled shell or phantom zero rows. This is the root cause of the post page's blank flash and its <code>document-title</code> accessibility violation.</p>
-<h2 id="guest-home">Guest · Home (<code>/</code>)<a class="anchor-link" href="#guest-home">#</a></h2>
-<p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/Home.razor</code> · <strong>Layout:</strong> <code>MainLayout</code></p>
-<div class="diagram">
-  <div class="dt">
-    <button data-zout title="Zoom out">−</button>
-    <span class="zlabel">100%</span>
-    <button data-zin title="Zoom in">+</button>
-    <button data-fit title="Fit to width">Fit</button>
-    <button data-one title="Actual size">1:1</button>
-    <button data-fs title="Fullscreen">⛶</button>
-    <button data-pop title="Open in new tab">↗</button>
-  </div>
-  <pre class="mermaid">flowchart LR
+    <blockquote>
+      <p><strong>Runtime-verified 2026-08-23 as Guest (anonymous)</strong> (verify-phase, scope REQ-UI-053 · REQ-NFR-018).</p>
+      <ul>
+        <li><code>/newsletters</code> and <code>/newsletter/{slug}</code> — <strong>renders ✓ · looks-right ✓ (runtime-confirmed 2026-08-23)</strong>. Every listed control reported RENDERS with non-empty data (issue position "Issue 1 of 2", all-issues link, compact subscribe CTA + heading); §4b clean at <strong>1280 and 390</strong> — <code>overlaps=[] zeroSize=[] offViewport=[] hScroll=0 consoleErrors=[]</code>. Only-sent-issues, pending-subscriber-until-confirmed and the TbEmpty no-data state all hold.</li>
+        <li><code>/sitemap.xml</code>, <code>/feed.xml</code> and <code>/rss.xml</code> — <strong>output cache confirmed live</strong> (runtime-confirmed 2026-08-23): rising <code>Age</code> on repeat requests, feeds served as <code>application/rss+xml</code>.</li>
+        <li><strong>Correction (2026-08-23):</strong> an earlier note here said "<code>/rss</code> returns <code>no-cache, no-store</code>, so the RSS half is not implemented". That was a testing error on my part — <strong><code>/rss</code> is not a feed route</strong>, it is an ordinary Blazor HTML page and is correctly uncached. The feed is <code>RssFeedSvc.FeedPath</code> = <strong><code>/feed.xml</code></strong>, aliased as <strong><code>/rss.xml</code></strong>, and both are output-cached under the <code>Feed</code> policy tagged <code>CacheTags.Content</code>.</li>
+        <li>⚠ <strong>Public content can be stale after a write from the BlogApp desktop head</strong> — <code>MemoryCacheService</code> is per-process, so one head's write cannot evict the other's cache (the SQL itself filters <code>IsDeleted</code> correctly). BlogApp calls <code>POST /api/admin/cache/refresh</code> automatically to close this, <strong>provided its Website address is configured</strong>; without it the wait is the 10-minute lifetime. Tracked on REQ-NFR-018 / UAT-023.</li>
+      </ul>
+    </blockquote>
+
+    <blockquote>
+      <p>✅ <strong>Runtime-verified 2026-08-09 as Guest (anonymous)</strong> — supersedes the 2026-08-02 <code>STATIC-ONLY</code> banner, whose stated reason (solution does not compile, REQ-FN-043) is stale. See <strong>Runtime verification (2026-08-09)</strong> below for what was actually observed.</p>
+    </blockquote>
+
+    <p>Index: <a href="./TechieBlog-DevGuide.md">TechieBlog-DevGuide.md</a> · Architecture: <code>docs/TechieBlog-Architecture.md</code></p>
+
+    <p>Every screen below is reachable <strong>without signing in</strong>. Signed-in roles see the same pages plus their own.</p>
+
+    <blockquote>
+      <p>⚠ <strong>This page's premise is out of date.</strong> It says engagement controls "require authentication". They do not: reader accounts were retired (BRD-1/13/43/44) and commenting and rating are now <strong>anonymous and email-keyed</strong> with a captcha and double opt-in. Runtime check found no sign-in gate and zero <code>/login</code> links anywhere in the comment or rating components. The <strong>Favourite toggle</strong> noted per screen no longer exists at all (REQ-UI-028 removed).</p>
+    </blockquote>
+
+    <h2 id="runtime-verification-2026-08-14-req-nfr-001-scope-only">Runtime verification (2026-08-14) — REQ-NFR-001 scope only<a class="anchor-link" href="#runtime-verification-2026-08-14-req-nfr-001-scope-only">#</a></h2>
+
+    <p>Runtime-verified 2026-08-14 as <strong>anonymous/guest</strong>, against a genuine <strong>Release + Production</strong> host (<code>--no-launch-profile</code>; see the REQ-NFR-001 checklist row for why a bare <code>dotnet run</code> silently boots Development). This pass exercised only the four screens the performance budget is measured against — <strong>every other row in the 2026-08-09 table below is unchanged and NOT re-observed.</strong></p>
+
+    <table>
+      <thead>
+        <tr><th>Screen</th><th>Observed 2026-08-14</th><th>Detail</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>/</code> (portfolio home)</td>
+          <td><strong>renders ✓ (runtime-confirmed 2026-08-14)</strong> · <strong>looks-right ✓</strong></td>
+          <td>4 stat tiles with values, featured post, 3 article cards each with image/category/title/excerpt/author/date/star-rating. 0 horizontal overflow at 1280×800 and 390×844; mobile stacks to hamburger + 2-col stat grid</td>
+        </tr>
+        <tr>
+          <td><code>/post/{slug}</code></td>
+          <td><strong>renders ✓ (runtime-confirmed 2026-08-14)</strong> · <strong>looks-right ✓ — the 2026-08-09 DEFECT IS FIXED</strong></td>
+          <td>title, hero, markdown body with fenced code, series nav ("Part 2 of 3", prev/next), tags, rating 4.5 from 2 ratings, view-count aggregate, comment form + captcha. <strong>The 46px 390px table overflow is GONE:</strong> probed across three posts — <code>the-markdown-kitchen-sink</code> (1 table) <strong>0px</strong>, <code>scaling-signalr-for-blazor-server</code> (1 table) <strong>0px</strong>, <code>blazor-circuits-and-state</code> (0 tables) 0px. The table-vs-no-table comparison that isolated the defect now shows no difference</td>
+        </tr>
+        <tr>
+          <td><code>/category/{slug}</code></td>
+          <td><strong>renders ✓ (runtime-confirmed 2026-08-14)</strong> · <strong>looks-right ✓</strong></td>
+          <td>header, post list and links render real data; 0 overflow at both widths. <strong>NOTE: the 2026-08-09 <code>renders-empty</code> featured-image defect was NOT re-tested</strong> — this pass asserted list/link/heading data only, not <code>&lt;PostCard ImageUrl&gt;</code>. Treat that defect as still open</td>
+        </tr>
+        <tr>
+          <td><code>/newsletters</code></td>
+          <td><strong>renders ✓ (runtime-confirmed 2026-08-14)</strong> · <strong>looks-right ✓</strong></td>
+          <td>content and navigable links render; 0 overflow at both widths</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>Evidence: <code>tests/verify/req-nfr-001-render-visual.spec.ts</code> 12/12 passed; screenshots inspected in <code>tests/.artifacts/req-nfr-001/</code>. Screens NOT runtime-verified this pass: <code>/tag/{slug}</code>, <code>/series/{slug}</code>, <code>/search</code>, <code>/rss</code>, <code>/authors</code>, <code>/author/{username}</code>, <code>/resume</code>, <code>/about</code>, <code>/404</code>, the auth screens and the sidebar subscribe surface — their 2026-08-09 verdicts stand.</p>
+
+    <h2 id="runtime-verification-2026-08-09">Runtime verification (2026-08-09)<a class="anchor-link" href="#runtime-verification-2026-08-09">#</a></h2>
+
+    <p>Observed by <code>*verify all</code> against the running app. Screens not listed rendered their data and looked right at 1280×900 and 390×844.</p>
+
+    <table>
+      <thead>
+        <tr><th>Screen</th><th>Observed</th><th>Detail</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>/</code> (portfolio home)</td>
+          <td><strong>renders ✓</strong></td>
+          <td>hero, 4 stat tiles, about, 3 latest articles, contact — all from the site-owner row. Visual clean at both widths. <code>Download CV</code> correctly hidden (<strong>NO-DATA</strong>: <code>cvfilepath</code> empty)</td>
+        </tr>
+        <tr>
+          <td><code>/post/{slug}</code></td>
+          <td><strong>visual-broken (DEFECT)</strong></td>
+          <td>all 11 controls render real data, but at <strong>390px the page scrolls horizontally 46px</strong> — a Markdown-rendered <code>&lt;table&gt;</code> is 420px wide with <code>overflow-x:visible</code> and is not wrapped in a scroll container. Isolated by comparing a post with a table (46px) against one without (0px)</td>
+        </tr>
+        <tr>
+          <td><code>/category/{slug}</code>, <code>/tag/{slug}</code></td>
+          <td><strong>renders-empty (DEFECT)</strong></td>
+          <td>counts and cards match the DB exactly, but <strong>featured images never render</strong> — <code>CategoryArchive.razor:117</code> and <code>TagArchive.razor:107</code> pass no <code>ImageUrl</code> to <code>&lt;PostCard&gt;</code> although every published post has one</td>
+        </tr>
+        <tr>
+          <td><code>/series/{slug}</code></td>
+          <td><strong>renders-empty (DEFECT)</strong></td>
+          <td><strong>leaks unpublished parts to anonymous visitors</strong> with title, abstract and a "Coming Soon" badge. <code>BlogPostRepo.cs:246-248</code> filters only on <code>IsDeleted</code>; <code>CountBySeriesSql:250-254</code> correctly filters <code>Published = TRUE</code>, so the list and the badge disagree</td>
+        </tr>
+        <tr>
+          <td><code>/search</code></td>
+          <td><strong>renders-empty (DEFECT)</strong></td>
+          <td>every result's category badge is the literal <code>"Blog"</code> — hardcoded at <code>SearchResults.razor:244</code>. Highlighting applies to excerpts only, so a title-only match shows no <code>&lt;mark&gt;</code></td>
+        </tr>
+        <tr>
+          <td><code>/rss</code></td>
+          <td><strong>unreachable (DEFECT)</strong></td>
+          <td>the page advertises <code>/feed.xml</code>, which <strong>404s</strong>; there is no <code>&lt;link rel="alternate"&gt;</code> in <code>&lt;head&gt;</code>. No feed is served anywhere</td>
+        </tr>
+        <tr>
+          <td>unmatched route</td>
+          <td><strong>render-error (DEFECT)</strong></td>
+          <td>returns HTTP 404 with a <strong>zero-byte body</strong> and a blank white page. <code>/404</code> renders correctly when requested directly, but nothing routes to it</td>
+        </tr>
+        <tr>
+          <td>public shell</td>
+          <td><strong>visual-broken (DEFECT)</strong></td>
+          <td>5px horizontal overflow at <strong>320px</strong> from the header actions cluster; <code>mobile-nav-trigger</code> clipped past the right edge. Clean at 390 and 1280</td>
+        </tr>
+        <tr>
+          <td>sidebar subscribe</td>
+          <td><strong>render-error (DEFECT)</strong></td>
+          <td>writes a subscriber with <strong>no captcha and <code>isconfirmed=t</code></strong>, bypassing the double opt-in every other subscribe surface enforces</td>
+        </tr>
+        <tr>
+          <td>comments / rating</td>
+          <td><strong>renders ✓</strong></td>
+          <td>anonymous, email-keyed, captcha + double opt-in all proven end to end; unapproved comments never appear publicly; the public average counts verified ratings only</td>
+        </tr>
+        <tr>
+          <td><code>/login</code>, <code>/forgot-password</code>, <code>/reset-password</code>, <code>/verify/{token}</code></td>
+          <td><strong>renders ✓</strong></td>
+          <td>all controls render; anti-enumeration message confirmed; open-redirect guard rejects absolute and protocol-relative URLs</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Cross-cutting artefact (not a screen defect):</strong> the host prerenders and then re-renders interactively, and for ~1.5s <strong>both shells are in the DOM</strong> — a visibly duplicated header over a still-loading page. It self-resolves, but any measurement inside that window reads a doubled shell or phantom zero rows. This is the root cause of the post page's blank flash and its <code>document-title</code> accessibility violation.</p>
+
+    <h2 id="guest-home">Guest · Home (<code>/</code>)<a class="anchor-link" href="#guest-home">#</a></h2>
+
+    <p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/Home.razor</code> · <strong>Layout:</strong> <code>MainLayout</code></p>
+
+    <div class="diagram">
+      <div class="dt">
+        <button data-zout title="Zoom out">−</button>
+        <span class="zlabel">100%</span>
+        <button data-zin title="Zoom in">+</button>
+        <button data-fit title="Fit to width">Fit</button>
+        <button data-one title="Actual size">1:1</button>
+        <button data-fs title="Fullscreen">⛶</button>
+        <button data-pop title="Open in new tab">↗</button>
+      </div>
+      <pre class="mermaid">flowchart LR
   Home["Home.razor"] --> Blog["BlogSvc"]
   Blog --> Repo["BlogPostRepo"]
   Repo --> SQL[("SELECT p.PostID ... FROM BlogPost")]
   Home --> Calc["ReadingTimeCalculator.Calculate"]</pre>
-</div>
-<table><thead><tr><th>Control</th><th>What it shows</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Featured post</td><td>One highlighted post</td><td><code>BlogService.GetFeaturedPost()</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Recent posts grid</td><td>Published posts, paged</td><td><code>BlogService.GetPublishedPosts(...)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Pagination</td><td>Page count</td><td><code>BlogService.GetPublishedPostCount()</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Reading time per card</td><td>"N min read"</td><td><code>ReadingTimeCalculator.Calculate(...)</code> (static helper, called in the page)</td><td>static-only (unconfirmed)</td></tr><tr><td>Sidebar</td><td>Categories, tags, subscribe form</td><td><code>Components/Sidebar.razor</code></td><td>static-only (unconfirmed)</td></tr></tbody></table>
-<p><strong>Data lineage</strong></p>
-<table><thead><tr><th>Step</th><th>Symbol</th><th>File</th></tr></thead><tbody><tr><td>Page</td><td><code>Home.razor</code> <code>@inject BlogEngine.Services.BlogSvc BlogService</code></td><td><code>Pages/BlogPages/Home.razor</code></td></tr><tr><td>Service</td><td><code>BlogSvc.GetPublishedPosts</code>, <code>GetFeaturedPost</code>, <code>GetPublishedPostCount</code></td><td><code>BlogEngine/Services/BlogSvc.cs</code></td></tr><tr><td>Data access</td><td><code>BlogPostRepo</code> (inherits <code>GenericRepository&lt;BlogPost&gt;</code>)</td><td><code>BlogEngine/DbAccess/BlogPostRepo.cs</code></td></tr><tr><td>SQL</td><td>inline parameterised <code>SELECT p.PostID …</code> / <code>SELECT COUNT …</code> against <code>BlogPost</code></td><td><code>BlogPostRepo.cs</code></td></tr></tbody></table>
-<p><strong>Business rules:</strong> only <code>Published = true</code> posts appear; ordering is by publish date descending.</p>
-<p><strong>Known issues:</strong> none found statically.</p>
-<h2 id="guest-post-view-post-slug-post-slug-pagenumber">Guest · Post view (<code>/post/{Slug}</code>, <code>/post/{Slug}/{PageNumber}</code>)<a class="anchor-link" href="#guest-post-view-post-slug-post-slug-pagenumber">#</a></h2>
-<p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/PostView.razor</code> · <strong>Layout:</strong> <code>FullWidthLayout</code></p>
-<p>This is the densest public screen — seven injected dependencies.</p>
-<div class="diagram">
-  <div class="dt">
-    <button data-zout title="Zoom out">−</button>
-    <span class="zlabel">100%</span>
-    <button data-zin title="Zoom in">+</button>
-    <button data-fit title="Fit to width">Fit</button>
-    <button data-one title="Actual size">1:1</button>
-    <button data-fs title="Fullscreen">⛶</button>
-    <button data-pop title="Open in new tab">↗</button>
-  </div>
-  <pre class="mermaid">flowchart TB
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>Control</th><th>What it shows</th><th>Source call</th><th>Render status</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Featured post</td><td>One highlighted post</td><td><code>BlogService.GetFeaturedPost()</code></td><td>static-only (unconfirmed)</td></tr>
+        <tr><td>Recent posts grid</td><td>Published posts, paged</td><td><code>BlogService.GetPublishedPosts(...)</code></td><td>static-only (unconfirmed)</td></tr>
+        <tr><td>Pagination</td><td>Page count</td><td><code>BlogService.GetPublishedPostCount()</code></td><td>static-only (unconfirmed)</td></tr>
+        <tr><td>Reading time per card</td><td>"N min read"</td><td><code>ReadingTimeCalculator.Calculate(...)</code> (static helper, called in the page)</td><td>static-only (unconfirmed)</td></tr>
+        <tr><td>Sidebar</td><td>Categories, tags, subscribe form</td><td><code>Components/Sidebar.razor</code></td><td>static-only (unconfirmed)</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Data lineage</strong></p>
+
+    <table>
+      <thead>
+        <tr><th>Step</th><th>Symbol</th><th>File</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Page</td><td><code>Home.razor</code> <code>@inject BlogEngine.Services.BlogSvc BlogService</code></td><td><code>Pages/BlogPages/Home.razor</code></td></tr>
+        <tr><td>Service</td><td><code>BlogSvc.GetPublishedPosts</code>, <code>GetFeaturedPost</code>, <code>GetPublishedPostCount</code></td><td><code>BlogEngine/Services/BlogSvc.cs</code></td></tr>
+        <tr><td>Data access</td><td><code>BlogPostRepo</code> (inherits <code>GenericRepository&lt;BlogPost&gt;</code>)</td><td><code>BlogEngine/DbAccess/BlogPostRepo.cs</code></td></tr>
+        <tr><td>SQL</td><td>inline parameterised <code>SELECT p.PostID …</code> / <code>SELECT COUNT …</code> against <code>BlogPost</code></td><td><code>BlogPostRepo.cs</code></td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Business rules:</strong> only <code>Published = true</code> posts appear; ordering is by publish date descending.</p>
+
+    <p><strong>Known issues:</strong> none. <strong>✅ UAT-025 and UAT-026 are both FIXED and verified 2026-08-24</strong> (<code>*fix-issues</code>; observed on the running host, not inferred):</p>
+
+    <ul>
+      <li><strong>(1) banner-less post card — FIXED.</strong> <code>ImagePlaceholder</code> is <strong>retired entirely</strong> from <code>PostCard.razor</code> and all of its call sites, so no caller can feed the title into the image box again. The no-image state is now a designed fallback — a theme-token gradient (<code>.post-card-fallback</code>, <code>wwwroot/css/utilities.css:228</code>) behind a centred low-opacity Lucide <code>image-off</code> glyph — and the same fallback also catches a <code>FeaturedImage</code> URL that 404s, via an idempotent inline <code>onerror</code> on the <code>&lt;img&gt;</code> (<code>PostCard.razor:36</code>). <strong>Observed:</strong> placeholder text is now the empty string (it was byte-identical to the card title before), glyph 40×40, gradient computes to real <code>oklch</code> stops in both light and dark. <code>SearchResults.razor</code>, which renders its own thumbnail rather than a <code>&lt;PostCard&gt;</code>, was brought to the same behaviour so all three listing surfaces agree.</li>
+      <li><strong>(2) cross-platform typography — FIXED.</strong> The site now self-hosts <strong>Inter</strong> as a variable woff2 from its own origin (<code>_content/BlogUI/fonts/inter-latin-var.woff2</code>, 48 KB latin + an 85 KB latin-ext subset that an English page never requests), declared with <code>@font-face</code> + <code>font-display: swap</code> and <code>unicode-range</code> subsetting at <code>css/theme.css:66-82</code>; <code>--tb-font-ui</code>/<code>--tb-font-heading</code> lead with <code>"Inter"</code> and the unshipped <code>Poppins</code> entries are gone from <code>blogui.css:15</code> / <code>adminui.css:15</code>. <strong>Observed:</strong> <code>document.fonts.size</code> 0 → 2, <code>fonts.check('16px Inter')</code> true, and blocking the woff2 shifts a real <code>h1</code> by 79.5px — so the glyphs genuinely changed. macOS and Windows now render the same face. The <code>developer</code> (mono) and <code>minimal</code> (serif) site themes were deliberately left on their own faces and confirmed free of Inter leak.</li>
+    </ul>
+
+    <p><strong>Render/visual status (observed 2026-08-24, host <code>:5421</code>):</strong> RENDERS + VISUAL-OK at 1280 and 390, in both dark and light — 0 horizontal scroll, 0 off-viewport elements. Screenshots <code>test-results-fixissues/home-{1280,390}-{dark,light}.png</code>. ⚠ Still NOT observable on this database (not defects): the headline <strong>stats band</strong> (no <code>UserStats</code> rows) and the <strong>Download-CV CTA</strong> (no <code>CVFilePath</code>); both collapse by design rather than rendering blank.</p>
+
+    <h2 id="guest-post-view-post-slug-post-slug-pagenumber">Guest · Post view (<code>/post/{Slug}</code>, <code>/post/{Slug}/{PageNumber}</code>)<a class="anchor-link" href="#guest-post-view-post-slug-post-slug-pagenumber">#</a></h2>
+
+    <p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/PostView.razor</code> · <strong>Layout:</strong> <code>FullWidthLayout</code></p>
+
+    <p>This is the densest public screen — seven injected dependencies.</p>
+
+    <div class="diagram">
+      <div class="dt">
+        <button data-zout title="Zoom out">−</button>
+        <span class="zlabel">100%</span>
+        <button data-zin title="Zoom in">+</button>
+        <button data-fit title="Fit to width">Fit</button>
+        <button data-one title="Actual size">1:1</button>
+        <button data-fs title="Fullscreen">⛶</button>
+        <button data-pop title="Open in new tab">↗</button>
+      </div>
+      <pre class="mermaid">flowchart TB
   PV["PostView.razor"] --> B["BlogSvc.GetPostBySlug"]
   PV --> S["SeriesSvc.GetSeriesNavigation"]
   PV --> F["FavoriteSvc.IsFavorited and GetFavoriteCount"]
@@ -201,50 +361,164 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   PR --> DB[("PostgreSQL")]
   SR --> DB
   FR --> DB</pre>
-</div>
-<table><thead><tr><th>Control</th><th>What it shows</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Article body</td><td>Markdown rendered to HTML</td><td><code>MarkdownRenderer.ToHtml(post.PostContent)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Title / author / date / category / tags</td><td>Post metadata</td><td><code>BlogService.GetPostBySlug(Slug)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Reading time</td><td>"N min read"</td><td><code>ReadingTimeCalculator.Calculate(...)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Series navigation</td><td>Previous / next part</td><td><code>SeriesService.GetSeriesNavigation(...)</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Related posts</td><td>Other published posts</td><td><code>BlogService.GetPublishedPosts(...)</code></td><td>static-only (unconfirmed) — <em>note: this is a generic published-post query, not a category/tag-similarity match; "related" is loosely implemented</em></td></tr><tr><td>Star rating</td><td>Average + user's rating</td><td><code>Components/StarRating.razor</code> → <code>RatingSvc</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Favourite toggle</td><td>Favourited state + count</td><td><code>FavoriteService.IsFavorited</code>, <code>GetFavoriteCount</code></td><td>static-only (unconfirmed)</td></tr><tr><td>Comments</td><td>List + form (sign-in required)</td><td><code>Components/…</code> → <code>CommentSvc</code></td><td>static-only (unconfirmed)</td></tr></tbody></table>
-<p><strong>Data lineage</strong></p>
-<table><thead><tr><th>Step</th><th>Symbol</th><th>File</th></tr></thead><tbody><tr><td>Page</td><td><code>PostView.razor</code></td><td><code>Pages/BlogPages/PostView.razor</code></td></tr><tr><td>Services</td><td><code>BlogSvc</code>, <code>SeriesSvc</code>, <code>FavoriteSvc</code>, <code>MarkdownRenderer</code></td><td><code>BlogEngine/Services/</code>, <code>BlogEngine/Common/</code></td></tr><tr><td>Data access</td><td><code>BlogPostRepo</code>, <code>BlogSeriesRepo</code>, <code>UserFavoriteRepo</code></td><td><code>BlogEngine/DbAccess/</code></td></tr><tr><td>SQL</td><td>inline parameterised SQL on <code>BlogPost</code>, <code>BlogSeries</code>, <code>UserFavorite</code></td><td>as above</td></tr></tbody></table>
-<p><strong>Business rules:</strong> anonymous visitors can read but not engage — the page injects <code>AuthenticationStateProvider</code> and gates the engagement controls on the resulting principal.</p>
-<p><strong>Known issues:</strong> "Related posts" reuses <code>GetPublishedPosts</code> rather than a similarity query (BRD-32 expects category/tag-based relatedness) — <code>{unresolved — TODO: confirm whether a filter is applied inside the page's related-post block}</code>.</p>
-<h2 id="guest-category-archive-category-slug-categories-categories-slug">Guest · Category archive (<code>/category/{Slug}</code>, <code>/categories</code>, <code>/categories/{Slug}</code>)<a class="anchor-link" href="#guest-category-archive-category-slug-categories-categories-slug">#</a></h2>
-<p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/CategoryArchive.razor</code></p>
-<table><thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Category header</td><td><code>CategoryService.GetCategoryBySlug(Slug)</code></td><td>static-only</td></tr><tr><td>Post list</td><td><code>BlogService.GetPostsByCategory(...)</code></td><td>static-only</td></tr><tr><td>Post count / paging</td><td><code>BlogService.GetPostCountByCategory(...)</code></td><td>static-only</td></tr><tr><td>Category list (index mode)</td><td><code>CategoryService.GetAllWithCounts()</code></td><td>static-only</td></tr><tr><td>Reading time</td><td><code>ReadingTimeCalculator.Calculate(...)</code></td><td>static-only</td></tr></tbody></table>
-<p><strong>Lineage:</strong> page → <code>CategorySvc</code> / <code>BlogSvc</code> → <code>CategoryRepo</code> / <code>BlogPostRepo</code> → inline SQL on <code>Category</code>, <code>PostCategory</code>, <code>BlogPost</code>.</p>
-<h2 id="guest-tag-archive-tag-slug-tags-tags-slug">Guest · Tag archive (<code>/tag/{Slug}</code>, <code>/tags</code>, <code>/tags/{Slug}</code>)<a class="anchor-link" href="#guest-tag-archive-tag-slug-tags-tags-slug">#</a></h2>
-<p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/TagArchive.razor</code></p>
-<table><thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Tag header</td><td><code>TagService.GetTagBySlug(Slug)</code></td><td>static-only</td></tr><tr><td>Post list</td><td><code>TagService.GetPostsByTag(...)</code></td><td>static-only</td></tr><tr><td>Post count</td><td><code>TagService.GetPostCountByTag(...)</code></td><td>static-only</td></tr><tr><td>Tag list / cloud</td><td><code>TagService.GetAllWithCounts()</code></td><td>static-only</td></tr><tr><td>Category name per card</td><td><code>CategorySvc.GetAllCategories()</code> cached in a page dictionary</td><td>static-only</td></tr></tbody></table>
-<p><strong>Lineage:</strong> page → <code>TagSvc</code> (+ <code>CategorySvc</code>) → <code>BlogTagRepo</code> → inline SQL joining <code>Tag</code>, <code>PostTag</code>, <code>BlogPost</code>. The per-tag <code>COUNT</code> was the Story 7.5 bug (fixed in <code>BlogTagRepo.cs</code>); the category-name lookup was FIX-009.</p>
-<h2 id="guest-series-series-series-slug">Guest · Series (<code>/series</code>, <code>/series/{Slug}</code>)<a class="anchor-link" href="#guest-series-series-series-slug">#</a></h2>
-<p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/SeriesView.razor</code> · <strong>Layout:</strong> <code>FullWidthLayout</code></p>
-<table><thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Series list (no slug)</td><td><code>SeriesService.GetAllWithCounts()</code></td><td>static-only</td></tr><tr><td>Series header + parts</td><td><code>SeriesService.GetSeriesBySlug(Slug)</code></td><td>static-only</td></tr><tr><td>Reading time per part</td><td><code>ReadingTimeCalculator.Calculate(...)</code></td><td>static-only</td></tr></tbody></table>
-<p><strong>Lineage:</strong> page → <code>SeriesSvc</code> → <code>BlogSeriesRepo</code> → inline SQL on <code>BlogSeries</code> + <code>BlogPost</code>.</p>
-<h2 id="guest-search-search">Guest · Search (<code>/search</code>)<a class="anchor-link" href="#guest-search-search">#</a></h2>
-<p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/SearchResults.razor</code></p>
-<table><thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Result list</td><td><code>BlogSvc.SearchPosts(...)</code></td><td>static-only</td></tr><tr><td>Result count / paging</td><td><code>BlogSvc.GetSearchResultCount(...)</code></td><td>static-only</td></tr><tr><td>Category filter dropdown</td><td><code>CategorySvc.GetAllCategories()</code></td><td>static-only</td></tr></tbody></table>
-<p><strong>Lineage:</strong> page → <code>BlogSvc.SearchPosts</code> (<code>BlogSvc.cs:555-580</code>) → <code>BlogPostRepo.SearchPosts</code> (<code>BlogPostRepo.cs:424-465</code>) → PostgreSQL <code>ILIKE</code> across <code>Title</code>, <code>Abstract</code>, <code>PostContent</code>, <code>Tags</code>.</p>
-<p><strong>Business rules:</strong> search covers published posts only; terms are highlighted in the rendered results.</p>
-<h2 id="guest-authors-authors">Guest · Authors (<code>/authors</code>)<a class="anchor-link" href="#guest-authors-authors">#</a></h2>
-<p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/AuthorsPage.razor</code> (+ <code>.razor.cs</code>)</p>
-<table><thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Author list</td><td><code>UserRepo.GetAllAuthors()</code> (<strong>repository injected directly — no service layer</strong>)</td><td>static-only</td></tr><tr><td>Article count per author</td><td>part of <code>GetAllAuthors()</code>'s projection</td><td>static-only</td></tr></tbody></table>
-<p><strong>Lineage:</strong> page → <code>IBlogUserRepo.GetAllAuthors</code> → <code>BlogUserRepo.cs</code> inline <code>SELECT DISTINCT …</code> over <code>BlogUser</code> joined to <code>BlogPost</code>.</p>
-<h2 id="guest-author-profile-author-username">Guest · Author profile (<code>/author/{Username}</code>)<a class="anchor-link" href="#guest-author-profile-author-username">#</a></h2>
-<p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/AuthorProfilePage.razor</code> (+ <code>.razor.cs</code>)</p>
-<table><thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Author header</td><td><code>UserRepo.GetByUsername(Username)</code></td><td>static-only</td></tr><tr><td>Article list</td><td><code>{unresolved — TODO: the posts-by-author call was not located in AuthorProfilePage.razor.cs}</code></td><td>unresolved</td></tr><tr><td>Resume sections (when <code>ResumeEnabled</code>)</td><td><code>Components/Resume/*</code> fed by the skills/awards/events repositories</td><td>static-only</td></tr></tbody></table>
-<p><strong>Business rules:</strong> an unknown username must 404 (BRD-55); <code>ResumeEnabled</code> gates the resume sections.</p>
-<h2 id="guest-resume-resume">Guest · Resume (<code>/resume</code>)<a class="anchor-link" href="#guest-resume-resume">#</a></h2>
-<p><strong>File:</strong> <code>source/BlogUI/Pages/ResumePage.razor</code> (+ <code>.razor.cs</code>) · <strong>Layout:</strong> <code>FullWidthLayout</code></p>
-<div class="diagram">
-  <div class="dt">
-    <button data-zout title="Zoom out">−</button>
-    <span class="zlabel">100%</span>
-    <button data-zin title="Zoom in">+</button>
-    <button data-fit title="Fit to width">Fit</button>
-    <button data-one title="Actual size">1:1</button>
-    <button data-fs title="Fullscreen">⛶</button>
-    <button data-pop title="Open in new tab">↗</button>
-  </div>
-  <pre class="mermaid">flowchart LR
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>Control</th><th>What it shows</th><th>Source call</th><th>Render status</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Article body</td><td>Markdown rendered to HTML</td><td><code>MarkdownRenderer.ToHtml(post.PostContent)</code></td><td>static-only (unconfirmed)</td></tr>
+        <tr><td>Title / author / date / category / tags</td><td>Post metadata</td><td><code>BlogService.GetPostBySlug(Slug)</code></td><td>static-only (unconfirmed)</td></tr>
+        <tr><td>Reading time</td><td>"N min read"</td><td><code>ReadingTimeCalculator.Calculate(...)</code></td><td>static-only (unconfirmed)</td></tr>
+        <tr><td>Series navigation</td><td>Previous / next part</td><td><code>SeriesService.GetSeriesNavigation(...)</code></td><td>static-only (unconfirmed)</td></tr>
+        <tr><td>Related posts</td><td>Other published posts</td><td><code>BlogService.GetPublishedPosts(...)</code></td><td>static-only (unconfirmed) — <em>note: this is a generic published-post query, not a category/tag-similarity match; "related" is loosely implemented</em></td></tr>
+        <tr><td>Star rating</td><td>Average + user's rating</td><td><code>Components/StarRating.razor</code> → <code>RatingSvc</code></td><td>static-only (unconfirmed)</td></tr>
+        <tr><td>Favourite toggle</td><td>Favourited state + count</td><td><code>FavoriteService.IsFavorited</code>, <code>GetFavoriteCount</code></td><td>static-only (unconfirmed)</td></tr>
+        <tr><td>Comments</td><td>List + form (sign-in required)</td><td><code>Components/…</code> → <code>CommentSvc</code></td><td>static-only (unconfirmed)</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Data lineage</strong></p>
+
+    <table>
+      <thead>
+        <tr><th>Step</th><th>Symbol</th><th>File</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Page</td><td><code>PostView.razor</code></td><td><code>Pages/BlogPages/PostView.razor</code></td></tr>
+        <tr><td>Services</td><td><code>BlogSvc</code>, <code>SeriesSvc</code>, <code>FavoriteSvc</code>, <code>MarkdownRenderer</code></td><td><code>BlogEngine/Services/</code>, <code>BlogEngine/Common/</code></td></tr>
+        <tr><td>Data access</td><td><code>BlogPostRepo</code>, <code>BlogSeriesRepo</code>, <code>UserFavoriteRepo</code></td><td><code>BlogEngine/DbAccess/</code></td></tr>
+        <tr><td>SQL</td><td>inline parameterised SQL on <code>BlogPost</code>, <code>BlogSeries</code>, <code>UserFavorite</code></td><td>as above</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Business rules:</strong> anonymous visitors can read but not engage — the page injects <code>AuthenticationStateProvider</code> and gates the engagement controls on the resulting principal.</p>
+
+    <p><strong>Known issues:</strong> "Related posts" reuses <code>GetPublishedPosts</code> rather than a similarity query (BRD-32 expects category/tag-based relatedness) — <code>{unresolved — TODO: confirm whether a filter is applied inside the page's related-post block}</code>.</p>
+
+    <h2 id="guest-category-archive-category-slug-categories-categories-slug">Guest · Category archive (<code>/category/{Slug}</code>, <code>/categories</code>, <code>/categories/{Slug}</code>)<a class="anchor-link" href="#guest-category-archive-category-slug-categories-categories-slug">#</a></h2>
+
+    <p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/CategoryArchive.razor</code></p>
+
+    <table>
+      <thead>
+        <tr><th>Control</th><th>Source call</th><th>Render status</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Category header</td><td><code>CategoryService.GetCategoryBySlug(Slug)</code></td><td>static-only</td></tr>
+        <tr><td>Post list</td><td><code>BlogService.GetPostsByCategory(...)</code></td><td>static-only</td></tr>
+        <tr><td>Post count / paging</td><td><code>BlogService.GetPostCountByCategory(...)</code></td><td>static-only</td></tr>
+        <tr><td>Category list (index mode)</td><td><code>CategoryService.GetAllWithCounts()</code></td><td>static-only</td></tr>
+        <tr><td>Reading time</td><td><code>ReadingTimeCalculator.Calculate(...)</code></td><td>static-only</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Lineage:</strong> page → <code>CategorySvc</code> / <code>BlogSvc</code> → <code>CategoryRepo</code> / <code>BlogPostRepo</code> → inline SQL on <code>Category</code>, <code>PostCategory</code>, <code>BlogPost</code>.</p>
+
+    <h2 id="guest-tag-archive-tag-slug-tags-tags-slug">Guest · Tag archive (<code>/tag/{Slug}</code>, <code>/tags</code>, <code>/tags/{Slug}</code>)<a class="anchor-link" href="#guest-tag-archive-tag-slug-tags-tags-slug">#</a></h2>
+
+    <p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/TagArchive.razor</code></p>
+
+    <table>
+      <thead>
+        <tr><th>Control</th><th>Source call</th><th>Render status</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Tag header</td><td><code>TagService.GetTagBySlug(Slug)</code></td><td>static-only</td></tr>
+        <tr><td>Post list</td><td><code>TagService.GetPostsByTag(...)</code></td><td>static-only</td></tr>
+        <tr><td>Post count</td><td><code>TagService.GetPostCountByTag(...)</code></td><td>static-only</td></tr>
+        <tr><td>Tag list / cloud</td><td><code>TagService.GetAllWithCounts()</code></td><td>static-only</td></tr>
+        <tr><td>Category name per card</td><td><code>CategorySvc.GetAllCategories()</code> cached in a page dictionary</td><td>static-only</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Lineage:</strong> page → <code>TagSvc</code> (+ <code>CategorySvc</code>) → <code>BlogTagRepo</code> → inline SQL joining <code>Tag</code>, <code>PostTag</code>, <code>BlogPost</code>. The per-tag <code>COUNT</code> was the Story 7.5 bug (fixed in <code>BlogTagRepo.cs</code>); the category-name lookup was FIX-009.</p>
+
+    <h2 id="guest-series-series-series-slug">Guest · Series (<code>/series</code>, <code>/series/{Slug}</code>)<a class="anchor-link" href="#guest-series-series-series-slug">#</a></h2>
+
+    <p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/SeriesView.razor</code> · <strong>Layout:</strong> <code>FullWidthLayout</code></p>
+
+    <table>
+      <thead>
+        <tr><th>Control</th><th>Source call</th><th>Render status</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Series list (no slug)</td><td><code>SeriesService.GetAllWithCounts()</code></td><td>static-only</td></tr>
+        <tr><td>Series header + parts</td><td><code>SeriesService.GetSeriesBySlug(Slug)</code></td><td>static-only</td></tr>
+        <tr><td>Reading time per part</td><td><code>ReadingTimeCalculator.Calculate(...)</code></td><td>static-only</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Lineage:</strong> page → <code>SeriesSvc</code> → <code>BlogSeriesRepo</code> → inline SQL on <code>BlogSeries</code> + <code>BlogPost</code>.</p>
+
+    <h2 id="guest-search-search">Guest · Search (<code>/search</code>)<a class="anchor-link" href="#guest-search-search">#</a></h2>
+
+    <p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/SearchResults.razor</code></p>
+
+    <table>
+      <thead>
+        <tr><th>Control</th><th>Source call</th><th>Render status</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Result list</td><td><code>BlogSvc.SearchPosts(...)</code></td><td>static-only</td></tr>
+        <tr><td>Result count / paging</td><td><code>BlogSvc.GetSearchResultCount(...)</code></td><td>static-only</td></tr>
+        <tr><td>Category filter dropdown</td><td><code>CategorySvc.GetAllCategories()</code></td><td>static-only</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Lineage:</strong> page → <code>BlogSvc.SearchPosts</code> (<code>BlogSvc.cs:555-580</code>) → <code>BlogPostRepo.SearchPosts</code> (<code>BlogPostRepo.cs:424-465</code>) → PostgreSQL <code>ILIKE</code> across <code>Title</code>, <code>Abstract</code>, <code>PostContent</code>, <code>Tags</code>.</p>
+
+    <p><strong>Business rules:</strong> search covers published posts only; terms are highlighted in the rendered results.</p>
+
+    <h2 id="guest-authors-authors">Guest · Authors (<code>/authors</code>)<a class="anchor-link" href="#guest-authors-authors">#</a></h2>
+
+    <p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/AuthorsPage.razor</code> (+ <code>.razor.cs</code>)</p>
+
+    <table>
+      <thead>
+        <tr><th>Control</th><th>Source call</th><th>Render status</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Author list</td><td><code>UserRepo.GetAllAuthors()</code> (<strong>repository injected directly — no service layer</strong>)</td><td>static-only</td></tr>
+        <tr><td>Article count per author</td><td>part of <code>GetAllAuthors()</code>'s projection</td><td>static-only</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Lineage:</strong> page → <code>IBlogUserRepo.GetAllAuthors</code> → <code>BlogUserRepo.cs</code> inline <code>SELECT DISTINCT …</code> over <code>BlogUser</code> joined to <code>BlogPost</code>.</p>
+
+    <h2 id="guest-author-profile-author-username">Guest · Author profile (<code>/author/{Username}</code>)<a class="anchor-link" href="#guest-author-profile-author-username">#</a></h2>
+
+    <p><strong>File:</strong> <code>source/BlogUI/Pages/BlogPages/AuthorProfilePage.razor</code> (+ <code>.razor.cs</code>)</p>
+
+    <table>
+      <thead>
+        <tr><th>Control</th><th>Source call</th><th>Render status</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Author header</td><td><code>UserRepo.GetByUsername(Username)</code></td><td>static-only</td></tr>
+        <tr><td>Article list</td><td><code>{unresolved — TODO: the posts-by-author call was not located in AuthorProfilePage.razor.cs}</code></td><td>unresolved</td></tr>
+        <tr><td>Resume sections (when <code>ResumeEnabled</code>)</td><td><code>Components/Resume/*</code> fed by the skills/awards/events repositories</td><td>static-only</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Business rules:</strong> an unknown username must 404 (BRD-55); <code>ResumeEnabled</code> gates the resume sections.</p>
+
+    <h2 id="guest-resume-resume">Guest · Resume (<code>/resume</code>)<a class="anchor-link" href="#guest-resume-resume">#</a></h2>
+
+    <p><strong>File:</strong> <code>source/BlogUI/Pages/ResumePage.razor</code> (+ <code>.razor.cs</code>) · <strong>Layout:</strong> <code>FullWidthLayout</code></p>
+
+    <div class="diagram">
+      <div class="dt">
+        <button data-zout title="Zoom out">−</button>
+        <span class="zlabel">100%</span>
+        <button data-zin title="Zoom in">+</button>
+        <button data-fit title="Fit to width">Fit</button>
+        <button data-one title="Actual size">1:1</button>
+        <button data-fs title="Fullscreen">⛶</button>
+        <button data-pop title="Open in new tab">↗</button>
+      </div>
+      <pre class="mermaid">flowchart LR
   RP["ResumePage.razor.cs"] --> UR["IBlogUserRepo.GetSiteOwner"]
   UR --> DB[("BlogUser where IsSiteOwner")]
   RP --> Hero["ResumeHero.razor"]
@@ -252,25 +526,78 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   RP --> Sk["ResumeSkills.razor"]
   RP --> Aw["ResumeAwards.razor"]
   RP --> Ct["ResumeContact.razor"]</pre>
-</div>
-<table><thead><tr><th>Control</th><th>Source call</th><th>Render status</th></tr></thead><tbody><tr><td>Hero (photo, name, title, tagline, CTAs, socials)</td><td><code>UserRepo.GetSiteOwner()</code> → <code>ResumeHero.razor</code></td><td>static-only</td></tr><tr><td>Experience timeline</td><td><code>ResumeExperience.razor</code> → <code>IUserEventRepo.GetByUserAndType(userId, "Experience")</code></td><td>static-only</td></tr><tr><td>Skills grid</td><td><code>ResumeSkills.razor</code> → <code>IUserSkillsRepo.GetByUserId</code></td><td>static-only</td></tr><tr><td>Awards</td><td><code>ResumeAwards.razor</code> → <code>IUserAwardsRepo.GetByUserId</code></td><td>static-only</td></tr><tr><td>Contact</td><td><code>ResumeContact.razor</code> — fields off <code>AppUser</code></td><td>static-only</td></tr><tr><td>Download CV</td><td><code>AppUser.CVFilePath</code> → static file under <code>wwwroot/uploads/cv/</code></td><td>static-only</td></tr></tbody></table>
-<p><strong>Lineage:</strong> <code>ResumePage.razor.cs:47</code> <code>siteOwner = UserRepo.GetSiteOwner();</code> → <code>BlogUserRepo</code> inline SQL on <code>BlogUser</code> filtered by <code>IsSiteOwner</code> (uniqueness enforced by the partial index in migration <code>012</code>).</p>
-<p><strong>Business rules:</strong> if no user has <code>IsSiteOwner = true</code>, the whole page has nothing to render. <strong>Known issue (static):</strong> no fallback/empty state was located for that case — <code>{unresolved — TODO: confirm ResumePage behaviour when GetSiteOwner() returns null}</code>.</p>
-<h2 id="guest-about-about-and-404-404">Guest · About (<code>/about</code>) and 404 (<code>/404</code>)<a class="anchor-link" href="#guest-about-about-and-404-404">#</a></h2>
-<p><strong>Files:</strong> <code>Pages/BlogPages/About.razor</code>, <code>Pages/AdminPages/404Page.razor</code> (uses <code>AuthLayout</code>). Static content; no service calls. Dark-mode styling for About was fixed in Story 7.3.</p>
-<h2 id="guest-rss-rss-sitemap-sitemap-xml-robots-robots-txt">Guest · RSS (<code>/rss</code>), sitemap (<code>/sitemap.xml</code>), robots (<code>/robots.txt</code>)<a class="anchor-link" href="#guest-rss-rss-sitemap-sitemap-xml-robots-robots-txt">#</a></h2>
-<table><thead><tr><th>Endpoint</th><th>Implementation</th><th>Lineage</th></tr></thead><tbody><tr><td><code>/rss</code></td><td><code>Pages/BlogPages/RssFeed.razor</code></td><td>page → <code>BlogSvc.GetPublishedPosts</code> → <code>BlogPostRepo</code></td></tr><tr><td><code>/sitemap.xml</code></td><td>minimal endpoint, <code>source/TechieBlog/Program.cs:169</code></td><td>→ <code>SitemapSvc.GenerateSitemap()</code> → <code>BlogSvc</code> / repositories</td></tr><tr><td><code>/robots.txt</code></td><td>minimal endpoint, <code>Program.cs:176</code></td><td>reads <code>SiteSettings:BaseUrl</code> from configuration</td></tr></tbody></table>
-<h2 id="guest-login-register-forgot-reset">Guest · Login / Register / Forgot / Reset<a class="anchor-link" href="#guest-login-register-forgot-reset">#</a></h2>
-<p>Documented once here because anonymous visitors reach them; see the index §3 <strong>LANDING-TRUTH</strong> section for the post-login redirect defect.</p>
-<table><thead><tr><th>Screen</th><th>File</th><th>Key call</th></tr></thead><tbody><tr><td><code>/login</code></td><td><code>Pages/AdminPages/LoginPage.razor</code> + <code>.razor.cs</code></td><td><code>AuthSvc.LoginAsync(SvcData)</code> → <code>CustomAuthStateProvider.MarkUserAsAuthenticated</code> → <code>NavigateTo("/admin")</code> (<code>:106</code>)</td></tr><tr><td><code>/register</code></td><td><code>Pages/AdminPages/RegisterPage.razor</code></td><td><code>AuthService.RegisterUser(...)</code> → on success <code>NavigateTo("/login")</code> (<code>:160</code>)</td></tr><tr><td><code>/forgot-password</code></td><td><code>Pages/AdminPages/ForgotPasswordPage.razor</code></td><td><code>await AuthService.RequestPasswordReset(...)</code></td></tr><tr><td><code>/reset-password/{Token}</code></td><td><code>Pages/AdminPages/ResetPasswordPage.razor</code></td><td><code>AuthService.ValidateResetToken(...)</code>, <code>AuthService.ResetPassword(...)</code></td></tr><tr><td><code>/access-denied</code></td><td><code>Pages/AccessDenied.razor</code></td><td>static</td></tr></tbody></table>
-<p><strong>Lineage:</strong> page → <code>AuthSvc</code> (<code>BlogEngine/Services/AuthSvc.cs</code>) → <code>BlogUserRepo</code> → PostgreSQL stored functions <code>GetLoginUser</code>, <code>GetUserByEmail</code>, <code>InsertBlogUser</code>, <code>SelectBlogUserById</code>. Reset tokens go to <code>PasswordResetTokenRepo</code>, an <strong>in-memory singleton</strong> (<code>BlogSvcInitializer.cs:19</code>) — they do not survive a restart. The reset "email" is written to the log by <code>ConsoleEmailService</code>, not sent.</p>
-<p><strong>Known issues (static):</strong> 1. <strong>Role-blind redirect</strong> — see index §3 and finding #1. 2. Reset tokens are lost on restart (REQ-NFR-019, by design per FIX-PLAN but a real operational trap). 3. No rate limiting on the login endpoint (REQ-NFR-005).</p>
-<p>--- Generated 2026-08-02 · reflects code as built · ⚠ STATIC-ONLY</p>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>Control</th><th>Source call</th><th>Render status</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Hero (photo, name, title, tagline, CTAs, socials)</td><td><code>UserRepo.GetSiteOwner()</code> → <code>ResumeHero.razor</code></td><td>static-only</td></tr>
+        <tr><td>Experience timeline</td><td><code>ResumeExperience.razor</code> → <code>IUserEventRepo.GetByUserAndType(userId, "Experience")</code></td><td>static-only</td></tr>
+        <tr><td>Skills grid</td><td><code>ResumeSkills.razor</code> → <code>IUserSkillsRepo.GetByUserId</code></td><td>static-only</td></tr>
+        <tr><td>Awards</td><td><code>ResumeAwards.razor</code> → <code>IUserAwardsRepo.GetByUserId</code></td><td>static-only</td></tr>
+        <tr><td>Contact</td><td><code>ResumeContact.razor</code> — fields off <code>AppUser</code></td><td>static-only</td></tr>
+        <tr><td>Download CV</td><td><code>AppUser.CVFilePath</code> → static file under <code>wwwroot/uploads/cv/</code></td><td>static-only</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Lineage:</strong> <code>ResumePage.razor.cs:47</code> <code>siteOwner = UserRepo.GetSiteOwner();</code> → <code>BlogUserRepo</code> inline SQL on <code>BlogUser</code> filtered by <code>IsSiteOwner</code> (uniqueness enforced by the partial index in migration <code>012</code>).</p>
+
+    <p><strong>Business rules:</strong> if no user has <code>IsSiteOwner = true</code>, the whole page has nothing to render. <strong>Known issue (static):</strong> no fallback/empty state was located for that case — <code>{unresolved — TODO: confirm ResumePage behaviour when GetSiteOwner() returns null}</code>.</p>
+
+    <h2 id="guest-about-about-and-404-404">Guest · About (<code>/about</code>) and 404 (<code>/404</code>)<a class="anchor-link" href="#guest-about-about-and-404-404">#</a></h2>
+
+    <p><strong>Files:</strong> <code>Pages/BlogPages/About.razor</code>, <code>Pages/AdminPages/404Page.razor</code> (uses <code>AuthLayout</code>). Static content; no service calls. Dark-mode styling for About was fixed in Story 7.3.</p>
+
+    <h2 id="guest-rss-rss-sitemap-sitemap-xml-robots-robots-txt">Guest · RSS (<code>/rss</code>), sitemap (<code>/sitemap.xml</code>), robots (<code>/robots.txt</code>)<a class="anchor-link" href="#guest-rss-rss-sitemap-sitemap-xml-robots-robots-txt">#</a></h2>
+
+    <table>
+      <thead>
+        <tr><th>Endpoint</th><th>Implementation</th><th>Lineage</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>/rss</code></td><td><code>Pages/BlogPages/RssFeed.razor</code></td><td>page → <code>BlogSvc.GetPublishedPosts</code> → <code>BlogPostRepo</code></td></tr>
+        <tr><td><code>/sitemap.xml</code></td><td>minimal endpoint, <code>source/TechieBlog/Program.cs:169</code></td><td>→ <code>SitemapSvc.GenerateSitemap()</code> → <code>BlogSvc</code> / repositories</td></tr>
+        <tr><td><code>/robots.txt</code></td><td>minimal endpoint, <code>Program.cs:176</code></td><td>reads <code>SiteSettings:BaseUrl</code> from configuration</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="guest-login-register-forgot-reset">Guest · Login / Register / Forgot / Reset<a class="anchor-link" href="#guest-login-register-forgot-reset">#</a></h2>
+
+    <p>Documented once here because anonymous visitors reach them; see the index §3 <strong>LANDING-TRUTH</strong> section for the post-login redirect defect.</p>
+
+    <table>
+      <thead>
+        <tr><th>Screen</th><th>File</th><th>Key call</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>/login</code></td><td><code>Pages/AdminPages/LoginPage.razor</code> + <code>.razor.cs</code></td><td><code>AuthSvc.LoginAsync(SvcData)</code> → <code>CustomAuthStateProvider.MarkUserAsAuthenticated</code> → <code>NavigateTo("/admin")</code> (<code>:106</code>)</td></tr>
+        <tr><td><code>/register</code></td><td><code>Pages/AdminPages/RegisterPage.razor</code></td><td><code>AuthService.RegisterUser(...)</code> → on success <code>NavigateTo("/login")</code> (<code>:160</code>)</td></tr>
+        <tr><td><code>/forgot-password</code></td><td><code>Pages/AdminPages/ForgotPasswordPage.razor</code></td><td><code>await AuthService.RequestPasswordReset(...)</code></td></tr>
+        <tr><td><code>/reset-password/{Token}</code></td><td><code>Pages/AdminPages/ResetPasswordPage.razor</code></td><td><code>AuthService.ValidateResetToken(...)</code>, <code>AuthService.ResetPassword(...)</code></td></tr>
+        <tr><td><code>/access-denied</code></td><td><code>Pages/AccessDenied.razor</code></td><td>static</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Lineage:</strong> page → <code>AuthSvc</code> (<code>BlogEngine/Services/AuthSvc.cs</code>) → <code>BlogUserRepo</code> → PostgreSQL stored functions <code>GetLoginUser</code>, <code>GetUserByEmail</code>, <code>InsertBlogUser</code>, <code>SelectBlogUserById</code>. Reset tokens go to <code>PasswordResetTokenRepo</code>, an <strong>in-memory singleton</strong> (<code>BlogSvcInitializer.cs:19</code>) — they do not survive a restart. The reset "email" is written to the log by <code>ConsoleEmailService</code>, not sent.</p>
+
+    <p><strong>Known issues (static):</strong></p>
+    <ol>
+      <li><strong>Role-blind redirect</strong> — see index §3 and finding #1.</li>
+      <li>Reset tokens are lost on restart (REQ-NFR-019, by design per FIX-PLAN but a real operational trap).</li>
+      <li>No rate limiting on the login endpoint (REQ-NFR-005).</li>
+    </ol>
+
+    <hr>
+    <p>Generated 2026-08-02 · reflects code as built · ⚠ STATIC-ONLY</p>
   </main>
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
-<script>// Light/dark toggle. The initial theme was already applied flash-free by the
+<script>
+// Light/dark toggle. The initial theme was already applied flash-free by the
 // <head> script (saved choice, else time-of-day). Clicking flips it, saves the
 // choice, and reloads so Mermaid re-renders in the matching theme.
 (function(){
@@ -288,7 +615,11 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   });
 })();
 
-// Copy buttons on every code <pre> — but NEVER on a `pre.mermaid`.
+// Copy buttons on every code <pre> — but NEVER on a `pre.mermaid`:
+// mermaid reads the <pre>'s textContent as the diagram source, so a button
+// appended here glues "copy" onto the last line and breaks the parse
+// (flowcharts → "Syntax error"; sequence diagrams silently absorb it).
+// Mermaid blocks get copy/export from their own .diagram toolbar instead.
 document.querySelectorAll('pre:not(.mermaid)').forEach(pre => {
   const btn = document.createElement('button');
   btn.className = 'copy';
@@ -353,6 +684,7 @@ function wireMermaidToolbars() {
     };
     function escFs(e) { if (e.key === 'Escape') { dia.classList.remove('fs'); document.removeEventListener('keydown', escFs); } }
     dia.querySelector('[data-pop]').onclick = () => openInNewTab(svg);
+    // Ctrl+wheel zoom
     merm.addEventListener('wheel', (e) => {
       if (!e.ctrlKey) return;
       e.preventDefault();
@@ -417,9 +749,11 @@ function openInNewTab(svg) {
   w.document.close();
 }
 
+// Run wiring after mermaid finishes (it renders async)
 if (window.mermaid) {
   setTimeout(wireMermaidToolbars, 400);
-  setTimeout(wireMermaidToolbars, 1200);
-}</script>
+  setTimeout(wireMermaidToolbars, 1200);  // safety re-run for slow renders
+}
+</script>
 </body>
 </html>
