@@ -108,7 +108,14 @@
                            every row even though every published post carries a FeaturedImage. The
                            search projection selects that column, so the real cover is shown and the
                            placeholder is kept only as the genuine no-image fallback — the same
-                           rule PostCard applies on the home and archive listings. *@
+                           rule PostCard applies on the home and archive listings.
+                           [REQ-UI-049] 2026-08-24 (UAT-025): that literal "Image" text box read as
+                           broken, and search's own thumbnail had no onerror path at all — a 404'd
+                           FeaturedImage fell straight through to the browser's alt-text rendering.
+                           Search does not use <PostCard> (its row layout differs), so this block is
+                           brought to the SAME fallback markup/behaviour by hand: PostCard.razor's
+                           `.post-card-fallback` gradient class plus the identical inline onerror
+                           idempotency guard, so all three surfaces agree. *@
                         <div class="h-28 w-full shrink-0 overflow-hidden rounded-md bg-muted sm:w-40">
                             @if (!string.IsNullOrWhiteSpace(result.ImageUrl))
                             {
@@ -116,13 +123,13 @@
                                      alt="@result.Title"
                                      loading="lazy"
                                      class="h-full w-full object-cover"
-                                     data-testid="search-result-image" />
+                                     data-testid="search-result-image"
+                                     onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.classList.remove('hidden');" />
                             }
-                            else
-                            {
-                                <div class="flex h-full w-full items-center justify-center text-xs text-muted-foreground"
-                                     data-testid="search-result-image-placeholder">Image</div>
-                            }
+                            <div class="post-card-fallback flex h-full w-full items-center justify-center @(string.IsNullOrWhiteSpace(result.ImageUrl) ? null : "hidden")"
+                                 data-testid="search-result-image-placeholder">
+                                <LucideIcon Name="image-off" Size="28" Class="text-muted-foreground opacity-40" />
+                            </div>
                         </div>
                         <div class="flex flex-1 flex-col gap-2">
                             <div>

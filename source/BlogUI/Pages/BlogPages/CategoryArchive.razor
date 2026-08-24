@@ -114,13 +114,17 @@ else
         <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="posts-grid">
             @foreach (var post in posts)
             {
-                @* [REQ-UI-045] 2026-08-09 — ImageUrl/ImagePlaceholder were missing here, so every
-                   card on this page fell back to PostCard's grey placeholder even though the
-                   category projection selects FeaturedImage and every published post has one.
-                   The acceptance is that PostCard renders IDENTICALLY on home, archive and search;
-                   this matches what HomeLatestArticles already passes. *@
+                @* [REQ-UI-045] 2026-08-09 — ImageUrl was missing here, so every card on this page
+                   fell back to PostCard's grey placeholder even though the category projection
+                   selects FeaturedImage and every published post has one. The acceptance is that
+                   PostCard renders IDENTICALLY on home, archive and search; this matches what
+                   HomeLatestArticles already passes. *@
                 @* [REQ-FN-057] Date is the PUBLICATION date, not the creation date —
                    SelectByCategorySql selects PublishedOn for exactly this card. *@
+                @* [REQ-UI-049] 2026-08-24 — ImagePlaceholder was retired from PostCard (UAT-025):
+                   it used to receive the post title here too, doubling the title onto a banner-less
+                   card. The no-image state is now a fixed designed fallback with nothing left to
+                   configure per call. *@
                 <PostCard Category="@category.CategoryName"
                           Title="@post.Title"
                           Excerpt="@(string.IsNullOrEmpty(post.Abstract) ? GetExcerpt(post.PostContent) : post.Abstract)"
@@ -128,8 +132,7 @@ else
                           AuthorName="@(string.IsNullOrEmpty(post.BlogWriter) ? "Unknown" : post.BlogWriter)"
                           Date="@((post.PublishedOn ?? post.CreatedOn).ToString("MMM dd"))"
                           ReadTime="@GetReadingTime(post.PostContent)"
-                          ImageUrl="@post.FeaturedImage"
-                          ImagePlaceholder="@post.Title" />
+                          ImageUrl="@post.FeaturedImage" />
             }
         </div>
 

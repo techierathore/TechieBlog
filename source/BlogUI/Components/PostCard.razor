@@ -7,7 +7,20 @@
     REQ-UI-041/042 — the author byline is plain text; public author profiles are retired.
     REQ-UI-028 — no favourite toggle.
 
-    Dependencies: TrBlazeUI Card/Badge, StarRating component
+    REQ-UI-049 / UAT-025 (2026-08-24) — "Articles without banner look ugly". The no-image state used
+    to render the post title as the ONLY content of the empty image box, so a banner-less card showed
+    the same title twice (once stranded inside the grey box, once below it in the real heading), and
+    the box itself read as a broken image. Replaced with a designed fallback — a subtle theme-token
+    gradient (`.post-card-fallback` in wwwroot/css/utilities.css; a pre-built Tailwind bundle ships no
+    from-*/to-* gradient-stop utilities for custom tokens, so the gradient colours are a hand-written
+    rule) plus a centred, low-opacity `image-off` glyph — and the `ImagePlaceholder` text parameter
+    was retired entirely (see the parameter's own history note below). The same fallback also catches
+    a `FeaturedImage` URL that 404s (the stranded-uploads class, UAT-022): the plain inline `onerror`
+    DOM attribute below is not a Blazor event handler, so it survives every render; it hides the
+    broken `<img>` and reveals the sibling fallback via `nextElementSibling`, and nulls itself out
+    first so it can never re-fire in a loop.
+
+    Dependencies: TrBlazeUI Card/Badge, LucideIcon, StarRating component
     Usage: Used in Home page post grids, archive pages and search results
 *@
 
@@ -19,15 +32,13 @@
                  alt="@Title"
                  loading="lazy"
                  class="h-full w-full object-cover"
-                 data-testid="post-card-image" />
+                 data-testid="post-card-image"
+                 onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.classList.remove('hidden');" />
         }
-        else
-        {
-            <div class="flex h-full w-full items-center justify-center text-sm text-muted-foreground"
-                 data-testid="post-card-image-placeholder">
-                @(string.IsNullOrEmpty(ImagePlaceholder) ? "Image" : ImagePlaceholder)
-            </div>
-        }
+        <div class="post-card-fallback flex h-full w-full items-center justify-center @(string.IsNullOrEmpty(ImageUrl) ? null : "hidden")"
+             data-testid="post-card-image-placeholder">
+            <LucideIcon Name="image-off" Size="40" Class="text-muted-foreground opacity-40" />
+        </div>
     </div>
 
     <CardContent Class="flex flex-1 flex-col gap-2 p-4">
@@ -120,14 +131,16 @@
     public int RatingCount { get; set; } = 0;
 
     /// <summary>
-    /// Optional placeholder text for the image area.
-    /// </summary>
-    [Parameter]
-    public string? ImagePlaceholder { get; set; }
-
-    /// <summary>
     /// Optional URL for the post's featured image.
     /// </summary>
+    /// <remarks>
+    /// REQ-UI-049 / UAT-025 (2026-08-24): the sibling text parameter <c>ImagePlaceholder</c> was
+    /// retired here — every caller was passing the post title through it, which rendered the title
+    /// a second time as the sole content of an empty image box. The no-image state is now always the
+    /// same designed gradient-plus-glyph fallback (see the component's own top-of-file remarks), so
+    /// there is nothing left for a per-call placeholder string to configure. Empty or null collapses
+    /// to that fallback; any non-empty value renders the image.
+    /// </remarks>
     [Parameter]
     public string? ImageUrl { get; set; }
 }

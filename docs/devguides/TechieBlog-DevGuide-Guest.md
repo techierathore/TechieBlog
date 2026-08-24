@@ -95,7 +95,12 @@ flowchart LR
 
 **Business rules:** only `Published = true` posts appear; ordering is by publish date descending.
 
-**Known issues:** none found statically.
+**Known issues:** none. **✅ UAT-025 and UAT-026 are both FIXED and verified 2026-08-24** (`*fix-issues`; observed on the running host, not inferred):
+
+- **(1) banner-less post card — FIXED.** `ImagePlaceholder` is **retired entirely** from `PostCard.razor` and all of its call sites, so no caller can feed the title into the image box again. The no-image state is now a designed fallback — a theme-token gradient (`.post-card-fallback`, `wwwroot/css/utilities.css:228`) behind a centred low-opacity Lucide `image-off` glyph — and the same fallback also catches a `FeaturedImage` URL that 404s, via an idempotent inline `onerror` on the `<img>` (`PostCard.razor:36`). **Observed:** placeholder text is now the empty string (it was byte-identical to the card title before), glyph 40×40, gradient computes to real `oklch` stops in both light and dark. `SearchResults.razor`, which renders its own thumbnail rather than a `<PostCard>`, was brought to the same behaviour so all three listing surfaces agree.
+- **(2) cross-platform typography — FIXED.** The site now self-hosts **Inter** as a variable woff2 from its own origin (`_content/BlogUI/fonts/inter-latin-var.woff2`, 48 KB latin + an 85 KB latin-ext subset that an English page never requests), declared with `@font-face` + `font-display: swap` and `unicode-range` subsetting at `css/theme.css:66-82`; `--tb-font-ui`/`--tb-font-heading` lead with `"Inter"` and the unshipped `Poppins` entries are gone from `blogui.css:15` / `adminui.css:15`. **Observed:** `document.fonts.size` 0 → 2, `fonts.check('16px Inter')` true, and blocking the woff2 shifts a real `h1` by 79.5px — so the glyphs genuinely changed. macOS and Windows now render the same face. The `developer` (mono) and `minimal` (serif) site themes were deliberately left on their own faces and confirmed free of Inter leak.
+
+**Render/visual status (observed 2026-08-24, host `:5421`):** RENDERS + VISUAL-OK at 1280 and 390, in both dark and light — 0 horizontal scroll, 0 off-viewport elements. Screenshots `test-results-fixissues/home-{1280,390}-{dark,light}.png`. ⚠ Still NOT observable on this database (not defects): the headline **stats band** (no `UserStats` rows) and the **Download-CV CTA** (no `CVFilePath`); both collapse by design rather than rendering blank.
 
 ## Guest · Post view (`/post/{Slug}`, `/post/{Slug}/{PageNumber}`)
 

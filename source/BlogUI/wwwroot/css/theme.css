@@ -42,6 +42,46 @@
    ========================================================================== */
 
 /* -----------------------------------------------------------------------------
+   0. WEBFONT: Inter (self-hosted) — UAT-026 / REQ-UI-005
+   -------------------------------------------------------------------------- */
+/* Root cause of UAT-026: the site shipped no webfont at all, so --tb-font-ui /
+   --tb-font-heading below fell through to "Segoe UI" (Windows only) on Windows
+   and to system-ui (SF Pro on macOS) everywhere else — two different typefaces
+   with different metrics rendering the same page. Owner chose option (a):
+   self-host Inter so every OS renders the same face.
+
+   Variable font (weight 100-900 in one file per subset), NOT static per-weight
+   files: the design uses 400/600/700/800 today, and a variable file covers all
+   of those plus any future weight with zero synthesis risk, for a smaller real
+   payload than shipping four static weights — a visitor with only latin-script
+   content downloads just the 48 KB "latin" file below; "latin-ext" (85 KB)
+   loads only if a latin-ext codepoint actually appears on the page. Subsetted
+   to latin + latin-ext only — this site is English, so cyrillic / greek /
+   vietnamese were dropped from the upstream Google Fonts CSS.
+
+   Self-hosted from this RCL's own wwwroot (served at _content/BlogUI/fonts/),
+   NOT a fonts.googleapis.com/fonts.gstatic.com link — same-origin, no external
+   request at runtime. Root-relative URLs so resolution does not depend on the
+   depth of the page that pulled in theme.css. */
+@font-face {
+    font-family: "Inter";
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url("/_content/BlogUI/fonts/inter-latin-var.woff2") format("woff2");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: "Inter";
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url("/_content/BlogUI/fonts/inter-latin-ext-var.woff2") format("woff2");
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* -----------------------------------------------------------------------------
    1. THEME: TrBlaze Modern (default) — neutral shadcn palette, blue primary
    -------------------------------------------------------------------------- */
 
@@ -97,9 +137,12 @@
     --chart-4: oklch(0.68 0.18 55);
     --chart-5: oklch(0.58 0.22 328);
 
-    /* Typography stacks consumed by the legacy bridge. */
-    --tb-font-ui: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
-    --tb-font-heading: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    /* Typography stacks consumed by the legacy bridge.
+       UAT-026 / REQ-UI-005: Inter (self-hosted, @font-face above) leads so every OS renders
+       the same face; "Segoe UI" / system-ui remain as the fallback stack for the swap window
+       before Inter loads and for any environment where the webfont request fails. */
+    --tb-font-ui: "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --tb-font-heading: "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
     --tb-font-mono: "Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, "Courier New", monospace;
 }
 

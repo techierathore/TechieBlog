@@ -20,9 +20,18 @@ namespace TechieBlog.Tests.Components.BlogUi;
 public class PostCardTests : BunitContext
 {
     /// <summary>
-    /// A card given a featured-image URL renders a real image element pointing at it,
-    /// and no placeholder — the home-page behaviour the archives had to match.
+    /// A card given a featured-image URL renders a real image element pointing at it, with
+    /// the fallback placeholder present but hidden — the home-page behaviour the archives
+    /// had to match.
     /// </summary>
+    /// <remarks>
+    /// REQ-UI-049 / UAT-025 (2026-08-24): the fallback placeholder is now always rendered
+    /// alongside a supplied image (as a hidden sibling), not omitted, so the inline
+    /// <c>onerror</c> handler on the <c>&lt;img&gt;</c> has an element to reveal via
+    /// <c>nextElementSibling</c> when a <c>FeaturedImage</c> URL 404s. "No placeholder" is
+    /// therefore asserted as "present but carrying the hidden class", not "absent from the
+    /// DOM".
+    /// </remarks>
     [Fact]
     public void PostCardRendersImageWhenUrlSupplied()
     {
@@ -34,7 +43,8 @@ public class PostCardTests : BunitContext
         // Assert
         var image = cut.Find("[data-testid='post-card-image']");
         Assert.Equal("/_content/BlogUI/images/HomeBg.jpg", image.GetAttribute("src"));
-        Assert.Empty(cut.FindAll("[data-testid='post-card-image-placeholder']"));
+        var placeholder = cut.Find("[data-testid='post-card-image-placeholder']");
+        Assert.Contains("hidden", placeholder.ClassList);
     }
 
     /// <summary>
@@ -58,17 +68,28 @@ public class PostCardTests : BunitContext
     /// With no URL the card still renders a placeholder rather than a broken image, so a
     /// genuinely image-less post degrades instead of failing.
     /// </summary>
+    /// <remarks>
+    /// REQ-UI-049 / UAT-025 (2026-08-24): the placeholder used to be the post title rendered
+    /// as the box's ONLY content — a card without a banner showed its own title twice. The
+    /// <c>ImagePlaceholder</c> text parameter this test used to exercise was retired; the
+    /// no-image state is now a fixed designed fallback (gradient background, centred glyph)
+    /// with nothing left to configure per call. Asserting the placeholder's text is empty and
+    /// carries an icon — rather than asserting on any text — is what would have caught the
+    /// original defect and catches a regression back to it.
+    /// </remarks>
     [Fact]
-    public void PostCardFallsBackToPlaceholderWithoutUrl()
+    public void PostCardFallsBackToDesignedPlaceholderWithoutUrl()
     {
         // Arrange, Act
         var cut = Render<PostCard>(parameters => parameters
-            .Add(card => card.Title, "A post with no cover")
-            .Add(card => card.ImagePlaceholder, "No cover"));
+            .Add(card => card.Title, "A post with no cover"));
 
         // Assert
         Assert.Empty(cut.FindAll("[data-testid='post-card-image']"));
-        Assert.Equal("No cover", cut.Find("[data-testid='post-card-image-placeholder']").TextContent.Trim());
+        var placeholder = cut.Find("[data-testid='post-card-image-placeholder']");
+        Assert.NotEqual("A post with no cover", placeholder.TextContent.Trim());
+        Assert.Empty(placeholder.TextContent.Trim());
+        Assert.NotNull(placeholder.QuerySelector("svg"));
     }
 
     /// <summary>
