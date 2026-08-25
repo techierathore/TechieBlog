@@ -1,5 +1,5 @@
 /* ==========================================================================
-   post.css — post detail page (UAT-027, 2026-08-24)
+   post.css — post detail page (UAT-027, 2026-08-24; TOC rail removed UAT-029)
    ==========================================================================
    Owned by the post-page rebuild. Kept OUT of layout.css and utilities.css so
    the width-system work and the post-page work can proceed without touching the
@@ -7,14 +7,19 @@
 
    Context: on a 4K display the post page rendered an 820px text column inside a
    1024px main inside a 1280px header, leaving ~1220px of empty gutter and no
-   structure using it. The article MEASURE stays capped (see .prose-container in
-   layout.css — long lines hurt reading accuracy); what changes is that the page
-   around the text now uses the width: a full-bleed title band and a rail beside
-   the body.
+   structure using it. UAT-027 added a full-bleed title band and a sticky TOC
+   rail beside the article body — which gave the page three different left
+   edges (band/comments at the full container, the rail at 240px, the article
+   at 820px). UAT-029 removed the rail entirely and put every block on the page
+   inside `.post-column` (layout.css — owner-owned, not edited here), so there
+   is exactly one left edge and one right edge. The article MEASURE still stays
+   capped (see .prose-container in layout.css — long lines hurt reading
+   accuracy) at the same width as `.post-column` itself.
 
    Depends on the width system in layout.css:
        .site-container   fluid layout tier, caps at 1600px
-       .prose-container  reading tier, caps at 820px
+       .post-column      the post page's single aligned column, 52rem (UAT-029)
+       .prose-container  reading tier, caps at 52rem
 
    NOTE this build ships TrBlazeUI's PREBUILT css with NO Tailwind JIT pass, so
    arbitrary-value utilities (`max-w-[820px]`, `grid-cols-[240px_1fr]`) are never
@@ -115,62 +120,9 @@
     text-shadow: 0 1px 3px rgb(0 0 0 / .5);
 }
 
-/* --------------------------------------------------------------------------
-   ARTICLE BODY + TOC RAIL LAYOUT
-   --------------------------------------------------------------------------
-   .post-toc-layout with no modifier is a plain block: its single child,
-   .prose-container, centres itself via ITS OWN margin-inline:auto (layout.css)
-   exactly as before this rebuild — a post with fewer than 2 headings (no rail)
-   renders byte-identical to the pre-UAT-027 layout.
-
-   .post-toc-layout--with-rail only takes effect at >=1024px, matching where
-   .post-toc-rail itself stops being display:none. Below that breakpoint the
-   grid never activates, so there is nothing to "collapse" at render time — the
-   rail is simply absent (see .post-toc-rail below), and the layout is
-   identical to the no-rail case.
-
-   justify-content:center (not a fixed max-width + margin:auto on the grid
-   itself) centres the two-column track set within the full-width grid
-   container without having to compute the combined rail+gap+prose width by
-   hand.
-   -------------------------------------------------------------------------- */
-
-.post-toc-layout {
-    width: 100%;
-}
-
-@media (min-width: 1024px) {
-    .post-toc-layout--with-rail {
-        display: grid;
-        grid-template-columns: 240px minmax(0, 820px);
-        column-gap: 3rem;
-        justify-content: center;
-        align-items: start;
-    }
-}
-
-/* Hidden by default — genuinely REMOVED from the layout below 1024px
-   (offsetParent === null), not merely squashed by a narrower grid track. */
-.post-toc-rail {
-    display: none;
-}
-
-@media (min-width: 1024px) {
-    .post-toc-rail {
-        display: block;
-        position: sticky;
-        /* Clears the sticky site header (60px) plus breathing room. */
-        top: 5.5rem;
-        max-height: calc(100vh - 7rem);
-        overflow-y: auto;
-        padding-right: 0.5rem;
-    }
-}
-
-.post-toc-rail__heading {
-    display: block;
-    margin-bottom: 0.75rem;
-    color: var(--muted-foreground);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
+/* The TOC rail and its two-column grid (.post-toc-layout / .post-toc-layout--with-rail /
+   .post-toc-rail / .post-toc-rail__heading) were removed for UAT-029 — the owner reported
+   the section unnecessary, and its 240px track was one of the page's three mismatched left
+   edges. Every block on the post page now sits inside `.post-column` (layout.css) instead;
+   there is no rule left in this file for the article-body layout, since `.prose-container`
+   (also layout.css) is all it needs. */

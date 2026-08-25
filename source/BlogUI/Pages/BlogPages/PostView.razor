@@ -30,28 +30,35 @@
                  Owner report: "lot of gap on both sides" — the article text correctly
                  stays at 820px (line-length is a readability decision, not the bug), but
                  everything around it used to sit in that same 820px column too, leaving
-                 ~1220px of empty gutter on a wide screen. Now: (1) a full-bleed title band
-                 spans the fluid .site-container width FullWidthLayout's <main> already
-                 provides; (2) a sticky, scroll-spied table-of-contents rail
-                 (PostTocRail, wrapping TrBlazeUI's <AnchorNav>) sits beside the article
-                 body at >=1024px and is fully removed from the layout below it; (3) the
-                 article body itself, plus the rating panel and author card, stay inside
-                 .prose-container at 820px, unchanged; (4) related posts and comments move
-                 out of the 820px column to use the fluid width, since both benefit from
-                 more room than a reading column. The TOC's heading ids are read back out
-                 of Markdig's own UseAutoIdentifiers() output (MarkdownRenderer.cs) rather
-                 than re-derived, so its anchors always match what is actually in the DOM.
+                 ~1220px of empty gutter on a wide screen. UAT-027's fix was a full-bleed
+                 title band plus a sticky table-of-contents rail beside the article body —
+                 which produced a NEW defect (UAT-029): the rail's own 240px track and the
+                 title band / comments' full .site-container width gave the page three
+                 different left edges, with the Comments block sitting 534px to the left of
+                 the article directly above it.
 
-    Dependencies: BlogBreadcrumb, PostRatingPanel, PostTocRail, CommentThread, CommentForm
-    components; FullWidthLayout, BlogSvc, SeriesSvc, CommentSvc, MarkdownRenderer,
-    IPostViewTracker, IAnalyticsService
+    REQ-UI-045 / UAT-029 — the TOC rail is removed entirely (owner: "not needed"), and
+                 every block on the page — breadcrumb, title band, article body, pagination,
+                 series nav, tags, rating panel, author card, related posts and comments —
+                 now sits inside the single `.post-column` (layout.css; `min(100%, 52rem)`)
+                 so they all share one left edge and one right edge. `.prose-container`
+                 still wraps the article body at the same 52rem width for the reading
+                 measure — nested inside `.post-column` this is a no-op on layout (both cap
+                 at the same width) and is kept only because the article body's own CSS hook
+                 is documented as living there. Heading `id` slugs are still stamped by
+                 Markdig's UseAutoIdentifiers() (MarkdownRenderer.cs) even though nothing on
+                 this page links to them anymore — a reader can still deep-link to a section
+                 with a hand-built `#id` URL.
+
+    Dependencies: BlogBreadcrumb, PostRatingPanel, CommentThread, CommentForm components;
+    FullWidthLayout, BlogSvc, SeriesSvc, CommentSvc, MarkdownRenderer, IPostViewTracker,
+    IAnalyticsService
     Layout: Uses FullWidthLayout (no sidebar - content focused)
 *@
 
 @page "/post/{Slug}"
 @page "/post/{Slug}/{PageNumber:int}"
 @layout FullWidthLayout
-@using System.Text.RegularExpressions
 @inject BlogEngine.Services.BlogSvc BlogService
 @inject BlogEngine.Services.SeriesSvc SeriesService
 @inject BlogEngine.Services.CommentSvc CommentService
@@ -88,16 +95,17 @@ else if (notFound)
 else if (blogPost != null)
 {
     <article class="w-full" data-testid="post-article">
+      <div class="post-column" data-testid="post-column">
 
-        @* Breadcrumb Navigation — fluid width, above the title band *@
+        @* Breadcrumb Navigation — now inside .post-column so it shares the page's one left edge *@
         <BlogBreadcrumb Items="@breadcrumbItems" />
 
-        @* Full-bleed title band (REQ-UI-045 / UAT-027). Spans the fluid .site-container width
-           FullWidthLayout's <main> already provides — NOT the 820px reading column. Uses the
-           FeaturedImage as a photo backdrop with a scrim when present, following the
-           .speaker-banner precedent in layout.css; falls back to a token-based gradient surface
-           otherwise. See post.css for the (documented, deliberately non-tokened-when-on-a-photo)
-           colour rules. *@
+        @* Full-bleed title band (REQ-UI-045 / UAT-027), now spanning .post-column rather than the
+           full .site-container width (UAT-029 — a full-bleed band was one of the page's three
+           mismatched left edges). Uses the FeaturedImage as a photo backdrop with a scrim when
+           present, following the .speaker-banner precedent in layout.css; falls back to a
+           token-based gradient surface otherwise. See post.css for the (documented, deliberately
+           non-tokened-when-on-a-photo) colour rules. *@
         <header class="post-title-band @(HasFeaturedImage ? "post-title-band--photo" : "")" data-testid="post-title-band">
             @if (HasFeaturedImage)
             {
@@ -135,17 +143,10 @@ else if (blogPost != null)
             </div>
         </header>
 
-        @* Article body + TOC rail (REQ-UI-045 / UAT-027). Below ~1024px the rail is CSS
-           display:none (post.css), not conditionally omitted from the DOM, so it is genuinely
-           absent from the layout rather than visually squashed by a narrower grid track. The
-           article column itself never leaves .prose-container — the 820px reading measure is
-           unchanged. *@
-        <div class="post-toc-layout @(ShowTocRail ? "post-toc-layout--with-rail" : "")" data-testid="post-toc-layout">
-            @if (ShowTocRail)
-            {
-                <PostTocRail Headings="@tocHeadings" />
-            }
-
+        @* Article body (REQ-UI-045 / UAT-029 — the TOC rail that used to sit beside it is gone).
+           .prose-container still wraps the body at the same 52rem reading measure as .post-column
+           itself, so nesting it here is a layout no-op — kept because the article body's own CSS
+           hook (post.css, base.css markdown-content rules) is documented as living on this class. *@
             <div class="prose-container" data-testid="post-article-column">
                 @* Article Content *@
                 <div class="mt-8">
@@ -158,8 +159,7 @@ else if (blogPost != null)
                     @* Render paginated content. <Prose> supplies the reflow rules (REQ-UI-007 / TR-059);
                        `markdown-content` in wwwroot/css/base.css keeps this site's own typography.
                        currentContentHtml is cached once per page load (see LoadPost) rather than
-                       re-rendering the Markdown pipeline on every markup evaluation — it also backs
-                       the TOC heading extraction below, so both must read the exact same HTML. *@
+                       re-rendering the Markdown pipeline on every markup evaluation. *@
                     <Prose ConstrainWidth="false" Class="markdown-content" data-testid="post-content">
                         @((MarkupString)currentContentHtml)
                     </Prose>
@@ -322,11 +322,14 @@ else if (blogPost != null)
                     </CardContent>
                 </Card>
             </div>
-        </div>
 
-        @* Related posts and comments (REQ-UI-045 / UAT-027) — deliberately OUTSIDE .prose-container.
-           Related Posts is a card grid and Comments can carry nested reply threads; both read better
-           using the fluid width than being squeezed into the 820px reading column. *@
+        @* Related posts and comments (REQ-UI-045 / UAT-029). Previously OUTSIDE .prose-container and
+           sized to the full fluid .site-container width; now inside .post-column instead — the fix
+           for UAT-029's headline defect was to give every block on the page the SAME left/right edge,
+           and the fluid width used here was exactly what produced the mismatch (Comments sat 534px
+           left of the article directly above it). Both still read fine at 52rem: Related Posts is a
+           2-3 column card grid that fits comfortably, and Comments was never meant to be as wide as a
+           card grid in the first place. *@
 
         @* Related Posts *@
         @if (relatedPosts != null && relatedPosts.Count > 0)
@@ -364,6 +367,7 @@ else if (blogPost != null)
 
             <CommentForm PostId="@blogPost.PostID" OnSubmitted="LoadCommentsAsync" />
         </section>
+      </div>
     </article>
 }
 
@@ -405,41 +409,14 @@ else if (blogPost != null)
     /// <summary>
     /// Rendered HTML for the current page of the article, cached once per load (see
     /// <see cref="LoadPost"/>) rather than re-run through the Markdown pipeline on every markup
-    /// evaluation. Backs both the <c>&lt;Prose&gt;</c> body and the TOC heading extraction, so the
-    /// two always agree on exactly what is on screen.
+    /// evaluation.
     /// </summary>
     private string currentContentHtml = string.Empty;
-
-    /// <summary>
-    /// Level-2/3 headings extracted from <see cref="currentContentHtml"/>, in document order —
-    /// the data behind the table-of-contents rail (REQ-UI-045 / UAT-027).
-    /// </summary>
-    private List<TocHeading> tocHeadings = new();
-
-    /// <summary>
-    /// A single-entry table of contents is noise, not navigation — the rail only renders once
-    /// there are at least two headings to link to.
-    /// </summary>
-    private bool ShowTocRail => tocHeadings.Count >= 2;
 
     /// <summary>
     /// Whether the post has a cover image to use as the title band's photo backdrop.
     /// </summary>
     private bool HasFeaturedImage => !string.IsNullOrEmpty(blogPost?.FeaturedImage);
-
-    /// <summary>
-    /// Matches a rendered level-2 or level-3 heading that carries an id — the id Markdig's
-    /// <c>UseAutoIdentifiers()</c> pipeline step already stamped on it (see MarkdownRenderer.cs).
-    /// </summary>
-    private static readonly Regex TocHeadingPattern = new(
-        @"<h([23])[^>]*\bid=""([^""]+)""[^>]*>(.*?)</h\1>",
-        RegexOptions.Singleline | RegexOptions.Compiled);
-
-    /// <summary>
-    /// Strips any inline markup (emphasis, inline code, links) out of a heading's inner HTML so the
-    /// TOC rail shows plain text.
-    /// </summary>
-    private static readonly Regex TagStripPattern = new(@"<[^>]+>", RegexOptions.Compiled);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -474,10 +451,8 @@ else if (blogPost != null)
                     currentPage = totalPages;
                 }
 
-                // Render once per load and reuse for both the article body and the TOC rail
-                // (REQ-UI-045 / UAT-027) rather than re-running Markdig on every markup evaluation.
+                // Render once per load rather than re-running Markdig on every markup evaluation.
                 currentContentHtml = GetPaginatedContent();
-                tocHeadings = BuildTocHeadings(currentContentHtml);
 
                 // Setup breadcrumb
                 breadcrumbItems = new List<BlogBreadcrumbItem>
@@ -719,45 +694,6 @@ else if (blogPost != null)
         if (pageIndex >= contentPages.Count) pageIndex = contentPages.Count - 1;
 
         return RenderContent(contentPages[pageIndex]);
-    }
-
-    /// <summary>
-    /// Extracts the level-2/3 headings from the current page's rendered HTML to drive the
-    /// table-of-contents rail.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> MarkdownRenderer's pipeline runs Markdig's
-    /// <c>UseAutoIdentifiers()</c>, so every rendered heading already carries a stable,
-    /// deterministic id attribute. This method reads those ids back out rather than re-deriving its
-    /// own slugs, so the rail's anchors are guaranteed to match what the browser actually finds in
-    /// the DOM — there is no separate slugify/dedupe step to keep in sync with Markdig's.</para>
-    /// <para><b>Flow:</b> match every h2/h3 opening tag that carries an id, strip any inline markup
-    /// from the heading's inner HTML, HTML-decode the remainder.</para>
-    /// <para><b>Side Effects:</b> None.</para>
-    /// </remarks>
-    /// <param name="html">Rendered HTML for the current page of the article.</param>
-    /// <returns>Headings in document order; empty when there are none.</returns>
-    private static List<TocHeading> BuildTocHeadings(string html)
-    {
-        var headings = new List<TocHeading>();
-        if (string.IsNullOrWhiteSpace(html))
-        {
-            return headings;
-        }
-
-        foreach (Match match in TocHeadingPattern.Matches(html))
-        {
-            var level = match.Groups[1].Value == "2" ? 2 : 3;
-            var id = match.Groups[2].Value;
-            var text = System.Net.WebUtility.HtmlDecode(TagStripPattern.Replace(match.Groups[3].Value, string.Empty)).Trim();
-
-            if (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(text))
-            {
-                headings.Add(new TocHeading(id, text, level));
-            }
-        }
-
-        return headings;
     }
 
     /// <summary>

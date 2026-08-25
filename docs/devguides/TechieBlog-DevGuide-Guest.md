@@ -71,7 +71,7 @@ screen's width.** Every public surface now shares ONE two-tier width system, def
 | Class | Rule | Use for |
 |---|---|---|
 | `.site-container` | `width: min(100% - 3rem, 1600px)` (`- 2rem` below 640px), `margin-inline: auto` | **Layout tier** — header, footer, page shells, card grids, hero and stat bands. Fluid: grows with the viewport, stops at 1600. |
-| `.prose-container` | `max-width: 820px` | **Reading tier** — article body only. Capped *deliberately*: line length drives reading accuracy, and uncapped prose on a 4K panel runs ~250 characters per line. |
+| `.prose-container` | `max-width: 52rem` | **Reading tier** — article body only. Capped *deliberately*: line length drives reading accuracy, and uncapped prose on a 4K panel runs ~250 characters per line. |
 
 It replaced six disagreeing fixed caps (header/footer 1280, home/resume **1024**, search 880, post text 820,
 `--max-content-width` 1200, mockups 1120), which made the header bar render visibly wider than the content
@@ -87,6 +87,16 @@ do not reintroduce a page-level width number. ⚠ Two traps: (1) **never nest `.
 (caught on `SpeakerProfile.razor`, which measured 1552px instead of 1600px); (2) this build ships TrBlazeUI's
 **prebuilt** CSS with no Tailwind JIT, so `max-w-[1600px]` and friends are never generated and silently do
 nothing — six such inert values were found and removed during this work.
+
+**Type scales with the viewport too (UAT-030, 2026-08-24).** The ROOT font size is now fluid —
+`html { font-size: clamp(16px, 0.89vw, 20px) }` in `source/BlogUI/wwwroot/css/base.css` — so it resolves to
+16px at the 1798px Windows/RDP viewport and 20px at the 2246px macOS one. That is why `.prose-container` is
+expressed as **`52rem`, not `820px`**: a fixed px cap would hold ~90 characters at 16px but only ~72 at 20px,
+so the reading measure would shrink as the type grew. In `rem` it tracks the root and the measure stays
+~90 characters at every viewport (832px @1798, 1040px @2246). For the same reason the four remaining
+**px-based font clamps were converted to `rem`** — `h1.page-title`, `.speaker-banner__title`,
+`.speaker-banner__sub` and the resume hero in `resume.css`: pinned at their px ceilings they stayed 46px/32px
+at *every* viewport, so once the root scaled they would have shrunk relative to their own body copy.
 
 ## Guest · Home (`/`)
 
@@ -144,21 +154,23 @@ the text:
   `.speaker-banner` — the overlaid title is `#fff` in both light and dark because it sits on a photograph the
   theme cannot control). Height is content-driven with a `min-height` for CLS, deliberately *not*
   `aspect-ratio`-locked, because the wrapping meta row would clip at narrow widths.
-- **Sticky TOC rail** — `PostTocRail.razor` + `PostTocHeading.cs`, built from the rendered markdown's
-  `<h2>`/`<h3>` headings with slugified, de-duplicated ids. Renders **only at ≥1024px** and only when the post
-  has **2+ headings** (a one-item TOC is noise); below that it is `display: none`, genuinely out of the layout
-  (`offsetParent === null`), not merely squashed.
+- **Sticky TOC rail — REMOVED (UAT-029, 2026-08-24).** It briefly existed as `PostTocRail.razor` +
+  `PostTocHeading.cs`, built from the rendered markdown's `<h2>`/`<h3>` headings. It was **deleted** at the
+  owner's request, along with its JS workaround and its tests — not hidden behind a breakpoint. Do not
+  reintroduce it; it was the third of the post page's three disagreeing left edges.
 - Body stays in `.prose-container`; comments, ratings and related posts use the fluid width.
 
-⚠ **`post-toc-rail.js` exists because of a TrBlazeUI defect (TR-074).** `AnchorNav` emits bare `href="#id"`
-links, which resolve against this app's `<base href="/">` and so navigated the whole app *away* from the
-article instead of scrolling. The script intercepts the click on an ancestor in the bubble phase — reliably
-ahead of Blazor's own listener regardless of attachment order — and does the scroll plus
-`history.replaceState` itself. Remove the workaround only after confirming the library fix.
+⚠ **`post-toc-rail.js` was deleted with the rail (UAT-029).** It had existed solely to work around a TrBlazeUI
+defect: **TR-074** — `AnchorNav` emits bare `href="#id"` links, which resolve against this app's
+`<base href="/">` and so navigate the whole app *away* from the article instead of scrolling. **TR-074 is a
+genuine upstream library defect and is still open**, but with the rail gone it no longer affects this page,
+and there is no workaround file left to remove once the library is fixed.
 
-⚠ **Open owner decision:** the title band spans the full 1600px while the TOC+article block below is centred
-at 1108px — a symmetric 246px offset each side. Deliberate hero-over-centred-content pattern, not breakage;
-`justify-content: start` on `.post-toc-layout--with-rail` in `post.css` left-aligns them.
+**One column, one pair of edges (UAT-029).** The earlier 1600-vs-1108 title-band/article offset is **gone**.
+Every block on a post page — title band, article, pagination, rating panel, author card, comments and related
+posts — now sits in a single `.post-column` (`width: min(100%, 52rem)`, `layout.css`), so they share ONE left
+edge and ONE right edge at every viewport. Verified: 832px wide at a 1798px viewport and 1039px at a 2246px
+viewport — **46.3% of the screen on both**.
 
 ```mermaid
 flowchart TB

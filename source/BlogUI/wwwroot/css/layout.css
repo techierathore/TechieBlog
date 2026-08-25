@@ -754,8 +754,15 @@
    rules like this one.
    -------------------------------------------------------------------------- */
 
+/* UAT-029: the px pair became rem (24px = 1.5rem, 32px = 2rem at the 16px root the
+   mockups assume, so this is IDENTICAL to the old rule at 1798px and below and
+   mockup fidelity is untouched). It has to be rem because the root is now fluid:
+   with a hard 32px ceiling the title stayed 32px while body copy grew to 20px on
+   the owner's 2246px macOS viewport, so the heading shrank RELATIVE to its own
+   paragraphs — the opposite of the fix. Now the ceiling scales with the root
+   (40px at a 20px root) and the hierarchy holds at every viewport. */
 h1.page-title {
-    font-size: clamp(24px, 4vw, 32px);
+    font-size: clamp(1.5rem, 4vw, 2rem);
     font-weight: 800;
     line-height: 1.2;
 }
@@ -834,11 +841,31 @@ h1.page-title-centered {
     }
 }
 
-/* The reading measure. Sits INSIDE a .site-container, so a post page keeps a
-   full-width band above it while the text itself stays short enough to read. */
+/* The reading measure.
+
+   UAT-029: expressed in `rem`, NOT `px`. The root size is now fluid
+   (`clamp(16px, 0.89vw, 20px)` in base.css), so a fixed 820px cap would hold
+   ~90 characters at 16px but only ~72 at 20px — the line would keep shrinking
+   as the type grew, which is backwards. 52rem tracks the root, so the MEASURE
+   stays ~90 characters at every viewport:
+       1798 @16px -> 832px
+       2246 @20px -> 1040px
+   Same line length, same proportion of screen, on both of the owner's machines. */
 .prose-container {
     width: 100%;
-    max-width: 820px;
+    max-width: 52rem;
+    margin-inline: auto;
+}
+
+/* The post page's single aligned column — UAT-029.
+   Every block on a post (title band, article, pagination, rating, author card,
+   comments, related posts) sits in THIS, so they all share one left and one
+   right edge. Before, a post had three: the band and comments at the full 1600
+   container, the TOC rail at 240, and the article at 820 — a 534px jump between
+   the article and the comments directly beneath it. Same width as the reading
+   measure by design; there is no second number to drift. */
+.post-column {
+    width: min(100%, 52rem);
     margin-inline: auto;
 }
 
@@ -906,7 +933,8 @@ h1.page-title-centered {
 }
 
 .speaker-banner__title {
-    font-size: clamp(24px, 4vw, 32px);
+    /* UAT-029: px -> rem, identical at a 16px root, scales with the fluid root above it. */
+    font-size: clamp(1.5rem, 4vw, 2rem);
     font-weight: 800;
     line-height: 1.15;
     margin: 0;
@@ -916,7 +944,8 @@ h1.page-title-centered {
 
 .speaker-banner__sub {
     margin: 6px 0 0;
-    font-size: clamp(12.5px, 1.6vw, 15px);
+    /* UAT-029: px -> rem (12.5px/15px at a 16px root). */
+    font-size: clamp(0.781rem, 1.6vw, 0.938rem);
     /* Not --muted-foreground: that token is tuned for the page background, and
        over a photograph it fails contrast in light mode. */
     color: rgb(255 255 255 / .88);

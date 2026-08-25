@@ -229,7 +229,10 @@
    -------------------------------------------------------------------------- */
 
 .resume-name {
-    font-size: clamp(30px, 5vw, 46px);
+    /* UAT-029: px -> rem (30px/46px at a 16px root, so unchanged at 1798 and below).
+       The hard 46px ceiling made the hero headline stop growing while body copy scaled
+       to 20px on the owner's 2246px macOS viewport. rem keeps the ratio at every size. */
+    font-size: clamp(1.875rem, 5vw, 2.875rem);
     font-weight: 800;
     line-height: 1.15;
     margin: 18px 0 6px;
