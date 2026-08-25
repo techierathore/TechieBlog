@@ -106,7 +106,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <div class="layout">
   <nav class="side">
     <h1>TechieBlog — Status</h1>
-    <div class="sub">Last rendered: 2026-08-24</div>
+    <div class="sub">Last updated: 2026-08-25 · Build PASS</div>
     <div class="group">Contents</div>
     <ol>
       <li><a href="#where-i-am">Where I am</a></li>
@@ -121,17 +121,11 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   </nav>
   <main>
     <h1>TechieBlog — Status</h1>
-    <div class="subtitle">.NET 10 / Blazor Server / TrBlazeUI / PostgreSQL + Dapper + DbUp / Serilog / BlogApp MAUI (Windows)</div>
-
-    <table>
-      <tbody>
-        <tr><td><strong>Project</strong></td><td>TechieBlog</td></tr>
-        <tr><td><strong>Last updated</strong></td><td>2026-08-24</td></tr>
-        <tr><td><strong>Current phase</strong></td><td>UAT — round 3 closed (UAT-025..030 fixed + verified); 5 open REQs, owner/env-gated</td></tr>
-        <tr><td><strong>Last verified build</strong></td><td>PASS</td></tr>
-        <tr><td><strong>Last verified date</strong></td><td>2026-08-24</td></tr>
-      </tbody>
-    </table>
+    <div class="subtitle">
+      Stack: .NET 10 / Blazor Server / TrBlazeUI / PostgreSQL + Dapper + DbUp / Serilog / BlogApp MAUI (Windows)<br>
+      Last updated: <strong>2026-08-25</strong> · Current phase: <strong>UAT — round 3 closed (UAT-025..031 fixed + verified); 5 open REQs, owner/env-gated</strong><br>
+      Last verified build: <strong>PASS</strong> (2026-08-25)
+    </div>
 
     <div class="toc-inline">
       <div>Contents</div>
@@ -149,29 +143,27 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 
     <h2 id="where-i-am">Where I am<a class="anchor-link" href="#where-i-am">#</a></h2>
 
-    <p>Owner UAT round 3 closed over <strong>three passes</strong>, each one correcting the previous diagnosis after the owner
-    deployed and said it had not changed what he saw. Pass 1 fixed the banner-less card (UAT-025) and a missing
-    webfont (UAT-026) — both real, both live, neither the reported problem. Pass 2 found the actual cause of
-    "different on Mac vs Windows" was <strong>width</strong>: six disagreeing fixed container caps, replaced by one two-tier
-    system (<code>.site-container</code> fluid to 1600px, <code>.prose-container</code> for reading) — UAT-027/028. Pass 3 closed the
-    remainder: the post page had <strong>three different left edges</strong> (band and comments at 1600, TOC rail at 240,
-    article at 820), now one <code>.post-column</code> with the TOC rail deleted at the owner's request (UAT-029); and
-    "Windows still looks bigger" turned out to be <strong>type size, not width</strong> — fonts were a fixed 16px/36px at both
-    viewports, so the same layout rendered physically smaller on the Mac's denser CSS-pixel space. Root type is
-    now <code>clamp(16px, 0.89vw, 20px)</code> with the four px font clamps converted to rem (UAT-030). Windows renders
-    byte-identical to before; the Mac scales +25% uniformly; the post column occupies <strong>46.3% of the screen on
-    both machines</strong>. Build GREEN (rung #4, 0 Error(s), 7/7); own verification 46/48 (both non-passes were wrong
-    assertions in the check, re-confirmed by direct measurement), <code>req-list-ui.spec.ts</code> 11/11, unit suite 1551
-    pass / 0 fail / 3 skip. Five REQs remain open, each gated on the owner or the environment — CI hardening, the
-    committed-PAT rotation, the async/concurrency conversion, the VPS deploy pipeline, and BlogApp SFTP media
-    storage. <strong>Nothing above is visible until the site is deployed;</strong> migration <code>032-SiteLogoSetting.sql</code> is
-    still NOT deployed and production is on 031, so the website ships before BlogApp per the ship-order rule.</p>
+    <p>Owner UAT round 3 took <strong>four passes</strong> on essentially one report — “the site looks different on Mac and
+    Windows” — and the first three each fixed something real that was not what he was looking at: a missing
+    webfont (UAT-026), then six disagreeing container widths (UAT-027/028), then post-page alignment and fixed
+    type size (UAT-029/030). Pass 4 closed it. The residual cause was two <code>px</code> CEILINGS in rules I had written
+    myself: the root font’s <code>clamp(…, 20px)</code> and <code>.site-container</code>’s <code>1600px</code>. Both stopped scaling above a
+    2246px viewport, so on the wider macOS scalings the type pinned at 20px (30.0 physical px against Windows’
+    34.2 — Windows 14% bigger) and the page filled only 62-71% of the panel against Windows’ 89%. Ceilings are
+    now <code>34px</code> and <code>100rem</code>; at a 16px root both are byte-identical to before, so the Windows rendering he is
+    happy with is untouched. <strong>Verified across every macOS scaled resolution a 4K panel offers (2048 / 2240 /
+    2246 / 2560 / 3008): physical font size 34.2px and container 89% of screen at every one.</strong> Build GREEN (rung
+    #4, 0 Error(s), 7/7); <code>req-list-ui.spec.ts</code> 11/11. Five REQs remain open, each gated on the owner or the
+    environment — CI hardening, the committed-PAT rotation, the async/concurrency conversion, the VPS deploy
+    pipeline, and BlogApp SFTP media storage. <strong>Nothing above is visible until the site is deployed;</strong> migration
+    <code>032-SiteLogoSetting.sql</code> is still NOT deployed and production is on 031, so the website ships before BlogApp.</p>
 
     <h2 id="next-command-to-run">Next command to run<a class="anchor-link" href="#next-command-to-run">#</a></h2>
 
-<pre><code>/TechieFlow:agents:verifier *verify REQ-FN-062      (OpenCode: /flow-verifier *verify REQ-FN-062)
+    <pre><code>/TechieFlow:agents:verifier *verify REQ-FN-062      (OpenCode: /flow-verifier *verify REQ-FN-062)
 </code></pre>
-    <p>Blocked on configuration, not code — re-enter BlogApp's Media storage (SFTP) + Website address first, and deploy the website before BlogApp (migration <code>032</code> is new; production is on <code>031</code>).</p>
+
+    <p>Blocked on configuration, not code — re-enter BlogApp’s Media storage (SFTP) + Website address first, and deploy the website before BlogApp (migration <code>032</code> is new; production is on <code>031</code>).</p>
 
     <h2 id="open-requirements">Open requirements<a class="anchor-link" href="#open-requirements">#</a></h2>
 
@@ -187,23 +179,34 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 
     <ul>
       <li><strong>Routed sub-agent wrappers are broken (TechieFlow framework, not this app).</strong> <code>.tfcore/utils/tf-routing-bind.sh:141,143</code>
-      generates wrappers telling the agent to read <code>.claude/trblazeui.md</code> / <code>.claude/techierag.md</code> and stop if absent.
-      Those files do not exist here and are <strong>not</strong> created by a build (checked after a full rung-#4 build). The real
-      personas are <code>.claude/commands/{trblazeui,techierag}.md</code>. Every routed <code>REQ-UI-*</code> / <code>REQ-RAG-*</code> cluster will
-      dead-stop until the generator is fixed.</li>
-      <li><strong><code>CLAUDE.md</code> names the wrong next-free TrBlazeUI feedback id</strong> — says TR-067; the feedback file's own counter
-      said TR-073 (now used). Should read <strong>TR-074</strong>.</li>
+        generates wrappers telling the agent to read <code>.claude/trblazeui.md</code> / <code>.claude/techierag.md</code> and stop if absent.
+        Those files do not exist here and are <strong>not</strong> created by a build (checked after a full rung-#4 build). The real
+        personas are <code>.claude/commands/{trblazeui,techierag}.md</code>. Every routed <code>REQ-UI-*</code> / <code>REQ-RAG-*</code> cluster will
+        dead-stop until the generator is fixed.</li>
+      <li><strong><code>CLAUDE.md</code> names the wrong next-free TrBlazeUI feedback id</strong> — says TR-067; the feedback file’s own counter
+        said TR-073 (now used). Should read <strong>TR-074</strong>.</li>
       <li><strong>Owner actions outstanding:</strong> deploy the website (migration <code>032</code>); run <code>docs/data/speaking-engagements.sql</code>
-      against production (page is live and empty); optionally enter real <code>UserStats</code> so the home stats band renders.</li>
+        against production (page is live and empty); optionally enter real <code>UserStats</code> so the home stats band renders.</li>
     </ul>
 
     <h2 id="verification-log">Verification log<a class="anchor-link" href="#verification-log">#</a></h2>
 
     <table>
       <thead>
-        <tr><th>Date</th><th>Phase</th><th>Result</th><th>Status table</th></tr>
+        <tr>
+          <th>Date</th>
+          <th>Phase</th>
+          <th>Result</th>
+          <th>Status table</th>
+        </tr>
       </thead>
       <tbody>
+        <tr>
+          <td>2026-08-25</td>
+          <td>fix-issues pass 4 + scoped verify</td>
+          <td>UAT-031 — raised the root-font (20px→34px) and .site-container (1600px→100rem) ceilings that discarded proportional scaling above 2246. Physical font 34.2px AND container 89% of screen at every 4K scaling; 11/11 acceptance</td>
+          <td>docs/TechieBlog-Checklist.md#requirements-status</td>
+        </tr>
         <tr>
           <td>2026-08-24</td>
           <td>fix-issues pass 3 + scoped verify</td>
@@ -262,18 +265,17 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 
     <ul>
       <li>Local database holds no published content by design. <code>blogpost</code> #45 <code>Fix Test Post No Banner</code> (a prior
-      session's repro fixture) is left <strong>unpublished</strong>, not deleted — restore with
-      <code>update blogpost set published=true where postid=45;</code>. Its body was replaced with heading-bearing sample
-      text so the new post-page TOC rail had something real to build against.</li>
-      <li>The post page's TOC rail (<code>PostTocRail</code>, its JS anchor workaround and its tests) was <strong>deleted</strong> at the
-      owner's request in UAT-029, not hidden. TR-074 (TrBlazeUI <code>AnchorNav</code> emitting base-relative <code>#id</code> links)
-      is therefore moot for this page but remains a real library defect worth fixing upstream.</li>
+        session’s repro fixture) is left <strong>unpublished</strong>, not deleted — restore with
+        <code>update blogpost set published=true where postid=45;</code>. Its body was replaced with heading-bearing sample
+        text so the new post-page TOC rail had something real to build against.</li>
+      <li>The post page’s TOC rail (<code>PostTocRail</code>, its JS anchor workaround and its tests) was <strong>deleted</strong> at the
+        owner’s request in UAT-029, not hidden. TR-074 (TrBlazeUI <code>AnchorNav</code> emitting base-relative <code>#id</code> links)
+        is therefore moot for this page but remains a real library defect worth fixing upstream.</li>
       <li>Home stats band and Download-CV CTA stay unobservable until <code>UserStats</code> rows and a <code>CVFilePath</code> exist.</li>
       <li>Undriven surfaces: profile save, newsletter Send, subscriber toggles, comment/rating/subscribe submits;
-      Firefox + WebKit for REQ-NFR-009; a real screen-reader pass; the macOS BlogApp head.</li>
+        Firefox + WebKit for REQ-NFR-009; a real screen-reader pass; the macOS BlogApp head.</li>
       <li><code>.buildout/*/logs</code> holds ~133 MB of leftover agent logs (gitignored, safe to delete).</li>
     </ul>
-
   </main>
 </div>
 

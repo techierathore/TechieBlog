@@ -1,33 +1,30 @@
 ---
 project: TechieBlog
 stack: .NET 10 / Blazor Server / TrBlazeUI / PostgreSQL + Dapper + DbUp / Serilog / BlogApp MAUI (Windows)
-last_updated: 2026-08-24
-current_phase: UAT — round 3 closed (UAT-025..030 fixed + verified); 5 open REQs, owner/env-gated
+last_updated: 2026-08-25
+current_phase: UAT — round 3 closed (UAT-025..031 fixed + verified); 5 open REQs, owner/env-gated
 last_verified_build: PASS
-last_verified_date: 2026-08-24
+last_verified_date: 2026-08-25
 ---
 
 # TechieBlog — Status
 
 ## Where I am
 
-Owner UAT round 3 closed over **three passes**, each one correcting the previous diagnosis after the owner
-deployed and said it had not changed what he saw. Pass 1 fixed the banner-less card (UAT-025) and a missing
-webfont (UAT-026) — both real, both live, neither the reported problem. Pass 2 found the actual cause of
-"different on Mac vs Windows" was **width**: six disagreeing fixed container caps, replaced by one two-tier
-system (`.site-container` fluid to 1600px, `.prose-container` for reading) — UAT-027/028. Pass 3 closed the
-remainder: the post page had **three different left edges** (band and comments at 1600, TOC rail at 240,
-article at 820), now one `.post-column` with the TOC rail deleted at the owner's request (UAT-029); and
-"Windows still looks bigger" turned out to be **type size, not width** — fonts were a fixed 16px/36px at both
-viewports, so the same layout rendered physically smaller on the Mac's denser CSS-pixel space. Root type is
-now `clamp(16px, 0.89vw, 20px)` with the four px font clamps converted to rem (UAT-030). Windows renders
-byte-identical to before; the Mac scales +25% uniformly; the post column occupies **46.3% of the screen on
-both machines**. Build GREEN (rung #4, 0 Error(s), 7/7); own verification 46/48 (both non-passes were wrong
-assertions in the check, re-confirmed by direct measurement), `req-list-ui.spec.ts` 11/11, unit suite 1551
-pass / 0 fail / 3 skip. Five REQs remain open, each gated on the owner or the environment — CI hardening, the
-committed-PAT rotation, the async/concurrency conversion, the VPS deploy pipeline, and BlogApp SFTP media
-storage. **Nothing above is visible until the site is deployed;** migration `032-SiteLogoSetting.sql` is
-still NOT deployed and production is on 031, so the website ships before BlogApp per the ship-order rule.
+Owner UAT round 3 took **four passes** on essentially one report — "the site looks different on Mac and
+Windows" — and the first three each fixed something real that was not what he was looking at: a missing
+webfont (UAT-026), then six disagreeing container widths (UAT-027/028), then post-page alignment and fixed
+type size (UAT-029/030). Pass 4 closed it. The residual cause was two `px` CEILINGS in rules I had written
+myself: the root font's `clamp(…, 20px)` and `.site-container`'s `1600px`. Both stopped scaling above a
+2246px viewport, so on the wider macOS scalings the type pinned at 20px (30.0 physical px against Windows'
+34.2 — Windows 14% bigger) and the page filled only 62-71% of the panel against Windows' 89%. Ceilings are
+now `34px` and `100rem`; at a 16px root both are byte-identical to before, so the Windows rendering he is
+happy with is untouched. **Verified across every macOS scaled resolution a 4K panel offers (2048 / 2240 /
+2246 / 2560 / 3008): physical font size 34.2px and container 89% of screen at every one.** Build GREEN (rung
+#4, 0 Error(s), 7/7); `req-list-ui.spec.ts` 11/11. Five REQs remain open, each gated on the owner or the
+environment — CI hardening, the committed-PAT rotation, the async/concurrency conversion, the VPS deploy
+pipeline, and BlogApp SFTP media storage. **Nothing above is visible until the site is deployed;** migration
+`032-SiteLogoSetting.sql` is still NOT deployed and production is on 031, so the website ships before BlogApp.
 
 ## Next command to run
 
@@ -60,6 +57,7 @@ Blocked on configuration, not code — re-enter BlogApp's Media storage (SFTP) +
 
 | Date | Phase | Result | Status table |
 |------|-------|--------|--------------|
+| 2026-08-25 | fix-issues pass 4 + scoped verify | UAT-031 — raised the root-font (20px→34px) and .site-container (1600px→100rem) ceilings that discarded proportional scaling above 2246. Physical font 34.2px AND container 89% of screen at every 4K scaling; 11/11 acceptance | docs/TechieBlog-Checklist.md#requirements-status |
 | 2026-08-24 | fix-issues pass 3 + scoped verify | UAT-029/030 (post page one aligned column, TOC rail deleted; fluid root type). Post blocks share ONE left edge at every viewport; column 46.3% of screen on BOTH machines; 46/48 own checks, 11/11 acceptance, 1551 unit | docs/TechieBlog-Checklist.md#requirements-status |
 | 2026-08-24 | fix-issues pass 2 + scoped verify | UAT-027/028 (fluid width system + post-page rebuild); header==body to the pixel, screen filled 45.6%→71.2% @2246 and 54.3%→89.0% @1798; 152/152 re-smoke, 11/11 acceptance, 1555 unit | docs/TechieBlog-Checklist.md#requirements-status |
 | 2026-08-24 | fix-issues + scoped verify | UAT-025/026 fixed; REQ-UI-049 restored to Verified, REQ-UI-005 held; 11/11 acceptance, 42/42 re-smoke | docs/TechieBlog-Checklist.md#requirements-status |

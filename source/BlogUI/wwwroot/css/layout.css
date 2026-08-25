@@ -830,14 +830,30 @@ h1.page-title-centered {
    nothing. Real rules only — see the note on h1.page-title above.
    -------------------------------------------------------------------------- */
 
+/* The ceiling is 100rem, NOT 1600px — corrected 2026-08-25 alongside the root-font
+   ceiling in base.css, for exactly the same reason and after the same report.
+
+   At a 16px root 100rem IS 1600px, so nothing changes at or below a 1798px
+   viewport. Above it the px version stopped scaling while the root font kept
+   growing, so the layout tightened as the type grew:
+
+       viewport 1798 -> 1600px container = 89% of the panel
+       viewport 2246 -> 1600px container = 71%   <- same site, narrower page
+       viewport 2560 -> 1600px container = 62%
+
+   The owner sees one physical 4K monitor two ways (macOS natively, Windows over
+   RDP at 150%), so a page that fills 89% one way and 71% the other reads as
+   "Windows looks bigger" even when the typography is already matched. Pinning the
+   ceiling to the root makes the whole layout proportional — 89% at every scaling —
+   which is the only way the two renderings can look like the same site. */
 .site-container {
-    width: min(100% - 2rem, 1600px);
+    width: min(100% - 2rem, 100rem);
     margin-inline: auto;
 }
 
 @media (min-width: 640px) {
     .site-container {
-        width: min(100% - 3rem, 1600px);
+        width: min(100% - 3rem, 100rem);
     }
 }
 
