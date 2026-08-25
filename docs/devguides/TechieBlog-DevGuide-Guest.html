@@ -106,7 +106,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <div class="layout">
   <nav class="side">
     <h1>DevGuide · Guest</h1>
-    <div class="sub">TechieBlog — anonymous surfaces<br>Last rendered: 2026-08-24</div>
+    <div class="sub">Last rendered: 2026-08-24</div>
     <div class="group">Contents</div>
     <ol>
       <li><a href="#runtime-verification-2026-08-14-req-nfr-001-scope-only">Runtime verification (2026-08-14) — REQ-NFR-001 scope only</a></li>
@@ -127,7 +127,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   </nav>
   <main>
     <h1>TechieBlog — Developer Guide · Guest (anonymous)</h1>
-    <div class="subtitle">Every screen reachable without signing in — controls, source calls, data lineage and observed render status.</div>
+    <div class="subtitle">Screen-by-screen developer guide for the anonymous visitor · reflects code as built</div>
 
     <div class="toc-inline">
       <div>Contents</div>
@@ -160,20 +160,30 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     </blockquote>
 
     <blockquote>
-      <p>✅ <strong>Runtime-verified 2026-08-09 as Guest (anonymous)</strong> — supersedes the 2026-08-02 <code>STATIC-ONLY</code> banner, whose stated reason (solution does not compile, REQ-FN-043) is stale. See <strong>Runtime verification (2026-08-09)</strong> below for what was actually observed.</p>
+      <p>✅ <strong>Runtime-verified 2026-08-09 as Guest (anonymous)</strong> — supersedes the 2026-08-02 <code>STATIC-ONLY</code>
+      banner, whose stated reason (solution does not compile, REQ-FN-043) is stale. See
+      <strong>Runtime verification (2026-08-09)</strong> below for what was actually observed.</p>
     </blockquote>
 
     <p>Index: <a href="./TechieBlog-DevGuide.md">TechieBlog-DevGuide.md</a> · Architecture: <code>docs/TechieBlog-Architecture.md</code></p>
 
-    <p>Every screen below is reachable <strong>without signing in</strong>. Signed-in roles see the same pages plus their own.</p>
+    <p>Every screen below is reachable <strong>without signing in</strong>. Signed-in roles see the same pages plus their
+    own.</p>
 
     <blockquote>
-      <p>⚠ <strong>This page's premise is out of date.</strong> It says engagement controls "require authentication". They do not: reader accounts were retired (BRD-1/13/43/44) and commenting and rating are now <strong>anonymous and email-keyed</strong> with a captcha and double opt-in. Runtime check found no sign-in gate and zero <code>/login</code> links anywhere in the comment or rating components. The <strong>Favourite toggle</strong> noted per screen no longer exists at all (REQ-UI-028 removed).</p>
+      <p>⚠ <strong>This page's premise is out of date.</strong> It says engagement controls "require authentication".
+      They do not: reader accounts were retired (BRD-1/13/43/44) and commenting and rating are now
+      <strong>anonymous and email-keyed</strong> with a captcha and double opt-in. Runtime check found no sign-in gate
+      and zero <code>/login</code> links anywhere in the comment or rating components. The <strong>Favourite toggle</strong> noted
+      per screen no longer exists at all (REQ-UI-028 removed).</p>
     </blockquote>
 
     <h2 id="runtime-verification-2026-08-14-req-nfr-001-scope-only">Runtime verification (2026-08-14) — REQ-NFR-001 scope only<a class="anchor-link" href="#runtime-verification-2026-08-14-req-nfr-001-scope-only">#</a></h2>
 
-    <p>Runtime-verified 2026-08-14 as <strong>anonymous/guest</strong>, against a genuine <strong>Release + Production</strong> host (<code>--no-launch-profile</code>; see the REQ-NFR-001 checklist row for why a bare <code>dotnet run</code> silently boots Development). This pass exercised only the four screens the performance budget is measured against — <strong>every other row in the 2026-08-09 table below is unchanged and NOT re-observed.</strong></p>
+    <p>Runtime-verified 2026-08-14 as <strong>anonymous/guest</strong>, against a genuine <strong>Release + Production</strong> host
+    (<code>--no-launch-profile</code>; see the REQ-NFR-001 checklist row for why a bare <code>dotnet run</code> silently boots
+    Development). This pass exercised only the four screens the performance budget is measured against —
+    <strong>every other row in the 2026-08-09 table below is unchanged and NOT re-observed.</strong></p>
 
     <table>
       <thead>
@@ -203,11 +213,15 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
       </tbody>
     </table>
 
-    <p>Evidence: <code>tests/verify/req-nfr-001-render-visual.spec.ts</code> 12/12 passed; screenshots inspected in <code>tests/.artifacts/req-nfr-001/</code>. Screens NOT runtime-verified this pass: <code>/tag/{slug}</code>, <code>/series/{slug}</code>, <code>/search</code>, <code>/rss</code>, <code>/authors</code>, <code>/author/{username}</code>, <code>/resume</code>, <code>/about</code>, <code>/404</code>, the auth screens and the sidebar subscribe surface — their 2026-08-09 verdicts stand.</p>
+    <p>Evidence: <code>tests/verify/req-nfr-001-render-visual.spec.ts</code> 12/12 passed; screenshots inspected in
+    <code>tests/.artifacts/req-nfr-001/</code>. Screens NOT runtime-verified this pass: <code>/tag/{slug}</code>, <code>/series/{slug}</code>,
+    <code>/search</code>, <code>/rss</code>, <code>/authors</code>, <code>/author/{username}</code>, <code>/resume</code>, <code>/about</code>, <code>/404</code>, the auth screens and
+    the sidebar subscribe surface — their 2026-08-09 verdicts stand.</p>
 
     <h2 id="runtime-verification-2026-08-09">Runtime verification (2026-08-09)<a class="anchor-link" href="#runtime-verification-2026-08-09">#</a></h2>
 
-    <p>Observed by <code>*verify all</code> against the running app. Screens not listed rendered their data and looked right at 1280×900 and 390×844.</p>
+    <p>Observed by <code>*verify all</code> against the running app. Screens not listed rendered their data and looked
+    right at 1280×900 and 390×844.</p>
 
     <table>
       <thead>
@@ -272,9 +286,14 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
       </tbody>
     </table>
 
-    <p><strong>Cross-cutting artefact (not a screen defect):</strong> the host prerenders and then re-renders interactively, and for ~1.5s <strong>both shells are in the DOM</strong> — a visibly duplicated header over a still-loading page. It self-resolves, but any measurement inside that window reads a doubled shell or phantom zero rows. This is the root cause of the post page's blank flash and its <code>document-title</code> accessibility violation.</p>
+    <p><strong>Cross-cutting artefact (not a screen defect):</strong> the host prerenders and then re-renders interactively,
+    and for ~1.5s <strong>both shells are in the DOM</strong> — a visibly duplicated header over a still-loading page. It
+    self-resolves, but any measurement inside that window reads a doubled shell or phantom zero rows. This is
+    the root cause of the post page's blank flash and its <code>document-title</code> accessibility violation.</p>
 
-    <p><strong>Cross-cutting layout contract (UAT-027 / UAT-028, 2026-08-24) — read this before touching any public screen's width.</strong> Every public surface now shares ONE two-tier width system, defined as real CSS rules in <code>source/BlogUI/wwwroot/css/layout.css</code>:</p>
+    <p><strong>Cross-cutting layout contract (UAT-027 / UAT-028, 2026-08-24) — read this before touching any public
+    screen's width.</strong> Every public surface now shares ONE two-tier width system, defined as real CSS rules in
+    <code>source/BlogUI/wwwroot/css/layout.css</code>:</p>
 
     <table>
       <thead>
@@ -288,15 +307,36 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
         </tr>
         <tr>
           <td><code>.prose-container</code></td>
-          <td><code>max-width: 820px</code></td>
+          <td><code>max-width: 52rem</code></td>
           <td><strong>Reading tier</strong> — article body only. Capped <em>deliberately</em>: line length drives reading accuracy, and uncapped prose on a 4K panel runs ~250 characters per line.</td>
         </tr>
       </tbody>
     </table>
 
-    <p>It replaced six disagreeing fixed caps (header/footer 1280, home/resume <strong>1024</strong>, search 880, post text 820, <code>--max-content-width</code> 1200, mockups 1120), which made the header bar render visibly wider than the content beneath it on every page, and made the site fill 45.6% of a 2246px macOS viewport but 54.3% of a 1798px Windows/RDP one — the owner's "looks different on Mac and Windows" report. Now <strong>header width == body container width to the pixel</strong> (verified across 24 page × width × theme combinations) and the page fills <strong>71.2% @2246 / 89.0% @1798 / 96.3% @1280</strong>.</p>
+    <p>It replaced six disagreeing fixed caps (header/footer 1280, home/resume <strong>1024</strong>, search 880, post text 820,
+    <code>--max-content-width</code> 1200, mockups 1120), which made the header bar render visibly wider than the content
+    beneath it on every page, and made the site fill 45.6% of a 2246px macOS viewport but 54.3% of a 1798px
+    Windows/RDP one — the owner's "looks different on Mac and Windows" report. Now <strong>header width == body
+    container width to the pixel</strong> (verified across 24 page × width × theme combinations) and the page fills
+    <strong>71.2% @2246 / 89.0% @1798 / 96.3% @1280</strong>.</p>
 
-    <p>Applied at <code>Header.razor:40</code>, <code>Footer.razor:21</code>, <code>FullWidthLayout.razor:16</code>, <code>MainLayout.razor:20</code>. The dead <code>--max-content-width</code>, <code>--article-max-width</code>, <code>.page-container</code> and <code>.main-content--full</code> are <strong>deleted</strong> — do not reintroduce a page-level width number. ⚠ Two traps: (1) <strong>never nest <code>.site-container</code> inside another <code>.site-container</code></strong> — the rule computes against its immediate parent, so nesting subtracts the gutter twice (caught on <code>SpeakerProfile.razor</code>, which measured 1552px instead of 1600px); (2) this build ships TrBlazeUI's <strong>prebuilt</strong> CSS with no Tailwind JIT, so <code>max-w-[1600px]</code> and friends are never generated and silently do nothing — six such inert values were found and removed during this work.</p>
+    <p>Applied at <code>Header.razor:40</code>, <code>Footer.razor:21</code>, <code>FullWidthLayout.razor:16</code>, <code>MainLayout.razor:20</code>. The dead
+    <code>--max-content-width</code>, <code>--article-max-width</code>, <code>.page-container</code> and <code>.main-content--full</code> are <strong>deleted</strong> —
+    do not reintroduce a page-level width number. ⚠ Two traps: (1) <strong>never nest <code>.site-container</code> inside another
+    <code>.site-container</code></strong> — the rule computes against its immediate parent, so nesting subtracts the gutter twice
+    (caught on <code>SpeakerProfile.razor</code>, which measured 1552px instead of 1600px); (2) this build ships TrBlazeUI's
+    <strong>prebuilt</strong> CSS with no Tailwind JIT, so <code>max-w-[1600px]</code> and friends are never generated and silently do
+    nothing — six such inert values were found and removed during this work.</p>
+
+    <p><strong>Type scales with the viewport too (UAT-030, 2026-08-24).</strong> The ROOT font size is now fluid —
+    <code>html { font-size: clamp(16px, 0.89vw, 20px) }</code> in <code>source/BlogUI/wwwroot/css/base.css</code> — so it resolves to
+    16px at the 1798px Windows/RDP viewport and 20px at the 2246px macOS one. That is why <code>.prose-container</code> is
+    expressed as <strong><code>52rem</code>, not <code>820px</code></strong>: a fixed px cap would hold ~90 characters at 16px but only ~72 at 20px,
+    so the reading measure would shrink as the type grew. In <code>rem</code> it tracks the root and the measure stays
+    ~90 characters at every viewport (832px @1798, 1040px @2246). For the same reason the four remaining
+    <strong>px-based font clamps were converted to <code>rem</code></strong> — <code>h1.page-title</code>, <code>.speaker-banner__title</code>,
+    <code>.speaker-banner__sub</code> and the resume hero in <code>resume.css</code>: pinned at their px ceilings they stayed 46px/32px
+    at <em>every</em> viewport, so once the root scaled they would have shrunk relative to their own body copy.</p>
 
     <h2 id="guest-home">Guest · Home (<code>/</code>)<a class="anchor-link" href="#guest-home">#</a></h2>
 
@@ -363,17 +403,37 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 
     <p>This is the densest public screen — seven injected dependencies.</p>
 
-    <p><strong>Rebuilt 2026-08-24 (UAT-027).</strong> The owner reported "a lot of gap on both sides, be it Windows or Mac": on a 2246px viewport the page was header 1280 / <code>main</code> 1024 / article text 820, leaving ~1220px of empty gutter with nothing using it. The <strong>article measure was NOT the bug and was not widened</strong> — 820px is already ~90 characters per line, and stretching it would make posts harder to read. What changed is the structure around the text:</p>
+    <p><strong>Rebuilt 2026-08-24 (UAT-027).</strong> The owner reported "a lot of gap on both sides, be it Windows or Mac": on a
+    2246px viewport the page was header 1280 / <code>main</code> 1024 / article text 820, leaving ~1220px of empty gutter
+    with nothing using it. The <strong>article measure was NOT the bug and was not widened</strong> — 820px is already ~90
+    characters per line, and stretching it would make posts harder to read. What changed is the structure around
+    the text:</p>
 
     <ul>
-      <li><strong>Full-bleed title band</strong> (<code>.post-title-band</code>, <code>post.css</code>) — badge, title, author, date, reading time and view count, spanning the whole <code>.site-container</code> width. Two variants: a theme-token gradient when the post has no <code>FeaturedImage</code>, or the image as a backdrop with a scrim when it does (same reasoning as <code>.speaker-banner</code> — the overlaid title is <code>#fff</code> in both light and dark because it sits on a photograph the theme cannot control). Height is content-driven with a <code>min-height</code> for CLS, deliberately <em>not</em> <code>aspect-ratio</code>-locked, because the wrapping meta row would clip at narrow widths.</li>
-      <li><strong>Sticky TOC rail</strong> — <code>PostTocRail.razor</code> + <code>PostTocHeading.cs</code>, built from the rendered markdown's <code>&lt;h2&gt;</code>/<code>&lt;h3&gt;</code> headings with slugified, de-duplicated ids. Renders <strong>only at ≥1024px</strong> and only when the post has <strong>2+ headings</strong> (a one-item TOC is noise); below that it is <code>display: none</code>, genuinely out of the layout (<code>offsetParent === null</code>), not merely squashed.</li>
+      <li><strong>Full-bleed title band</strong> (<code>.post-title-band</code>, <code>post.css</code>) — badge, title, author, date, reading time and
+      view count, spanning the whole <code>.site-container</code> width. Two variants: a theme-token gradient when the post
+      has no <code>FeaturedImage</code>, or the image as a backdrop with a scrim when it does (same reasoning as
+      <code>.speaker-banner</code> — the overlaid title is <code>#fff</code> in both light and dark because it sits on a photograph the
+      theme cannot control). Height is content-driven with a <code>min-height</code> for CLS, deliberately <em>not</em>
+      <code>aspect-ratio</code>-locked, because the wrapping meta row would clip at narrow widths.</li>
+      <li><strong>Sticky TOC rail — REMOVED (UAT-029, 2026-08-24).</strong> It briefly existed as <code>PostTocRail.razor</code> +
+      <code>PostTocHeading.cs</code>, built from the rendered markdown's <code>&lt;h2&gt;</code>/<code>&lt;h3&gt;</code> headings. It was <strong>deleted</strong> at the
+      owner's request, along with its JS workaround and its tests — not hidden behind a breakpoint. Do not
+      reintroduce it; it was the third of the post page's three disagreeing left edges.</li>
       <li>Body stays in <code>.prose-container</code>; comments, ratings and related posts use the fluid width.</li>
     </ul>
 
-    <p>⚠ <strong><code>post-toc-rail.js</code> exists because of a TrBlazeUI defect (TR-074).</strong> <code>AnchorNav</code> emits bare <code>href="#id"</code> links, which resolve against this app's <code>&lt;base href="/"&gt;</code> and so navigated the whole app <em>away</em> from the article instead of scrolling. The script intercepts the click on an ancestor in the bubble phase — reliably ahead of Blazor's own listener regardless of attachment order — and does the scroll plus <code>history.replaceState</code> itself. Remove the workaround only after confirming the library fix.</p>
+    <p>⚠ <strong><code>post-toc-rail.js</code> was deleted with the rail (UAT-029).</strong> It had existed solely to work around a TrBlazeUI
+    defect: <strong>TR-074</strong> — <code>AnchorNav</code> emits bare <code>href="#id"</code> links, which resolve against this app's
+    <code>&lt;base href="/"&gt;</code> and so navigate the whole app <em>away</em> from the article instead of scrolling. <strong>TR-074 is a
+    genuine upstream library defect and is still open</strong>, but with the rail gone it no longer affects this page,
+    and there is no workaround file left to remove once the library is fixed.</p>
 
-    <p>⚠ <strong>Open owner decision:</strong> the title band spans the full 1600px while the TOC+article block below is centred at 1108px — a symmetric 246px offset each side. Deliberate hero-over-centred-content pattern, not breakage; <code>justify-content: start</code> on <code>.post-toc-layout--with-rail</code> in <code>post.css</code> left-aligns them.</p>
+    <p><strong>One column, one pair of edges (UAT-029).</strong> The earlier 1600-vs-1108 title-band/article offset is <strong>gone</strong>.
+    Every block on a post page — title band, article, pagination, rating panel, author card, comments and related
+    posts — now sits in a single <code>.post-column</code> (<code>width: min(100%, 52rem)</code>, <code>layout.css</code>), so they share ONE left
+    edge and ONE right edge at every viewport. Verified: 832px wide at a 1798px viewport and 1039px at a 2246px
+    viewport — <strong>46.3% of the screen on both</strong>.</p>
 
     <div class="diagram">
       <div class="dt">
@@ -429,9 +489,11 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
       </tbody>
     </table>
 
-    <p><strong>Business rules:</strong> anonymous visitors can read but not engage — the page injects <code>AuthenticationStateProvider</code> and gates the engagement controls on the resulting principal.</p>
+    <p><strong>Business rules:</strong> anonymous visitors can read but not engage — the page injects
+    <code>AuthenticationStateProvider</code> and gates the engagement controls on the resulting principal.</p>
 
-    <p><strong>Known issues:</strong> "Related posts" reuses <code>GetPublishedPosts</code> rather than a similarity query (BRD-32 expects category/tag-based relatedness) — <code>{unresolved — TODO: confirm whether a filter is applied inside the page's related-post block}</code>.</p>
+    <p><strong>Known issues:</strong> "Related posts" reuses <code>GetPublishedPosts</code> rather than a similarity query
+    (BRD-32 expects category/tag-based relatedness) — <code>{unresolved — TODO: confirm whether a filter is applied inside the page's related-post block}</code>.</p>
 
     <h2 id="guest-category-archive-category-slug-categories-categories-slug">Guest · Category archive (<code>/category/{Slug}</code>, <code>/categories</code>, <code>/categories/{Slug}</code>)<a class="anchor-link" href="#guest-category-archive-category-slug-categories-categories-slug">#</a></h2>
 
@@ -450,7 +512,8 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
       </tbody>
     </table>
 
-    <p><strong>Lineage:</strong> page → <code>CategorySvc</code> / <code>BlogSvc</code> → <code>CategoryRepo</code> / <code>BlogPostRepo</code> → inline SQL on <code>Category</code>, <code>PostCategory</code>, <code>BlogPost</code>.</p>
+    <p><strong>Lineage:</strong> page → <code>CategorySvc</code> / <code>BlogSvc</code> → <code>CategoryRepo</code> / <code>BlogPostRepo</code> → inline SQL on
+    <code>Category</code>, <code>PostCategory</code>, <code>BlogPost</code>.</p>
 
     <h2 id="guest-tag-archive-tag-slug-tags-tags-slug">Guest · Tag archive (<code>/tag/{Slug}</code>, <code>/tags</code>, <code>/tags/{Slug}</code>)<a class="anchor-link" href="#guest-tag-archive-tag-slug-tags-tags-slug">#</a></h2>
 
@@ -469,7 +532,9 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
       </tbody>
     </table>
 
-    <p><strong>Lineage:</strong> page → <code>TagSvc</code> (+ <code>CategorySvc</code>) → <code>BlogTagRepo</code> → inline SQL joining <code>Tag</code>, <code>PostTag</code>, <code>BlogPost</code>. The per-tag <code>COUNT</code> was the Story 7.5 bug (fixed in <code>BlogTagRepo.cs</code>); the category-name lookup was FIX-009.</p>
+    <p><strong>Lineage:</strong> page → <code>TagSvc</code> (+ <code>CategorySvc</code>) → <code>BlogTagRepo</code> → inline SQL joining <code>Tag</code>, <code>PostTag</code>,
+    <code>BlogPost</code>. The per-tag <code>COUNT</code> was the Story 7.5 bug (fixed in <code>BlogTagRepo.cs</code>); the category-name
+    lookup was FIX-009.</p>
 
     <h2 id="guest-series-series-series-slug">Guest · Series (<code>/series</code>, <code>/series/{Slug}</code>)<a class="anchor-link" href="#guest-series-series-series-slug">#</a></h2>
 
@@ -503,7 +568,8 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
       </tbody>
     </table>
 
-    <p><strong>Lineage:</strong> page → <code>BlogSvc.SearchPosts</code> (<code>BlogSvc.cs:555-580</code>) → <code>BlogPostRepo.SearchPosts</code> (<code>BlogPostRepo.cs:424-465</code>) → PostgreSQL <code>ILIKE</code> across <code>Title</code>, <code>Abstract</code>, <code>PostContent</code>, <code>Tags</code>.</p>
+    <p><strong>Lineage:</strong> page → <code>BlogSvc.SearchPosts</code> (<code>BlogSvc.cs:555-580</code>) → <code>BlogPostRepo.SearchPosts</code>
+    (<code>BlogPostRepo.cs:424-465</code>) → PostgreSQL <code>ILIKE</code> across <code>Title</code>, <code>Abstract</code>, <code>PostContent</code>, <code>Tags</code>.</p>
 
     <p><strong>Business rules:</strong> search covers published posts only; terms are highlighted in the rendered results.</p>
 
@@ -521,7 +587,8 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
       </tbody>
     </table>
 
-    <p><strong>Lineage:</strong> page → <code>IBlogUserRepo.GetAllAuthors</code> → <code>BlogUserRepo.cs</code> inline <code>SELECT DISTINCT …</code> over <code>BlogUser</code> joined to <code>BlogPost</code>.</p>
+    <p><strong>Lineage:</strong> page → <code>IBlogUserRepo.GetAllAuthors</code> → <code>BlogUserRepo.cs</code> inline <code>SELECT DISTINCT …</code> over
+    <code>BlogUser</code> joined to <code>BlogPost</code>.</p>
 
     <h2 id="guest-author-profile-author-username">Guest · Author profile (<code>/author/{Username}</code>)<a class="anchor-link" href="#guest-author-profile-author-username">#</a></h2>
 
@@ -578,14 +645,17 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
       </tbody>
     </table>
 
-    <p><strong>Lineage:</strong> <code>ResumePage.razor.cs:47</code> <code>siteOwner = UserRepo.GetSiteOwner();</code> → <code>BlogUserRepo</code> inline SQL on <code>BlogUser</code> filtered by <code>IsSiteOwner</code> (uniqueness enforced by the partial index in migration <code>012</code>).</p>
+    <p><strong>Lineage:</strong> <code>ResumePage.razor.cs:47</code> <code>siteOwner = UserRepo.GetSiteOwner();</code> → <code>BlogUserRepo</code> inline SQL
+    on <code>BlogUser</code> filtered by <code>IsSiteOwner</code> (uniqueness enforced by the partial index in migration <code>012</code>).</p>
 
-    <p><strong>Business rules:</strong> if no user has <code>IsSiteOwner = true</code>, the whole page has nothing to render.<br>
-    <strong>Known issue (static):</strong> no fallback/empty state was located for that case — <code>{unresolved — TODO: confirm ResumePage behaviour when GetSiteOwner() returns null}</code>.</p>
+    <p><strong>Business rules:</strong> if no user has <code>IsSiteOwner = true</code>, the whole page has nothing to render.
+    <strong>Known issue (static):</strong> no fallback/empty state was located for that case —
+    <code>{unresolved — TODO: confirm ResumePage behaviour when GetSiteOwner() returns null}</code>.</p>
 
     <h2 id="guest-about-about-and-404-404">Guest · About (<code>/about</code>) and 404 (<code>/404</code>)<a class="anchor-link" href="#guest-about-about-and-404-404">#</a></h2>
 
-    <p><strong>Files:</strong> <code>Pages/BlogPages/About.razor</code>, <code>Pages/AdminPages/404Page.razor</code> (uses <code>AuthLayout</code>). Static content; no service calls. Dark-mode styling for About was fixed in Story 7.3.</p>
+    <p><strong>Files:</strong> <code>Pages/BlogPages/About.razor</code>, <code>Pages/AdminPages/404Page.razor</code> (uses <code>AuthLayout</code>).
+    Static content; no service calls. Dark-mode styling for About was fixed in Story 7.3.</p>
 
     <h2 id="guest-rss-rss-sitemap-sitemap-xml-robots-robots-txt">Guest · RSS (<code>/rss</code>), sitemap (<code>/sitemap.xml</code>), robots (<code>/robots.txt</code>)<a class="anchor-link" href="#guest-rss-rss-sitemap-sitemap-xml-robots-robots-txt">#</a></h2>
 
@@ -602,7 +672,8 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 
     <h2 id="guest-login-register-forgot-reset">Guest · Login / Register / Forgot / Reset<a class="anchor-link" href="#guest-login-register-forgot-reset">#</a></h2>
 
-    <p>Documented once here because anonymous visitors reach them; see the index §3 <strong>LANDING-TRUTH</strong> section for the post-login redirect defect.</p>
+    <p>Documented once here because anonymous visitors reach them; see the index §3 <strong>LANDING-TRUTH</strong> section
+    for the post-login redirect defect.</p>
 
     <table>
       <thead>
@@ -617,9 +688,13 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
       </tbody>
     </table>
 
-    <p><strong>Lineage:</strong> page → <code>AuthSvc</code> (<code>BlogEngine/Services/AuthSvc.cs</code>) → <code>BlogUserRepo</code> → PostgreSQL stored functions <code>GetLoginUser</code>, <code>GetUserByEmail</code>, <code>InsertBlogUser</code>, <code>SelectBlogUserById</code>. Reset tokens go to <code>PasswordResetTokenRepo</code>, an <strong>in-memory singleton</strong> (<code>BlogSvcInitializer.cs:19</code>) — they do not survive a restart. The reset "email" is written to the log by <code>ConsoleEmailService</code>, not sent.</p>
+    <p><strong>Lineage:</strong> page → <code>AuthSvc</code> (<code>BlogEngine/Services/AuthSvc.cs</code>) → <code>BlogUserRepo</code> → PostgreSQL stored
+    functions <code>GetLoginUser</code>, <code>GetUserByEmail</code>, <code>InsertBlogUser</code>, <code>SelectBlogUserById</code>. Reset tokens go to
+    <code>PasswordResetTokenRepo</code>, an <strong>in-memory singleton</strong> (<code>BlogSvcInitializer.cs:19</code>) — they do not survive
+    a restart. The reset "email" is written to the log by <code>ConsoleEmailService</code>, not sent.</p>
 
     <p><strong>Known issues (static):</strong></p>
+
     <ol>
       <li><strong>Role-blind redirect</strong> — see index §3 and finding #1.</li>
       <li>Reset tokens are lost on restart (REQ-NFR-019, by design per FIX-PLAN but a real operational trap).</li>
@@ -629,6 +704,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     <hr>
 
     <p>Generated 2026-08-02 · reflects code as built · ⚠ STATIC-ONLY</p>
+
   </main>
 </div>
 

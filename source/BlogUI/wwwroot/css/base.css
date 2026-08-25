@@ -14,6 +14,36 @@ html {
     background-color: var(--background);
     color-scheme: light;
     -webkit-text-size-adjust: 100%;
+
+    /* -------------------------------------------------------------------------
+       FLUID ROOT TYPE — UAT-029 (2026-08-24)
+       -------------------------------------------------------------------------
+       Owner, after UAT-028 widened the layout: "Windows version still looks
+       bigger and beautiful than Mac one." Measured on production, the container
+       was already an identical 1600px on both — but root/body/paragraph were a
+       FIXED 16px and h1 a fixed 36px at BOTH viewports.
+
+       He views the same physical 4K panel two ways: macOS natively (~2246 CSS px)
+       and Windows over RDP at 150% scaling (~1798 CSS px). Same panel, 25% fewer
+       CSS pixels on Windows — so a fixed 16px glyph is physically ~25% LARGER
+       there. The Mac was not rendering a different layout; it was rendering the
+       same layout in smaller type across more pixels. Widening the container can
+       never fix that, which is why UAT-028 alone did not close his report.
+
+       So the root size now scales with the viewport:
+           1798 -> 16.0px   (unchanged; the size he already likes)
+           2246 -> 20.0px   (+25%, matching the CSS-pixel ratio)
+       Below 1798 it holds at 16px (laptops and phones are unaffected); above
+       2246 it stops at 20px so a very wide monitor does not run away.
+
+       0.89vw is derived, not guessed: 16px at 1798 and 20px at 2246 is a slope of
+       4px / 448px = 0.0089 px per px = 0.89vw, with a ~0 intercept.
+
+       This is deliberately on the ROOT: TrBlazeUI's utilities are rem-based, so
+       every component, spacing step and heading scales with it in proportion.
+       That is the point — the whole page grows, not just the paragraphs.
+       ------------------------------------------------------------------------- */
+    font-size: clamp(16px, 0.89vw, 20px);
 }
 
 html.dark {

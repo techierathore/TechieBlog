@@ -127,7 +127,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
       <tbody>
         <tr><td><strong>Project</strong></td><td>TechieBlog</td></tr>
         <tr><td><strong>Last updated</strong></td><td>2026-08-24</td></tr>
-        <tr><td><strong>Current phase</strong></td><td>UAT — round 3 closed (UAT-025..028 fixed + verified); 5 open REQs, owner/env-gated</td></tr>
+        <tr><td><strong>Current phase</strong></td><td>UAT — round 3 closed (UAT-025..030 fixed + verified); 5 open REQs, owner/env-gated</td></tr>
         <tr><td><strong>Last verified build</strong></td><td>PASS</td></tr>
         <tr><td><strong>Last verified date</strong></td><td>2026-08-24</td></tr>
       </tbody>
@@ -149,19 +149,23 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 
     <h2 id="where-i-am">Where I am<a class="anchor-link" href="#where-i-am">#</a></h2>
 
-    <p>Owner UAT round 3 is closed after a <strong>second pass</strong>: the first pass fixed the banner-less card (UAT-025) and
-    the missing webfont (UAT-026), the owner deployed, and correctly reported the UI still looked different on
-    Mac vs Windows. The font fix was real and is live, but it was the wrong diagnosis — re-measuring his
-    screenshots showed the difference was <strong>width</strong>, not typeface: six disagreeing fixed container caps meant the
-    content filled 45.6% of his macOS viewport and 54.3% of his Windows/RDP one. Fixed as UAT-027/028 with one
-    two-tier width system — <code>.site-container</code> fluid to 1600px for layout, <code>.prose-container</code> capped at 820px for
-    reading — plus a rebuilt post page (full-bleed title band + sticky TOC rail). Header now matches body width
-    to the pixel; screen filled is 71.2% / 89.0%. Build GREEN (rung #4, 0 Error(s), 7/7); own re-smoke 152/152 at
-    the owner's real viewports, <code>req-list-ui.spec.ts</code> 11/11, unit suite 1555 pass / 0 fail / 3 skip. Five REQs
-    remain open, each gated on the owner or the environment — CI hardening, the committed-PAT rotation, the
-    async/concurrency conversion, the VPS deploy pipeline, and BlogApp SFTP media storage. <strong>Nothing above is
-    visible until the site is deployed;</strong> migration <code>032-SiteLogoSetting.sql</code> is still NOT deployed and
-    production is on 031, so the website must ship before BlogApp per the standing ship-order rule.</p>
+    <p>Owner UAT round 3 closed over <strong>three passes</strong>, each one correcting the previous diagnosis after the owner
+    deployed and said it had not changed what he saw. Pass 1 fixed the banner-less card (UAT-025) and a missing
+    webfont (UAT-026) — both real, both live, neither the reported problem. Pass 2 found the actual cause of
+    "different on Mac vs Windows" was <strong>width</strong>: six disagreeing fixed container caps, replaced by one two-tier
+    system (<code>.site-container</code> fluid to 1600px, <code>.prose-container</code> for reading) — UAT-027/028. Pass 3 closed the
+    remainder: the post page had <strong>three different left edges</strong> (band and comments at 1600, TOC rail at 240,
+    article at 820), now one <code>.post-column</code> with the TOC rail deleted at the owner's request (UAT-029); and
+    "Windows still looks bigger" turned out to be <strong>type size, not width</strong> — fonts were a fixed 16px/36px at both
+    viewports, so the same layout rendered physically smaller on the Mac's denser CSS-pixel space. Root type is
+    now <code>clamp(16px, 0.89vw, 20px)</code> with the four px font clamps converted to rem (UAT-030). Windows renders
+    byte-identical to before; the Mac scales +25% uniformly; the post column occupies <strong>46.3% of the screen on
+    both machines</strong>. Build GREEN (rung #4, 0 Error(s), 7/7); own verification 46/48 (both non-passes were wrong
+    assertions in the check, re-confirmed by direct measurement), <code>req-list-ui.spec.ts</code> 11/11, unit suite 1551
+    pass / 0 fail / 3 skip. Five REQs remain open, each gated on the owner or the environment — CI hardening, the
+    committed-PAT rotation, the async/concurrency conversion, the VPS deploy pipeline, and BlogApp SFTP media
+    storage. <strong>Nothing above is visible until the site is deployed;</strong> migration <code>032-SiteLogoSetting.sql</code> is
+    still NOT deployed and production is on 031, so the website ships before BlogApp per the ship-order rule.</p>
 
     <h2 id="next-command-to-run">Next command to run<a class="anchor-link" href="#next-command-to-run">#</a></h2>
 
@@ -200,6 +204,12 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
         <tr><th>Date</th><th>Phase</th><th>Result</th><th>Status table</th></tr>
       </thead>
       <tbody>
+        <tr>
+          <td>2026-08-24</td>
+          <td>fix-issues pass 3 + scoped verify</td>
+          <td>UAT-029/030 (post page one aligned column, TOC rail deleted; fluid root type). Post blocks share ONE left edge at every viewport; column 46.3% of screen on BOTH machines; 46/48 own checks, 11/11 acceptance, 1551 unit</td>
+          <td>docs/TechieBlog-Checklist.md#requirements-status</td>
+        </tr>
         <tr>
           <td>2026-08-24</td>
           <td>fix-issues pass 2 + scoped verify</td>
@@ -255,9 +265,9 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
       session's repro fixture) is left <strong>unpublished</strong>, not deleted — restore with
       <code>update blogpost set published=true where postid=45;</code>. Its body was replaced with heading-bearing sample
       text so the new post-page TOC rail had something real to build against.</li>
-      <li><strong>Owner decision left open:</strong> on the post page the full-bleed title band spans the full 1600px while the
-      TOC+article block below is centred at 1108px — a symmetric 246px offset each side. Deliberate
-      hero-over-centred-content pattern, not breakage; <code>justify-content: start</code> in <code>post.css</code> left-aligns them.</li>
+      <li>The post page's TOC rail (<code>PostTocRail</code>, its JS anchor workaround and its tests) was <strong>deleted</strong> at the
+      owner's request in UAT-029, not hidden. TR-074 (TrBlazeUI <code>AnchorNav</code> emitting base-relative <code>#id</code> links)
+      is therefore moot for this page but remains a real library defect worth fixing upstream.</li>
       <li>Home stats band and Download-CV CTA stay unobservable until <code>UserStats</code> rows and a <code>CVFilePath</code> exist.</li>
       <li>Undriven surfaces: profile save, newsletter Send, subscriber toggles, comment/rating/subscribe submits;
       Firefox + WebKit for REQ-NFR-009; a real screen-reader pass; the macOS BlogApp head.</li>
