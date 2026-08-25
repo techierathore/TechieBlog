@@ -39,11 +39,33 @@ html {
        0.89vw is derived, not guessed: 16px at 1798 and 20px at 2246 is a slope of
        4px / 448px = 0.0089 px per px = 0.89vw, with a ~0 intercept.
 
+       WHY THE CEILING IS 34px AND NOT 20px (corrected 2026-08-25, second report):
+       the first version of this rule capped at 20px and the owner still saw the
+       site render bigger on Windows. The `vw` term was right; the CEILING was the
+       bug. For a glyph to occupy the same PHYSICAL size on one monitor,
+
+           physical = css_size x (monitor_physical_width / viewport_css_width)
+
+       so css_size must stay PROPORTIONAL to the viewport width — which is exactly
+       what `0.89vw` does, and exactly what a fixed 20px ceiling destroys the moment
+       the viewport passes 2246:
+
+           viewport 2246 -> 20.0px proportional -> 34.2 physical  (matches Windows)
+           viewport 2560 -> 20px CAPPED         -> 30.0 physical  (Windows 14% bigger)
+           viewport 3008 -> 20px CAPPED         -> 25.5 physical  (Windows 34% bigger)
+
+       macOS offers several scaled resolutions on a 4K panel (2048 / 2240 / 2560 /
+       3008 / 3840 CSS px), so a 20px ceiling was only ever correct at one of them.
+       34px is 0.89vw at 3840 — i.e. the ceiling can no longer bind anywhere in the
+       4K range, and the proportional term governs throughout. The 16px FLOOR stays:
+       below ~1798 the comparison no longer holds (a laptop panel is not the same
+       physical display), and proportional type there would shrink to unreadable.
+
        This is deliberately on the ROOT: TrBlazeUI's utilities are rem-based, so
        every component, spacing step and heading scales with it in proportion.
        That is the point — the whole page grows, not just the paragraphs.
        ------------------------------------------------------------------------- */
-    font-size: clamp(16px, 0.89vw, 20px);
+    font-size: clamp(16px, 0.89vw, 34px);
 }
 
 html.dark {
