@@ -14,9 +14,10 @@
 *@
 @using TrBlazeUI.Components.Select
 
-@* ValueChanged is what puts the library's Select into controlled mode; without it the bound Value
-   is ignored entirely and the trigger always shows the placeholder (TR-068). Every real call site
-   binds it, via @bind-Value or an explicit Value/ValueChanged pair. *@
+@* ValueChanged puts the library's Select into controlled mode. On 2.0.2 a one-way Value with no
+   callback was ignored entirely (TR-068, fixed in 2.0.3 — the supplied Value is now the initial
+   state); the probe keeps the callback because every real call site binds one, via @bind-Value or
+   an explicit Value/ValueChanged pair. *@
 <Select TValue="string" Value="@Value" ValueChanged="@OnValueChanged">
     <SelectTrigger data-testid="probe-select">
         <SelectValue Placeholder="@Placeholder" />

@@ -1,15 +1,70 @@
 # TechieBlog → TrBlazeUI feedback
 
 ## Summary
-- **66 entries (TR-001 … TR-066): 65 closed, 1 open.**
-- Open: **1 high** — **TR-066** (a `Dialog` inside another `Dialog`'s `DialogContent` never opens; pre-existing, reproduces on 2.0.1; sibling-composition workaround demonstrated on `/components/dialog`). 0 blockers, 0 open majors, 0 open minors, 0 open nice-to-haves.
-- Closed: all 65 of TR-001 … TR-065, **every one fixed library-side** in **2.1.0** — none closed by asking TechieBlog to keep a workaround. TR-016 was reconciled as *not a gap* (`ResponsiveNav*` already ships). The gap requests shipped as nine new components.
-- Ships in: **TrBlazeUI 2.1.0** — built and verified, **not yet published** (owner-manual tag + release).
-- Last consolidated: **2026-08-14** (`*handoff-phase` — re-confirmed against the checklist Requirements Status table; build 0 errors 7/7; suite 1 490 tests). **No entry changed disposition and none was added since 2026-08-11**: the 2026-08-14 work (REQ-NFR-041 enforcement gate, the deploy-pipeline hardening, the VPS reconnaissance) was entirely app- and infrastructure-side, with no TrBlazeUI surface involved. Counts above stand unchanged; next free id remains **TR-067**.
+- **Current disposition through TR-074: all TrBlazeUI findings are closed in library source.** Historical numbering has gaps and sub-findings (`TR-072b`…`TR-072d`), so this document deliberately reports the highest assigned ID instead of repeating the stale “66 entries” count.
+- **Open library defects:** none from this report. TR-066/TR-067 and TR-068…TR-074 (including TR-072b/c/d) are resolved and verified.
+- **Ships in: TrBlazeUI 2.0.3** — published to the feed and **consumed by TechieBlog since 2026-08-25** (`TrBlazeUI.Components` + `TrBlazeUI.Icons.Lucide` 2.0.3 in all three csprojs; build 0 errors, `dotnet test` 1551/0).
+- **Consumer action — DONE 2026-08-25.** Every row of the resolution table below was measured against a running TechieBlog host on 2.0.3 *before* its workaround was removed (`tests/verify/trblazeui-203-upgrade.spec.ts`, 8/8; evidence `tests/.artifacts/trblazeui-203/notes.json`). See "Consumer verification on 2.0.3" under the table for what was removed, what was kept, and why.
+- **One new finding on 2.0.3 — TR-075** (2026-08-26, Low–Medium a11y): a styled `Select` inside `DialogContent` drops focus to `<body>` after a pick, so `Escape` cannot dismiss the dialog until the user Tabs back in; mouse paths unaffected. Detail at the bottom of this file.
+- Last consolidated: **2026-08-26**. Next free ID **TR-076** (the bottom counter line is authoritative).
+
+## ✅ Resolution — 2026-08-25, TrBlazeUI **2.0.3** (pending publish)
+
+This section is the authoritative disposition for the post-2.0.2 findings. The detailed repros later
+in the file are preserved as historical evidence; any “OPEN” wording inside those dated repro blocks
+describes 2.0.1/2.0.2, not the 2.0.3 source state.
+
+| Finding | 2.0.3 source resolution | Verified evidence / TechieBlog follow-up |
+|---|---|---|
+| TR-066 | Nested `DialogPortal` content renders reactively within an existing document-level portal, avoiding stored-fragment disposal while preserving focus containment. | `tests/verify/ui-ui004.spec.js` PASS at 1280×900 and 390×844. Replace sibling-dialog workaround only after TechieBlog verifies its literal nested-dialog compositions on 2.0.3. |
+| TR-067 | A `Select` nested in `DialogContent` renders its options inline at the already-portalled overlay level; mouse and keyboard paths both work. | Same focused spec: three options render; mouse selects Preview and keyboard selects Nightly. TechieBlog may restore styled `Select` where it used `NativeSelect` solely for this defect, after consumer UAT. |
+| TR-068 | Styled `Select` now treats a supplied one-way `Value` as its effective initial/default value when no callback is supplied. | `tests/verify/ui-techieblog.spec.js`: one-way trigger renders “Engineering”; first-paint cases pass. |
+| TR-069 | Focused `Input`/`Textarea` synchronization rejects delayed stale parent echoes instead of clobbering newer DOM text. | `ui-techieblog.spec.js`: focused delayed-echo check passes. TechieBlog should retain any document-identity latch that also represents application reset semantics until its own editor UAT proves it redundant. |
+| TR-070 | Rating keyboard navigation moves DOM focus with the roving selection. | `ui-techieblog.spec.js`: focus, roving index, and checked option agree. |
+| TR-071 | `ItemContent` ships `min-w-0`. | `ui-techieblog.spec.js`: narrow-width content shrinks without page overflow. Consumer-only `min-w-0` copies may be removed after upgrade verification. |
+| TR-072 | `DatePicker` and `TimePicker` forward unmatched attributes to their visible trigger buttons. | `ui-techieblog.spec.js`: both trigger `data-testid` hooks render. Wrapper-only test hooks may be removed after 2.0.3 UAT. |
+| TR-072b | `StatTile` emits stable value and label slots. | Two addressable slots verified by `ui-techieblog.spec.js`. |
+| TR-072c | Missing min-height, responsive negative-margin, state-opacity, and related standard utilities are included in the generated bundle. | Computed-style checks pass at desktop and 390px. Arbitrary utilities remain available only when present in the prebuilt bundle; the AI reference now states this explicitly. |
+| TR-072d | The AI reference documents the `_Imports.razor` upgrade requirement for newly introduced component namespaces. | Documentation/package source updated; TechieBlog must still update its own imports when adopting a new namespace. |
+| TR-073 | Semantic gradient stop utilities are generated alongside gradient directions. | Computed `linear-gradient` with both stops verified. Remove the local fallback rule only after visual comparison on 2.0.3. |
+| TR-074 | `AnchorNav` performs route-preserving scroll/history handling instead of resolving bare fragments against `<base href>`. | Verified `/verify-techieblog` remains on the same route with the expected fragment. TechieBlog may remove `post-toc-rail.js` interception after its post-detail UAT passes. |
+
+Verification baseline for the 2.0.3 source:
+
+| Gate | Result |
+|---|---|
+| `dotnet build TrBlazeUI.sln -c Release -p:CI=true` | **0 errors / 0 warnings** |
+| `tests/verify/ui-ui004.spec.js` | **PASS desktop + mobile** — nested Dialog, focus, mouse/keyboard Select, visual bounds |
+| `tests/verify/ui-techieblog.spec.js` | **76/76 PASS** — desktop + 390px, zero page errors / horizontal overflow |
+
+### Consumer verification on 2.0.3 — TechieBlog, 2026-08-25
+
+All three "remaining actions" are closed: 2.0.3 is on the feed, TechieBlog restored it (no new
+`_Imports.razor` namespaces were needed — no new component was adopted), and each workaround was
+removed only after the matching claim held on a running host (headless Chromium, admin circuit,
+1280 + 390). Measured values, not inspection:
+
+| Finding | Measured on TechieBlog @ 2.0.3 | Workaround disposition |
+|---|---|---|
+| TR-066 | Not exercised — TechieBlog composes stacked dialogs as siblings and had no literal nested-dialog markup to restore. | Nothing to remove. |
+| TR-067 | `/admin/images` upload dialog Select: **7** options; mouse → "Icons" moves the caption to *Max 200 KB, formats: png, svg, webp*; keyboard Enter/ArrowDown/Enter → "Blog". `/users` edit dialog: **5** options. `/admin/skills` add-skill dialog: **7** options. | **Removed** — `ManageImages.razor` is back on the styled `Select`; `verify-all-admin.spec.ts` now asserts 0 native `<select>` and drives the popover. |
+| TR-068 | Not exercised — every TechieBlog call site binds `ValueChanged`. | No workaround existed; the bUnit probe comment updated. |
+| TR-069 | Not re-tested — the resolution table itself says to keep the document-identity latch. | **Kept** — `PostMarkdownEditor` `ResetKey`/`hasLocalEdits` stays. |
+| TR-070 | No app-side workaround ever existed. | — |
+| TR-071 | `/admin` at 390px: rendered `ItemContent` class is `flex min-w-0 flex-1 flex-col gap-1`, computed `min-width: 0px`, document hScroll **0**. | **Removed** — `AdminDashboard.razor` `ItemContent Class="min-w-0"` dropped. |
+| TR-072 | `publish-date-picker` / `publish-time-picker` (`/ManagePost`) and `experience-start-date` / `experience-end-date` (`/admin/experience`) all resolve to a `<button type="button">`. | **Removed** — all four `<span>` wrappers gone; `data-testid` rides on the components. |
+| TR-072b | Home stats band: `stat-tile-value` and `stat-tile-label` slots **1:1** with `home-stat-card`. | No consumer change needed; specs may target the slots. |
+| TR-072c | `min-h-28` → 112px, `min-h-36` → 144px, `md:-mx-6` → −24px at 1280, `hover:opacity-90` served by `trblazeui.css` (plus focus/disabled variants). | **Removed** — the four hand-written rules deleted from `utilities.css`; only arbitrary values remain there. |
+| TR-073 | `bg-gradient-to-br from-muted to-card` on the no-banner post card computes to `linear-gradient(to right bottom, oklch(0.269 0 0) 0%, oklch(0.205 0 0) 100%)` — both stops resolved. | **Removed** — `.post-card-fallback` deleted; `PostCard.razor` + `SearchResults.razor` use the utilities. |
+| TR-074 | Moot for this app — the post-page TOC rail and `post-toc-rail.js` were deleted in UAT-029. | Nothing to remove. |
+
+Two probe notes for the next consumer: Chromium serialises `to bottom right` as `to right bottom`,
+and Tailwind v4 nests utilities inside `@layer`, so a `selectorText` sweep over `document.styleSheets`
+must recurse into grouping rules or it reports the shipped rule as missing.
 
 ---
 
-## ✅ Resolution — 2026-08-11, TrBlazeUI **2.0.2**
+## Historical 2.0.2 resolution snapshot — 2026-08-11
 
 > **VERSION LABEL CORRECTED 2026-08-11 by TechieBlog's `*build-phase`.** This section was written as
 > "2.1.0 (unreleased; pending owner-manual publish)". **The release actually published to the feed
@@ -32,10 +87,10 @@
 closed by asking TechieBlog to keep its workaround. The gap requests (charting aside, which was
 already refuted) are shipped as new components.
 
-**One new defect was found on our side while building the demo pages** and is recorded at the end of
+**One new defect was found on our side while building the demo pages** and was recorded at the end of
 this file as **TR-066** — a `Dialog` declared literally inside another `Dialog`'s `DialogContent`
-does not open. It is pre-existing (it reproduces on 2.0.1 too), it is adjacent to TR-060, and it is
-**open**. Compose stacked dialogs as siblings until it is fixed; see the note on TR-060.
+did not open on 2.0.1/2.0.2. That historical finding and its sibling Select case are resolved in
+the 2.0.3 source; see the authoritative resolution table above.
 
 **Every fix and every new component has a live example in the demo app**, so you can see the
 behaviour before you upgrade: each new component has its own page under `/components/*`, the fixes
@@ -1697,7 +1752,44 @@ TR-073 recorded 2026-08-24 by *trblazeui (UAT-025 / REQ-UI-049 — PostCard no-b
   either adding a `Level`/`Depth` parameter or documenting the label-prefix workaround directly.
 
 TR-074 recorded 2026-08-24 by *trblazeui (UAT-027 / REQ-UI-045 — post detail page rebuild, TOC rail).
-**Next free ID: TR-075.**
+
+---
+
+## Found verifying the 2.0.3 upgrade (2026-08-26, *verify REQ-UI-048 · REQ-FN-025 · REQ-UI-049)
+
+- **TR-075 — after an option is picked in a styled `Select` nested in `DialogContent`, focus is
+  dropped to `<body>` instead of returning to the `SelectTrigger`, so `Escape` no longer dismisses
+  the dialog until the user Tabs back in.**
+
+  *Severity:* **Low–Medium** (accessibility — WCAG 2.4.3 Focus Order; not a keyboard trap).
+  *Measured on:* `TrBlazeUI.Components 2.0.3`, TechieBlog 2026-08-26, headless Chromium against a
+  running Blazor Server host, three dialogs (`/admin/images` upload category, `/users` edit-user
+  role, `/admin/skills` add-skill category). Identical result on all three, by mouse and by keyboard.
+  *Repro (keyboard):* open the dialog → focus the trigger (`document.activeElement` is the trigger,
+  inside the dialog) → `Enter` opens the listbox (7 options) → `ArrowDown`, `Enter`.
+  *Expected:* focus returns to the trigger (the WAI-ARIA listbox/combobox pattern), so `Escape`
+  still reaches the dialog and closes it.
+  *Actual:* `document.activeElement === document.body`; `Escape` ×2 leaves the dialog open
+  (`data-state="open"`, no `inert`, no `aria-hidden`, circuit alive). `Tab` #1 re-enters the
+  dialog (lands on its first focusable — the file input / the Cancel button), and `Escape` then
+  closes it. Mouse `Cancel` / `X` / backdrop work throughout. Baseline control: the same dialog
+  opened WITHOUT touching the Select closes on the first `Escape`, so this is the Select's focus
+  hand-back, not the dialog.
+  *Also observed:* Playwright's `locator.click()` on `Cancel` stalls in its actionability wait in
+  this state while a raw coordinate click lands — harness-side symptom of the same focus/overlay
+  bookkeeping, recorded so the next consumer does not misread it as an app hang.
+  *Relationship:* this is the residue of TR-066/TR-067 — the nested content now renders and
+  selects correctly; what it does not yet do is restore focus to its trigger after closing inside a
+  portalled dialog.
+  *Workaround (not adopted):* none needed by TechieBlog — no acceptance requires Escape-dismissal
+  after a pick, and the dialogs' Cancel buttons are one Tab away. Recorded, not demoted.
+  *Suggested fix:* on item selection (mouse or keyboard) `await trigger.FocusAsync()` after the
+  listbox closes, the same `OnAfterRenderAsync`-timed focus return TR-070 added for `Rating`; and
+  add the nested-in-Dialog case to `tests/verify/ui-ui004.spec.js` with an `Escape`-closes-dialog
+  assertion after a pick.
+
+TR-075 recorded 2026-08-26 by *verify (REQ-UI-048 / REQ-FN-025 / REQ-UI-049 — 2.0.3 re-verification).
+**Next free ID: TR-076.**
 
 > **Note on this file's own "next free ID" bookkeeping:** the task brief that led to TR-073 named
 > **TR-067** as the next free id, following the SUMMARY section at the top of this file rather than

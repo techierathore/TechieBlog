@@ -114,8 +114,8 @@
                            FeaturedImage fell straight through to the browser's alt-text rendering.
                            Search does not use <PostCard> (its row layout differs), so this block is
                            brought to the SAME fallback markup/behaviour by hand: PostCard.razor's
-                           `.post-card-fallback` gradient class plus the identical inline onerror
-                           idempotency guard, so all three surfaces agree. *@
+                           `bg-gradient-to-br from-muted to-card` gradient utilities plus the identical
+                           inline onerror idempotency guard, so all three surfaces agree. *@
                         <div class="h-28 w-full shrink-0 overflow-hidden rounded-md bg-muted sm:w-40">
                             @if (!string.IsNullOrWhiteSpace(result.ImageUrl))
                             {
@@ -126,7 +126,7 @@
                                      data-testid="search-result-image"
                                      onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.classList.remove('hidden');" />
                             }
-                            <div class="post-card-fallback flex h-full w-full items-center justify-center @(string.IsNullOrWhiteSpace(result.ImageUrl) ? null : "hidden")"
+                            <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-muted to-card @(string.IsNullOrWhiteSpace(result.ImageUrl) ? null : "hidden")"
                                  data-testid="search-result-image-placeholder">
                                 <LucideIcon Name="image-off" Size="28" Class="text-muted-foreground opacity-40" />
                             </div>

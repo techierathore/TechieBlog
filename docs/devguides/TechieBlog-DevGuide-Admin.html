@@ -146,6 +146,10 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     </div>
 
     <blockquote>
+      <p><strong>Runtime-verified 2026-08-26 as Admin (web head, rung #4 :5473)</strong> (verify-phase, scope REQ-UI-048 · REQ-FN-025 · REQ-UI-049 — TrBlazeUI 2.0.3). <code>/admin</code>, <code>/admin/images</code> (+ open upload dialog), <code>/users</code>, <code>/admin/skills</code>, <code>/admin/experience</code>, <code>/admin/analytics</code>, <code>/ManagePost</code> — <strong>renders ✓ · looks-right ✓ (runtime-confirmed 2026-08-26)</strong> at 1280 + 390; Select first-paint labels 13/13 across the admin surface. ⚠ New library finding <strong>TR-075</strong>: a styled <code>Select</code> inside a dialog drops focus to <code>&lt;body&gt;</code> after a pick (Escape needs a Tab first; mouse unaffected) — <code>/admin/images</code>, <code>/users</code>, <code>/admin/skills</code>. Desktop head not exercised this run.</p>
+    </blockquote>
+
+    <blockquote>
       <p><strong>Runtime-verified 2026-08-23 as Admin on BOTH heads</strong> (verify-phase, scope REQ-UI-052 · REQ-FN-047 · REQ-FN-061 · REQ-NFR-018). Desktop head driven over the launched PID's WebView2 CDP; web head on rung #4 (0.0.0.0:5099).</p>
       <ul>
         <li><strong>All 19 admin routes open ✓</strong> — zero ErrorBoundary, zero access-denied, zero not-routed; sidebar renders 18 nav links; theme toggle flips the root <code>dark</code> class both ways. <code>pageOverflowX=false</code>, <code>zeroSize=[]</code> on every route → <strong>looks-right ✓ (runtime-confirmed 2026-08-23)</strong>.</li>
@@ -412,20 +416,25 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
         <tr><th>Control</th><th>What it does</th><th>Source call</th><th>Render status</th></tr>
       </thead>
       <tbody>
-        <tr><td>Gallery by category</td><td>Lists images</td><td><code>ImageService.GetImagesByCategoryAsync(...)</code></td><td>static-only</td></tr>
-        <tr><td>Upload</td><td>Validates then stores</td><td><code>ImageService.ValidateImageAsync(...)</code> → <code>UploadImageAsync(...)</code></td><td>static-only</td></tr>
-        <tr><td>Delete</td><td>Removes row and file</td><td><code>ImageService.DeleteImageAsync(...)</code></td><td>static-only</td></tr>
-        <tr><td>Copy URL</td><td>Public path for an image</td><td><code>ImageService.GetImageUrl(...)</code></td><td>static-only</td></tr>
-        <tr><td>User filter</td><td>Owner selection</td><td><code>UserRepo.GetAll(...)</code></td><td>static-only</td></tr>
+        <tr><td>Category tabs (7)</td><td>Switches the listed category</td><td>page state</td><td>renders ✓ (runtime-confirmed 2026-08-26)</td></tr>
+        <tr><td>Gallery by category</td><td>Lists images</td><td><code>ImageService.GetImagesByCategoryAsync(...)</code></td><td>renders ✓ (runtime-confirmed 2026-08-26 — grid, or the documented <code>images-empty</code> state when the category has no rows)</td></tr>
+        <tr><td>Upload dialog — category picker (styled <code>Select</code> inside <code>DialogContent</code>)</td><td>Picks the category; caption, <code>accept</code> and dropzone ceiling follow it</td><td><code>ImageCategoryRules</code> via <code>IBlogImageService.GetCategoryRule</code></td><td>renders ✓ (runtime-confirmed 2026-08-26 — 7 options, mouse + keyboard; <strong>TR-075</strong>: focus drops to <code>&lt;body&gt;</code> after a pick, so Escape needs a Tab first)</td></tr>
+        <tr><td>Upload</td><td>Validates then stores</td><td><code>ImageService.ValidateImageAsync(...)</code> → <code>UploadImageAsync(...)</code></td><td>renders ✓ (dialog + dropzone confirmed 2026-08-26); server-side rejection last exercised 2026-08-11</td></tr>
+        <tr><td>Delete</td><td>Removes row and file</td><td><code>ImageService.DeleteImageAsync(...)</code></td><td>per-card action present (2026-08-26); not driven — destructive</td></tr>
+        <tr><td>Copy URL</td><td>Public path for an image</td><td><code>ImageService.GetImageUrl(...)</code></td><td>per-card action present (2026-08-26)</td></tr>
+        <tr><td>User filter</td><td>Owner selection</td><td><code>UserRepo.GetAll(...)</code></td><td>renders ✓ (runtime-confirmed 2026-08-26 — first-paint label "All Users")</td></tr>
       </tbody>
     </table>
+
+    <p><strong>Render/visual status (observed 2026-08-26, host <code>:5473</code>, TrBlazeUI 2.0.3):</strong> <strong>looks-right ✓ (runtime-confirmed 2026-08-26)</strong> at 1280 and 390 for the page and for the open upload dialog (dialog inside the viewport at both widths). Screenshots <code>tests/.artifacts/verify-203-gates/admin-images-{1280,390}.png</code>, <code>admin-images-upload-dialog-{1280,390}.png</code>.</p>
 
     <p><strong>Lineage:</strong> page → <code>IBlogImageService</code> (<code>BlogEngine/Services/BlogImageService.cs</code>) → disk write under <code>source/BlogUI/wwwroot/uploads/{category}/</code> <strong>and</strong> <code>BlogImageRepo</code> → <code>INSERT INTO blogimage</code> / <code>UPDATE blogimage</code> / <code>SELECT * FROM blogimage</code>.</p>
 
     <p><strong>Business rules:</strong> seven categories with per-category size and format limits (profiles 2 MB; logos, awards 500 KB; icons 200 KB; blog, general 5 MB; cv 10 MB / PDF only). Filenames are <code>{category}_{userId}_{timestamp}_{guid}.{ext}</code>.</p>
 
-    <p><strong>Known issues (static):</strong></p>
-    <ol>
+    <p><strong>Known issues:</strong></p>
+    <ol start="0">
+      <li><strong>TR-075 (library, observed 2026-08-26):</strong> after picking a category in the upload dialog's styled <code>Select</code>, focus is dropped to <code>&lt;body&gt;</code>; <code>Escape</code> does not close the dialog until the user Tabs back in (one Tab re-enters; mouse Cancel/X unaffected). Same on <code>/users</code> edit and <code>/admin/skills</code> add dialogs. <code>docs/TechieBlog-TrBlazeUI-Feedback.md</code> TR-075.</li>
       <li>The screen is <code>AdminOnly</code> while <code>ImagePicker</code> (which uploads through the same service) is used on <code>AuthorOrAbove</code> pages — Authors can create uploads they can never browse or delete (REQ-UI-034).</li>
       <li>Files live on local disk with no storage abstraction (REQ-FN-042) — a container redeploy without a mounted volume loses every upload.</li>
       <li>Thumbnail generation (feature-ideation §2.3 item 4) was not found. <code>{unresolved — TODO: confirm whether thumbnails are generated.}</code></li>

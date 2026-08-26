@@ -222,26 +222,24 @@
                         <FieldLabel>Start Date</FieldLabel>
                         <FieldContent>
                             @*
-                                TrBlazeUI gap TR-069 (2.0.2, measured live): DatePicker ACCEPTS a
-                                splatted data-testid — no throw, 0 build errors — and never renders
-                                it on the popover trigger it emits, so the 2.0.2 upgrade silently
-                                DELETED these two hooks. Wrapper-borne until the library fixes it.
+                                TR-072 (TrBlazeUI 2.0.2) dropped a splatted data-testid on DatePicker, so
+                                these two hooks rode on <span> wrappers. 2.0.3 forwards the attribute to
+                                the trigger button — re-measured live 2026-08-25 — so they are back on
+                                the components.
                             *@
-                            <span data-testid="experience-start-date">
-                                <DatePicker @bind-Value="StartDateValue"
-                                            Placeholder="Pick a start date" />
-                            </span>
+                            <DatePicker @bind-Value="StartDateValue"
+                                        Placeholder="Pick a start date"
+                                        data-testid="experience-start-date" />
                         </FieldContent>
                     </Field>
 
                     <Field>
                         <FieldLabel>End Date</FieldLabel>
                         <FieldContent>
-                            <span data-testid="experience-end-date">
-                                <DatePicker @bind-Value="EndDateValue"
-                                            Placeholder="Pick an end date"
-                                            Disabled="@CurrentEvent.IsCurrent" />
-                            </span>
+                            <DatePicker @bind-Value="EndDateValue"
+                                        Placeholder="Pick an end date"
+                                        Disabled="@CurrentEvent.IsCurrent"
+                                        data-testid="experience-end-date" />
                         </FieldContent>
                     </Field>
                 </div>

@@ -170,31 +170,33 @@
         <div class="flex flex-col gap-5">
 
             @*
-                [REQ-FN-025 / TR-067] NativeSelect, not the popover Select, and the swap is load
-                bearing. TrBlazeUI 2.0.1's `Select` does not work inside `DialogContent`: the trigger
-                flips to aria-expanded="true" / data-state="open" but `SelectContent` renders ZERO
-                nodes, so there is no listbox and nothing to pick. Measured on this very page, where
-                the identical component OUTSIDE the dialog (the owner filter) opens with all five of
-                its options. The category could therefore not be changed at all, by mouse or by
-                keyboard — which also made every per-category limit but the default one unreachable.
-                `NativeSelect` renders a real <select>: no popover, keyboard operable, and a phone
-                shows its own picker. Revisit on the 2.1.0 upgrade.
+                [REQ-FN-025 / TR-067] The styled popover Select, restored on the TrBlazeUI 2.0.3
+                upgrade (2026-08-25). On 2.0.1/2.0.2 a `Select` inside `DialogContent` opened with
+                ZERO options (measured on this very page against the owner filter outside the
+                dialog, which opened with all five), so this picker shipped as `NativeSelect`.
+                2.0.3 renders the nested Select's options at the already-portalled overlay level;
+                re-measured live here: all seven categories render and both mouse and keyboard
+                selection move the bound value and the constraint caption below.
             *@
             <Field>
                 <FieldLabel For="upload-category-select">Category</FieldLabel>
                 <FieldContent>
-                    <NativeSelect TValue="string"
-                                  Value="@UploadCategory"
-                                  ValueChanged="@OnUploadCategoryChanged"
-                                  Disabled="@IsUploading"
-                                  id="upload-category-select"
-                                  aria-label="Upload category"
-                                  data-testid="upload-category-select">
-                        @foreach (var category in Categories)
-                        {
-                            <option value="@category.Key">@category.Value</option>
-                        }
-                    </NativeSelect>
+                    <Select TValue="string"
+                            Value="@UploadCategory"
+                            ValueChanged="@OnUploadCategoryChanged"
+                            Disabled="@IsUploading">
+                        <SelectTrigger id="upload-category-select"
+                                       aria-label="Upload category"
+                                       data-testid="upload-category-select">
+                            <SelectValue Placeholder="Pick a category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            @foreach (var category in Categories)
+                            {
+                                <SelectItem TValue="string" Value="@category.Key" Text="@category.Value">@category.Value</SelectItem>
+                            }
+                        </SelectContent>
+                    </Select>
                     <FieldDescription data-testid="upload-category-constraints">@GetCategoryConstraintsText(UploadCategory)</FieldDescription>
                 </FieldContent>
             </Field>
