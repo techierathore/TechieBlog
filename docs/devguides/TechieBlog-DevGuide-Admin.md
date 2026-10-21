@@ -1,5 +1,7 @@
 # TechieBlog — Developer Guide · Admin
 
+> **Runtime-verified 2026-08-26 as Admin (web head, rung #4 :5473)** (verify-phase, scope REQ-UI-048 · REQ-FN-025 · REQ-UI-049 — TrBlazeUI 2.0.3). `/admin`, `/admin/images` (+ open upload dialog), `/users`, `/admin/skills`, `/admin/experience`, `/admin/analytics`, `/ManagePost` — **renders ✓ · looks-right ✓ (runtime-confirmed 2026-08-26)** at 1280 + 390; Select first-paint labels 13/13 across the admin surface. ⚠ New library finding **TR-075**: a styled `Select` inside a dialog drops focus to `<body>` after a pick (Escape needs a Tab first; mouse unaffected) — `/admin/images`, `/users`, `/admin/skills`. Desktop head not exercised this run.
+
 > **Runtime-verified 2026-08-23 as Admin on BOTH heads** (verify-phase, scope REQ-UI-052 · REQ-FN-047 · REQ-FN-061 · REQ-NFR-018). Desktop head driven over the launched PID's WebView2 CDP; web head on rung #4 (0.0.0.0:5099).
 > - **All 19 admin routes open ✓** — zero ErrorBoundary, zero access-denied, zero not-routed; sidebar renders 18 nav links; theme toggle flips the root `dark` class both ways. `pageOverflowX=false`, `zeroSize=[]` on every route → **looks-right ✓ (runtime-confirmed 2026-08-23)**.
 > - ⚠ **Read the counts below with today's data in mind.** The development database now holds **0 posts / 0 series / 0 comments / 0 skills / 0 experience / 0 awards / 0 stats** (it held 10/2/7/18/3/3/4 on 2026-08-09). Those screens therefore render **correct EMPTY STATES**, not defects — `/admin/series` was opened and visually confirmed as a well-formed "No series yet" panel with its Add-New CTA. Any harness that asserts the 2026-08-09 counts will report false GAPs until it is re-seeded.
@@ -169,11 +171,15 @@ flowchart LR
 
 | Control | What it does | Source call | Render status |
 |---------|--------------|-------------|---------------|
-| Gallery by category | Lists images | `ImageService.GetImagesByCategoryAsync(...)` | static-only |
-| Upload | Validates then stores | `ImageService.ValidateImageAsync(...)` → `UploadImageAsync(...)` | static-only |
-| Delete | Removes row and file | `ImageService.DeleteImageAsync(...)` | static-only |
-| Copy URL | Public path for an image | `ImageService.GetImageUrl(...)` | static-only |
-| User filter | Owner selection | `UserRepo.GetAll(...)` | static-only |
+| Category tabs (7) | Switches the listed category | page state | renders ✓ (runtime-confirmed 2026-08-26) |
+| Gallery by category | Lists images | `ImageService.GetImagesByCategoryAsync(...)` | renders ✓ (runtime-confirmed 2026-08-26 — grid, or the documented `images-empty` state when the category has no rows) |
+| Upload dialog — category picker (styled `Select` inside `DialogContent`) | Picks the category; caption, `accept` and dropzone ceiling follow it | `ImageCategoryRules` via `IBlogImageService.GetCategoryRule` | renders ✓ (runtime-confirmed 2026-08-26 — 7 options, mouse + keyboard; **TR-075**: focus drops to `<body>` after a pick, so Escape needs a Tab first) |
+| Upload | Validates then stores | `ImageService.ValidateImageAsync(...)` → `UploadImageAsync(...)` | renders ✓ (dialog + dropzone confirmed 2026-08-26); server-side rejection last exercised 2026-08-11 |
+| Delete | Removes row and file | `ImageService.DeleteImageAsync(...)` | per-card action present (2026-08-26); not driven — destructive |
+| Copy URL | Public path for an image | `ImageService.GetImageUrl(...)` | per-card action present (2026-08-26) |
+| User filter | Owner selection | `UserRepo.GetAll(...)` | renders ✓ (runtime-confirmed 2026-08-26 — first-paint label "All Users") |
+
+**Render/visual status (observed 2026-08-26, host `:5473`, TrBlazeUI 2.0.3):** **looks-right ✓ (runtime-confirmed 2026-08-26)** at 1280 and 390 for the page and for the open upload dialog (dialog inside the viewport at both widths). Screenshots `tests/.artifacts/verify-203-gates/admin-images-{1280,390}.png`, `admin-images-upload-dialog-{1280,390}.png`.
 
 **Lineage:** page → `IBlogImageService` (`BlogEngine/Services/BlogImageService.cs`) → disk write under
 `source/BlogUI/wwwroot/uploads/{category}/` **and** `BlogImageRepo` → `INSERT INTO blogimage` /
@@ -183,7 +189,8 @@ flowchart LR
 awards 500 KB; icons 200 KB; blog, general 5 MB; cv 10 MB / PDF only). Filenames are
 `{category}_{userId}_{timestamp}_{guid}.{ext}`.
 
-**Known issues (static):**
+**Known issues:**
+0. **TR-075 (library, observed 2026-08-26):** after picking a category in the upload dialog's styled `Select`, focus is dropped to `<body>`; `Escape` does not close the dialog until the user Tabs back in (one Tab re-enters; mouse Cancel/X unaffected). Same on `/users` edit and `/admin/skills` add dialogs. `docs/TechieBlog-TrBlazeUI-Feedback.md` TR-075.
 1. The screen is `AdminOnly` while `ImagePicker` (which uploads through the same service) is used on
    `AuthorOrAbove` pages — Authors can create uploads they can never browse or delete (REQ-UI-034).
 2. Files live on local disk with no storage abstraction (REQ-FN-042) — a container redeploy without a

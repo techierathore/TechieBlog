@@ -51,6 +51,18 @@ public partial class ManageImages : ComponentBase
     [Inject]
     public IBlogUserRepo UserRepo { get; set; } = default!;
 
+    /// <summary>
+    /// Service provider, used only to resolve the OPTIONAL <see cref="INativeImagePicker"/>.
+    /// </summary>
+    [Inject]
+    public IServiceProvider Services { get; set; } = default!;
+
+    /// <summary>
+    /// The head's native image picker, or <c>null</c> on the website (see <see cref="INativeImagePicker"/>).
+    /// When present, the upload dialog chooses files through it and never renders a file input.
+    /// </summary>
+    public INativeImagePicker? NativePicker => Services.GetService(typeof(INativeImagePicker)) as INativeImagePicker;
+
     [CascadingParameter]
     private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
 
@@ -279,8 +291,40 @@ public partial class ManageImages : ComponentBase
     public async Task OnFilesChanged(IReadOnlyList<FileUploadItem> files)
     {
         PendingFiles = files;
+        await StageFileAsync(files.FirstOrDefault()?.File);
+    }
+
+    /// <summary>
+    /// Chooses the file through the head's native picker (BlogApp) instead of the dropzone.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> See <see cref="INativeImagePicker"/> — WebView2's own file
+    /// dialog crashed BlogApp. A cancelled dialog leaves the current selection alone.</para>
+    /// <para><b>Side Effects:</b> Opens a modal dialog; may set <see cref="SelectedFile"/>.</para>
+    /// </remarks>
+    public async Task ChooseWithNativePicker()
+    {
+        var picker = NativePicker;
+        if (picker is null)
+        {
+            return;
+        }
+
+        var file = await picker.PickImageAsync(GetAcceptedFileTypes(UploadCategory));
+        if (file is not null)
+        {
+            await StageFileAsync(file);
+        }
+    }
+
+    /// <summary>
+    /// Validates a chosen file against the upload category's rules and stages it for upload.
+    /// </summary>
+    /// <param name="file">The chosen file, or <c>null</c> to clear the selection.</param>
+    private async Task StageFileAsync(IBrowserFile? file)
+    {
         UploadError = null;
-        SelectedFile = files.FirstOrDefault()?.File;
+        SelectedFile = file;
 
         if (SelectedFile is null)
         {

@@ -12,7 +12,7 @@ import { test, expect, Page } from '@playwright/test';
  * horizontal overflow) at desktop 1280 and mobile 390.
  */
 
-const BASE = 'http://localhost:5410';
+const BASE = process.env.TB_BASE ?? 'http://localhost:5410';
 const ADMIN_EMAIL = 'Ravi@techieblog.com';
 const ADMIN_PASSWORD = 'admin_password';
 

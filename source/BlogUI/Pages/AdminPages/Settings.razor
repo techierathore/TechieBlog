@@ -22,6 +22,7 @@
 @inject ISiteSettingsService SiteSettingsService
 @inject ToastService ToastService
 @inject ICacheService CacheService
+@inject BlogEngine.Services.ISiteCacheNotifier CacheNotifier
 @inject AuthenticationStateProvider AuthStateProvider
 
 <SiteBrandTitle Page="Settings" />
@@ -661,6 +662,7 @@
                 settings.SiteTheme = ThemeService.NormaliseTheme(settings.SiteTheme);
                 siteLogoPath = settings.SiteLogoPath;
                 ToastService.Success("Settings saved.", "Settings");
+                await NotifySiteCacheRefreshAsync();
             }
             else
             {
@@ -718,6 +720,7 @@
             ToastService.Success(
                 "Cached content cleared. The public pages now read straight from the database.",
                 "Maintenance");
+            await NotifySiteCacheRefreshAsync();
         }
         catch (Exception)
         {
@@ -726,6 +729,35 @@
         finally
         {
             isClearingCache = false;
+        }
+    }
+
+    /// <summary>
+    /// Asks the website's own process to drop its caches, and says what happened.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic (production report 2026-10-21):</b> on BlogApp both
+    /// <see cref="SaveSettings"/> and <see cref="ClearContentCache"/> only ever touched BlogApp's own
+    /// in-process cache — the website, a different process, kept serving its ten-minute copy, so a
+    /// words-per-page change saved from the desktop did not reach the live site and "Clear cached
+    /// content" cleared nothing the public could see. The website's notifier is a no-op
+    /// (<c>NotApplicable</c>), because its save and its button already act on the site's own cache.</para>
+    /// <para><b>Flow:</b> call the notifier → toast the outcome unless there was nothing to do.</para>
+    /// <para><b>Side Effects:</b> One HTTP call on BlogApp; one toast. Never throws — the save itself
+    /// already succeeded.</para>
+    /// </remarks>
+    /// <returns>A task that completes when the outcome is shown.</returns>
+    private async Task NotifySiteCacheRefreshAsync()
+    {
+        var result = await CacheNotifier.RefreshAsync();
+
+        if (result.Outcome == BlogEngine.Services.CacheRefreshOutcome.Succeeded)
+        {
+            ToastService.Success("The live site was refreshed.", "Site cache");
+        }
+        else if (result.Outcome == BlogEngine.Services.CacheRefreshOutcome.Failed)
+        {
+            ToastService.Error(result.Detail ?? "The live site was not refreshed.", "Site cache");
         }
     }
 

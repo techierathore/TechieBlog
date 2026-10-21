@@ -11,9 +11,9 @@
     to render the post title as the ONLY content of the empty image box, so a banner-less card showed
     the same title twice (once stranded inside the grey box, once below it in the real heading), and
     the box itself read as a broken image. Replaced with a designed fallback — a subtle theme-token
-    gradient (`.post-card-fallback` in wwwroot/css/utilities.css; a pre-built Tailwind bundle ships no
-    from-*/to-* gradient-stop utilities for custom tokens, so the gradient colours are a hand-written
-    rule) plus a centred, low-opacity `image-off` glyph — and the `ImagePlaceholder` text parameter
+    gradient (`bg-gradient-to-br from-muted to-card`; the 2.0.2 bundle shipped no from-*/to-* stop
+    utilities, TR-073, so this was a hand-written `.post-card-fallback` rule until the 2.0.3 upgrade
+    on 2026-08-25) plus a centred, low-opacity `image-off` glyph — and the `ImagePlaceholder` text parameter
     was retired entirely (see the parameter's own history note below). The same fallback also catches
     a `FeaturedImage` URL that 404s (the stranded-uploads class, UAT-022): the plain inline `onerror`
     DOM attribute below is not a Blazor event handler, so it survives every render; it hides the
@@ -35,7 +35,7 @@
                  data-testid="post-card-image"
                  onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.classList.remove('hidden');" />
         }
-        <div class="post-card-fallback flex h-full w-full items-center justify-center @(string.IsNullOrEmpty(ImageUrl) ? null : "hidden")"
+        <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-muted to-card @(string.IsNullOrEmpty(ImageUrl) ? null : "hidden")"
              data-testid="post-card-image-placeholder">
             <LucideIcon Name="image-off" Size="40" Class="text-muted-foreground opacity-40" />
         </div>

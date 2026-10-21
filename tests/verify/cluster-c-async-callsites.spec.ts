@@ -10,7 +10,7 @@ import { test, expect, Page } from '@playwright/test';
  * PostgreSQL, and each page is walked at 1280 and 390 with a screenshot kept for inspection.
  */
 
-const BASE = 'http://172.18.144.1:5405';
+const BASE = process.env.TB_BASE ?? 'http://172.18.144.1:5405';
 const ADMIN_EMAIL = 'Ravi@techieblog.com';
 const ADMIN_PASSWORD = 'admin_password';
 const SHOTS = 'tests/.artifacts';

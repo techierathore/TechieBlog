@@ -15,7 +15,7 @@ import { test, expect, Page } from '@playwright/test';
  * at 1280 and 390 with a screenshot kept.
  */
 
-const BASE = 'http://172.18.144.1:5407';
+const BASE = process.env.TB_BASE ?? 'http://172.18.144.1:5407';
 const ADMIN_EMAIL = 'Ravi@techieblog.com';
 const ADMIN_PASSWORD = 'admin_password';
 const SHOTS = 'tests/.artifacts';

@@ -150,6 +150,10 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
     </div>
 
     <blockquote>
+      <p><strong>Runtime-verified 2026-08-26 as Guest (anonymous)</strong> (verify-phase, scope REQ-UI-048 · REQ-FN-025 · REQ-UI-049 — TrBlazeUI 2.0.3). <code>/</code>, <code>/categories</code>, <code>/tags</code>, <code>/series</code>, <code>/search</code>, <code>/newsletters</code>, <code>/speaker-profile</code>, <code>/post/{slug}</code> — <strong>renders ✓ · looks-right ✓ (runtime-confirmed 2026-08-26)</strong> at 1280 + 390: 0 error boundaries, 0 empty icons, 0 zero-sized / overlapping / off-viewport controls, 0 horizontal scroll, 0 console errors. The home <strong>stats band rendered for the first time</strong> (4 tiles, against rows seeded for the run). Screenshots <code>tests/.artifacts/verify-203-gates/</code>.</p>
+    </blockquote>
+
+    <blockquote>
       <p><strong>Runtime-verified 2026-08-23 as Guest (anonymous)</strong> (verify-phase, scope REQ-UI-053 · REQ-NFR-018).</p>
       <ul>
         <li><code>/newsletters</code> and <code>/newsletter/{slug}</code> — <strong>renders ✓ · looks-right ✓ (runtime-confirmed 2026-08-23)</strong>. Every listed control reported RENDERS with non-empty data (issue position "Issue 1 of 2", all-issues link, compact subscribe CTA + heading); §4b clean at <strong>1280 and 390</strong> — <code>overlaps=[] zeroSize=[] offViewport=[] hScroll=0 consoleErrors=[]</code>. Only-sent-issues, pending-subscriber-until-confirmed and the TbEmpty no-data state all hold.</li>
@@ -364,11 +368,13 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
         <tr><th>Control</th><th>What it shows</th><th>Source call</th><th>Render status</th></tr>
       </thead>
       <tbody>
-        <tr><td>Featured post</td><td>One highlighted post</td><td><code>BlogService.GetFeaturedPost()</code></td><td>static-only (unconfirmed)</td></tr>
-        <tr><td>Recent posts grid</td><td>Published posts, paged</td><td><code>BlogService.GetPublishedPosts(...)</code></td><td>static-only (unconfirmed)</td></tr>
-        <tr><td>Pagination</td><td>Page count</td><td><code>BlogService.GetPublishedPostCount()</code></td><td>static-only (unconfirmed)</td></tr>
-        <tr><td>Reading time per card</td><td>"N min read"</td><td><code>ReadingTimeCalculator.Calculate(...)</code> (static helper, called in the page)</td><td>static-only (unconfirmed)</td></tr>
-        <tr><td>Sidebar</td><td>Categories, tags, subscribe form</td><td><code>Components/Sidebar.razor</code></td><td>static-only (unconfirmed)</td></tr>
+        <tr><td>Hero (name, title, tagline, photo, Get-In-Touch, social row)</td><td>The <code>IsSiteOwner</code> user's resume header</td><td><code>IBlogUserRepo.GetSiteOwnerAsync()</code> via <code>ResumeHero</code></td><td>renders ✓ (runtime-confirmed 2026-08-26)</td></tr>
+        <tr><td>Headline stats band (<code>home-stats</code>, 4 × <code>StatTile</code>)</td><td>Owner's <code>UserStats</code> rows, value + label slots</td><td><code>IUserStatsRepo.GetByUserId()</code> via <code>HomeStats</code></td><td>renders ✓ (runtime-confirmed 2026-08-26 — observed for the first time locally, against 4 rows seeded for the run; collapses by design when the table is empty)</td></tr>
+        <tr><td>About summary</td><td>Owner bio</td><td><code>HomeAbout</code></td><td>renders ✓ (runtime-confirmed 2026-08-26)</td></tr>
+        <tr><td>Latest articles grid (<code>home-latest-articles</code>, <code>PostCard</code> ×N)</td><td>Recent published posts, each linking to <code>/post/{slug}</code></td><td><code>BlogSvc.GetPublishedPostsAsync(3, 0)</code> (content-cached)</td><td>renders ✓ (runtime-confirmed 2026-08-26 — card link → HTTP 200)</td></tr>
+        <tr><td>No-banner card fallback</td><td><code>bg-gradient-to-br from-muted to-card</code> + <code>image-off</code> glyph</td><td><code>PostCard.razor</code> (TrBlazeUI 2.0.3 gradient-stop utilities)</td><td>renders ✓ (runtime-confirmed 2026-08-26 — computed two-stop oklch gradient)</td></tr>
+        <tr><td>Contact block</td><td>Owner contact details</td><td><code>ResumeContact</code></td><td>renders ✓ (runtime-confirmed 2026-08-26)</td></tr>
+        <tr><td>Download-CV CTA</td><td>Link to <code>CVFilePath</code></td><td><code>ResumeHero</code></td><td>conditional — NOT observable (no <code>CVFilePath</code> in this DB), collapses by design</td></tr>
       </tbody>
     </table>
 
@@ -395,7 +401,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
       <li><strong>(2) cross-platform typography — FIXED.</strong> The site now self-hosts <strong>Inter</strong> as a variable woff2 from its own origin (<code>_content/BlogUI/fonts/inter-latin-var.woff2</code>, 48 KB latin + an 85 KB latin-ext subset that an English page never requests), declared with <code>@font-face</code> + <code>font-display: swap</code> and <code>unicode-range</code> subsetting at <code>css/theme.css:66-82</code>; <code>--tb-font-ui</code>/<code>--tb-font-heading</code> lead with <code>"Inter"</code> and the unshipped <code>Poppins</code> entries are gone from <code>blogui.css:15</code> / <code>adminui.css:15</code>. <strong>Observed:</strong> <code>document.fonts.size</code> 0 → 2, <code>fonts.check('16px Inter')</code> true, and blocking the woff2 shifts a real <code>h1</code> by 79.5px — so the glyphs genuinely changed. macOS and Windows now render the same face. The <code>developer</code> (mono) and <code>minimal</code> (serif) site themes were deliberately left on their own faces and confirmed free of Inter leak.</li>
     </ul>
 
-    <p><strong>Render/visual status (observed 2026-08-24, host <code>:5421</code>):</strong> RENDERS + VISUAL-OK at 1280 and 390, in both dark and light — 0 horizontal scroll, 0 off-viewport elements. Screenshots <code>test-results-fixissues/home-{1280,390}-{dark,light}.png</code>. ⚠ Still NOT observable on this database (not defects): the headline <strong>stats band</strong> (no <code>UserStats</code> rows) and the <strong>Download-CV CTA</strong> (no <code>CVFilePath</code>); both collapse by design rather than rendering blank.</p>
+    <p><strong>Render/visual status (observed 2026-08-26, host <code>:5473</code>, TrBlazeUI 2.0.3):</strong> RENDERS + <strong>looks-right ✓ (runtime-confirmed 2026-08-26)</strong> at 1280 and 390 — 0 zero-sized, 0 overlaps, 0 off-viewport, 0 horizontal scroll, 0 console errors. Screenshots <code>tests/.artifacts/verify-203-gates/home-{1280,390}{,-full}.png</code>. The <strong>stats band was observed rendering</strong> (4 tiles, value + label slots) against <code>UserStats</code> rows seeded for the run and reverted afterwards; the <strong>Download-CV CTA</strong> remains NOT observable (no <code>CVFilePath</code>) and collapses by design. Note for the next verifier: the <code>.post-card-fallback</code> rule named above is gone since the 2.0.3 upgrade — the fallback is now <code>bg-gradient-to-br from-muted to-card</code> on the element itself — and published listings are <strong>content-cached</strong>, so seed the database <em>before</em> booting the host or the home page keeps showing the empty list.</p>
 
     <h2 id="guest-post-view-post-slug-post-slug-pagenumber">Guest · Post view (<code>/post/{Slug}</code>, <code>/post/{Slug}/{PageNumber}</code>)<a class="anchor-link" href="#guest-post-view-post-slug-post-slug-pagenumber">#</a></h2>
 

@@ -23,7 +23,7 @@ import { test, expect, Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const BASE = 'http://172.18.144.1:5450';
+const BASE = process.env.TB_BASE ?? 'http://172.18.144.1:5450';
 const SHOTS = path.resolve(__dirname, '../.artifacts/verify-public');
 
 fs.mkdirSync(SHOTS, { recursive: true });

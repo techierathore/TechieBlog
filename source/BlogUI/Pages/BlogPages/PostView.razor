@@ -66,7 +66,7 @@
 @inject BlogModels.Interfaces.IPostViewTracker PostViewTracker
 @inject BlogModels.Interfaces.IAnalyticsService AnalyticsService
 @inject NavigationManager Navigation
-@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject BlogModels.Interfaces.ISiteSettingsService SiteSettingsService
 @* REQ-UI-058 — the ambient request, used ONLY to turn an unresolvable slug into a real 404. *@
 @inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
 
@@ -404,7 +404,6 @@ else if (blogPost != null)
     private int currentPage = 1;
     private int totalPages = 1;
     private List<string> contentPages = new();
-    private const string PaginationWordCountKey = "techieblog_pagination_word_count";
 
     /// <summary>
     /// Rendered HTML for the current page of the article, cached once per load (see
@@ -431,7 +430,6 @@ else if (blogPost != null)
 
         try
         {
-            // Load pagination setting from local storage
             await LoadPaginationSetting();
 
             blogPost = await BlogService.GetPostBySlugAsync(Slug);
@@ -599,23 +597,23 @@ else if (blogPost != null)
     }
 
     /// <summary>
-    /// Loads the pagination word count setting from local storage.
+    /// Loads the words-per-page threshold from the saved site settings.
     /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The threshold is the administrator's
+    /// <c>Blog.PaginationWordCount</c> setting (Settings → Blog). This used to read a browser
+    /// local-storage key that nothing ever wrote, so every article split at the hard-coded 500 words
+    /// whatever the setting said — and on the static prerender pass, where JS interop is unavailable,
+    /// it fell to the same default (production report 2026-10-21). Zero is the setting's own
+    /// "pagination off" value and is honoured by <see cref="PaginateContent"/>.</para>
+    /// <para><b>Side Effects:</b> Sets <c>paginationWordCount</c>. Never throws:
+    /// <c>GetSettingsAsync</c> yields the built-in defaults when the database cannot be read.</para>
+    /// </remarks>
+    /// <returns>A task that completes when the threshold is known.</returns>
     private async Task LoadPaginationSetting()
     {
-        try
-        {
-            var storedWordCount = await LocalStorage.GetItemAsync<int?>(PaginationWordCountKey);
-            if (storedWordCount.HasValue && storedWordCount.Value > 0)
-            {
-                paginationWordCount = storedWordCount.Value;
-            }
-        }
-        catch
-        {
-            // Use default if local storage fails
-            paginationWordCount = 500;
-        }
+        var settings = await SiteSettingsService.GetSettingsAsync();
+        paginationWordCount = settings.PaginationWordCount;
     }
 
     /// <summary>

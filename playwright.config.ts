@@ -6,7 +6,7 @@ export default defineConfig({
   timeout: 120000,
   expect: { timeout: 30000 },
   reporter: 'line',
-  use: {
+  use: { baseURL: process.env.BASE_URL,
     ignoreHTTPSErrors: true,
     headless: true,
     screenshot: 'only-on-failure',

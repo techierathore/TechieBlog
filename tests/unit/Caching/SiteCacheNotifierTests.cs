@@ -79,8 +79,7 @@ public class SiteCacheNotifierTests
     }
 
     /// <summary>
-    /// A <c>NotApplicable</c> outcome (the website's own path, or BlogApp with no site address
-    /// configured) leaves the status message exactly as the save already set it — no cache-refresh
+    /// A <c>NotApplicable</c> outcome (the website's own path) leaves the status message exactly as the save already set it — no cache-refresh
     /// chatter is added where there is nothing to report.
     /// </summary>
     [Fact]
@@ -95,6 +94,30 @@ public class SiteCacheNotifierTests
 
         // Assert
         Assert.Equal("Post updated successfully!", page.StatusMessage);
+    }
+
+    /// <summary>
+    /// Production report 2026-10-21: the editor navigated away half a second after a save, wiping a
+    /// refresh failure off the screen. A failure must report <c>false</c> so the caller stays put,
+    /// and a success or the website's no-op must report <c>true</c> so it navigates as before.
+    /// </summary>
+    [Theory(DisplayName = "REQ-NFR-018 a site refresh that did not happen keeps the editor open")]
+    [InlineData(CacheRefreshOutcome.Failed, false)]
+    [InlineData(CacheRefreshOutcome.Succeeded, true)]
+    [InlineData(CacheRefreshOutcome.NotApplicable, true)]
+    public async Task ManagePostReportsWhetherTheSiteWasRefreshed(CacheRefreshOutcome outcome, bool expected)
+    {
+        // Arrange
+        var page = new ManagePost { StatusMessage = "Post updated successfully!" };
+        page.CacheNotifier = FakeNotifier(new CacheRefreshResult { Outcome = outcome, Detail = "detail" });
+
+        // Act
+        var method = typeof(ManagePost).GetMethod(
+            "NotifySiteCacheRefreshAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var refreshed = await (Task<bool>)method.Invoke(page, null)!;
+
+        // Assert
+        Assert.Equal(expected, refreshed);
     }
 
     /// <summary>Builds an <see cref="ISiteCacheNotifier"/> that always answers with a fixed result.</summary>

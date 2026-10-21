@@ -531,9 +531,9 @@ test('REQ-FN-016 a post can be scheduled and the background publisher promotes i
   await goTo(admin, `/ManagePost/${postId}`, '[data-testid="post-title-input"]', 120000);
 
   // Drive the real schedule UI: DatePicker popover -> a day later this month, then Schedule.
-  // NOTE: `data-testid="publish-date-picker"` never reaches the DOM — TrBlazeUI's DatePicker does
-  // not capture unmatched attributes (the same TR-030/TR-046 gap the page already documents for
-  // TimePicker), so the trigger has to be found through the field label instead.
+  // NOTE: on TrBlazeUI 2.0.2 `data-testid="publish-date-picker"` never reached the DOM (TR-072);
+  // 2.0.3 renders it on the trigger button. The label-based lookup below is kept because it works on
+  // both, and `datePickerHookPresent` records which behaviour the run saw.
   await expect(admin.locator('[data-testid="schedule-section"]')).toBeVisible();
   const datePickerHookPresent = (await admin.locator('[data-testid="publish-date-picker"]').count()) > 0;
   notes.push(`FN-016 data-testid="publish-date-picker" present in DOM: ${datePickerHookPresent}`);

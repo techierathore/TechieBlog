@@ -44,6 +44,18 @@ public partial class ImagePicker : ComponentBase
     [Inject]
     public IBlogImageService ImageService { get; set; } = default!;
 
+    /// <summary>
+    /// Service provider, used only to resolve the OPTIONAL <see cref="INativeImagePicker"/>.
+    /// </summary>
+    [Inject]
+    public IServiceProvider Services { get; set; } = default!;
+
+    /// <summary>
+    /// The head's native image picker, or <c>null</c> on the website (see <see cref="INativeImagePicker"/>).
+    /// When present, the upload dialog chooses files through it and never renders a file input.
+    /// </summary>
+    protected INativeImagePicker? NativePicker { get; private set; }
+
     // Modal visibility states
     protected bool ShowGalleryModal { get; set; }
     protected bool ShowUploadModal { get; set; }
@@ -61,6 +73,12 @@ public partial class ImagePicker : ComponentBase
     /// Files currently staged in the upload dropzone.
     /// </summary>
     protected IReadOnlyList<FileUploadItem>? PendingFiles { get; set; }
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        NativePicker = Services.GetService(typeof(INativeImagePicker)) as INativeImagePicker;
+    }
 
     /// <summary>
     /// Opens the gallery modal and loads images.
@@ -171,8 +189,39 @@ public partial class ImagePicker : ComponentBase
     protected async Task OnFilesChanged(IReadOnlyList<FileUploadItem> files)
     {
         PendingFiles = files;
+        await StageFileAsync(files.FirstOrDefault()?.File);
+    }
+
+    /// <summary>
+    /// Chooses the file through the head's native picker (BlogApp) instead of the dropzone.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> See <see cref="INativeImagePicker"/> — WebView2's own file
+    /// dialog crashed BlogApp. A cancelled dialog leaves the current selection alone.</para>
+    /// <para><b>Side Effects:</b> Opens a modal dialog; may set <see cref="SelectedFile"/>.</para>
+    /// </remarks>
+    protected async Task ChooseWithNativePicker()
+    {
+        if (NativePicker is null)
+        {
+            return;
+        }
+
+        var file = await NativePicker.PickImageAsync(GetAcceptedFileTypes());
+        if (file is not null)
+        {
+            await StageFileAsync(file);
+        }
+    }
+
+    /// <summary>
+    /// Validates a chosen file against the category's rules and stages it for upload.
+    /// </summary>
+    /// <param name="file">The chosen file, or <c>null</c> to clear the selection.</param>
+    private async Task StageFileAsync(IBrowserFile? file)
+    {
         UploadError = null;
-        SelectedFile = files.FirstOrDefault()?.File;
+        SelectedFile = file;
 
         if (SelectedFile is null)
         {

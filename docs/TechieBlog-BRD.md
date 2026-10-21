@@ -132,49 +132,16 @@ BRD-94…BRD-97).
 
 ## 4. Development status
 
-<!-- SNAPSHOT (point-in-time), feature level only. Live per-requirement status lives in
-     PROJECT-STATUS.md + the Requirements Status table in docs/TechieBlog-Checklist.md. -->
+Written by the status gate after every build, verify and handoff; not by hand.
 
-**Snapshot as of 2026-08-14.** Live, per-requirement status: see `PROJECT-STATUS.md` and the
-**Requirements Status** table in `docs/TechieBlog-Checklist.md`. Every Status and % below is derived
-from that table's Status column as it stands after the **2026-08-11** verify pass (51 rows graded)
-and the **2026-08-14** pass (14 more) — not from the migrated MVP execution plan, and not carried
-forward from this document's earlier snapshots. Of the table's **164** requirement rows, **160 are
-terminal** (`Verified`, `N/A`, or `N/A (removed …)`); the **four still open all belong to F-OPS**.
+**Snapshot as of 2026-10-21.** Live per-requirement status: `PROJECT-STATUS.md` and the Requirements Status table in `docs/TechieBlog-Checklist.md`.
 
-> **Build is GREEN** — `dotnet build TechieBlog.slnx` returns `0 Error(s)` across 7/7 projects
-> including the `net10.0-windows10.0.19041.0` BlogApp head. The earlier `NU1605` note here was
-> stale and is retired (REQ-FN-043 closed; both Fluent UI packages were removed by REQ-UI-048).
-> The automated suite stands at **1 490 tests — 1 487 pass / 3 skip / 0 fail**.
-
-| Feature (F-code) | Phase | Status | % | Notes |
-|------------------|-------|--------|---|-------|
-| F-AUTH: Authentication & account access | 2 | Done | 100 | Login, forgot/reset password, JWT issuance and token refresh, password-strength rules, salted hashing, auth rate limiting, persisted reset tokens and the login audit trail. Public registration retired (~~BRD-1~~). All mapped REQs terminal as of 2026-08-14. |
-| F-ROLE: Roles & authorization | 2 | Done | 100 | The five-role model mapped to five authorization policies, with `/access-denied` as the single denial surface. All mapped REQs terminal as of 2026-08-14. |
-| F-PROF: User profile & account management | 2 | Done | 100 | Profile read/update, change password with current-password enforcement, avatar, and the users list plus add-user screen. All mapped REQs terminal as of 2026-08-14 — REQ-FN-010 (admin user-management backend) is terminal as `N/A`, not agent-observable. |
-| F-POST: Post authoring & CRUD | 3 | Done | 100 | Post CRUD service and repository, slug generation/uniqueness and slug-based routing, Markdig rendering, the Markdown editor with live preview and metadata sidebar, and the post list with status filters. All mapped REQs terminal as of 2026-08-14. |
-| F-DRAFT: Draft, preview & scheduling | 3 | Done | 100 | Draft/Published state handling, the draft preview page, and post scheduling with its background publisher. All mapped REQs terminal as of 2026-08-14. |
-| F-TAX: Categories & tags | 3 | Done | 100 | Category CRUD with single-category assignment, tag CRUD with the post–tag junction, autocomplete and counts, and both archive pages. All mapped REQs terminal as of 2026-08-14. |
-| F-SER: Series & collections | 3 | Done | 100 | Series CRUD, part ordering and prev/next navigation, the admin series list and manage screens, and the public series view page. All mapped REQs terminal as of 2026-08-14. |
-| F-PUB: Public reading experience | 3 / 9 | Done | 100 | Portfolio-style home, post view, category/tag archives, About and 404, the shared PostCard/Pagination/Breadcrumb/Sidebar components, and published listings with featured post, related posts and reading time. Public login/admin entry points removed (REQ-UI-050). All mapped REQs terminal as of 2026-08-14. |
-| F-SRCH: Search | 3 | Done | 100 | The search service — ILIKE across title, abstract, body and tags with paging — and the search results page. All mapped REQs terminal as of 2026-08-14. |
-| F-CMT: Comments & moderation | 4 / 9 | Done | 100 | **Reworked to anonymous name+email commenting and verified end to end**: captcha, double opt-in, single-use tokens, moderation queue and approval all behave; unapproved comments never appear publicly and no email address is ever rendered. |
-| F-RATE: Star ratings | 4 / 9 | Done | 100 | **Re-keyed to email with no sign-in, verified end to end**: one rating per email per post, changeable in place, and the public average counts *verified* ratings only. |
-| ~~F-FAV: Favourites & bookmarks~~ | 4 | **Removed** | — | Retired 2026-08-06 with reader accounts (BRD-43/44). The built code (`UserFavorite`, `FavoriteSvc`, MyFavorites page, toggle) **has been removed** — REQ-UI-014/028, REQ-FN-024, verified absent from `source/` on 2026-08-14. |
-| F-MEDIA: Image management & media library | 5 / 8 | Done | 100 | Image upload with per-category validation, the `BlogImage` metadata and category schema, the media library page with its category tabs, and the reusable `ImagePicker`. All mapped REQs terminal as of 2026-08-14. |
-| F-RESUME: Resume / portfolio page | 8 | Done | 100 | The public `/resume` page (hero, experience, skills, awards, contact), the resume data model and repositories, the manage-experience/skills/awards/profile screens, CV upload and download, and username + site-owner uniqueness. All mapped REQs terminal as of 2026-08-14. |
-| ~~F-AUTHOR: Multi-author profiles~~ | 8 | **Removed** | — | Retired 2026-08-06 (BRD-53/54/55) — personal site, no public author browsing. The `/authors` + `/author/{username}` pages **have been removed**; `IsSiteOwner` + username stay for F-RESUME. REQ-UI-041/042, verified absent from `source/` on 2026-08-14. |
-| F-SUB: Subscribers & newsletter | 5 / 9 | Done | 100 | Subscriber capture with validation and duplicate handling, the subscribers admin page, newsletter compose/send/history and unsubscribe, the public newsletter archive and per-issue pages, the subscribe form, double opt-in verification and the captcha guarding public write surfaces. All mapped REQs terminal as of 2026-08-14 — REQ-FN-033 (real SMTP delivery) is terminal as `N/A`, no SMTP host configured in this environment. |
-| F-ANA: Analytics & admin dashboard | 5 | Done | 100 | The admin dashboard with its stat tiles and quick actions, the dashboard counts service, post-view tracking, popular posts and per-post engagement statistics, and the analytics dashboard with charts and a date range. All mapped REQs terminal as of 2026-08-14. |
-| F-SEO: RSS & sitemap | 6 | Done | 100 | RSS feed generation with its feed page and auto-discovery link, plus the `/sitemap.xml` and `/robots.txt` endpoints. All mapped REQs terminal as of 2026-08-14. |
-| F-THEME: Theming & dark mode | 1 / 6 / 7 / 9 | Done | 100 | `ThemeService`, `ThemeProvider` and the CSS-variable theme system persisted as a site setting, the header light/dark toggle, the Site Settings theme selector, and the dark-mode corrections across sidebar, public, search, about and admin surfaces. All mapped REQs terminal as of 2026-08-14. |
-| F-ADMIN: Admin console & site settings | 6 | Done | 100 | **Site Settings now persists** — all six tabs render their stored values and 27 `SiteSetting` rows back them; the earlier 'save discards everything' finding is resolved. Grouped admin nav hides refused groups rather than rendering them empty. |
-| F-TPL: Template distribution & developer experience | 6 | Done | 100 | Seed/sample data set is built and verified (10 posts, 5 categories, 15 tags, 4 roles, 2 series); rename scripts and the full adopter documentation set are present. |
-| F-OPS: Operations, logging & delivery pipeline | 1 / 6 | Partial | 95 | Health checks, correlation IDs, Serilog rolling files, resilience pipelines, output caching, the performance budget (REQ-NFR-001) and the xUnit + bUnit test project (REQ-NFR-016) are all terminal. **The only four open rows in the whole checklist sit here:** REQ-NFR-017 `PARTIAL` — CI cannot restore TrBlazeUI until the repo secret exists; REQ-NFR-025 `In Progress` — the revoked PAT is still in git history, awaiting an owner decision; REQ-NFR-026 `PARTIAL` — stage 4 deferred by the owner; REQ-NFR-038 `Implemented` — the deploy pipeline needs a real VPS, so it is not agent-verifiable. |
-| F-DESK: BlogApp desktop admin application | 10 | Done | 100 | **Built and runtime-verified 2026-08-09** — the `⚠ STATIC-ONLY` stamp is lifted. 19/19 admin routes driven in the desktop head over WebView2 CDP with grid counts matching PostgreSQL exactly, DPAPI connection storage proved non-plaintext at byte level, and a post published in BlogApp appeared immediately on the separate web host. |
-
-**Legend:** **Done** = shipped & working · **In progress** = actively being built · **Partial** = some
-sub-features done, others pending · **Planned** = not started.
+| Screen | Requirements | Verified | Open | Status |
+|---|---|---|---|---|
+| UI / Pages | 49 | 4 | 45 | Partial |
+| Functional requirements | 48 | 18 | 30 | Partial |
+| Non-functional | 22 | 18 | 4 | Partial |
+| Unmapped | 36 | 25 | 11 | Partial |
 
 ## 5. Stakeholders / users
 

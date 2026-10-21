@@ -147,34 +147,29 @@
                                         </span>
 
                                         @*
-                                            TrBlazeUI gap TR-069 (found 2026-08-11 on 2.0.2, measured live):
-                                            DatePicker and TimePicker ACCEPT a splatted data-testid — no throw,
-                                            0 build errors — and then never render it on the popover trigger
-                                            button they emit. The 2.0.2 upgrade therefore silently DELETED the
-                                            pre-existing `publish-date-picker` hook that used to ride on
-                                            <DatePicker> directly. Both hooks live on wrappers this page owns
-                                            until the library renders AdditionalAttributes on these two.
-                                            Do NOT move them back onto the components without re-measuring.
+                                            TR-072 (TrBlazeUI 2.0.2): DatePicker and TimePicker accepted a
+                                            splatted data-testid and never rendered it, so both hooks rode on
+                                            <span> wrappers. 2.0.3 forwards unmatched attributes to the visible
+                                            trigger button — re-measured live on this page after the upgrade
+                                            (2026-08-25), so the hooks sit on the components again.
                                         *@
                                         <Field>
                                             <FieldLabel>Publish Date</FieldLabel>
                                             <FieldContent>
-                                                <span data-testid="publish-date-picker">
-                                                    <DatePicker @bind-Value="ScheduledDate"
-                                                                Placeholder="Pick a date"
-                                                                Class="w-full" />
-                                                </span>
+                                                <DatePicker @bind-Value="ScheduledDate"
+                                                            Placeholder="Pick a date"
+                                                            Class="w-full"
+                                                            data-testid="publish-date-picker" />
                                             </FieldContent>
                                         </Field>
 
                                         <Field>
                                             <FieldLabel>Publish Time</FieldLabel>
                                             <FieldContent>
-                                                <span data-testid="publish-time-picker">
-                                                    <TimePicker @bind-Value="ScheduledTime"
-                                                                Placeholder="Pick a time"
-                                                                Class="w-full" />
-                                                </span>
+                                                <TimePicker @bind-Value="ScheduledTime"
+                                                            Placeholder="Pick a time"
+                                                            Class="w-full"
+                                                            data-testid="publish-time-picker" />
                                             </FieldContent>
                                         </Field>
 

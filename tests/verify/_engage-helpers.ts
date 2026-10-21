@@ -37,8 +37,9 @@ export function psqlOne(sql: string): string {
  * that window is silently dropped — which is exactly how a working control looks broken.
  */
 export async function gotoPublic(page: Page, path: string) {
+  const base = process.env.TB_BASE ?? 'http://localhost:5399';
   const ws = page.waitForEvent('websocket', { timeout: 60000 }).catch(() => null);
-  await page.goto(`http://localhost:5399${path}`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${base}${path}`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => (window as any).Blazor !== undefined, { timeout: 60000 }).catch(() => {});
   const socket = await ws;
   if (socket) {

@@ -1,7 +1,7 @@
 /* =============================================================================
    utilities.css — the utilities TrBlazeUI's bundle still cannot generate
    =============================================================================
-   REQ-UI-048. Logged upstream as TrBlazeUI gaps TR-019 / TR-043 / TR-050 / TR-069.
+   REQ-UI-048. Logged upstream as TrBlazeUI gaps TR-019 / TR-043 / TR-050 / TR-072c / TR-073.
 
    WHY THIS FILE STILL EXISTS (much smaller than it was)
    -----------------------------------------------------
@@ -12,7 +12,7 @@
    responsive variants, and every one of those 107 declarations was deleted on
    2026-08-11 after checking each class against the shipped bundle.
 
-   Two categories survive, and only two:
+   One category survives, and only one:
 
    1. ARBITRARY VALUES — `max-w-[820px]`, `min-h-[400px]`, `h-[60vh]`, … A
       pre-built bundle can never generate these; the AI reference says so
@@ -20,11 +20,10 @@
       analytics table now uses `DataTable MinWidth="720px"` instead of the
       `min-w-[720px]` that used to live here.
 
-   2. SCALE POINTS 2.0.2 STILL OMITS — measured, not assumed (TR-069):
-      `min-h-28` / `min-h-36` (the `h-*` scale has 28 and 36, the `min-h-*`
-      scale jumps 24 → 32 → 40), `hover:opacity-90` (only `opacity-100` ships
-      with a hover variant), and `md:-mx-6` (negative margins ship unprefixed
-      but carry no responsive variant).
+   The four standard scale points 2.0.2 omitted (`min-h-28`, `min-h-36`,
+   `hover:opacity-90`, `md:-mx-6` — TR-072c) and the gradient colour-stop
+   family (`from-*`/`to-*` — TR-073) ship in **2.0.3**; each was grepped in the
+   installed bundle and deleted from here on 2026-08-25.
 
    RULES FOR THIS FILE
    -------------------
@@ -61,14 +60,6 @@
 .min-h-\[400px\] { min-height: 400px; }
 .max-h-\[65vh\] { max-height: 65vh; }
 
-/* --- Scale points the 2.0.2 bundle omits (TR-069) ------------------------- */
-/* `h-28` / `h-36` ship, but the min-height scale skips both. */
-.min-h-28 { min-height: 7rem; }
-.min-h-36 { min-height: 9rem; }
-
-/* Only `hover:opacity-100` ships with a hover variant. */
-.hover\:opacity-90:hover { opacity: 0.9; }
-
 /* --- Typography ----------------------------------------------------------- */
 .text-\[var\(--alert-warning\)\] { color: var(--alert-warning); }
 
@@ -87,11 +78,6 @@
 
 @media (min-width: 40rem) { /* sm */
     .sm\:w-\[320px\] { width: 320px; }
-}
-
-@media (min-width: 48rem) { /* md */
-    /* Negative margins ship unprefixed only — no responsive variant (TR-069). */
-    .md\:-mx-6 { margin-left: -1.5rem; margin-right: -1.5rem; }
 }
 
 /* -----------------------------------------------------------------------------
@@ -209,25 +195,15 @@ a.size-10 {
 }
 
 /* -----------------------------------------------------------------------------
-   PostCard no-banner / broken-image fallback — REQ-UI-049 / UAT-025 (2026-08-24).
+   DELETED 2026-08-25 — `.post-card-fallback` (was REQ-UI-049 / UAT-025).
 
-   "Articles without banner look ugly": the empty-image box used to render the
-   post title as its only content (identical text twice on one card) and read
-   as a broken image. The fallback is now a subtle gradient behind a centred
-   Lucide `image-off` glyph — same box for "no FeaturedImage" and for a
-   FeaturedImage URL that 404s (the `onerror` path in PostCard.razor).
-
-   Why this needs a hand-written rule rather than Tailwind's own gradient
-   utilities: `bg-gradient-to-br` ships (it only sets direction), but the
-   pre-built bundle generates NO `from-*`/`to-*` colour-stop utilities for
-   custom theme tokens — `from-muted`, `to-card` etc. resolve to nothing, the
-   exact silent-no-op trap this file exists to avoid. Both stops are theme
-   tokens (never a literal), so the gradient is correct in every site theme,
-   in both light and dark, with no separate override needed.
+   The no-banner gradient behind the `image-off` glyph in PostCard.razor and
+   SearchResults.razor was a hand-written `linear-gradient(135deg, var(--muted),
+   var(--card))` because the 2.0.2 bundle shipped gradient DIRECTION utilities
+   but no colour-STOP utilities (TR-073). 2.0.3 generates `from-*`/`via-*`/`to-*`
+   for the semantic token set, so both surfaces now carry
+   `bg-gradient-to-br from-muted to-card` and the rule is gone.
    -------------------------------------------------------------------------- */
-.post-card-fallback {
-    background-image: linear-gradient(135deg, var(--muted) 0%, var(--card) 100%);
-}
 
 /* -----------------------------------------------------------------------------
    DELETED 2026-08-11 — nested dialog stacking (was REQ-UI-037 / REQ-UI-039).

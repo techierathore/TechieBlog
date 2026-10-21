@@ -10,21 +10,36 @@ after the fact.
 | `gates.jsonl` | REQ verdict per verify run — **the primary stream** | `verify-phase` §6a, `triage-issues` |
 | `sessions.jsonl` | agent session | the `SessionEnd` hook |
 | `commits.jsonl` | commit | the repo's own `pre-commit` hook |
+| `misses.jsonl` | a requirement/behaviour an agent MISSED, and what fixing it cost | `verify-phase`, `build-phase`, `triage-issues`, `fix-issues`, `amend-docs`, `*log-miss` |
+
+`misses.jsonl` is the one stream with **three** record kinds — `miss` (opened: what
+was missed, which phase/agent/model let it through, who found it), `miss-fix`
+(closed: the repair run and its token/cost window, linked by `miss_id`) and
+`miss-amend` (completes a field the `miss` left empty — it can fill a `null` and
+can never overwrite a value, so it adds to the history without revising it). It is
+what makes "how much did that miss cost to fix" answerable. SCHEMA.md §5.5.
 
 Schema, enums, and every known limitation: `.tfcore/telemetry/SCHEMA.md`.
 Report: `/TechieFlow:agents:flow-master *metrics <AppName>` (OpenCode: `/flow-master *metrics <AppName>`) → `METRICS.md`.
 
-**All four files are created empty, on purpose, and an empty one is not a fault.**
+**All five files are created empty, on purpose, and an empty one is not a fault.**
 The installer seeds the set so every repo has the same shape and no writer has to
 guess whether its stream exists. A stream stays at zero bytes until something
 actually happens: `gates.jsonl` until the first `*verify`, `runs.jsonl` until the
 first framework command, `sessions.jsonl` until the first agent session ends, and
-`commits.jsonl` until your first commit after telemetry was installed. Commit
+`commits.jsonl` until your first commit after telemetry was installed, and
+`misses.jsonl` until an agent misses something (which it will). Commit
 these empty files along with the rest — a tracked empty stream is what makes the
 first record a one-line diff instead of a new file appearing from nowhere.
 
 **Never edit these files by hand, never sort them, never compact them.** They are
-a log. Rewriting one destroys exactly the history it exists to keep.
+a log. Rewriting one destroys exactly the history it exists to keep. To correct or
+complete a record, append another one: a later `gates.jsonl` record supersedes an
+earlier verdict, a `miss-fix` closes a `miss`, and
+`bash .tfcore/utils/tf-emit.sh --amend <miss_id> <field> <value>` fills a field a
+`miss` left empty (it refuses to overwrite one that is not empty). If nothing fits
+what you need to correct, say so rather than editing — that is a framework defect
+worth reporting, and it is how the amend path came to exist.
 
 **No secrets, no content, no client data** — records carry IDs, counts, durations,
 verdicts and file paths at most. Never requirement text, prompt text, file

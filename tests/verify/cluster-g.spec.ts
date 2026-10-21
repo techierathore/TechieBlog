@@ -12,7 +12,7 @@ import { test, expect, Page } from '@playwright/test';
  * which is the whole point: a keyboard-only visitor must be able to find and use the alternative.
  */
 
-const BASE = 'http://localhost:5406';
+const BASE = process.env.TB_BASE ?? 'http://localhost:5406';
 const POST = '/post/getting-started-with-blazor-server';
 
 const NUMBER_WORDS = [

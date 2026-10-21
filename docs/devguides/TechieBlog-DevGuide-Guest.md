@@ -1,5 +1,7 @@
 # TechieBlog — Developer Guide · Guest (anonymous)
 
+> **Runtime-verified 2026-08-26 as Guest (anonymous)** (verify-phase, scope REQ-UI-048 · REQ-FN-025 · REQ-UI-049 — TrBlazeUI 2.0.3). `/`, `/categories`, `/tags`, `/series`, `/search`, `/newsletters`, `/speaker-profile`, `/post/{slug}` — **renders ✓ · looks-right ✓ (runtime-confirmed 2026-08-26)** at 1280 + 390: 0 error boundaries, 0 empty icons, 0 zero-sized / overlapping / off-viewport controls, 0 horizontal scroll, 0 console errors. The home **stats band rendered for the first time** (4 tiles, against rows seeded for the run). Screenshots `tests/.artifacts/verify-203-gates/`.
+
 > **Runtime-verified 2026-08-23 as Guest (anonymous)** (verify-phase, scope REQ-UI-053 · REQ-NFR-018).
 > - `/newsletters` and `/newsletter/{slug}` — **renders ✓ · looks-right ✓ (runtime-confirmed 2026-08-23)**. Every listed control reported RENDERS with non-empty data (issue position "Issue 1 of 2", all-issues link, compact subscribe CTA + heading); §4b clean at **1280 and 390** — `overlaps=[] zeroSize=[] offViewport=[] hScroll=0 consoleErrors=[]`. Only-sent-issues, pending-subscriber-until-confirmed and the TbEmpty no-data state all hold.
 > - `/sitemap.xml`, `/feed.xml` and `/rss.xml` — **output cache confirmed live** (runtime-confirmed 2026-08-23): rising `Age` on repeat requests, feeds served as `application/rss+xml`.
@@ -112,11 +114,13 @@ flowchart LR
 
 | Control | What it shows | Source call | Render status |
 |---------|---------------|-------------|---------------|
-| Featured post | One highlighted post | `BlogService.GetFeaturedPost()` | static-only (unconfirmed) |
-| Recent posts grid | Published posts, paged | `BlogService.GetPublishedPosts(...)` | static-only (unconfirmed) |
-| Pagination | Page count | `BlogService.GetPublishedPostCount()` | static-only (unconfirmed) |
-| Reading time per card | "N min read" | `ReadingTimeCalculator.Calculate(...)` (static helper, called in the page) | static-only (unconfirmed) |
-| Sidebar | Categories, tags, subscribe form | `Components/Sidebar.razor` | static-only (unconfirmed) |
+| Hero (name, title, tagline, photo, Get-In-Touch, social row) | The `IsSiteOwner` user's resume header | `IBlogUserRepo.GetSiteOwnerAsync()` via `ResumeHero` | renders ✓ (runtime-confirmed 2026-08-26) |
+| Headline stats band (`home-stats`, 4 × `StatTile`) | Owner's `UserStats` rows, value + label slots | `IUserStatsRepo.GetByUserId()` via `HomeStats` | renders ✓ (runtime-confirmed 2026-08-26 — observed for the first time locally, against 4 rows seeded for the run; collapses by design when the table is empty) |
+| About summary | Owner bio | `HomeAbout` | renders ✓ (runtime-confirmed 2026-08-26) |
+| Latest articles grid (`home-latest-articles`, `PostCard` ×N) | Recent published posts, each linking to `/post/{slug}` | `BlogSvc.GetPublishedPostsAsync(3, 0)` (content-cached) | renders ✓ (runtime-confirmed 2026-08-26 — card link → HTTP 200) |
+| No-banner card fallback | `bg-gradient-to-br from-muted to-card` + `image-off` glyph | `PostCard.razor` (TrBlazeUI 2.0.3 gradient-stop utilities) | renders ✓ (runtime-confirmed 2026-08-26 — computed two-stop oklch gradient) |
+| Contact block | Owner contact details | `ResumeContact` | renders ✓ (runtime-confirmed 2026-08-26) |
+| Download-CV CTA | Link to `CVFilePath` | `ResumeHero` | conditional — NOT observable (no `CVFilePath` in this DB), collapses by design |
 
 **Data lineage**
 
@@ -134,7 +138,7 @@ flowchart LR
 - **(1) banner-less post card — FIXED.** `ImagePlaceholder` is **retired entirely** from `PostCard.razor` and all of its call sites, so no caller can feed the title into the image box again. The no-image state is now a designed fallback — a theme-token gradient (`.post-card-fallback`, `wwwroot/css/utilities.css:228`) behind a centred low-opacity Lucide `image-off` glyph — and the same fallback also catches a `FeaturedImage` URL that 404s, via an idempotent inline `onerror` on the `<img>` (`PostCard.razor:36`). **Observed:** placeholder text is now the empty string (it was byte-identical to the card title before), glyph 40×40, gradient computes to real `oklch` stops in both light and dark. `SearchResults.razor`, which renders its own thumbnail rather than a `<PostCard>`, was brought to the same behaviour so all three listing surfaces agree.
 - **(2) cross-platform typography — FIXED.** The site now self-hosts **Inter** as a variable woff2 from its own origin (`_content/BlogUI/fonts/inter-latin-var.woff2`, 48 KB latin + an 85 KB latin-ext subset that an English page never requests), declared with `@font-face` + `font-display: swap` and `unicode-range` subsetting at `css/theme.css:66-82`; `--tb-font-ui`/`--tb-font-heading` lead with `"Inter"` and the unshipped `Poppins` entries are gone from `blogui.css:15` / `adminui.css:15`. **Observed:** `document.fonts.size` 0 → 2, `fonts.check('16px Inter')` true, and blocking the woff2 shifts a real `h1` by 79.5px — so the glyphs genuinely changed. macOS and Windows now render the same face. The `developer` (mono) and `minimal` (serif) site themes were deliberately left on their own faces and confirmed free of Inter leak.
 
-**Render/visual status (observed 2026-08-24, host `:5421`):** RENDERS + VISUAL-OK at 1280 and 390, in both dark and light — 0 horizontal scroll, 0 off-viewport elements. Screenshots `test-results-fixissues/home-{1280,390}-{dark,light}.png`. ⚠ Still NOT observable on this database (not defects): the headline **stats band** (no `UserStats` rows) and the **Download-CV CTA** (no `CVFilePath`); both collapse by design rather than rendering blank.
+**Render/visual status (observed 2026-08-26, host `:5473`, TrBlazeUI 2.0.3):** RENDERS + **looks-right ✓ (runtime-confirmed 2026-08-26)** at 1280 and 390 — 0 zero-sized, 0 overlaps, 0 off-viewport, 0 horizontal scroll, 0 console errors. Screenshots `tests/.artifacts/verify-203-gates/home-{1280,390}{,-full}.png`. The **stats band was observed rendering** (4 tiles, value + label slots) against `UserStats` rows seeded for the run and reverted afterwards; the **Download-CV CTA** remains NOT observable (no `CVFilePath`) and collapses by design. Note for the next verifier: the `.post-card-fallback` rule named above is gone since the 2.0.3 upgrade — the fallback is now `bg-gradient-to-br from-muted to-card` on the element itself — and published listings are **content-cached**, so seed the database *before* booting the host or the home page keeps showing the empty list.
 
 ## Guest · Post view (`/post/{Slug}`, `/post/{Slug}/{PageNumber}`)
 

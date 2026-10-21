@@ -188,14 +188,10 @@
                                 <ItemMedia Variant="ItemMediaVariant.Icon">
                                     <LucideIcon Name="@GetActivityIcon(activity.Type)" Size="16" />
                                 </ItemMedia>
-                                @* min-w-0: `ItemContent` is a flex child with the default
-                                   `min-width:auto`, so its min-content width — the longest
-                                   unbreakable run in the activity title — becomes a hard floor
-                                   and pushes the whole card past the viewport. Measured at 390px
-                                   before this class was added: the card ran to x=455 inside a
-                                   390px pane. The hand-rolled markup this replaced carried
-                                   `min-w-0` for the same reason. Logged upstream as TR-071. *@
-                                <ItemContent Class="min-w-0">
+                                @* TR-071: `ItemContent` ships `min-w-0` from TrBlazeUI 2.0.3, so the
+                                   consumer-side copy that stopped this card overflowing a 390px pane
+                                   on 2.0.2 is gone. Re-measured 2026-08-25: no horizontal scroll. *@
+                                <ItemContent>
                                     <ItemTitle>@activity.Title</ItemTitle>
                                     <ItemDescription>@activity.Detail</ItemDescription>
                                 </ItemContent>
