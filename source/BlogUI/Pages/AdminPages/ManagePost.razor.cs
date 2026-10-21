@@ -335,8 +335,13 @@ partial class ManagePost : ComponentBase
     /// <para><b>Side Effects:</b> May extend <see cref="StatusMessage"/>. Never throws — a failure to
     /// refresh the site's cache must not be mistaken for a failure to save the post, which already
     /// succeeded by the time this runs.</para>
+    /// <para><b>Why it reports back (production report 2026-10-21):</b> the callers navigate to the
+    /// posts list half a second after a save, which wiped a failure detail off the screen before it
+    /// could be read — the owner saw only that the new images were missing from the live home page.
+    /// A caller keeps the editor open when this returns <c>false</c>, so the detail stays visible.</para>
     /// </remarks>
-    private async Task NotifySiteCacheRefreshAsync()
+    /// <returns><c>false</c> when the site was asked to refresh and did not; otherwise <c>true</c>.</returns>
+    private async Task<bool> NotifySiteCacheRefreshAsync()
     {
         var result = await CacheNotifier.RefreshAsync();
 
@@ -346,6 +351,8 @@ partial class ManagePost : ComponentBase
             BlogEngine.Services.CacheRefreshOutcome.Failed => $"{StatusMessage} {result.Detail}",
             _ => StatusMessage
         };
+
+        return result.Outcome != BlogEngine.Services.CacheRefreshOutcome.Failed;
     }
 
     /// <summary>
@@ -398,10 +405,12 @@ partial class ManagePost : ComponentBase
 
                 StatusMessage = PageId > 0 ? "Post updated successfully!" : "Post created successfully!";
                 IsError = false;
-                await NotifySiteCacheRefreshAsync();
-                // Navigate to blog list after short delay
-                await Task.Delay(500);
-                AppNavManager.NavigateTo("/BlogsList");
+                if (await NotifySiteCacheRefreshAsync())
+                {
+                    // Navigate to blog list after short delay
+                    await Task.Delay(500);
+                    AppNavManager.NavigateTo("/BlogsList");
+                }
             }
             else
             {
@@ -674,13 +683,11 @@ partial class ManagePost : ComponentBase
                 // draft save has nothing for the site to refresh — this fires for "Publish Now"
                 // and for "Save Changes" on an already-published post (SaveAction "save", the
                 // case the owner actually hit: editing the abstract of a live post).
-                if (publish)
-                {
-                    await NotifySiteCacheRefreshAsync();
-                }
+                var siteRefreshed = !publish || await NotifySiteCacheRefreshAsync();
 
-                // If publishing, redirect to list after short delay
-                if (publish)
+                // If publishing, redirect to list after short delay — unless the site refresh failed,
+                // whose detail would otherwise vanish with the page.
+                if (publish && siteRefreshed)
                 {
                     await Task.Delay(500);
                     AppNavManager.NavigateTo("/BlogsList");

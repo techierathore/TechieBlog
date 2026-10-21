@@ -17,7 +17,7 @@ import { test, expect, Page, Locator } from '@playwright/test';
  * and 390.
  */
 
-const BASE = 'http://localhost:5430';
+const BASE = process.env.TB_BASE ?? 'http://localhost:5430';
 const ADMIN_EMAIL = 'Ravi@techieblog.com';
 const ADMIN_PASSWORD = 'admin_password';
 

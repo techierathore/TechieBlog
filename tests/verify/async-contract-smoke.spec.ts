@@ -14,7 +14,7 @@ import { test, expect, Page } from '@playwright/test';
  * (no zero-size or off-viewport elements, no horizontal overflow) at 1280 and 390.
  */
 
-const BASE = 'http://localhost:5430';
+const BASE = process.env.TB_BASE ?? 'http://localhost:5430';
 const ADMIN_EMAIL = 'Ravi@techieblog.com';
 const ADMIN_PASSWORD = 'admin_password';
 

@@ -2,10 +2,10 @@
 
 ## Summary
 - **Current disposition through TR-074: all TrBlazeUI findings are closed in library source.** Historical numbering has gaps and sub-findings (`TR-072b`…`TR-072d`), so this document deliberately reports the highest assigned ID instead of repeating the stale “66 entries” count.
-- **Open library defects:** none from this report. TR-066/TR-067 and TR-068…TR-074 (including TR-072b/c/d) are resolved and verified.
-- **Ships in: TrBlazeUI 2.0.3** — published to the feed and **consumed by TechieBlog since 2026-08-25** (`TrBlazeUI.Components` + `TrBlazeUI.Icons.Lucide` 2.0.3 in all three csprojs; build 0 errors, `dotnet test` 1551/0).
+- **Open library defects:** none from this report. TR-066/TR-067 and TR-068…TR-075 (including TR-072b/c/d) are resolved and verified.
+- **Ships in: TrBlazeUI 2.0.3** — published to the feed and **consumed by TechieBlog since 2026-08-25** (`TrBlazeUI.Components` + `TrBlazeUI.Icons.Lucide` 2.0.3 in all three csprojs; build 0 errors, `dotnet test` 1551/0). TR-075 ships in **2.1.9**.
 - **Consumer action — DONE 2026-08-25.** Every row of the resolution table below was measured against a running TechieBlog host on 2.0.3 *before* its workaround was removed (`tests/verify/trblazeui-203-upgrade.spec.ts`, 8/8; evidence `tests/.artifacts/trblazeui-203/notes.json`). See "Consumer verification on 2.0.3" under the table for what was removed, what was kept, and why.
-- **One new finding on 2.0.3 — TR-075** (2026-08-26, Low–Medium a11y): a styled `Select` inside `DialogContent` drops focus to `<body>` after a pick, so `Escape` cannot dismiss the dialog until the user Tabs back in; mouse paths unaffected. Detail at the bottom of this file.
+- **One new finding on 2.0.3 — TR-075** (2026-08-26, Low–Medium a11y): a styled `Select` inside `DialogContent` drops focus to `<body>` after a pick, so `Escape` cannot dismiss the dialog until the user Tabs back in; mouse paths unaffected. **Fixed upstream in 2.1.9.**
 - Last consolidated: **2026-08-26**. Next free ID **TR-076** (the bottom counter line is authoritative).
 
 ## ✅ Resolution — 2026-08-25, TrBlazeUI **2.0.3** (pending publish)
@@ -1756,6 +1756,8 @@ TR-074 recorded 2026-08-24 by *trblazeui (UAT-027 / REQ-UI-045 — post detail p
 ---
 
 ## Found verifying the 2.0.3 upgrade (2026-08-26, *verify REQ-UI-048 · REQ-FN-025 · REQ-UI-049)
+
+> ✅ **TR-075 — FIXED upstream, in 2.1.9** — after an option is picked in a styled `Select` nested in `DialogContent`, focus returns to the `SelectTrigger` so `Escape` still dismisses the dialog. Demo at `/components/dialog`; test `tests/verify/req-ui-055.spec.ts`.
 
 - **TR-075 — after an option is picked in a styled `Select` nested in `DialogContent`, focus is
   dropped to `<body>` instead of returning to the `SelectTrigger`, so `Escape` no longer dismisses

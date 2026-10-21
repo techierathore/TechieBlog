@@ -11,7 +11,7 @@ import { test, expect, Page } from '@playwright/test';
  * at desktop 1280 and mobile 390.
  */
 
-const BASE = 'https://localhost:7520';
+const BASE = process.env.TB_BASE ?? 'https://localhost:7520';
 const ADMIN_EMAIL = 'Ravi@techieblog.com';
 const ADMIN_PASSWORD = 'admin_password';
 

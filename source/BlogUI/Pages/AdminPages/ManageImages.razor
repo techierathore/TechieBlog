@@ -206,13 +206,28 @@
                says "Max 2 MB" — two limits for one upload, with the larger one accepting files the
                server then rejects. Every value below comes from the rule the service enforces. *@
             <div data-testid="upload-dropzone">
-                <FileUpload Files="@PendingFiles"
-                            FilesChanged="@OnFilesChanged"
-                            Accept="@GetAcceptedFileTypes(UploadCategory)"
-                            MaxFileSize="@GetMaxUploadSize(UploadCategory)"
-                            OnValidationError="@OnDropzoneValidationError"
-                            Multiple="false"
-                            Disabled="@IsUploading" />
+                @if (NativePicker is not null)
+                {
+                    @* BlogApp: the OS picker, never WebView2's file dialog, which crashed the app
+                       (production report 2026-10-21; see INativeImagePicker). *@
+                    <Button Variant="ButtonVariant.Outline"
+                            OnClick="@ChooseWithNativePicker"
+                            Disabled="@IsUploading"
+                            data-testid="upload-choose-native">
+                        <LucideIcon Name="folder-open" Size="16" />
+                        Choose image…
+                    </Button>
+                }
+                else
+                {
+                    <FileUpload Files="@PendingFiles"
+                                FilesChanged="@OnFilesChanged"
+                                Accept="@GetAcceptedFileTypes(UploadCategory)"
+                                MaxFileSize="@GetMaxUploadSize(UploadCategory)"
+                                OnValidationError="@OnDropzoneValidationError"
+                                Multiple="false"
+                                Disabled="@IsUploading" />
+                }
             </div>
 
             @if (SelectedFile is not null)

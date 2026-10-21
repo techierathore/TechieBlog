@@ -343,6 +343,11 @@ public static class MauiProgram
         // implementation in Program.cs rather than there: "the current window" is head-specific.
         services.AddSingleton<IExternalLinkOpener, DesktopLinkOpener>();
 
+        // Production report 2026-10-21: choosing an image through WebView2's <input type="file">
+        // dialog crashed this process natively (EmbeddedBrowserWebView.dll, 0x80000003). Image
+        // uploads pick through MAUI's own picker instead; ImagePicker uses this when it is present.
+        services.AddSingleton<INativeImagePicker, DesktopImagePicker>();
+
         // UAT-023 mechanism B: a save made here never runs a line of the website's code, so
         // nothing evicts the website's in-process content cache. This calls the website's
         // authenticated refresh endpoint with the operator's own session token afterwards.

@@ -30,8 +30,8 @@ namespace BlogApp.Services;
 ///
 /// <para><b>Never claims success it cannot prove.</b> Every branch below — no site address
 /// configured, no session token, request timeout, non-success HTTP status, network failure —
-/// returns <see cref="CacheRefreshOutcome.Failed"/> or <see cref="CacheRefreshOutcome.NotApplicable"/>
-/// with a caller-safe <see cref="CacheRefreshResult.Detail"/>. Only a genuine
+/// returns <see cref="CacheRefreshOutcome.Failed"/> with a caller-safe
+/// <see cref="CacheRefreshResult.Detail"/>, and every branch, success included, writes one log line. Only a genuine
 /// <see cref="HttpResponseMessage.IsSuccessStatusCode"/> reports
 /// <see cref="CacheRefreshOutcome.Succeeded"/>. An earlier round of BlogApp shipped a probe that
 /// answered "OK" for something it had not actually verified; this class exists specifically not to
@@ -87,13 +87,19 @@ public class RemoteSiteCacheNotifier : ISiteCacheNotifier
     /// </remarks>
     public async Task<CacheRefreshResult> RefreshAsync(CancellationToken cancellationToken = default)
     {
+        // Every exit below logs (production report 2026-10-21): the owner's live home page stayed
+        // stale after three BlogApp saves and this log could not say whether a refresh was even
+        // attempted, because the no-address, no-session and success paths all returned silently.
         var refreshUrl = SiteUrlResolver.Combine(connectionContext.Settings?.SiteBaseUrl, RefreshPath);
         if (refreshUrl == null)
         {
+            // Failed, not NotApplicable: BlogApp writes to the site's database, so a site that was not
+            // told is a site showing stale pages — that is worth the operator's attention.
+            logger.LogWarning("Site cache refresh skipped: no website address is configured for this connection");
             return new CacheRefreshResult
             {
-                Outcome = CacheRefreshOutcome.NotApplicable,
-                Detail = "No website address is configured for this connection, so the site was not asked to refresh its cache."
+                Outcome = CacheRefreshOutcome.Failed,
+                Detail = "No website address is set in this connection's settings, so the site was not asked to refresh. The change is saved, but the public pages may show the old version for up to 10 minutes."
             };
         }
 
@@ -114,6 +120,7 @@ public class RemoteSiteCacheNotifier : ISiteCacheNotifier
 
         if (string.IsNullOrWhiteSpace(accessToken))
         {
+            logger.LogWarning("Site cache refresh skipped: no session token was found in local storage");
             return new CacheRefreshResult
             {
                 Outcome = CacheRefreshOutcome.Failed,
@@ -132,6 +139,7 @@ public class RemoteSiteCacheNotifier : ISiteCacheNotifier
             using var response = await httpClient.SendAsync(request, timeoutCts.Token).ConfigureAwait(false);
             if (response.IsSuccessStatusCode)
             {
+                logger.LogInformation("Site cache refreshed at {RefreshUrl}", refreshUrl);
                 return new CacheRefreshResult { Outcome = CacheRefreshOutcome.Succeeded };
             }
 

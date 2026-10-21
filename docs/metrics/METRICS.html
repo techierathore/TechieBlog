@@ -102,177 +102,118 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 </style>
 </head>
 <body>
-<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">☾ Dark</button>
+<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">&#9790; Dark</button>
 <div class="layout no-toc">
   <main>
     <h1>TechieBlog — Development Metrics</h1>
-    <div class="subtitle">Snapshot as of 2026-08-20 · project_type <code>app</code> · schema v1</div>
+    <div class="subtitle">Rendered 2026-10-21 &middot; source <code>METRICS.md</code></div>
 
     <div class="toc-inline">
       <div>Contents</div>
       <ol>
-        <li><a href="#first-pass-rate">1. First-pass rate</a></li>
-        <li><a href="#gate-catch-distribution">2. Gate catch distribution</a></li>
-        <li><a href="#escape-rate">3. Escape rate</a></li>
-        <li><a href="#throughput-and-rework-poolable">4. Throughput and rework — poolable</a></li>
-        <li><a href="#what-is-missing">5. What is missing</a></li>
+        <li><a href="#quality-live-records-projecttype-app-only">1. Quality — live records, project_type app only</a></li>
+        <li class="h3"><a href="#gate-catch-distribution-130-failures">Gate catch distribution (130 failures)</a></li>
+        <li><a href="#throughput-and-effort-poolable">2. Throughput and effort (poolable)</a></li>
+        <li class="h3"><a href="#effort-per-phase">Effort per phase</a></li>
+        <li><a href="#misses">3. Misses</a></li>
+        <li class="h3"><a href="#attribution-linked-records-only-34-of-92-58-excluded-as-inferred-unknown">Attribution — linked records only (34 of 92; 58 excluded as inferred/unknown)</a></li>
+        <li class="h3"><a href="#rework-cost">Rework cost</a></li>
+        <li><a href="#what-is-missing">4. What is missing</a></li>
       </ol>
     </div>
-
-    <!-- Written by .tfcore/tasks/metrics-report.md (`*metrics`). Regenerated on demand,
-         never hand-edited. Source: docs/metrics/*.jsonl (append-only) — schema at
-         .tfcore/telemetry/SCHEMA.md.
-
-         THE ONE RULE FOR THIS DOCUMENT: no combined first-pass rate, gate catch
-         distribution, or escape rate across live/backfilled or across project_type.
-         No "total" row, no "overall" line, no averaged intro sentence. If you are
-         tempted to add one, re-read metrics-report.md §2 — the reason is not
-         cosmetic. Commit-derived metrics are exempt from both separations. -->
-
-    <table>
-      <thead>
-        <tr><th>Stream</th><th>Records</th><th>Span</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><code>runs.jsonl</code></td><td>13</td><td>2026-08-09 → 2026-08-14</td></tr>
-        <tr><td><code>gates.jsonl</code></td><td>190 (0 backfilled)</td><td>2026-08-09 → 2026-08-14</td></tr>
-        <tr><td><code>sessions.jsonl</code></td><td>14</td><td>2026-08-08 → 2026-08-20</td></tr>
-        <tr><td><code>commits.jsonl</code></td><td>93</td><td>2024-10-18 → 2026-08-11</td></tr>
-      </tbody>
-    </table>
-
-    <p>Every record in every stream is <strong>live</strong> (written at the moment of the event —
-    zero backfilled) and carries <code>project_type: app</code>. No provenance separation is
-    required beyond this statement; there is no backfilled column anywhere on this page.</p>
-
-    <hr>
-
-    <h2 id="first-pass-rate">1. First-pass rate<a class="anchor-link" href="#first-pass-rate">#</a></h2>
-
-    <p><em>What fraction of REQs reach <code>Verified</code> on attempt 1.</em></p>
-
-    <table>
-      <thead>
-        <tr><th>Provenance</th><th>project_type</th><th>REQs scored</th><th>First-pass</th><th>Rate</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><strong>Live</strong></td><td>app</td><td>151</td><td>121</td><td>80%</td></tr>
-      </tbody>
-    </table>
-
-    <p>There is no backfilled row: <code>gates_backfilled = 0</code>.</p>
-
-    <p><strong>Excluded from the live rate:</strong> 0 REQs. No <code>req_id</code> in this repo carries any
-    backfilled history, so the live <code>attempt</code> numbering is trustworthy and nothing
-    was excluded.</p>
-
-    <hr>
-
-    <h2 id="gate-catch-distribution">2. Gate catch distribution<a class="anchor-link" href="#gate-catch-distribution">#</a></h2>
-
-    <p><em>Of all failures, which gate caught them.</em></p>
-
-    <h3 id="live-app-36-failures">Live · <code>app</code> — 36 failures<a class="anchor-link" href="#live-app-36-failures">#</a></h3>
-
-    <table>
-      <thead>
-        <tr><th>Gate</th><th>Caught</th><th>Share</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>build</td><td>4</td><td>11%</td></tr>
-        <tr><td>acceptance</td><td>19</td><td>53%</td></tr>
-        <tr><td>render (§4a data-render)</td><td>7</td><td>19%</td></tr>
-        <tr><td>visual (§4b visual-truth)</td><td>5</td><td>14%</td></tr>
-        <tr><td>standards</td><td>1</td><td>3%</td></tr>
-        <tr><td><strong>escaped</strong> — no gate caught it</td><td>0</td><td>0%</td></tr>
-      </tbody>
-    </table>
-
-    <p><strong>Most common failure classes:</strong> <code>other</code> ×15, <code>assert-fail</code> ×7, <code>blank-data</code> ×5.</p>
-
-    <p><strong><code>perf</code> — insufficient data (n=1).</strong> The perf gate entered the enum on
-    2026-08-10, mid-stream. Every record written before that date had zero chance of
-    recording it, and the gate only fires for a REQ carrying a <code>perf-budget:</code>. In
-    this repo <code>perf</code> ran on exactly 1 record and caught 0. Its catch rate is read
-    against that coverage, not against the 36-failure total above — a share computed
-    against the total would structurally understate it.</p>
-
-    <hr>
-
-    <h2 id="escape-rate">3. Escape rate<a class="anchor-link" href="#escape-rate">#</a></h2>
-
-    <p><em>What fraction of defective REQs reached UAT/production instead of a gate.</em></p>
-
-    <table>
-      <thead>
-        <tr><th>Provenance</th><th>project_type</th><th>REQs with any failure</th><th>Escaped to UAT/prod</th><th>Rate</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><strong>Live</strong></td><td>app</td><td>34</td><td>0</td><td>0%</td></tr>
-      </tbody>
-    </table>
-
-    <p>Escapes are the <code>gate:"escaped"</code> records written by <code>*triage-issues</code> — a human
-    found the defect after every gate passed it. There are none in this stream; the
-    zero is real (the field exists in the data and never fired), not an absent field.</p>
-
-    <hr>
-
-    <h2 id="throughput-and-rework-poolable">4. Throughput and rework — poolable<a class="anchor-link" href="#throughput-and-rework-poolable">#</a></h2>
-
-    <p><em>These are comparable across <code>project_type</code> and across provenance, so they are
-    pooled deliberately.</em></p>
-
-    <table>
-      <tbody>
-        <tr><td>Runs total</td><td>13 (build-phase=7, verify-phase=5, handoff-phase=1)</td></tr>
-        <tr><td>Rework ratio (fix-mode ÷ build-phase runs)</td><td>71%</td></tr>
-        <tr><td>Batch size — median REQs per <code>build-phase</code> run</td><td>4</td></tr>
-        <tr><td>REQ throughput — median REQs/hour</td><td>5.04</td></tr>
-        <tr><td>Sessions / total tokens</td><td>14 / 4,430,759</td></tr>
-        <tr><td>Tokens per <code>Verified</code> REQ</td><td>28,771.2</td></tr>
-        <tr><td>Commit cadence</td><td>1.13 commits/active day over 82 days</td></tr>
-      </tbody>
-    </table>
-
-    <p><strong>Cost in USD is not reported.</strong> Claude Code transcripts carry token counts but
-    no per-message dollar cost, and this framework runs on a subscription where
-    marginal per-token cost is not the real unit. Multiplying tokens by a rate card
-    would be an estimate presented as a measurement, so the row says tokens and
-    stops. Two OpenCode sessions carry real <code>cost_usd</code>, but dollars are never pooled
-    across harness (Claude records are <code>null</code>; a mixed sum silently under-reports),
-    so the pooled figure stays tokens.</p>
-
-    <p><code>commits.jsonl</code> is written by this repo's <code>pre-commit</code> hook, which is present
-    here (<code>commit_hook: true</code>) and reconciles against the log rather than appending
-    a single line. The stream lags reality by one commit — at <code>pre-commit</code> time HEAD
-    is still the previous commit, so the newest record ships in the next one.
-    Unavoidable in either direction, and the reconcile means the lag never becomes a
-    loss. Zero duplicate shas were collapsed at read time.</p>
-
-    <hr>
-
-    <h2 id="what-is-missing">5. What is missing<a class="anchor-link" href="#what-is-missing">#</a></h2>
-
-    <ul>
-      <li><code>perf</code> gate catch rate — <code>insufficient data (n=1)</code>; the gate has run on only 1
-      record since its 2026-08-10 introduction. Needs ≥3 supporting records to read
-      a share.</li>
-      <li><code>cost_usd</code> (pooled) — <code>null</code> across the mixed-harness stream; two OpenCode
-      sessions carry real cost but pooling dollars across harness is forbidden by
-      the schema. Reported in tokens instead.</li>
-      <li>No backfilled records exist in any stream — nothing was reconstructed, so no
-      metric here was guessed. This is the ideal state for every number on the page.</li>
-      <li>Single-repo report. No cross-project rollup was requested; gates/runs/sessions
-      here cover TechieBlog only.</li>
-    </ul>
-
-    <hr>
-
-    <!-- Privacy: this document may only contain IDs, counts, durations, verdicts and
-         file paths — exactly like the streams it summarises. Never requirement text,
-         never prompt text, never a commit subject, never a failure description in
-         prose. Assume it could become public. -->
+<p><strong>Snapshot as of 2026-10-21</strong> · project_type <code>app</code> · schema v1 · every figure from <code>tf-metrics.sh --report</code></p>
+<table>
+<thead><tr><th>Stream</th><th>Records</th></tr></thead>
+<tbody>
+<tr><td><code>runs.jsonl</code></td><td>50</td></tr>
+<tr><td><code>gates.jsonl</code></td><td>328 (0 backfilled)</td></tr>
+<tr><td><code>sessions.jsonl</code></td><td>26</td></tr>
+<tr><td><code>commits.jsonl</code></td><td>102</td></tr>
+<tr><td><code>misses.jsonl</code></td><td>92</td></tr>
+</tbody>
+</table>
+<h2 id="quality-live-records-projecttype-app-only"><a id="1-quality--live-records-project_type-app-only"></a>1. Quality — live records, project_type <code>app</code> only<a class="anchor-link" href="#quality-live-records-projecttype-app-only">#</a></h2>
+<p>All gate records are live; no backfilled column exists.</p>
+<table>
+<thead><tr><th>Figure</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>REQs scored</td><td>155</td></tr>
+<tr><td>First-pass rate</td><td>81%</td></tr>
+<tr><td>Escape rate (no gate caught it)</td><td>4%</td></tr>
+</tbody>
+</table>
+<h3 id="gate-catch-distribution-130-failures">Gate catch distribution (130 failures)<a class="anchor-link" href="#gate-catch-distribution-130-failures">#</a></h3>
+<table>
+<thead><tr><th>Gate</th><th>Failures</th><th>Share</th></tr></thead>
+<tbody>
+<tr><td>acceptance</td><td>107</td><td>82%</td></tr>
+<tr><td>render</td><td>7</td><td>5%</td></tr>
+<tr><td>visual</td><td>5</td><td>4%</td></tr>
+<tr><td>build</td><td>4</td><td>3%</td></tr>
+<tr><td>escaped</td><td>4</td><td>3%</td></tr>
+<tr><td>mockup-parity</td><td>2</td><td>2%</td></tr>
+<tr><td>standards</td><td>1</td><td>1%</td></tr>
+</tbody>
+</table>
+<p>Per-gate catch rates (not the share above): mockup-parity caught 2 of 7 records it ran on (29%); assets 0 of 8 (0%); perf insufficient data (n=1).</p>
+<h2 id="throughput-and-effort-poolable"><a id="2-throughput-and-effort-poolable"></a>2. Throughput and effort (poolable)<a class="anchor-link" href="#throughput-and-effort-poolable">#</a></h2>
+<ul>
+<li>Runs: 50 — build-phase 7, fix-issues 22, verify-phase 15, triage-and-fix 2, triage-issues 2, handoff-phase 1, refresh-status 1.
+</li>
+<li>Rework ratio: 414% (fix-mode runs / build-phase runs). Median batch 4 REQs per build-phase run; 4.47 REQs/hour.
+</li>
+<li>Sessions: 26, 9,100,457 tokens in total. List price $578.42 over 20 priced runs — the published rate applied to measured tokens; a price, not a bill. Claude Code records carry no billed dollars.
+</li>
+<li>Commit cadence: 1.17 commits per active day (102 commits over 87 days).
+</li>
+</ul>
+<h3 id="effort-per-phase">Effort per phase<a class="anchor-link" href="#effort-per-phase">#</a></h3>
+<p>Token figures cover only runs with a measured window. Fan-out was not observed on any run (no <code>tree</code>-scope windows in these phases), so a 0 there means <em>not looked</em>, not <em>none ran</em>. Phase costs reflect what each phase is, not how well it ran.</p>
+<table>
+<thead><tr><th>Phase</th><th>Runs</th><th>Wall clock</th><th>Tokens out</th><th>Out share</th><th>Time share</th></tr></thead>
+<tbody>
+<tr><td>build-phase</td><td>7</td><td>32h38m</td><td>not measured (0 of 7)</td><td>—</td><td>44%</td></tr>
+<tr><td>verify-phase</td><td>15</td><td>31h28m</td><td>783.5k</td><td>27%</td><td>43%</td></tr>
+<tr><td>fix-issues</td><td>22</td><td>7h55m</td><td>1.8M (9 of 22 measured)</td><td>61%</td><td>11%</td></tr>
+<tr><td>triage-and-fix</td><td>2</td><td>45m09s</td><td>217.8k</td><td>8%</td><td>1%</td></tr>
+<tr><td>triage-issues</td><td>2</td><td>39m14s</td><td>109.7k</td><td>4%</td><td>1%</td></tr>
+<tr><td>handoff-phase</td><td>1</td><td>25m30s</td><td>not measured</td><td>—</td><td>1%</td></tr>
+</tbody>
+</table>
+<h2 id="misses"><a id="3-misses"></a>3. Misses<a class="anchor-link" href="#misses">#</a></h2>
+<ul>
+<li>Logged: 92 (2 open, 3 resolved, 87 wont-fix); 90 fix records.
+</li>
+<li>Found by: gate 89, production 3 (3% found by a human — reported beside the escape rate, never merged with it).
+</li>
+<li>Classes: regression 90, other 1, partial-implementation 1. Design-miss share 0%.
+</li>
+<li>Why missed (4 of 92 assessed): insufficient-verify-method 3, instruction-ignored 1. Whose gap (3 of 4 sorted): weak-check 3.
+</li>
+<li><strong>This run (2026-10-21 production report):</strong> 3 misses on REQ-FN-040 (post pagination ignored the saved word count), REQ-NFR-018 (the live site was not told to refresh after BlogApp saves), REQ-FN-062 (BlogApp crashed in WebView2's file dialog). All three were fixed and re-verified <code>Verified</code>.
+</li>
+</ul>
+<h3 id="attribution-linked-records-only-34-of-92-58-excluded-as-inferred-unknown"><a id="attribution--linked-records-only-34-of-92-58-excluded-as-inferredunknown"></a>Attribution — linked records only (34 of 92; 58 excluded as inferred/unknown)<a class="anchor-link" href="#attribution-linked-records-only-34-of-92-58-excluded-as-inferred-unknown">#</a></h3>
+<p>By origin phase: build-phase 29, fix-issues 5. By agent: general-purpose 29, flow-master 3, trblazeui 2. By model: unknown 31, claude-opus-5 3. A per-model rate is observational, not causal: harder work is not assigned at random.</p>
+<h3 id="rework-cost">Rework cost<a class="anchor-link" href="#rework-cost">#</a></h3>
+<table>
+<thead><tr><th>Basis</th><th>Records</th><th>Tokens out per miss</th></tr></thead>
+<tbody>
+<tr><td>sole (measured)</td><td>0</td><td>insufficient data (n=0)</td></tr>
+<tr><td>shared (apportioned, equal division — not a measurement)</td><td>3</td><td>72,605.7</td></tr>
+<tr><td>unattributable (no token window)</td><td>87</td><td>—</td></tr>
+</tbody>
+</table>
+<p>No measured dollars: Claude Code records carry <code>cost_usd: null</code>, and no rate card is applied.</p>
+<h2 id="what-is-missing"><a id="4-what-is-missing"></a>4. What is missing<a class="anchor-link" href="#what-is-missing">#</a></h2>
+<ul>
+<li>Token windows on build-phase and handoff-phase runs were never measured.
+</li>
+<li>88 misses predate the <code>sort</code> field and are unsorted.
+</li>
+<li>No run had a <code>tree</code>-scope window, so subagent fan-out is unobserved everywhere.
+</li>
+</ul>
   </main>
 </div>
 

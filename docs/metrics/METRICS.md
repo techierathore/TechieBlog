@@ -5,131 +5,86 @@
      .tfcore/telemetry/SCHEMA.md.
 
      THE ONE RULE FOR THIS DOCUMENT: no combined first-pass rate, gate catch
-     distribution, or escape rate across live/backfilled or across project_type.
-     No "total" row, no "overall" line, no averaged intro sentence. If you are
-     tempted to add one, re-read metrics-report.md §2 — the reason is not
-     cosmetic. Commit-derived metrics are exempt from both separations. -->
+     distribution, or escape rate across live/backfilled or across project_type. -->
 
-**Snapshot as of 2026-08-20** · project_type `app` · schema v1
+**Snapshot as of 2026-10-21** · project_type `app` · schema v1 · every figure from `tf-metrics.sh --report`
 
-| Stream | Records | Span |
-|---|---|---|
-| `runs.jsonl` | 13 | 2026-08-09 → 2026-08-14 |
-| `gates.jsonl` | 190 (0 backfilled) | 2026-08-09 → 2026-08-14 |
-| `sessions.jsonl` | 14 | 2026-08-08 → 2026-08-20 |
-| `commits.jsonl` | 93 | 2024-10-18 → 2026-08-11 |
-
-Every record in every stream is **live** (written at the moment of the event —
-zero backfilled) and carries `project_type: app`. No provenance separation is
-required beyond this statement; there is no backfilled column anywhere on this
-page.
-
----
-
-## 1. First-pass rate
-
-*What fraction of REQs reach `Verified` on attempt 1.*
-
-| Provenance | project_type | REQs scored | First-pass | Rate |
-|---|---|---|---|---|
-| **Live** | app | 151 | 121 | 80% |
-
-There is no backfilled row: `gates_backfilled = 0`.
-
-**Excluded from the live rate:** 0 REQs. No `req_id` in this repo carries any
-backfilled history, so the live `attempt` numbering is trustworthy and nothing
-was excluded.
-
----
-
-## 2. Gate catch distribution
-
-*Of all failures, which gate caught them.*
-
-### Live · `app` — 36 failures
-
-| Gate | Caught | Share |
-|---|---|---|
-| build | 4 | 11% |
-| acceptance | 19 | 53% |
-| render (§4a data-render) | 7 | 19% |
-| visual (§4b visual-truth) | 5 | 14% |
-| standards | 1 | 3% |
-| **escaped** — no gate caught it | 0 | 0% |
-
-**Most common failure classes:** `other` ×15, `assert-fail` ×7, `blank-data` ×5.
-
-**`perf` — insufficient data (n=1).** The perf gate entered the enum on
-2026-08-10, mid-stream. Every record written before that date had zero chance of
-recording it, and the gate only fires for a REQ carrying a `perf-budget:`. In
-this repo `perf` ran on exactly 1 record and caught 0. Its catch rate is read
-against that coverage, not against the 36-failure total above — a share computed
-against the total would structurally understate it.
-
----
-
-## 3. Escape rate
-
-*What fraction of defective REQs reached UAT/production instead of a gate.*
-
-| Provenance | project_type | REQs with any failure | Escaped to UAT/prod | Rate |
-|---|---|---|---|---|
-| **Live** | app | 34 | 0 | 0% |
-
-Escapes are the `gate:"escaped"` records written by `*triage-issues` — a human
-found the defect after every gate passed it. There are none in this stream; the
-zero is real (the field exists in the data and never fired), not an absent field.
-
----
-
-## 4. Throughput and rework — poolable
-
-*These are comparable across `project_type` and across provenance, so they are
-pooled deliberately.*
-
-| Metric | Value |
+| Stream | Records |
 |---|---|
-| Runs total | 13 (build-phase=7, verify-phase=5, handoff-phase=1) |
-| Rework ratio (fix-mode ÷ build-phase runs) | 71% |
-| Batch size — median REQs per `build-phase` run | 4 |
-| REQ throughput — median REQs/hour | 5.04 |
-| Sessions / total tokens | 14 / 4,430,759 |
-| Tokens per `Verified` REQ | 28,771.2 |
-| Commit cadence | 1.13 commits/active day over 82 days |
+| `runs.jsonl` | 50 |
+| `gates.jsonl` | 328 (0 backfilled) |
+| `sessions.jsonl` | 26 |
+| `commits.jsonl` | 102 |
+| `misses.jsonl` | 92 |
 
-**Cost in USD is not reported.** Claude Code transcripts carry token counts but
-no per-message dollar cost, and this framework runs on a subscription where
-marginal per-token cost is not the real unit. Multiplying tokens by a rate card
-would be an estimate presented as a measurement, so the row says tokens and
-stops. Two OpenCode sessions carry real `cost_usd`, but dollars are never pooled
-across harness (Claude records are `null`; a mixed sum silently under-reports),
-so the pooled figure stays tokens.
+## 1. Quality — live records, project_type `app` only
 
-`commits.jsonl` is written by this repo's `pre-commit` hook, which is present
-here (`commit_hook: true`) and reconciles against the log rather than appending
-a single line. The stream lags reality by one commit — at `pre-commit` time HEAD
-is still the previous commit, so the newest record ships in the next one.
-Unavoidable in either direction, and the reconcile means the lag never becomes a
-loss. Zero duplicate shas were collapsed at read time.
+All gate records are live; no backfilled column exists.
 
----
+| Figure | Value |
+|---|---|
+| REQs scored | 155 |
+| First-pass rate | 81% |
+| Escape rate (no gate caught it) | 4% |
 
-## 5. What is missing
+### Gate catch distribution (130 failures)
 
-- `perf` gate catch rate — `insufficient data (n=1)`; the gate has run on only 1
-  record since its 2026-08-10 introduction. Needs ≥3 supporting records to read
-  a share.
-- `cost_usd` (pooled) — `null` across the mixed-harness stream; two OpenCode
-  sessions carry real cost but pooling dollars across harness is forbidden by
-  the schema. Reported in tokens instead.
-- No backfilled records exist in any stream — nothing was reconstructed, so no
-  metric here was guessed. This is the ideal state for every number on the page.
-- Single-repo report. No cross-project rollup was requested; gates/runs/sessions
-  here cover TechieBlog only.
+| Gate | Failures | Share |
+|---|---|---|
+| acceptance | 107 | 82% |
+| render | 7 | 5% |
+| visual | 5 | 4% |
+| build | 4 | 3% |
+| escaped | 4 | 3% |
+| mockup-parity | 2 | 2% |
+| standards | 1 | 1% |
 
----
+Per-gate catch rates (not the share above): mockup-parity caught 2 of 7 records it ran on (29%); assets 0 of 8 (0%); perf insufficient data (n=1).
 
-<!-- Privacy: this document may only contain IDs, counts, durations, verdicts and
-     file paths — exactly like the streams it summarises. Never requirement text,
-     never prompt text, never a commit subject, never a failure description in
-     prose. Assume it could become public. -->
+## 2. Throughput and effort (poolable)
+
+- Runs: 50 — build-phase 7, fix-issues 22, verify-phase 15, triage-and-fix 2, triage-issues 2, handoff-phase 1, refresh-status 1.
+- Rework ratio: 414% (fix-mode runs / build-phase runs). Median batch 4 REQs per build-phase run; 4.47 REQs/hour.
+- Sessions: 26, 9,100,457 tokens in total. List price $578.42 over 20 priced runs — the published rate applied to measured tokens; a price, not a bill. Claude Code records carry no billed dollars.
+- Commit cadence: 1.17 commits per active day (102 commits over 87 days).
+
+### Effort per phase
+
+Token figures cover only runs with a measured window. Fan-out was not observed on any run (no `tree`-scope windows in these phases), so a 0 there means *not looked*, not *none ran*. Phase costs reflect what each phase is, not how well it ran.
+
+| Phase | Runs | Wall clock | Tokens out | Out share | Time share |
+|---|---|---|---|---|---|
+| build-phase | 7 | 32h38m | not measured (0 of 7) | — | 44% |
+| verify-phase | 15 | 31h28m | 783.5k | 27% | 43% |
+| fix-issues | 22 | 7h55m | 1.8M (9 of 22 measured) | 61% | 11% |
+| triage-and-fix | 2 | 45m09s | 217.8k | 8% | 1% |
+| triage-issues | 2 | 39m14s | 109.7k | 4% | 1% |
+| handoff-phase | 1 | 25m30s | not measured | — | 1% |
+
+## 3. Misses
+
+- Logged: 92 (2 open, 3 resolved, 87 wont-fix); 90 fix records.
+- Found by: gate 89, production 3 (3% found by a human — reported beside the escape rate, never merged with it).
+- Classes: regression 90, other 1, partial-implementation 1. Design-miss share 0%.
+- Why missed (4 of 92 assessed): insufficient-verify-method 3, instruction-ignored 1. Whose gap (3 of 4 sorted): weak-check 3.
+- **This run (2026-10-21 production report):** 3 misses on REQ-FN-040 (post pagination ignored the saved word count), REQ-NFR-018 (the live site was not told to refresh after BlogApp saves), REQ-FN-062 (BlogApp crashed in WebView2's file dialog). All three were fixed and re-verified `Verified`.
+
+### Attribution — linked records only (34 of 92; 58 excluded as inferred/unknown)
+
+By origin phase: build-phase 29, fix-issues 5. By agent: general-purpose 29, flow-master 3, trblazeui 2. By model: unknown 31, claude-opus-5 3. A per-model rate is observational, not causal: harder work is not assigned at random.
+
+### Rework cost
+
+| Basis | Records | Tokens out per miss |
+|---|---|---|
+| sole (measured) | 0 | insufficient data (n=0) |
+| shared (apportioned, equal division — not a measurement) | 3 | 72,605.7 |
+| unattributable (no token window) | 87 | — |
+
+No measured dollars: Claude Code records carry `cost_usd: null`, and no rate card is applied.
+
+## 4. What is missing
+
+- Token windows on build-phase and handoff-phase runs were never measured.
+- 88 misses predate the `sort` field and are unsorted.
+- No run had a `tree`-scope window, so subagent fan-out is unobserved everywhere.

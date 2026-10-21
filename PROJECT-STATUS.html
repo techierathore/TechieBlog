@@ -102,31 +102,39 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 </style>
 </head>
 <body>
-<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">☾ Dark</button>
+<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">&#9790; Dark</button>
 <div class="layout">
   <nav class="side">
     <h1>TechieBlog — Status</h1>
-    <div class="sub">Last updated: 2026-08-25 · Build PASS</div>
+    <div class="sub">Last rendered: 2026-10-21</div>
     <div class="group">Contents</div>
     <ol>
-      <li><a href="#where-i-am">Where I am</a></li>
-      <li><a href="#next-command-to-run">Next command to run</a></li>
-      <li><a href="#open-requirements">Open requirements</a></li>
-      <li><a href="#known-blockers">Known blockers</a></li>
-      <li><a href="#verification-log">Verification log</a></li>
-      <li><a href="#library-feedback-summary">Library feedback summary</a></li>
-      <li><a href="#standards-compliance-last-verifier-check">Standards compliance (last verifier check)</a></li>
-      <li><a href="#deferred-future">Deferred / future</a></li>
+        <li><a href="#where-i-am">Where I am</a></li>
+        <li><a href="#next-command-to-run">Next command to run</a></li>
+        <li><a href="#open-requirements">Open requirements</a></li>
+        <li><a href="#known-blockers">Known blockers</a></li>
+        <li><a href="#verification-log">Verification log</a></li>
+        <li><a href="#library-feedback-summary">Library feedback summary</a></li>
+        <li><a href="#standards-compliance">Standards compliance</a></li>
+        <li><a href="#deferred-future">Deferred / future</a></li>
     </ol>
   </nav>
   <main>
     <h1>TechieBlog — Status</h1>
-    <div class="subtitle">
-      Stack: .NET 10 / Blazor Server / TrBlazeUI / PostgreSQL + Dapper + DbUp / Serilog / BlogApp MAUI (Windows)<br>
-      Last updated: <strong>2026-08-26</strong> · Current phase: <strong>UAT — every agent-verifiable REQ Verified; 3 open REQs, all owner/env-gated</strong><br>
-      Last verified build: <strong>PASS</strong> (2026-08-26)
+    <div class="subtitle">Rendered 2026-10-21 &middot; source <code>PROJECT-STATUS.md</code></div>
+    <div class="cta-next" style="padding:20px; background:var(--cta-bg); border:2px solid var(--accent); border-radius:10px; margin:20px 0;">
+      <div style="font-size:11px; color:var(--muted); letter-spacing:.5px;">NEXT COMMAND TO RUN</div>
+      <div style="font-family:var(--mono); font-size:18px; margin-top:6px;">/TechieFlow:agents:flow-master *build-phase TechieBlog</div>
     </div>
-
+<table>
+<tbody>
+<tr><th>project</th><td>TechieBlog</td></tr>
+<tr><th>last_updated</th><td>2026-10-21</td></tr>
+<tr><th>current_phase</th><td>Build — 88 not built, 2 to fix, 65 of 155 verified, 12 not applicable</td></tr>
+<tr><th>last_verified_build</th><td>PASS</td></tr>
+<tr><th>last_verified_date</th><td>2026-10-21</td></tr>
+</tbody>
+</table>
     <div class="toc-inline">
       <div>Contents</div>
       <ol>
@@ -136,174 +144,99 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
         <li><a href="#known-blockers">Known blockers</a></li>
         <li><a href="#verification-log">Verification log</a></li>
         <li><a href="#library-feedback-summary">Library feedback summary</a></li>
-        <li><a href="#standards-compliance-last-verifier-check">Standards compliance (last verifier check)</a></li>
+        <li><a href="#standards-compliance">Standards compliance</a></li>
         <li><a href="#deferred-future">Deferred / future</a></li>
       </ol>
     </div>
-
-    <h2 id="where-i-am">Where I am<a class="anchor-link" href="#where-i-am">#</a></h2>
-
-    <p>TrBlazeUI <strong>2.0.3</strong> is in (all three csprojs; build GREEN rung #4, 0 Error(s), 7/7; <code>dotnet test</code> 1551/3/0).
-    Its release closed every open library finding (TR-066…TR-074), and each fix was measured against a running
-    host before the matching workaround was removed — <code>tests/verify/trblazeui-203-upgrade.spec.ts</code> 8/8 — and the
-    verifier re-graded REQ-UI-048 / REQ-FN-025 / REQ-UI-049 <strong>3/3 PASS on 2026-08-26</strong> (one minor library finding,
-    TR-075, logged without demotion). Gone:
-    <code>ManageImages</code> <code>NativeSelect</code> (TR-067), four DatePicker/TimePicker test-hook wrappers (TR-072), the
-    <code>ItemContent min-w-0</code> copy (TR-071), five hand rules in <code>utilities.css</code> (TR-072c/073). Kept: the
-    <code>PostMarkdownEditor</code> document latch (TR-069, still required). Detail in the checklist Remarks of REQ-UI-048 /
-    REQ-FN-025 / REQ-UI-049. <strong>The working tree is not yet deployed</strong> — the owner commits and deploys.</p>
-
-    <p><strong>REQ-NFR-038 (the deploy pipeline) is now <code>Verified</code></strong> — graded 2026-08-26 against the live site the owner
-    has been deploying through it. Before that, UAT round 3 (Mac/Windows parity, UAT-025..031) was closed and
-    owner-confirmed on the live site. Three REQs remain open, each gated on the owner — CI hardening, the
-    committed-PAT rotation, the deferred async/concurrency stage. Nothing is left for an agent to verify.</p>
-
-    <h2 id="next-command-to-run">Next command to run<a class="anchor-link" href="#next-command-to-run">#</a></h2>
-
-    <pre><code>(owner-run) walk docs/TechieBlog-UsageGuide.md §"UAT plan" — open rows REQ-NFR-017, REQ-NFR-025, REQ-NFR-026
-</code></pre>
-
-    <p>All three remaining rows are owner-gated (CI secrets, the PAT rotation, the deferred async stage); when the owner un-defers one, resume with <code>/TechieFlow:agents:flow-master *build-phase TechieBlog</code> naming that REQ.</p>
-
-    <h2 id="open-requirements">Open requirements<a class="anchor-link" href="#open-requirements">#</a></h2>
-
-    <ul>
-      <li>☐ REQ-NFR-017 — CI pipeline: build, test, artifacts on push and PR (PARTIAL)</li>
-      <li>☐ REQ-NFR-025 — Revoke and rotate the committed GitHub PAT out of nuget.config (In Progress, owner-gated)</li>
-      <li>☐ REQ-NFR-026 — Convert DbAccess to async and fix the concurrency ceiling (PARTIAL, stage 4 deferred by the owner)</li>
-    </ul>
-
-    <h2 id="known-blockers">Known blockers<a class="anchor-link" href="#known-blockers">#</a></h2>
-
-    <ul>
-      <li><strong>Routed sub-agent wrappers are broken (TechieFlow framework, not this app).</strong> <code>.tfcore/utils/tf-routing-bind.sh:141,143</code>
-        generates wrappers telling the agent to read <code>.claude/trblazeui.md</code> / <code>.claude/techierag.md</code> and stop if absent.
-        Those files do not exist here and are <strong>not</strong> created by a build (checked after a full rung-#4 build). The real
-        personas are <code>.claude/commands/{trblazeui,techierag}.md</code>. Every routed <code>REQ-UI-*</code> / <code>REQ-RAG-*</code> cluster will
-        dead-stop until the generator is fixed.</li>
-      <li><s><code>CLAUDE.md</code> names the wrong next-free TrBlazeUI feedback id</s> — fixed 2026-08-25; it now says <strong>TR-075</strong> and
-        defers to the feedback file’s own bottom counter line.</li>
-      <li><strong>No owner actions outstanding.</strong> ⚠ <strong>Read this before writing an “owner actions” list again.</strong> On
-        2026-08-25 three items were repeated back to the owner — load the speaking data, enter <code>UserStats</code>, configure
-        BlogApp SFTP — <strong>all three of which he had already done.</strong> They were copied from these stale notes without
-        checking the deployed site. Verified live the same day: <code>/speaker-profile</code> serves <strong>42 session rows</strong>, the home
-        stats band renders <strong>4 populated cards</strong> (22+ years · 18+ sessions · 1.2 M+ reads · 31+ articles), and <strong>9
-        <code>/uploads/</code> images return HTTP 200</strong>, one uploaded 2026-08-24. <strong>Anything in this section must be re-checked
-        against <code>https://techierathore.com</code> immediately before it is reported, not carried forward from a prior pass.</strong></li>
-    </ul>
-
-    <h2 id="verification-log">Verification log<a class="anchor-link" href="#verification-log">#</a></h2>
-
-    <table>
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Phase</th>
-          <th>Result</th>
-          <th>Status table</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>2026-08-26</td>
-          <td>verify (scoped: REQ-NFR-038, against the LIVE site)</td>
-          <td>PASS → <code>Verified</code> — Caddy→Kestrel container chain observed end-to-end (308/301 redirects, LE cert, /healthz Healthy incl. schema 31/31, uploads served, <code>blazor.web.js</code> 200,645 B, live <code>_blazor</code> WebSocket + server-driven theme flip, home render/visual clean @1280/390); Actions/GHCR/SSH internals not observable from here and not claimed</td>
-          <td>docs/TechieBlog-Checklist.md#requirements-status</td>
-        </tr>
-        <tr>
-          <td>2026-08-26</td>
-          <td>verify (scoped: REQ-UI-048 · REQ-FN-025 · REQ-UI-049)</td>
-          <td>3/3 PASS on TrBlazeUI 2.0.3 with workarounds removed — 16/16 gate sweep (15 screens × 1280/390), 8/8 upgrade UAT, 13/13 Select first-paint, 7/7 upload limits; stats band observed for the first time; new library finding TR-075 (Select-in-Dialog focus drop) logged, no demotion</td>
-          <td>docs/TechieBlog-Checklist.md#requirements-status</td>
-        </tr>
-        <tr>
-          <td>2026-08-25</td>
-          <td>TrBlazeUI 2.0.3 upgrade + consumer UAT (builder smoke, not a verify-phase run)</td>
-          <td>REQ-UI-048 / REQ-FN-025 / REQ-UI-049 Remarks updated; 8/8 upgrade spec, 1551 unit, build 0 errors; workarounds for TR-067/071/072/072c/073 removed after live measurement</td>
-          <td>docs/TechieBlog-Checklist.md#requirements-status</td>
-        </tr>
-        <tr>
-          <td>2026-08-25</td>
-          <td>scoped verify (production)</td>
-          <td>REQ-FN-062 Verified from live evidence; speaking data (42 rows), UserStats (4 cards) and uploads all confirmed already done by the owner — three stale “owner actions” retracted</td>
-          <td>docs/TechieBlog-Checklist.md#requirements-status</td>
-        </tr>
-        <tr>
-          <td>2026-08-25</td>
-          <td>fix-issues pass 4 + scoped verify</td>
-          <td>UAT-031 — raised the root-font (20px→34px) and .site-container (1600px→100rem) ceilings that discarded proportional scaling above 2246. Physical font 34.2px AND container 89% of screen at every 4K scaling; 11/11 acceptance</td>
-          <td>docs/TechieBlog-Checklist.md#requirements-status</td>
-        </tr>
-        <tr>
-          <td>2026-08-24</td>
-          <td>fix-issues pass 3 + scoped verify</td>
-          <td>UAT-029/030 (post page one aligned column, TOC rail deleted; fluid root type). Post blocks share ONE left edge at every viewport; column 46.3% of screen on BOTH machines; 46/48 own checks, 11/11 acceptance, 1551 unit</td>
-          <td>docs/TechieBlog-Checklist.md#requirements-status</td>
-        </tr>
-        <tr>
-          <td>2026-08-24</td>
-          <td>fix-issues pass 2 + scoped verify</td>
-          <td>UAT-027/028 (fluid width system + post-page rebuild); header==body to the pixel, screen filled 45.6%→71.2% @2246 and 54.3%→89.0% @1798; 152/152 re-smoke, 11/11 acceptance, 1555 unit</td>
-          <td>docs/TechieBlog-Checklist.md#requirements-status</td>
-        </tr>
-        <tr>
-          <td>2026-08-24</td>
-          <td>fix-issues + scoped verify</td>
-          <td>UAT-025/026 fixed; REQ-UI-049 restored to Verified, REQ-UI-005 held; 11/11 acceptance, 42/42 re-smoke</td>
-          <td>docs/TechieBlog-Checklist.md#requirements-status</td>
-        </tr>
-        <tr>
-          <td>2026-08-23</td>
-          <td>verify (scoped)</td>
-          <td>4 of 5 Verified; REQ-FN-062 config-blocked</td>
-          <td>docs/TechieBlog-Checklist.md#requirements-status</td>
-        </tr>
-        <tr>
-          <td>2026-08-22</td>
-          <td>verify (scoped)</td>
-          <td>5 REQs graded, 11/11 Playwright</td>
-          <td>docs/TechieBlog-Checklist.md#requirements-status</td>
-        </tr>
-        <tr>
-          <td>2026-08-11</td>
-          <td>verify (all)</td>
-          <td>render + visual gates across public and admin</td>
-          <td>docs/TechieBlog-Checklist.md#requirements-status</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <h2 id="library-feedback-summary">Library feedback summary<a class="anchor-link" href="#library-feedback-summary">#</a></h2>
-
-    <ul>
-      <li>TrBlazeUI: <strong>1 open, minor</strong> — <strong>TR-075</strong> (2026-08-26): a styled <code>Select</code> inside <code>DialogContent</code> drops focus to <code>&lt;body&gt;</code> after a pick, so Escape cannot dismiss the dialog until the user Tabs back in; mouse unaffected, no REQ demoted. 2.0.3 otherwise closed TR-066…TR-074 (consumer measurements in the “Consumer verification on 2.0.3” table of docs/TechieBlog-TrBlazeUI-Feedback.md). Next free id <strong>TR-076</strong>.</li>
-      <li>TechieRag: not used in this project (no AI/RAG features)</li>
-    </ul>
-
-    <h2 id="standards-compliance-last-verifier-check">Standards compliance (last verifier check)<a class="anchor-link" href="#standards-compliance-last-verifier-check">#</a></h2>
-
-    <ul>
-      <li>Underscore fields: PASS — build gate, <code>tests/unit/Ops/SourceConventionTests.cs</code></li>
-      <li>Test method underscores: PASS — same gate</li>
-      <li>Mis-prefixed fields: PASS — same gate</li>
-    </ul>
-
-    <h2 id="deferred-future">Deferred / future<a class="anchor-link" href="#deferred-future">#</a></h2>
-
-    <ul>
-      <li>Local database holds no published content by design. <code>blogpost</code> #45 <code>Fix Test Post No Banner</code> (a prior
-        session’s repro fixture) is left <strong>unpublished</strong>, not deleted — restore with
-        <code>update blogpost set published=true where postid=45;</code>. Its body was replaced with heading-bearing sample
-        text so the new post-page TOC rail had something real to build against.</li>
-      <li>The post page’s TOC rail (<code>PostTocRail</code>, its JS anchor workaround and its tests) was <strong>deleted</strong> at the
-        owner’s request in UAT-029, not hidden. TR-074 (TrBlazeUI <code>AnchorNav</code> emitting base-relative <code>#id</code> links)
-        is therefore moot for this page but remains a real library defect worth fixing upstream.</li>
-      <li>The home stats band <strong>is populated and live</strong> (4 cards, verified 2026-08-25) — the long-standing “no <code>UserStats</code> rows”
-        caveat is retired. Only the Download-CV CTA is still unobservable, and only because no <code>CVFilePath</code> is set.</li>
-      <li>Undriven surfaces: profile save, newsletter Send, subscriber toggles, comment/rating/subscribe submits;
-        Firefox + WebKit for REQ-NFR-009; a real screen-reader pass; the macOS BlogApp head.</li>
-      <li><code>.buildout/*/logs</code> holds ~133 MB of leftover agent logs (gitignored, safe to delete).</li>
-    </ul>
+<h2 id="where-i-am">Where I am<a class="anchor-link" href="#where-i-am">#</a></h2>
+<p><code>*triage-and-fix</code> on a production report fixed three bugs, all re-verified as <code>Verified</code>. REQ-FN-040: post
+pages now honour the saved words-per-page setting. REQ-NFR-018: BlogApp saves now refresh the live site, and
+a refresh failure stays on screen. REQ-FN-062: BlogApp picks images with the Windows picker instead of
+WebView2's file dialog, which was crashing it. Build passes with 0 errors; 1,554 unit tests pass. Not
+deployed yet.</p>
+<h2 id="next-command-to-run">Next command to run<a class="anchor-link" href="#next-command-to-run">#</a></h2>
+<p>Claude Code:</p>
+<pre><code>/TechieFlow:agents:flow-master *build-phase TechieBlog</code></pre>
+<p>OpenCode:</p>
+<pre><code>/flow-master *build-phase TechieBlog</code></pre>
+<p>Why: 88 rows are not built yet: REQ-UI-001, REQ-UI-004, REQ-UI-005, REQ-UI-006, REQ-UI-007, REQ-UI-008 …; 2 rows carry a defect (⚠ in Remarks) that a fix must clear before a verify: REQ-UI-003, REQ-UI-053.</p>
+<h2 id="open-requirements">Open requirements<a class="anchor-link" href="#open-requirements">#</a></h2>
+<table>
+<thead><tr><th>Status</th><th>Count</th></tr></thead>
+<tbody>
+<tr><td>Not Started</td><td>0</td></tr>
+<tr><td>In Progress</td><td>1</td></tr>
+<tr><td>Implemented</td><td>0</td></tr>
+<tr><td>Needs re-verify</td><td>2</td></tr>
+<tr><td>Blocked</td><td>0</td></tr>
+<tr><td>PARTIAL</td><td>1</td></tr>
+<tr><td>FAIL</td><td>86</td></tr>
+</tbody>
+</table>
+<ul>
+<li>[ ] REQ-NFR-025 — Revoke and rotate the committed GitHub PAT out of nuget.config (Phase 6) (In Progress)
+</li>
+<li>[ ] REQ-NFR-017 — CI pipeline — build, test, artifacts on push and PR (Phase 1) (PARTIAL)
+</li>
+<li>[ ] REQ-FN-006 — Password strength validation on staff account creation + reset (Phase 2) (FAIL)
+</li>
+<li>[ ] REQ-FN-008 — Token refresh (Phase 2) (FAIL)
+</li>
+<li>[ ] REQ-FN-009 — 5-role model + 5 authorization policies (Phase 2) (FAIL)
+</li>
+<li>[ ] REQ-FN-011 — Profile read/update + change password (Phase 2) (FAIL)
+</li>
+<li>[ ] REQ-FN-012 — Post CRUD service + repository (Phase 3) (FAIL)
+</li>
+<li>[ ] REQ-FN-013 — Slug generation, uniqueness and slug-based routing (Phase 3) (FAIL)
+</li>
+<li>[ ] REQ-FN-014 — Markdown rendering via Markdig (Phase 3) (FAIL)
+</li>
+<li>[ ] REQ-FN-015 — Draft / Published state handling (Phase 3) (FAIL)
+</li>
+<li>(80 more open rows in docs/TechieBlog-Checklist.md)
+</li>
+</ul>
+<h2 id="known-blockers">Known blockers<a class="anchor-link" href="#known-blockers">#</a></h2>
+<ul>
+<li>The fixes are not live yet. Production still splits posts at 500 words and BlogApp still uses the crashing dialog until the owner deploys and rebuilds BlogApp.
+</li>
+<li>BlogApp's full choose-and-upload round trip with the new picker was not exercised: BlogApp is connected to production. The first real upload is the final check.
+</li>
+<li><code>tests/verify/_gates.ts</code> still carries the retired admin password (<code>admin_password</code>); the two new specs override it with the UsageGuide's.
+</li>
+<li><code>tests/verify/cluster-b.spec.ts</code> throws at load without <code>DB_USERS</code>, which aborts any unscoped Playwright run.
+</li>
+</ul>
+<h2 id="verification-log">Verification log<a class="anchor-link" href="#verification-log">#</a></h2>
+<p>Last five passes; older passes live in <code>docs/metrics/gates.jsonl</code>.</p>
+<table>
+<thead><tr><th>Date</th><th>Phase</th><th>Result</th><th>Status table</th></tr></thead>
+<tbody>
+<tr><td>2026-08-26</td><td>verify (scoped: REQ-UI-048/FN-025/UI-049)</td><td>3/3 PASS on TrBlazeUI 2.0.3, workarounds removed</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+<tr><td>2026-08-25</td><td>TrBlazeUI 2.0.3 upgrade + consumer UAT</td><td>8/8 upgrade spec, 1551 unit, build 0 errors</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+<tr><td>2026-08-25</td><td>scoped verify (production)</td><td>REQ-FN-062 Verified; speaking data/UserStats/uploads confirmed</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+<tr><td>2026-09-07</td><td>triage-issues</td><td>77/167 Verified</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+<tr><td>2026-10-21</td><td>triage-and-fix</td><td>65/155 Verified, 12 N/A</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+</tbody>
+</table>
+<h2 id="library-feedback-summary">Library feedback summary<a class="anchor-link" href="#library-feedback-summary">#</a></h2>
+<ul>
+<li>TrBlazeUI: 1 open · 0 closed — docs/TechieBlog-TrBlazeUI-Feedback.md
+</li>
+</ul>
+<h2 id="standards-compliance">Standards compliance<a class="anchor-link" href="#standards-compliance">#</a></h2>
+<ul>
+<li>Last check 2026-10-21: 0 findings (build-gate <code>SourceConventionTests.cs</code> passed in the unit run), see the checklist Remarks.
+</li>
+</ul>
+<h2 id="deferred-future"><a id="deferred--future"></a>Deferred / future<a class="anchor-link" href="#deferred-future">#</a></h2>
+<ul>
+<li>The root cause of the WebView2 file-dialog crash (<code>EmbeddedBrowserWebView.dll</code> 0x80000003) was not identified; it was avoided, not fixed upstream.
+</li>
+<li>Undriven: profile save, newsletter Send, subscriber toggles, comment/rating/subscribe submits; Firefox + WebKit for REQ-NFR-009; a real screen-reader pass; the macOS BlogApp head.
+</li>
+</ul>
   </main>
 </div>
 
