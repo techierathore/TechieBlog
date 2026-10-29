@@ -729,5 +729,5 @@ find $BACKUP_DIR -mtime +30 -delete
 ## Need Help?
 
 - Check [GETTING_STARTED.md](../GETTING_STARTED.md) for initial setup
-- Review [Architecture](architecture.md) for technical details
+- Review [Architecture](TechieBlog-Architecture.md) for technical details
 - Open an issue on GitHub for deployment problems

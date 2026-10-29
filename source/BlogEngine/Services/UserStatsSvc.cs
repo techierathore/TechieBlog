@@ -18,7 +18,7 @@ namespace BlogEngine.Services;
 /// <list type="number">
 ///   <item>A maintenance page lists a user's stats, optionally filtered by category.</item>
 ///   <item>Create and update validate the label, value and owner before touching the repository.</item>
-///   <item><see cref="ReorderStats"/> rewrites display order in one pass after a drag-and-drop.</item>
+///   <item><see cref="ReorderStatsAsync"/> rewrites display order in one pass after a drag-and-drop.</item>
 /// </list>
 ///
 /// <para><b>Dependencies:</b> <see cref="IUserStatsRepo"/>, <see cref="ILogger{TCategoryName}"/>.</para>
@@ -26,7 +26,7 @@ namespace BlogEngine.Services;
 /// <para><b>Authorization:</b> none is enforced here. The reads back the public <c>/resume</c>
 /// page and are safe to call anonymously; every mutation is reached from an admin maintenance page
 /// behind <c>AppPolicies.AdminOnly</c>, and that page owns the policy check. One ownership rule
-/// <i>is</i> enforced in code: <see cref="ReorderStats"/> skips any statistic that does not belong
+/// <i>is</i> enforced in code: <see cref="ReorderStatsAsync"/> skips any statistic that does not belong
 /// to the supplied user, so a forged identifier list cannot reorder someone else's resume. The
 /// create, update and delete members have no such check — they trust the caller's id — so never
 /// expose them from a surface where the user id is attacker-controlled.</para>
@@ -48,20 +48,12 @@ namespace BlogEngine.Services;
 ///
 /// <para><b>Usage:</b> Registered transiently alongside the other engine services. Every mutation
 /// returns <c>Result</c>, so pages surface failures without exception handling. Call the
-/// <c>…Async</c> members — the synchronous twins are retained only until the last caller migrates.</para>
+/// <c>…Async</c> members — the synchronous twins were deleted.</para>
 ///
-/// <para><b>Async conversion (REQ-NFR-026 stage 3):</b> every public member that performs I/O now has
-/// an <c>…Async</c> twin sitting directly beneath it, routing through the repository's genuinely
-/// asynchronous members with the caller's <c>CancellationToken</c> flowed all the way into the Dapper
-/// command. Each twin mirrors its synchronous counterpart exactly — the same guards, the same filters,
-/// the same display order, the same swallow-and-log on reads and the same <c>Result</c> failure
-/// messages on writes — so migrating a call site changes only which thread the round trip parks, never
-/// what the caller observes. <c>Result&lt;T&gt;</c> is unaffected by the conversion: it models the
-/// expected-failure axis and <c>Task</c> models the completion axis, so a member that returned
-/// <c>Result&lt;UserStat&gt;</c> simply returns <c>Task&lt;Result&lt;UserStat&gt;&gt;</c>.
-/// <b>The synchronous surface above is pending deletion in stage 4</b> — do not add new callers of it;
-/// <see cref="ValidateStat"/> is exempt because it is a pure validator that performs no I/O and so
-/// needs no asynchronous twin.</para>
+/// <para><b>Async only (REQ-NFR-026):</b> every member that performs I/O is asynchronous, routing
+/// through the repository's asynchronous members with the caller's <c>CancellationToken</c> flowed
+/// into the Dapper command. The synchronous twins were deleted. <see cref="ValidateStat"/> is a pure
+/// validator that performs no I/O and so needs no asynchronous form.</para>
 /// </remarks>
 public class UserStatsSvc
 {
@@ -106,39 +98,10 @@ public class UserStatsSvc
     }
 
     /// <summary>
-    /// Lists every statistic belonging to a user, in display order.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> A read failure returns an empty list rather than throwing, so a
-    /// database problem degrades the resume section instead of the whole page.</para>
-    /// <para><b>Side Effects:</b> None beyond logging.</para>
-    /// </remarks>
-    /// <param name="userId">Owner of the statistics.</param>
-    /// <returns>The user's statistics, or an empty list.</returns>
-    public IEnumerable<UserStat> GetStatsForUser(long userId)
-    {
-        if (userId <= 0)
-        {
-            return Enumerable.Empty<UserStat>();
-        }
-
-        try
-        {
-            return userStatsRepo.GetByUserId(userId);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error loading statistics for user {UserId}", userId);
-            return Enumerable.Empty<UserStat>();
-        }
-    }
-
-    /// <summary>
     /// Lists every statistic belonging to a user, in display order, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async counterpart of <see cref="GetStatsForUser"/> and identical to
-    /// it in every observable way. A non-positive identifier is not a database question and never
+    /// <para><b>Business Logic:</b> A non-positive identifier is not a database question and never
     /// reaches the repository. A read failure returns an empty list rather than throwing, so a database
     /// problem degrades the resume section instead of the whole page. Ordering is the repository's —
     /// rows come back ordered by <c>DisplayOrder</c> ascending and are never re-sorted here.</para>
@@ -169,39 +132,10 @@ public class UserStatsSvc
     }
 
     /// <summary>
-    /// Lists a user's statistics within one category, in display order.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Categories group the resume's About and Community blocks; an
-    /// empty category is treated as "no filter applies" and returns nothing rather than everything.</para>
-    /// <para><b>Side Effects:</b> None beyond logging.</para>
-    /// </remarks>
-    /// <param name="userId">Owner of the statistics.</param>
-    /// <param name="category">The category to filter by.</param>
-    /// <returns>The matching statistics, or an empty list.</returns>
-    public IEnumerable<UserStat> GetStatsForCategory(long userId, string category)
-    {
-        if (userId <= 0 || string.IsNullOrWhiteSpace(category))
-        {
-            return Enumerable.Empty<UserStat>();
-        }
-
-        try
-        {
-            return userStatsRepo.GetByUserIdAndCategory(userId, category);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error loading statistics for user {UserId} in {Category}", userId, category);
-            return Enumerable.Empty<UserStat>();
-        }
-    }
-
-    /// <summary>
     /// Lists a user's statistics within one category, in display order, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async counterpart of <see cref="GetStatsForCategory"/>. Categories
+    /// <para><b>Business Logic:</b> Categories
     /// group the resume's About and Community blocks; a blank category is treated as "no filter
     /// applies" and returns nothing rather than everything. Matching is exact and the column is
     /// nullable, so an uncategorised statistic never matches. Ordering is the repository's —
@@ -234,37 +168,10 @@ public class UserStatsSvc
     }
 
     /// <summary>
-    /// Reads a single statistic by its identifier.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Used by the edit form to load the row being changed.</para>
-    /// <para><b>Side Effects:</b> None beyond logging.</para>
-    /// </remarks>
-    /// <param name="statId">The statistic's identifier.</param>
-    /// <returns>The statistic, or null when it does not exist.</returns>
-    public UserStat? GetStat(long statId)
-    {
-        if (statId <= 0)
-        {
-            return null;
-        }
-
-        try
-        {
-            return userStatsRepo.GetById(statId);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error loading statistic {StatId}", statId);
-            return null;
-        }
-    }
-
-    /// <summary>
     /// Reads a single statistic by its identifier, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async counterpart of <see cref="GetStat"/>. Used by the edit form
+    /// <para><b>Business Logic:</b> Used by the edit form
     /// to load the row being changed. Both "no such statistic" and "the lookup failed" surface as
     /// <c>null</c>; the failure case is distinguished in the log, not in the return value.</para>
     /// <para><b>Flow:</b> guard the identifier → await the repository → log and return <c>null</c> on
@@ -294,42 +201,10 @@ public class UserStatsSvc
     }
 
     /// <summary>
-    /// Creates a new statistic for a user.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Label and value are both required and length-bounded to match
-    /// the column widths; a statistic with no owner is meaningless and is rejected.</para>
-    /// <para><b>Flow:</b> Validate, insert, echo back the generated identifier.</para>
-    /// <para><b>Side Effects:</b> Inserts one <c>UserStats</c> row.</para>
-    /// </remarks>
-    /// <param name="stat">The statistic to create.</param>
-    /// <returns>Success carrying the persisted statistic, or a failure describing the problem.</returns>
-    public Result<UserStat> CreateStat(UserStat stat)
-    {
-        var validation = ValidateStat(stat);
-        if (validation.IsFailure)
-        {
-            return Result<UserStat>.Failure(validation.ErrorMessage);
-        }
-
-        try
-        {
-            stat.StatId = userStatsRepo.Create(stat);
-            logger.LogInformation("Created statistic {StatId} for user {UserId}", stat.StatId, stat.UserId);
-            return Result<UserStat>.Success(stat);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to create statistic for user {UserId}", stat.UserId);
-            return Result<UserStat>.Failure(CreateFailureMessage);
-        }
-    }
-
-    /// <summary>
     /// Creates a new statistic for a user, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async counterpart of <see cref="CreateStat"/>. Label and value are
+    /// <para><b>Business Logic:</b> Label and value are
     /// both required and length-bounded to match the column widths; a statistic with no owner is
     /// meaningless and is rejected. Validation failures are expected outcomes and come back as a failed
     /// <c>Result</c> carrying the validator's own message; only an unexpected persistence error is
@@ -366,45 +241,10 @@ public class UserStatsSvc
     }
 
     /// <summary>
-    /// Updates an existing statistic.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> The row must already exist — an update against a deleted
-    /// statistic is reported rather than silently creating one.</para>
-    /// <para><b>Flow:</b> Validate, confirm existence, write.</para>
-    /// <para><b>Side Effects:</b> Updates one <c>UserStats</c> row.</para>
-    /// </remarks>
-    /// <param name="stat">The statistic carrying updated values.</param>
-    /// <returns>Success carrying the saved statistic, or a failure describing the problem.</returns>
-    public Result<UserStat> UpdateStat(UserStat stat)
-    {
-        var validation = ValidateStat(stat);
-        if (validation.IsFailure)
-        {
-            return Result<UserStat>.Failure(validation.ErrorMessage);
-        }
-
-        if (stat.StatId <= 0)
-        {
-            return Result<UserStat>.Failure("Invalid statistic id");
-        }
-
-        try
-        {
-            return SaveExisting(stat);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to update statistic {StatId}", stat.StatId);
-            return Result<UserStat>.Failure(UpdateFailureMessage);
-        }
-    }
-
-    /// <summary>
     /// Updates an existing statistic, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async counterpart of <see cref="UpdateStat"/>. The row must already
+    /// <para><b>Business Logic:</b> The row must already
     /// exist — an update against a statistic deleted in another tab is reported as "Statistic not
     /// found" rather than silently creating one. Validation runs before the identifier check, so a
     /// statistic that is both invalid and unkeyed reports the validation message, exactly as the
@@ -444,30 +284,11 @@ public class UserStatsSvc
     }
 
     /// <summary>
-    /// Creates or updates a statistic depending on whether it already has an identifier.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Lets a single admin form handle both add and edit.</para>
-    /// <para><b>Side Effects:</b> Writes one <c>UserStats</c> row.</para>
-    /// </remarks>
-    /// <param name="stat">The statistic to persist.</param>
-    /// <returns>Success carrying the saved statistic, or a failure describing the problem.</returns>
-    public Result<UserStat> SaveStat(UserStat stat)
-    {
-        if (stat == null)
-        {
-            return Result<UserStat>.Failure("Statistic cannot be null");
-        }
-
-        return stat.StatId <= 0 ? CreateStat(stat) : UpdateStat(stat);
-    }
-
-    /// <summary>
     /// Creates or updates a statistic depending on whether it already has an identifier, without
     /// blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async counterpart of <see cref="SaveStat"/>. A non-positive
+    /// <para><b>Business Logic:</b> A non-positive
     /// <c>StatId</c> means the statistic has never been persisted, so a single admin form can bind one
     /// method to its save button regardless of mode.</para>
     /// <para><b>Flow:</b> guard against <c>null</c> → inspect the key → delegate to
@@ -492,45 +313,10 @@ public class UserStatsSvc
     }
 
     /// <summary>
-    /// Deletes a statistic.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Deleting an absent statistic is reported as a failure so the
-    /// admin page can tell the user the row had already gone.</para>
-    /// <para><b>Side Effects:</b> Removes one <c>UserStats</c> row.</para>
-    /// </remarks>
-    /// <param name="statId">Identifier of the statistic to remove.</param>
-    /// <returns>Success, or a failure describing the problem.</returns>
-    public Result DeleteStat(long statId)
-    {
-        if (statId <= 0)
-        {
-            return Result.Failure("Invalid statistic id");
-        }
-
-        try
-        {
-            if (userStatsRepo.GetById(statId) == null)
-            {
-                return Result.Failure("Statistic not found");
-            }
-
-            userStatsRepo.Delete(statId);
-            logger.LogInformation("Deleted statistic {StatId}", statId);
-            return Result.Success();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to delete statistic {StatId}", statId);
-            return Result.Failure(DeleteFailureMessage);
-        }
-    }
-
-    /// <summary>
     /// Deletes a statistic, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async counterpart of <see cref="DeleteStat"/>. Deleting an absent
+    /// <para><b>Business Logic:</b> Deleting an absent
     /// statistic is reported as a failure so the admin page can tell the user the row had already gone
     /// — the repository's delete is a silent no-op on an unknown key, which is why existence is
     /// confirmed first. That confirmation sits inside the <c>try</c>, so a failed lookup is reported as
@@ -571,42 +357,10 @@ public class UserStatsSvc
     }
 
     /// <summary>
-    /// Rewrites display order for a user's statistics.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> The supplied identifiers define the new order; position in the
-    /// sequence becomes <c>DisplayOrder</c>, so the caller never computes order numbers itself.</para>
-    /// <para><b>Flow:</b> Load each statistic, confirm it belongs to the user, stamp its new order.</para>
-    /// <para><b>Side Effects:</b> Updates one row per supplied identifier.</para>
-    /// </remarks>
-    /// <param name="userId">Owner of the statistics being reordered.</param>
-    /// <param name="orderedStatIds">Statistic identifiers in their new display order.</param>
-    /// <returns>Success, or a failure describing the problem.</returns>
-    public Result ReorderStats(long userId, IReadOnlyList<long> orderedStatIds)
-    {
-        if (userId <= 0 || orderedStatIds == null || orderedStatIds.Count == 0)
-        {
-            return Result.Failure("A user and at least one statistic are required");
-        }
-
-        try
-        {
-            ApplyOrder(userId, orderedStatIds);
-            logger.LogInformation("Reordered {Count} statistics for user {UserId}", orderedStatIds.Count, userId);
-            return Result.Success();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to reorder statistics for user {UserId}", userId);
-            return Result.Failure(ReorderFailureMessage);
-        }
-    }
-
-    /// <summary>
     /// Rewrites display order for a user's statistics, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async counterpart of <see cref="ReorderStats"/>. The supplied
+    /// <para><b>Business Logic:</b> The supplied
     /// identifiers define the new order; position in the sequence becomes <c>DisplayOrder</c>, so the
     /// caller never computes order numbers itself. The success log reports the number of identifiers
     /// supplied, not the number of rows actually written — an identifier belonging to another user is
@@ -683,31 +437,11 @@ public class UserStatsSvc
     }
 
     /// <summary>
-    /// Writes an update once the target row has been confirmed to exist.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Side Effects:</b> Updates one <c>UserStats</c> row.</para>
-    /// </remarks>
-    /// <param name="stat">The statistic carrying updated values.</param>
-    /// <returns>Success carrying the saved statistic, or a not-found failure.</returns>
-    private Result<UserStat> SaveExisting(UserStat stat)
-    {
-        if (userStatsRepo.GetById(stat.StatId) == null)
-        {
-            return Result<UserStat>.Failure("Statistic not found");
-        }
-
-        userStatsRepo.Update(stat);
-        logger.LogInformation("Updated statistic {StatId} for user {UserId}", stat.StatId, stat.UserId);
-        return Result<UserStat>.Success(stat);
-    }
-
-    /// <summary>
     /// Writes an update once the target row has been confirmed to exist, without blocking the calling
     /// thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async counterpart of <see cref="SaveExisting"/>. Exceptions are
+    /// <para><b>Business Logic:</b> Exceptions are
     /// deliberately left to propagate — <see cref="UpdateStatAsync"/> owns the <c>try</c> that converts
     /// them into a failed <c>Result</c>.</para>
     /// <para><b>Flow:</b> await the existence check → await the update → wrap in <c>Result</c>.</para>
@@ -729,38 +463,11 @@ public class UserStatsSvc
     }
 
     /// <summary>
-    /// Stamps a new display order onto each statistic the caller listed.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Statistics belonging to another user are skipped, so a forged
-    /// identifier list cannot reorder someone else's resume.</para>
-    /// <para><b>Side Effects:</b> Updates one row per accepted identifier.</para>
-    /// </remarks>
-    /// <param name="userId">Owner of the statistics being reordered.</param>
-    /// <param name="orderedStatIds">Statistic identifiers in their new display order.</param>
-    private void ApplyOrder(long userId, IReadOnlyList<long> orderedStatIds)
-    {
-        for (var position = 0; position < orderedStatIds.Count; position++)
-        {
-            var stat = userStatsRepo.GetById(orderedStatIds[position]);
-            if (stat == null || stat.UserId != userId)
-            {
-                logger.LogWarning("Skipped statistic {StatId} not owned by user {UserId}",
-                    orderedStatIds[position], userId);
-                continue;
-            }
-
-            stat.DisplayOrder = position;
-            userStatsRepo.Update(stat);
-        }
-    }
-
-    /// <summary>
     /// Stamps a new display order onto each statistic the caller listed, without blocking the calling
     /// thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async counterpart of <see cref="ApplyOrder"/>. Statistics belonging
+    /// <para><b>Business Logic:</b> Statistics belonging
     /// to another user are skipped with a warning, so a forged identifier list cannot reorder someone
     /// else's resume. Exceptions are deliberately left to propagate — <see cref="ReorderStatsAsync"/>
     /// owns the <c>try</c> that converts them into a failed <c>Result</c>.</para>

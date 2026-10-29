@@ -1,0 +1,29 @@
+@*
+    DesktopRedirectToLogin.razor
+    Purpose: The desktop head's replacement for the shared RedirectToLogin (REQ-UI-051).
+
+    The shared component force-reloads the document (forceLoad: true) and carries a returnUrl. Both
+    are right for a website and wrong for BlogApp:
+      * a BlazorWebView has no address bar and cannot rely on a document reload - reloading while a
+        menu's JavaScript references are still alive (a logout from the account menu) left the window
+        on "An unhandled error has occurred" until the operator reloaded it by hand;
+      * there are no deep links to return to, and a guessed returnUrl sends an Author who signs in
+        after an Admin to /admin and on to access-denied (see DesktopStart).
+    So this one navigates inside the running app, replaces the history entry, and lets the sign-in
+    screen choose the role's landing route.
+*@
+@inject NavigationManager NavigationManager
+
+@code {
+    /// <summary>
+    /// Moves to the sign-in screen without reloading the document.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Flow:</b> initialise → navigate to <c>/login</c>, replacing the current entry.</para>
+    /// <para><b>Side Effects:</b> Changes the route.</para>
+    /// </remarks>
+    protected override void OnInitialized()
+    {
+        NavigationManager.NavigateTo("/login", replace: true);
+    }
+}

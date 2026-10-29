@@ -49,7 +49,7 @@ public class LoginThrottleTests
     /// Reaching the failure limit inside one window locks the account and reports a positive
     /// retry delay.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-005 repeated failed sign-ins past the limit lock the account")]
     public void LimitReachedBlocksTheAccount()
     {
         var throttle = new LoginThrottle();
@@ -66,7 +66,7 @@ public class LoginThrottleTests
     /// <summary>
     /// A lockout applies only to the offending account; other accounts sign in normally.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-005 a lockout applies to the failing account only")]
     public void LockoutIsScopedToOneKey()
     {
         var throttle = new LoginThrottle();
@@ -117,7 +117,7 @@ public class LoginThrottleTests
     /// Once the lockout period has elapsed the account is released without any further action,
     /// proven by advancing the injected clock past the lockout window.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-005 the lockout lifts once the window passes")]
     public void LockoutExpiresAfterTheConfiguredWindow()
     {
         var now = new DateTime(2026, 8, 6, 12, 0, 0, DateTimeKind.Utc);

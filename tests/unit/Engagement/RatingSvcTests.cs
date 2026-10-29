@@ -67,8 +67,8 @@ public class RatingSvcTests
 
         Assert.True(result.Data.IsEmailVerificationRequired);
         Assert.Single(context.RatingRepo.Ratings);
-        Assert.Equal(0, context.Service.GetRatingCount(7));
-        Assert.Equal(0, context.Service.GetAverageRating(7));
+        Assert.Equal(0, await context.Service.GetRatingCountAsync(7));
+        Assert.Equal(0, await context.Service.GetAverageRatingAsync(7));
     }
 
     /// <summary>
@@ -82,8 +82,8 @@ public class RatingSvcTests
 
         await context.VerificationService.ConsumeAsync(context.TokenRepo.Tokens.Single().Token);
 
-        Assert.Equal(1, context.Service.GetRatingCount(7));
-        Assert.Equal(5, context.Service.GetAverageRating(7));
+        Assert.Equal(1, await context.Service.GetRatingCountAsync(7));
+        Assert.Equal(5, await context.Service.GetAverageRatingAsync(7));
     }
 
     /// <summary>
@@ -98,7 +98,7 @@ public class RatingSvcTests
         var result = await context.Service.SubmitRatingAsync(BuildSubmission(4));
 
         Assert.False(result.Data.IsEmailVerificationRequired);
-        Assert.Equal(1, context.Service.GetRatingCount(7));
+        Assert.Equal(1, await context.Service.GetRatingCountAsync(7));
         Assert.Empty(context.EmailSender.SentUrls);
     }
 
@@ -114,8 +114,8 @@ public class RatingSvcTests
 
         await context.Service.SubmitRatingAsync(BuildSubmission(1));
 
-        Assert.Equal(1, context.Service.GetRatingCount(7));
-        Assert.Equal(1, context.Service.GetAverageRating(7));
+        Assert.Equal(1, await context.Service.GetRatingCountAsync(7));
+        Assert.Equal(1, await context.Service.GetAverageRatingAsync(7));
     }
 
     /// <summary>
@@ -175,7 +175,7 @@ public class RatingSvcTests
 
         await context.Service.SubmitRatingAsync(BuildSubmission(5));
 
-        Assert.Empty(context.Service.GetTopRatedPostIds());
+        Assert.Empty(await context.Service.GetTopRatedPostIdsAsync());
     }
 
     /// <summary>
@@ -229,8 +229,8 @@ public class RatingSvcTests
         }
 
         Assert.Single(context.RatingRepo.Ratings);
-        Assert.Equal(1, context.Service.GetRatingCount(7));
-        Assert.Equal(4, context.Service.GetAverageRating(7));
+        Assert.Equal(1, await context.Service.GetRatingCountAsync(7));
+        Assert.Equal(4, await context.Service.GetAverageRatingAsync(7));
     }
 
     /// <summary>
@@ -250,8 +250,8 @@ public class RatingSvcTests
         await context.Service.SubmitRatingAsync(other);
 
         Assert.Equal(2, context.RatingRepo.Ratings.Count);
-        Assert.Equal(2, context.Service.GetRatingCount(7));
-        Assert.Equal(4, context.Service.GetAverageRating(7));
+        Assert.Equal(2, await context.Service.GetRatingCountAsync(7));
+        Assert.Equal(4, await context.Service.GetAverageRatingAsync(7));
     }
 
     /// <summary>
@@ -270,8 +270,8 @@ public class RatingSvcTests
         await context.Service.SubmitRatingAsync(otherPost);
 
         Assert.Equal(2, context.RatingRepo.Ratings.Count);
-        Assert.Equal(5, context.Service.GetAverageRating(7));
-        Assert.Equal(2, context.Service.GetAverageRating(8));
+        Assert.Equal(5, await context.Service.GetAverageRatingAsync(7));
+        Assert.Equal(2, await context.Service.GetAverageRatingAsync(8));
     }
 
     /// <summary>
@@ -289,7 +289,7 @@ public class RatingSvcTests
         var stored = Assert.Single(context.RatingRepo.Ratings);
         Assert.Equal(1, stored.Rating);
         Assert.False(stored.IsEmailVerified);
-        Assert.Equal(0, context.Service.GetRatingCount(7));
+        Assert.Equal(0, await context.Service.GetRatingCountAsync(7));
     }
 
     /// <summary>

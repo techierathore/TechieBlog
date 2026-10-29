@@ -127,7 +127,8 @@ test.describe.configure({ mode: 'serial' });
 
 let mailedUnsubscribeUrl = '';
 
-test('REQ-FN-032 — compose and send an issue, and the mailed body carries a working unsubscribe URL', async ({ page }) => {
+// retired 2026-10-27 (W5): seeds subscribers with psql, signs in with the retired admin_password and reads a host log path that no longer exists; superseded by fxv5-newsletter REQ-FN-032.
+test.skip('retired: compose and send an issue, and the mailed body carries a working unsubscribe URL', async ({ page }) => {
   const before = psql(
     `SELECT count(*) FROM subscribernewsletter sn JOIN subscriber s ON s.subscriberid = sn.subscriberid WHERE s.email LIKE '%${SEGMENT}%'`,
   );
@@ -192,7 +193,8 @@ test('REQ-FN-032 — compose and send an issue, and the mailed body carries a wo
   await expectLooksRight(page, 390, 'composer-sent');
 });
 
-test('REQ-FN-032 — the mailed link unsubscribes anonymously and flips the row in PostgreSQL', async ({ browser }) => {
+// retired 2026-10-27 (W5): seeds subscribers with psql, signs in with the retired admin_password and reads a host log path that no longer exists; superseded by fxv5-newsletter REQ-FN-032.
+test.skip('retired: the mailed link unsubscribes anonymously and flips the row in PostgreSQL', async ({ browser }) => {
   expect(mailedUnsubscribeUrl, 'the previous test should have captured a mailed URL').not.toBe('');
 
   const beforeState = psql(`SELECT isconfirmed FROM subscriber WHERE email = '${SUBSCRIBER_ONE}'`);
@@ -225,7 +227,8 @@ test('REQ-FN-032 — the mailed link unsubscribes anonymously and flips the row 
   await context.close();
 });
 
-test('REQ-FN-032 — re-opening the same link is a graceful no-op', async ({ browser }) => {
+// retired 2026-10-27 (W5): seeds subscribers with psql, signs in with the retired admin_password and reads a host log path that no longer exists; superseded by fxv5-newsletter REQ-FN-032.
+test.skip('retired: re-opening the same link is a graceful no-op', async ({ browser }) => {
   const context = await browser.newContext();
   const page = await context.newPage();
 
@@ -243,7 +246,8 @@ test('REQ-FN-032 — re-opening the same link is a graceful no-op', async ({ bro
   await context.close();
 });
 
-test('REQ-FN-032 — a garbage token fails safely and leaks nothing', async ({ browser }) => {
+// retired 2026-10-27 (W5): seeds subscribers with psql, signs in with the retired admin_password and reads a host log path that no longer exists; superseded by fxv5-newsletter REQ-FN-032.
+test.skip('retired: a garbage token fails safely and leaks nothing', async ({ browser }) => {
   const context = await browser.newContext();
   const page = await context.newPage();
 
@@ -270,7 +274,8 @@ test('REQ-FN-032 — a garbage token fails safely and leaks nothing', async ({ b
   await context.close();
 });
 
-test('REQ-FN-032 — the send never mailed an unpublished blog post', async () => {
+// retired 2026-10-27 (W5): seeds subscribers with psql, signs in with the retired admin_password and reads a host log path that no longer exists; superseded by fxv5-newsletter REQ-FN-032.
+test.skip('retired: the send never mailed an unpublished blog post', async () => {
   // Cluster G fixed a read projection that leaked drafts. The newsletter send path reads only the
   // issue being dispatched, so assert the mailed body carries the composed content and nothing
   // pulled from the post store.

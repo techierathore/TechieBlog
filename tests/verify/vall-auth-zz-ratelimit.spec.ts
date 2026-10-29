@@ -5,20 +5,18 @@
  *   1. the HTTP fixed-window limiter in Program.cs (10 requests / 60 s per client IP, only on the
  *      credential paths) — proved by driving raw HTTP requests until a 429 comes back;
  *   2. BlogEngine.Common.LoginThrottle (5 failures / 15 min per ACCOUNT key, then a 15-minute
- *      lockout) — proved through the real sign-in form against an address that owns no account, so
- *      no seeded credential is ever locked out for the sibling clusters.
+ *      lockout) — proved through the real sign-in form against an account THIS SPEC creates
+ *      (`fxv8-lock-…`, removed through /users afterwards), so no seeded credential is ever locked out.
  *
- * The per-account lockout is invisible in the audit table for an unknown address (both the
- * wrong-password arm and the throttle-refused arm write userid NULL, success false, by design), so
- * it is proved from the application's own Serilog output, which distinguishes them explicitly.
+ * 2026-10-28 (T2 triage): the lockout used to be proved from the host's Serilog file
+ * (`source/TechieBlog/logs`), which this environment does not have. For a real account the audit table
+ * itself tells the arms apart (wrong password = the account's userid, throttle refusal = userid NULL),
+ * and the lockout is visible on the form: the correct password is refused too.
  */
 import { test, expect, request, Page } from '@playwright/test';
 import { execFileSync } from 'child_process';
-import * as fs from 'fs';
-import * as path from 'path';
 import { BASE } from './_gates';
-
-const LOG_DIR = 'source/TechieBlog/logs';
+import { loginHard, goTo, fillCommitted, pickSelect } from './vall-authoring-helpers';
 
 function db(sql: string): string {
   return execFileSync(
@@ -26,24 +24,6 @@ function db(sql: string): string {
     ['exec', 'WinPostgre', 'psql', '-U', 'PgVectorAdmin', '-d', 'TechieBlog', '-tAc', sql],
     { encoding: 'utf8' },
   ).trim();
-}
-
-/** Reads the tail of the newest Serilog rolling file. */
-function recentLog(bytes = 400000): string {
-  const files = fs
-    .readdirSync(LOG_DIR)
-    .filter((f) => f.endsWith('.log'))
-    .map((f) => ({ f, m: fs.statSync(path.join(LOG_DIR, f)).mtimeMs }))
-    .sort((a, b) => b.m - a.m);
-  if (files.length === 0) return '';
-  const full = path.join(LOG_DIR, files[0].f);
-  const size = fs.statSync(full).size;
-  const start = Math.max(0, size - bytes);
-  const fd = fs.openSync(full, 'r');
-  const buf = Buffer.alloc(size - start);
-  fs.readSync(fd, buf, 0, buf.length, start);
-  fs.closeSync(fd);
-  return buf.toString('utf8');
 }
 
 /** Blazor wipes a prerendered input when the circuit attaches; re-type until the value holds. */
@@ -56,50 +36,98 @@ async function fillStable(page: Page, selector: string, value: string) {
   return false;
 }
 
-test('REQ-NFR-005 the per-account login throttle locks an address out after repeated failures', async ({ page }) => {
-  test.setTimeout(240000);
-  // A throwaway ADDRESS (not an account) so only that throttle partition is locked.
-  const probe = `vall-auth-rl-${Date.now()}@nowhere.invalid`;
-  const before = Number(db('SELECT COALESCE(MAX(logid),0) FROM loginlog'));
+/** Creates an admin-added account through /AddUser (signed in as admin on `admin`). */
+async function createLockAccount(admin: Page, email: string, password: string) {
+  await goTo(admin, '/AddUser', '[data-testid="add-user-form"]', 120000);
+  await fillCommitted(admin, 'user-first-name', 'Fxv8');
+  await fillCommitted(admin, 'user-last-name', 'Lockout');
+  await fillCommitted(admin, 'user-email', email);
+  await fillCommitted(admin, 'user-password', password);
+  await fillCommitted(admin, 'user-confirm-password', password);
+  await pickSelect(admin, 'user-role', /^Contributor$/);
+  await admin.click('[data-testid="add-user-submit"]');
+  const end = Date.now() + 60000;
+  while (Date.now() < end && db(`SELECT COUNT(*) FROM bloguser WHERE emailid = '${email}'`) !== '1') await admin.waitForTimeout(1500);
+  expect(db(`SELECT COUNT(*) FROM bloguser WHERE emailid = '${email}'`), 'the lockout fixture account was created').toBe('1');
+}
 
-  await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('[data-testid="login-email"]', { timeout: 30000 });
-  await page.waitForFunction(() => (window as any).Blazor !== undefined, { timeout: 30000 }).catch(() => {});
-  await page.waitForTimeout(2500);
+/** Deletes the account through the /users grid (the app soft-deletes). */
+async function deleteLockAccount(admin: Page, email: string) {
+  await goTo(admin, '/users', '[data-testid="users-grid"]', 120000);
+  await admin.fill('[data-testid="users-search"]', email);
+  await admin.dispatchEvent('[data-testid="users-search"]', 'change');
+  await admin.waitForTimeout(2000);
+  await admin.locator('tbody tr').filter({ hasText: email }).locator('[data-testid="user-delete"]').click();
+  await admin.click('[data-testid="user-delete-confirm"]');
+  await admin.waitForTimeout(4000);
+  expect(db(`SELECT isdeleted FROM bloguser WHERE emailid = '${email}'`), 'the lockout fixture account was removed through the UI').toBe('t');
+}
 
-  let registered = 0;
-  for (let attempt = 1; attempt <= 8; attempt++) {
-    await fillStable(page, '[data-testid="login-email"]', probe);
-    await fillStable(page, '[data-testid="login-password"]', `Wrong#${attempt}`);
-    const rowsBefore = Number(db(`SELECT COUNT(*) FROM loginlog WHERE attemptedemail = '${probe}'`));
+test('REQ-NFR-005 the per-account login throttle locks an address out after repeated failures', async ({ page, browser }) => {
+  test.setTimeout(540000);
+  // The lockout is proved on an account THIS TEST creates (`fxv8-lock-…`, deleted at the end), so no
+  // seeded credential is ever locked for the sibling specs. Observable signals, all black box:
+  //   - after the failures a CORRECT password is still refused (the form shows its error, no sign-in);
+  //   - the audit trail tells the two arms apart for a real account: a wrong password is written with
+  //     the account's userid, a refusal by the throttle is written with userid NULL.
+  const email = `fxv8-lock-${Date.now().toString(36)}@example.com`;
+  const goodPw = 'Fxv8#Lockout2026';
+  const adminCtx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const admin = await adminCtx.newPage();
+  try {
+    await loginHard(admin, 'admin');
+    await createLockAccount(admin, email, goodPw);
+    const userId = db(`SELECT userid FROM bloguser WHERE emailid = '${email}'`);
+    const before = Number(db('SELECT COALESCE(MAX(logid),0) FROM loginlog'));
+
+    // /login is on the shared 10-requests-per-minute limiter, so wait out a 429 before the first load
+    for (let attempt = 1; attempt <= 6; attempt++) {
+      const res = await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded' });
+      if (res?.status() !== 429) break;
+      await page.waitForTimeout(12000);
+    }
+    await page.waitForSelector('[data-testid="login-email"]', { timeout: 30000 });
+    await page.waitForFunction(() => (window as any).Blazor !== undefined, { timeout: 30000 }).catch(() => {});
+    await page.waitForTimeout(2500);
+
+    let registered = 0;
+    for (let attempt = 1; attempt <= 8; attempt++) {
+      await fillStable(page, '[data-testid="login-email"]', email);
+      await fillStable(page, '[data-testid="login-password"]', `Wrong#${attempt}`);
+      const rowsBefore = Number(db(`SELECT COUNT(*) FROM loginlog WHERE attemptedemail = '${email}'`));
+      await page.click('[data-testid="login-submit"]');
+      await expect(page.locator('[data-testid="login-error"]')).toBeVisible({ timeout: 20000 });
+      await page.waitForTimeout(900);
+      const rowsAfter = Number(db(`SELECT COUNT(*) FROM loginlog WHERE attemptedemail = '${email}'`));
+      if (rowsAfter > rowsBefore) registered++;
+      console.log(`[REQ-NFR-005] attempt ${attempt}: audit rows ${rowsBefore} -> ${rowsAfter}`);
+    }
+    expect(registered, 'the form actually submitted often enough to trip the throttle').toBeGreaterThanOrEqual(6);
+
+    // the decisive check: the CORRECT password is now refused too
+    await fillStable(page, '[data-testid="login-email"]', email);
+    await fillStable(page, '[data-testid="login-password"]', goodPw);
     await page.click('[data-testid="login-submit"]');
-    await expect(page.locator('[data-testid="login-error"]')).toBeVisible({ timeout: 20000 });
-    await page.waitForTimeout(900);
-    const rowsAfter = Number(db(`SELECT COUNT(*) FROM loginlog WHERE attemptedemail = '${probe}'`));
-    if (rowsAfter > rowsBefore) registered++;
-    console.log(`[REQ-NFR-005] attempt ${attempt}: audit rows ${rowsBefore} -> ${rowsAfter}`);
+    await expect(page.locator('[data-testid="login-error"]'), 'a locked address is refused even with the right password').toBeVisible({ timeout: 20000 });
+    await page.waitForTimeout(1500);
+    expect(new URL(page.url()).pathname.toLowerCase(), 'the locked address did not sign in').toContain('login');
+
+    const rows = db(
+      `SELECT logid||'|'||COALESCE(userid::text,'NULL')||'|'||success FROM loginlog WHERE logid > ${before} AND attemptedemail = '${email}' ORDER BY logid`,
+    );
+    const lines = rows ? rows.split('\n') : [];
+    console.log(`[REQ-NFR-005] audit rows for ${email} (${lines.length}):\n${rows}`);
+    expect(lines.every((l) => l.endsWith('|false')), 'none of them succeeded, the correct-password attempt included').toBe(true);
+    const counted = lines.filter((l) => l.split('|')[1] === userId).length;
+    const refused = lines.filter((l) => l.split('|')[1] === 'NULL').length;
+    console.log(`[REQ-NFR-005] wrong-password rows (userid ${userId}) = ${counted}; throttle-refused rows (userid NULL) = ${refused}`);
+    expect(counted, 'the throttle counted the failures (MaxFailuresPerWindow = 5)').toBeGreaterThanOrEqual(5);
+    expect(refused, 'the throttle actually refused further attempts (lockout engaged)').toBeGreaterThanOrEqual(1);
+    console.log('[REQ-NFR-005] LoginThrottle: MaxFailuresPerWindow=5, FailureWindowMinutes=15, LockoutMinutes=15');
+  } finally {
+    await deleteLockAccount(admin, email).catch((e) => console.log(`[REQ-NFR-005] fixture cleanup failed: ${String(e).slice(0, 120)}`));
+    await adminCtx.close();
   }
-
-  const rows = db(
-    `SELECT logid||'|'||COALESCE(userid::text,'NULL')||'|'||success FROM loginlog WHERE logid > ${before} AND attemptedemail = '${probe}' ORDER BY logid`,
-  );
-  const lines = rows ? rows.split('\n') : [];
-  console.log(`[REQ-NFR-005] audit rows for ${probe} (${lines.length}):\n${rows}`);
-  expect(registered, 'the form actually submitted often enough to trip the throttle').toBeGreaterThanOrEqual(6);
-  expect(lines.every((l) => l.endsWith('|false')), 'none of them succeeded').toBe(true);
-
-  // The decisive signal: AuthSvc logs "Failed login attempt N" while the credential is checked and
-  // "Login refused ... account locked" once LoginThrottle starts refusing before any DB work.
-  const log = recentLog();
-  const failures = (log.match(new RegExp(`Failed login attempt \\d+ for ${probe}`, 'g')) ?? []).length;
-  const refusals = (log.match(new RegExp(`Login refused for ${probe}`, 'g')) ?? []).length;
-  console.log(`[REQ-NFR-005] Serilog: ${failures} "Failed login attempt" lines, ${refusals} "Login refused (locked)" lines`);
-  const sample = (log.split('\n').filter((l) => l.includes(probe)).slice(-3) ?? []).join('\n');
-  console.log(`[REQ-NFR-005] last log lines:\n${sample}`);
-
-  expect(failures, 'the throttle counted the failures').toBeGreaterThanOrEqual(5);
-  expect(refusals, 'the throttle actually refused further attempts (lockout engaged)').toBeGreaterThanOrEqual(1);
-  console.log('[REQ-NFR-005] LoginThrottle: MaxFailuresPerWindow=5, FailureWindowMinutes=15, LockoutMinutes=15');
 });
 
 test('REQ-NFR-005 the HTTP limiter returns 429 on the credential paths and leaves other paths alone', async () => {

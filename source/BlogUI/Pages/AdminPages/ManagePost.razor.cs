@@ -184,8 +184,42 @@ partial class ManagePost : ComponentBase
     /// </remarks>
     public string EditorResetKey => $"post-{loadedPostId}-{editorGeneration}";
 
+    /// <summary>
+    /// True once the editor is safe to paint: the circuit is attached AND the lookups the form
+    /// needs (categories, tags, series) have loaded.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>[REQ-UI-016] Why the form is withheld.</b> Every page here is prerendered, then the
+    /// circuit attaches and the component is initialised a SECOND time from scratch. Until that
+    /// happens the prerendered form is visible but inert: a click on the Category select opens
+    /// nothing, so the dropdown "has no options" (measured: 0 options for the first ~1 s after the
+    /// title box appears, 8 from ~3 s on, longer under load), and text typed into it is wiped when
+    /// the circuit takes over. Gating on <c>RendererInfo.IsInteractive</c> makes the visible form
+    /// and the working form the same moment. The second flag covers the shorter gap inside the
+    /// interactive pass, where <see cref="OnInitializedAsync"/> has not yet filled
+    /// <see cref="Categories"/>.</para>
+    /// </remarks>
+    public bool EditorReady => RendererInfo.IsInteractive && lookupsLoaded;
+
+    /// <summary>Set when <see cref="OnInitializedAsync"/> has finished loading the form's lookups.</summary>
+    private bool lookupsLoaded;
+
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await LoadLookupsAsync();
+        }
+        finally
+        {
+            // Even when a lookup throws, the form must not stay a spinner forever.
+            lookupsLoaded = true;
+        }
+    }
+
+    /// <summary>Loads the lookups that are the same for every post.</summary>
+    private async Task LoadLookupsAsync()
     {
         // Load categories for dropdown
         Categories = (await CategoryService.GetAllCategoriesAsync()).ToList();

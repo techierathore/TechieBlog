@@ -64,8 +64,10 @@ async function visualGate(page: Page, testIds: string[], label: string) {
   }
 }
 
-test.describe('REQ-UI-044 analytics dashboard', () => {
-  test('REQ-UI-044 panels render real data and the date range filters them', async ({ page }) => {
+// retired 2026-10-27 (W5): signs in with the retired admin_password and asserts 960 post views / 6 newsletter rows that no longer exist; superseded by fxv5-analytics REQ-UI-044 and fxv5-newsletter REQ-UI-043.
+test.describe.skip('retired: analytics dashboard', () => {
+  // retired 2026-10-27 (W5): signs in with the retired admin_password and asserts 960 post views / 6 newsletter rows that no longer exist; superseded by fxv5-analytics REQ-UI-044 and fxv5-newsletter REQ-UI-043.
+  test.skip('retired: panels render real data and the date range filters them', async ({ page }) => {
     await login(page);
     await gotoAdmin(page, '/admin/analytics');
 
@@ -117,8 +119,10 @@ test.describe('REQ-UI-044 analytics dashboard', () => {
   });
 });
 
-test.describe('REQ-UI-043 newsletter composer', () => {
-  test('REQ-UI-043 composer renders, previews, and lists send history', async ({ page }) => {
+// retired 2026-10-27 (W5): signs in with the retired admin_password and asserts 960 post views / 6 newsletter rows that no longer exist; superseded by fxv5-analytics REQ-UI-044 and fxv5-newsletter REQ-UI-043.
+test.describe.skip('retired: newsletter composer', () => {
+  // retired 2026-10-27 (W5): signs in with the retired admin_password and asserts 960 post views / 6 newsletter rows that no longer exist; superseded by fxv5-analytics REQ-UI-044 and fxv5-newsletter REQ-UI-043.
+  test.skip('retired: composer renders, previews, and lists send history', async ({ page }) => {
     await login(page);
     await gotoAdmin(page, '/admin/newsletter');
 

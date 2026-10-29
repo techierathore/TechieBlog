@@ -18,20 +18,20 @@ namespace BlogEngine.Services;
 /// <list type="number">
 ///   <item>Reads back the series index, the public <c>/series/{slug}</c> page (which also loads its
 ///     posts) and the admin list.</item>
-///   <item><see cref="GetNextPartNumber"/> is called by the post editor to pre-fill the part number
+///   <item><see cref="GetNextPartNumberAsync"/> is called by the post editor to pre-fill the part number
 ///     when an author adds a post to a series.</item>
 ///   <item>Writes validate, allocate a unique slug and persist;
-///     <see cref="DeleteSeries"/> detaches the posts before removing the series.</item>
-///   <item><see cref="GetSeriesNavigation"/> builds the previous/next strip shown on a post that
+///     <see cref="DeleteSeriesAsync"/> detaches the posts before removing the series.</item>
+///   <item><see cref="GetSeriesNavigationAsync"/> builds the previous/next strip shown on a post that
 ///     belongs to a series.</item>
 /// </list>
 ///
 /// <para><b>Two rules worth knowing before changing anything here:</b></para>
 /// <list type="bullet">
-///   <item><b>Deleting a series never deletes its posts.</b> <see cref="DeleteSeries"/> clears the
+///   <item><b>Deleting a series never deletes its posts.</b> <see cref="DeleteSeriesAsync"/> clears the
 ///     series reference from every member post first, then removes the series row. Losing the
 ///     grouping must not lose the writing.</item>
-///   <item><b>Navigation counts published posts only.</b> <see cref="GetSeriesNavigation"/> filters
+///   <item><b>Navigation counts published posts only.</b> <see cref="GetSeriesNavigationAsync"/> filters
 ///     on <c>Published</c>, so a draft sitting at part 4 does not appear as "next" to an anonymous
 ///     reader and does not inflate the "of N" total. This is the disclosure-sensitive rule in the
 ///     class.</item>
@@ -58,16 +58,11 @@ namespace BlogEngine.Services;
 /// <c>AppPolicies.EditorOrAbove</c>. This class enforces <b>no</b> policy itself — the calling page
 /// owns that check.</para>
 ///
-/// <para><b>Async conversion (REQ-NFR-026, stage 3):</b> every member below has an <c>…Async</c> twin
-/// placed immediately after it, routing the same reads and writes through the repositories'
-/// <c>…Async</c> members with the caller's <see cref="CancellationToken"/> flowed in. <b>Call the
-/// async twin.</b> The behaviour, ordering, <c>Published</c>/<c>IsDeleted</c> filtering and
-/// <c>Result</c> failure strings are identical between the pair by design — the twins differ only in
-/// whether they park a thread for the round trip. <c>Result&lt;T&gt;</c> is unchanged by the
-/// conversion: it simply travels inside a task, so a member returning <c>Result&lt;BlogSeries&gt;</c>
-/// returns <c>Task&lt;Result&lt;BlogSeries&gt;&gt;</c>. The synchronous surface is retained only until
-/// the last Blazor call site migrates and is <b>deleted in stage 4</b>; do not add new callers of
-/// it.</para>
+/// <para><b>Async only (REQ-NFR-026):</b> every member is asynchronous and routes its reads and
+/// writes through the repositories' <c>…Async</c> members with the caller's
+/// <see cref="CancellationToken"/> flowed in. <c>Result&lt;T&gt;</c> simply travels inside a task, so
+/// a member returning <c>Result&lt;BlogSeries&gt;</c> returns <c>Task&lt;Result&lt;BlogSeries&gt;&gt;</c>.
+/// The former synchronous twins were deleted in stage 4.</para>
 /// </remarks>
 public class SeriesSvc
 {
@@ -118,37 +113,10 @@ public class SeriesSvc
     }
 
     /// <summary>
-    /// Lists every series, ordered by name.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Unfiltered, including series with no posts yet — an author
-    /// creates the series before writing part one, and it has to be selectable in the editor from
-    /// that moment.</para>
-    /// <para><b>Side Effects:</b> None beyond logging.</para>
-    /// </remarks>
-    /// <returns>Every series; an empty sequence if the read failed.</returns>
-    public IEnumerable<BlogSeries> GetAllSeries()
-    {
-        try
-        {
-            return ServiceCache.Read<IEnumerable<BlogSeries>>(
-                cacheService,
-                ServiceCache.SeriesAllKey,
-                CacheTags.Taxonomy,
-                () => seriesRepo.GetAll());
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error getting all series");
-            return Enumerable.Empty<BlogSeries>();
-        }
-    }
-
-    /// <summary>
     /// Lists every series, ordered by name, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async twin of <see cref="GetAllSeries"/> and identical to it in
+    /// <para><b>Business Logic:</b> Async twin of <c>GetAllSeries</c> and identical to it in
     /// every observable respect. Unfiltered, including series with no posts yet — an author creates
     /// the series before writing part one, and it has to be selectable in the editor from that
     /// moment. A read that fails is logged and degraded to an empty sequence rather than thrown, so a
@@ -177,36 +145,10 @@ public class SeriesSvc
     }
 
     /// <summary>
-    /// Lists every series with the number of posts it contains.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> One aggregate query, so the series index can show "7 parts"
-    /// without a query per row.</para>
-    /// <para><b>Side Effects:</b> None beyond logging.</para>
-    /// </remarks>
-    /// <returns>Series with <c>PostCount</c> populated; an empty sequence if the read failed.</returns>
-    public IEnumerable<BlogSeries> GetAllWithCounts()
-    {
-        try
-        {
-            return ServiceCache.Read<IEnumerable<BlogSeries>>(
-                cacheService,
-                ServiceCache.SeriesWithCountsKey,
-                CacheTags.Taxonomy,
-                () => seriesRepo.GetAllWithCounts());
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error getting series with counts");
-            return Enumerable.Empty<BlogSeries>();
-        }
-    }
-
-    /// <summary>
     /// Lists every series with the number of posts it contains, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async twin of <see cref="GetAllWithCounts"/>. One aggregate query,
+    /// <para><b>Business Logic:</b> Async twin of <c>GetAllWithCounts</c>. One aggregate query,
     /// so the series index can show "7 parts" without a query per row; the count the repository
     /// projects covers published, non-deleted posts only, and this service does not alter it. Same
     /// degrade-to-empty policy as <see cref="GetAllSeriesAsync"/>.</para>
@@ -234,33 +176,10 @@ public class SeriesSvc
     }
 
     /// <summary>
-    /// Loads one series by its identifier, for the edit form.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Header only — the member posts are <i>not</i> loaded. Use
-    /// <see cref="GetPostsInSeries"/> when they are needed.</para>
-    /// <para><b>Side Effects:</b> None beyond logging.</para>
-    /// </remarks>
-    /// <param name="seriesId">The series identifier.</param>
-    /// <returns>The series, or null when it does not exist or the read failed.</returns>
-    public BlogSeries? GetSeries(long seriesId)
-    {
-        try
-        {
-            return seriesRepo.GetSingle(seriesId);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error getting series by ID: {SeriesId}", seriesId);
-            return null;
-        }
-    }
-
-    /// <summary>
     /// Loads one series by its identifier, for the edit form, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async twin of <see cref="GetSeries"/>. Header only — the member
+    /// <para><b>Business Logic:</b> Async twin of <c>GetSeries</c>. Header only — the member
     /// posts are <i>not</i> loaded. Use <see cref="GetPostsInSeriesAsync"/> when they are needed. Both
     /// "no such series" and "the lookup failed" surface as <c>null</c>; the difference is recorded in
     /// the log, not in the return value.</para>
@@ -285,41 +204,11 @@ public class SeriesSvc
     }
 
     /// <summary>
-    /// Resolves the series behind a public <c>/series/{slug}</c> URL and loads its parts.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Two reads — the header by slug, then its posts ordered by part
-    /// number — combined so the page has everything it needs in one call.</para>
-    /// <para><b>Flow:</b> blank guard → resolve by slug → load and attach the posts.</para>
-    /// <para><b>Side Effects:</b> None beyond logging. Mutates the returned object's <c>Posts</c>
-    /// collection.</para>
-    /// <para><b>Published parts only, unless the caller asks otherwise (REQ-FN-015).</b> This
-    /// overload attaches <i>published</i> parts, because it is the read behind the anonymous
-    /// <c>/series/{slug}</c> page and the default has to be the safe one. It previously attached
-    /// every non-deleted part, which put each draft part's title, abstract and featured image in
-    /// front of anonymous visitors as an unlinked "Coming Soon" row while the header badge — fed by
-    /// the published-only <c>PostCount</c> — counted fewer parts than the page listed. A caller that
-    /// has already established the visitor may see unpublished work calls
-    /// <see cref="GetSeriesBySlug(string, bool)"/> with <c>includeDrafts: true</c>. Compare
-    /// <see cref="GetSeriesNavigation"/>, which has always filtered to published parts because a
-    /// previous/next link must be openable.</para>
-    /// </remarks>
-    /// <param name="slug">URL-friendly slug taken from the route.</param>
-    /// <returns>
-    /// The series with <c>Posts</c> populated from its published parts, or null when the slug is
-    /// blank, unknown, or the read failed.
-    /// </returns>
-    public BlogSeries? GetSeriesBySlug(string slug)
-    {
-        return GetSeriesBySlug(slug, includeDrafts: false);
-    }
-
-    /// <summary>
     /// Resolves the series behind a public <c>/series/{slug}</c> URL and loads its published parts,
     /// without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async twin of <see cref="GetSeriesBySlug(string)"/>, and like it a
+    /// <para><b>Business Logic:</b> Async twin of <c>GetSeriesBySlug</c>, and like it a
     /// pure delegation: it forwards to
     /// <see cref="GetSeriesBySlugAsync(string, bool, CancellationToken)"/> with
     /// <c>includeDrafts: false</c>. The default has to be the safe one because this is the read behind
@@ -347,61 +236,10 @@ public class SeriesSvc
 
     /// <summary>
     /// Resolves the series behind a <c>/series/{slug}</c> URL and loads its parts, choosing whether
-    /// unpublished parts are included.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Two reads — the header by slug, then its parts ordered by part
-    /// number — combined so the page has everything it needs in one call.
-    /// <paramref name="includeDrafts"/> selects between the authoring read
-    /// (<c>IBlogPostRepo.GetPostsBySeries</c>) and the public one
-    /// (<c>IBlogPostRepo.GetPublishedPostsBySeries</c>), so the <c>Published</c> filter is applied in
-    /// SQL rather than by whichever page happens to remember (REQ-FN-015).</para>
-    /// <para><b>Flow:</b> blank guard → resolve by slug → load the matching part list → attach.</para>
-    /// <para><b>Side Effects:</b> None beyond logging. Mutates the returned object's <c>Posts</c>
-    /// collection.</para>
-    /// <para><b>Only pass <c>true</c> after establishing the caller may see unpublished work.</b>
-    /// A draft part's title, abstract and featured image are embargoed content; the series header's
-    /// <c>PostCount</c> still counts published parts only, so a page that asks for drafts is
-    /// responsible for explaining the difference to the reader.</para>
-    /// </remarks>
-    /// <param name="slug">URL-friendly slug taken from the route.</param>
-    /// <param name="includeDrafts">
-    /// <c>true</c> to attach unpublished parts as well — for authenticated authoring surfaces only;
-    /// <c>false</c> for anything an anonymous visitor can reach.
-    /// </param>
-    /// <returns>
-    /// The series with <c>Posts</c> populated, or null when the slug is blank, unknown, or the read
-    /// failed.
-    /// </returns>
-    public BlogSeries? GetSeriesBySlug(string slug, bool includeDrafts)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(slug))
-                return null;
-
-            var series = seriesRepo.GetBySlug(slug);
-            if (series != null)
-            {
-                series.Posts = includeDrafts
-                    ? postRepo.GetPostsBySeries(series.SeriesId).ToList()
-                    : postRepo.GetPublishedPostsBySeries(series.SeriesId).ToList();
-            }
-            return series;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error getting series by slug: {Slug}", slug);
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Resolves the series behind a <c>/series/{slug}</c> URL and loads its parts, choosing whether
     /// unpublished parts are included, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async twin of <see cref="GetSeriesBySlug(string, bool)"/> and
+    /// <para><b>Business Logic:</b> Async twin of <c>GetSeriesBySlug</c> and
     /// identical to it filter for filter. Two reads — the header by slug, then its parts ordered by
     /// part number — combined so the page has everything it needs in one call.
     /// <paramref name="includeDrafts"/> selects between the authoring read
@@ -457,37 +295,10 @@ public class SeriesSvc
     }
 
     /// <summary>
-    /// Lists a series' parts in part-number order.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Ordering is by <c>SeriesPartNumber</c>, not by publication date
-    /// — a series is read in the author's intended sequence even if part 5 was published before a
-    /// back-filled part 4.</para>
-    /// <para><b>Side Effects:</b> None beyond logging.</para>
-    /// <para><b>Includes drafts.</b> Same unfiltered repository read as
-    /// <see cref="GetSeriesBySlug"/>; a caller rendering to anonymous visitors must apply its own
-    /// <c>Published</c> filter.</para>
-    /// </remarks>
-    /// <param name="seriesId">The series identifier.</param>
-    /// <returns>The series' posts in part order; an empty sequence if the read failed.</returns>
-    public IEnumerable<BlogPost> GetPostsInSeries(long seriesId)
-    {
-        try
-        {
-            return postRepo.GetPostsBySeries(seriesId);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error getting posts for series ID: {SeriesId}", seriesId);
-            return Enumerable.Empty<BlogPost>();
-        }
-    }
-
-    /// <summary>
     /// Lists a series' parts in part-number order, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async twin of <see cref="GetPostsInSeries"/>. Ordering is by
+    /// <para><b>Business Logic:</b> Async twin of <c>GetPostsInSeries</c>. Ordering is by
     /// <c>SeriesPartNumber</c>, not by publication date — a series is read in the author's intended
     /// sequence even if part 5 was published before a back-filled part 4.</para>
     /// <para><b>Flow:</b> await the series part list → log and degrade on failure.</para>
@@ -516,30 +327,39 @@ public class SeriesSvc
     }
 
     /// <summary>
-    /// Suggests the part number a newly added post should take.
+    /// Saves a new reading order for a series' parts (REQ-UI-024).
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Highest existing part number plus one, so numbering keeps
-    /// climbing even after a middle part is deleted — reusing a freed number would silently
-    /// renumber a series readers have already been linked to. An empty series (max of 0) yields
-    /// part 1.</para>
-    /// <para><b>Flow:</b> read the maximum part number → add one.</para>
-    /// <para><b>Side Effects:</b> None beyond logging. Nothing is reserved: this is a
-    /// <i>suggestion</i> for the editor, not an allocation, and two authors adding a part at the
-    /// same moment will both be offered the same number. Uniqueness is not enforced here.</para>
+    /// <para><b>Business Logic:</b> The order given is the order stored: part numbers become 1..n in
+    /// the sequence of <paramref name="orderedPostIds"/>. The list must name exactly the posts that
+    /// belong to the series; anything else is refused so a part can never be dropped or foreign.</para>
+    /// <para><b>Side Effects:</b> Rewrites SeriesPartNumber on each part.</para>
     /// </remarks>
-    /// <param name="seriesId">The series identifier.</param>
-    /// <returns>The suggested next part number; 1 if the read failed.</returns>
-    public int GetNextPartNumber(long seriesId)
+    /// <param name="seriesId">The series being reordered.</param>
+    /// <param name="orderedPostIds">Post ids in their new reading order.</param>
+    /// <param name="cancellationToken">Cancels the statements.</param>
+    /// <returns>Success, or a failure message.</returns>
+    public async Task<Result> ReorderPartsAsync(
+        long seriesId, IReadOnlyList<long> orderedPostIds, CancellationToken cancellationToken = default)
     {
         try
         {
-            return postRepo.GetMaxPartNumberInSeries(seriesId) + 1;
+            var current = (await postRepo.GetPostsBySeriesAsync(seriesId, cancellationToken).ConfigureAwait(false))
+                .Select(p => p.PostID).OrderBy(id => id).ToList();
+            if (!current.SequenceEqual(orderedPostIds.OrderBy(id => id)))
+                return Result.Failure("The new order does not match the parts in this series.");
+
+            var numbers = orderedPostIds
+                .Select((id, index) => new KeyValuePair<long, int>(id, index + 1))
+                .ToList();
+            await postRepo.SetSeriesPartNumbersAsync(seriesId, numbers, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Reordered {Count} parts of series {SeriesId}", numbers.Count, seriesId);
+            return Result.Success();
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error getting next part number for series ID: {SeriesId}", seriesId);
-            return 1;
+            logger.LogError(ex, "Error reordering parts of series {SeriesId}", seriesId);
+            return Result.Failure("Failed to save the new order.");
         }
     }
 
@@ -547,7 +367,7 @@ public class SeriesSvc
     /// Suggests the part number a newly added post should take, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async twin of <see cref="GetNextPartNumber"/>. Highest existing
+    /// <para><b>Business Logic:</b> Async twin of <c>GetNextPartNumber</c>. Highest existing
     /// part number plus one, so numbering keeps climbing even after a middle part is deleted —
     /// reusing a freed number would silently renumber a series readers have already been linked to.
     /// An empty series (max of 0) yields part 1, and a failed read also yields 1.</para>
@@ -578,62 +398,10 @@ public class SeriesSvc
     }
 
     /// <summary>
-    /// Creates a series, allocating a free slug and default status.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> A name is mandatory; a slug is derived from it when the
-    /// administrator leaves it blank, and a taken slug gains a numeric suffix retried up to 99
-    /// times. Status is normalised to one of the <c>SeriesStatus</c> literals and defaults to <c>In Progress</c> — the honest state for a series whose first part
-    /// has not been written yet, and the value the public page shows in its header.</para>
-    /// <para><b>Flow:</b> null and name guards → derive slug → resolve collisions → stamp created
-    /// and updated timestamps → normalise the status via SeriesStatus.Normalize → insert.</para>
-    /// <para><b>Side Effects:</b> Inserts one <c>BlogSeries</c> row, <b>mutates the caller's
-    /// object</b> (<c>Slug</c>, <c>CreatedOn</c>, <c>UpdatedOn</c>, <c>Status</c> and
-    /// <c>SeriesId</c> are all written back), and logs the creation. Timestamps are UTC.</para>
-    /// </remarks>
-    /// <param name="series">The series to create; several fields are assigned in place.</param>
-    /// <returns>Success carrying the persisted series, or a failure naming the problem.</returns>
-    public Result<BlogSeries> CreateSeries(BlogSeries series)
-    {
-        if (series == null)
-            return Result<BlogSeries>.Failure("Series cannot be null");
-
-        if (string.IsNullOrWhiteSpace(series.Name))
-            return Result<BlogSeries>.Failure("Series name is required");
-
-        // Derive a guaranteed non-empty base slug, then suffix it until it is free (REQ-FN-054).
-        series.Slug = SlugGenerator.EnsureSlug(series.Slug, series.Name, SlugPrefix);
-        series.Slug = SlugGenerator.ResolveUniqueSlug(
-            series.Slug,
-            candidate => seriesRepo.SlugExists(candidate));
-
-        // Set timestamps
-        series.CreatedOn = DateTime.UtcNow;
-        series.UpdatedOn = DateTime.UtcNow;
-
-        // Force a canonical status literal; blank or unrecognised text becomes In Progress (REQ-UI-024).
-        series.Status = SeriesStatus.Normalize(series.Status);
-
-        try
-        {
-            var seriesId = seriesRepo.InsertToGetId(series);
-            ServiceCache.InvalidateTaxonomy(cacheService);
-            series.SeriesId = seriesId;
-            logger.LogInformation("Created series '{Name}' with ID {SeriesId}", series.Name, seriesId);
-            return Result<BlogSeries>.Success(series);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to create series: {Name}", series.Name);
-            return Result<BlogSeries>.Failure(CreateFailureMessage);
-        }
-    }
-
-    /// <summary>
     /// Creates a series, allocating a free slug and default status, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async twin of <see cref="CreateSeries"/>, with the same guards, the
+    /// <para><b>Business Logic:</b> Async twin of <c>CreateSeries</c>, with the same guards, the
     /// same slug allocation and the same failure strings. A name is mandatory; a slug is derived from
     /// it when the administrator leaves it blank, and a taken slug gains a numeric suffix retried up to
     /// 99 times. Status is normalised to one of the <c>SeriesStatus</c> literals and defaults to <c>In Progress</c> — the honest state for a series whose first part
@@ -691,67 +459,10 @@ public class SeriesSvc
     }
 
     /// <summary>
-    /// Saves changes to an existing series.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Same rules as <see cref="CreateSeries"/>, plus two: the row must
-    /// already exist, and the slug-uniqueness check excludes the series being edited so re-saving it
-    /// unchanged does not renumber its own slug. <c>CreatedOn</c> is left alone; only
-    /// <c>UpdatedOn</c> is restamped.</para>
-    /// <para><b>Flow:</b> null, id and name guards → confirm existence → derive slug if absent →
-    /// resolve collisions against every <i>other</i> series → normalise the status → stamp <c>UpdatedOn</c> → update.</para>
-    /// <para><b>Side Effects:</b> Updates one <c>BlogSeries</c> row and mutates the caller's object.
-    /// <b>Changing the slug breaks the published <c>/series/{old-slug}</c> URL</b>; no redirect is
-    /// written.</para>
-    /// </remarks>
-    /// <param name="series">The series carrying updated values; its <c>Slug</c> may be rewritten.</param>
-    /// <returns>Success carrying the saved series, or a failure naming the problem.</returns>
-    public Result<BlogSeries> UpdateSeries(BlogSeries series)
-    {
-        if (series == null)
-            return Result<BlogSeries>.Failure("Series cannot be null");
-
-        if (series.SeriesId <= 0)
-            return Result<BlogSeries>.Failure("Invalid series ID");
-
-        if (string.IsNullOrWhiteSpace(series.Name))
-            return Result<BlogSeries>.Failure("Series name is required");
-
-        // Check if series exists
-        var existing = seriesRepo.GetSingle(series.SeriesId);
-        if (existing == null)
-            return Result<BlogSeries>.Failure("Series not found");
-
-        // Derive a guaranteed non-empty base slug, then suffix it until it is free (REQ-FN-054).
-        series.Slug = SlugGenerator.EnsureSlug(series.Slug, series.Name, SlugPrefix, series.SeriesId);
-        series.Slug = SlugGenerator.ResolveUniqueSlug(
-            series.Slug,
-            candidate => seriesRepo.SlugExists(candidate, series.SeriesId));
-
-        // Force a canonical status literal; blank or unrecognised text becomes In Progress (REQ-UI-024).
-        series.Status = SeriesStatus.Normalize(series.Status);
-
-        series.UpdatedOn = DateTime.UtcNow;
-
-        try
-        {
-            seriesRepo.Update(series);
-            ServiceCache.InvalidateTaxonomy(cacheService);
-            logger.LogInformation("Updated series '{Name}' with ID {SeriesId}", series.Name, series.SeriesId);
-            return Result<BlogSeries>.Success(series);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to update series ID {SeriesId}: {Name}", series.SeriesId, series.Name);
-            return Result<BlogSeries>.Failure(UpdateFailureMessage);
-        }
-    }
-
-    /// <summary>
     /// Saves changes to an existing series, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async twin of <see cref="UpdateSeries"/>, with the same guards and
+    /// <para><b>Business Logic:</b> Async twin of <c>UpdateSeries</c>, with the same guards and
     /// the same failure strings. Same rules as <see cref="CreateSeriesAsync"/>, plus two: the row must
     /// already exist, and the slug-uniqueness check excludes the series being edited so re-saving it
     /// unchanged does not renumber its own slug. <c>CreatedOn</c> is left alone; only <c>UpdatedOn</c>
@@ -810,39 +521,11 @@ public class SeriesSvc
     }
 
     /// <summary>
-    /// Creates or updates a series depending on whether it already has an identifier.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Lets one admin form serve both add and edit; a non-positive
-    /// <c>SeriesId</c> means "new".</para>
-    /// <para><b>Flow:</b> null guard → delegate to <see cref="CreateSeries"/> or
-    /// <see cref="UpdateSeries"/>.</para>
-    /// <para><b>Side Effects:</b> Whatever the delegated method does — one row inserted or
-    /// updated.</para>
-    /// </remarks>
-    /// <param name="series">The series to persist.</param>
-    /// <returns>Success carrying the saved series, or a failure naming the problem.</returns>
-    public Result<BlogSeries> SaveSeries(BlogSeries series)
-    {
-        if (series == null)
-            return Result<BlogSeries>.Failure("Series cannot be null");
-
-        if (series.SeriesId <= 0)
-        {
-            return CreateSeries(series);
-        }
-        else
-        {
-            return UpdateSeries(series);
-        }
-    }
-
-    /// <summary>
     /// Creates or updates a series depending on whether it already has an identifier, without blocking
     /// the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async twin of <see cref="SaveSeries"/>. Lets one admin form serve
+    /// <para><b>Business Logic:</b> Async twin of <c>SaveSeries</c>. Lets one admin form serve
     /// both add and edit; a non-positive <c>SeriesId</c> means "new". The null guard needs no I/O, so
     /// it is answered with an already-completed task rather than turning this member into a state
     /// machine.</para>
@@ -866,56 +549,10 @@ public class SeriesSvc
     }
 
     /// <summary>
-    /// Removes a series, leaving its posts intact but ungrouped.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> The posts are detached <b>before</b> the series row is removed.
-    /// Order matters twice over: it keeps a foreign key from refusing the delete, and it guarantees
-    /// that if the second step fails the posts are already free rather than pointing at a row that
-    /// is about to vanish. Nothing here deletes a post — losing the grouping must never lose the
-    /// writing.</para>
-    /// <para><b>Flow:</b> id guard → confirm existence → clear <c>SeriesId</c> from every member
-    /// post → delete the series row.</para>
-    /// <para><b>Side Effects:</b> Updates every member post (clearing its series reference) and
-    /// deletes one <c>BlogSeries</c> row; logs the deletion. <b>Not transactional</b> — the two
-    /// steps are separate calls, so a failure between them leaves the posts detached while the
-    /// series survives. That state is recoverable (delete again), but the part numbers on the
-    /// detached posts are not restored. Published <c>/series/{slug}</c> URLs become 404s.</para>
-    /// </remarks>
-    /// <param name="seriesId">Identifier of the series to remove.</param>
-    /// <returns>Success, or a failure when the series is unknown or the delete failed.</returns>
-    public Result DeleteSeries(long seriesId)
-    {
-        if (seriesId <= 0)
-            return Result.Failure("Invalid series ID");
-
-        var existing = seriesRepo.GetSingle(seriesId);
-        if (existing == null)
-            return Result.Failure("Series not found");
-
-        try
-        {
-            // First remove series association from all posts
-            postRepo.ClearSeriesFromPosts(seriesId);
-
-            // Then delete the series
-            seriesRepo.Delete(seriesId);
-            ServiceCache.InvalidateTaxonomy(cacheService);
-            logger.LogInformation("Deleted series ID {SeriesId}", seriesId);
-            return Result.Success();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to delete series ID {SeriesId}", seriesId);
-            return Result.Failure(DeleteFailureMessage);
-        }
-    }
-
-    /// <summary>
     /// Removes a series, leaving its posts intact but ungrouped, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async twin of <see cref="DeleteSeries"/>, with the same guards and
+    /// <para><b>Business Logic:</b> Async twin of <c>DeleteSeries</c>, with the same guards and
     /// the same failure strings. The posts are detached <b>before</b> the series row is removed. Order
     /// matters twice over: it keeps a foreign key from refusing the delete, and it guarantees that if
     /// the second step fails the posts are already free rather than pointing at a row that is about to
@@ -963,72 +600,11 @@ public class SeriesSvc
     }
 
     /// <summary>
-    /// Builds the "Part N of M, previous / next" strip for a post inside a series.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Only <b>published</b> parts are considered, and that single
-    /// filter carries three consequences worth stating: a draft part is never offered as a next
-    /// link (which would 404 or leak); <c>TotalParts</c> is the number a reader can actually open,
-    /// not the number that exist; and previous/next skip over an unpublished middle part rather
-    /// than dead-ending on it. Ordering is by part number, so navigation follows the author's
-    /// sequence rather than publication dates.</para>
-    /// <para><b>Flow:</b> load the post → return null when it belongs to no series → load the
-    /// series → load its published parts in order → locate the current post → project the
-    /// neighbours.</para>
-    /// <para><b>Side Effects:</b> None beyond logging. Costs three reads, so call it once per page
-    /// render rather than per component.</para>
-    /// <para><b>Null is the "no strip" signal</b> and covers four distinct cases: the post does not
-    /// exist, it belongs to no series, its series row has gone, or the post itself is unpublished
-    /// and so absent from the published list. A caller only has to check for null once.</para>
-    /// </remarks>
-    /// <param name="postId">The post currently being viewed.</param>
-    /// <returns>
-    /// The navigation model, or null when the post is not part of a navigable series (see above).
-    /// </returns>
-    public SeriesNavigation? GetSeriesNavigation(long postId)
-    {
-        try
-        {
-            var post = postRepo.GetSingle(postId);
-            if (post?.SeriesId == null)
-                return null;
-
-            var series = seriesRepo.GetSingle(post.SeriesId.Value);
-            if (series == null)
-                return null;
-
-            var seriesPosts = postRepo.GetPostsBySeries(post.SeriesId.Value)
-                .Where(p => p.Published)
-                .OrderBy(p => p.SeriesPartNumber)
-                .ToList();
-
-            var currentIndex = seriesPosts.FindIndex(p => p.PostID == postId);
-            if (currentIndex < 0)
-                return null;
-
-            return new SeriesNavigation
-            {
-                SeriesName = series.Name,
-                SeriesSlug = series.Slug,
-                CurrentPart = post.SeriesPartNumber ?? 0,
-                TotalParts = seriesPosts.Count,
-                PreviousPost = currentIndex > 0 ? seriesPosts[currentIndex - 1] : null,
-                NextPost = currentIndex < seriesPosts.Count - 1 ? seriesPosts[currentIndex + 1] : null
-            };
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error getting series navigation for post ID: {PostId}", postId);
-            return null;
-        }
-    }
-
-    /// <summary>
     /// Builds the "Part N of M, previous / next" strip for a post inside a series, without blocking the
     /// calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Async twin of <see cref="GetSeriesNavigation"/> and identical to it
+    /// <para><b>Business Logic:</b> Async twin of <c>GetSeriesNavigation</c> and identical to it
     /// filter for filter. Only <b>published</b> parts are considered, and that single filter carries
     /// three consequences worth stating: a draft part is never offered as a next link (which would 404
     /// or leak); <c>TotalParts</c> is the number a reader can actually open, not the number that exist;

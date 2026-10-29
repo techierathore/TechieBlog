@@ -106,7 +106,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <div class="layout">
   <nav class="side">
     <h1>TechieBlog — Status</h1>
-    <div class="sub">Last rendered: 2026-10-21</div>
+    <div class="sub">Last rendered: 2026-10-28</div>
     <div class="group">Contents</div>
     <ol>
         <li><a href="#where-i-am">Where I am</a></li>
@@ -121,18 +121,18 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   </nav>
   <main>
     <h1>TechieBlog — Status</h1>
-    <div class="subtitle">Rendered 2026-10-21 &middot; source <code>PROJECT-STATUS.md</code></div>
+    <div class="subtitle">Rendered 2026-10-28 &middot; source <code>PROJECT-STATUS.md</code></div>
     <div class="cta-next" style="padding:20px; background:var(--cta-bg); border:2px solid var(--accent); border-radius:10px; margin:20px 0;">
       <div style="font-size:11px; color:var(--muted); letter-spacing:.5px;">NEXT COMMAND TO RUN</div>
-      <div style="font-family:var(--mono); font-size:18px; margin-top:6px;">/TechieFlow:agents:flow-master *build-phase TechieBlog</div>
+      <div style="font-family:var(--mono); font-size:18px; margin-top:6px;">/TechieFlow:agents:flow-master *handoff-phase TechieBlog</div>
     </div>
 <table>
 <tbody>
 <tr><th>project</th><td>TechieBlog</td></tr>
-<tr><th>last_updated</th><td>2026-10-21</td></tr>
-<tr><th>current_phase</th><td>Build — 88 not built, 2 to fix, 65 of 155 verified, 12 not applicable</td></tr>
+<tr><th>last_updated</th><td>2026-10-28</td></tr>
+<tr><th>current_phase</th><td>Phase 1 of 1 (kept whole) · Handoff — 158 of 159 verified</td></tr>
 <tr><th>last_verified_build</th><td>PASS</td></tr>
-<tr><th>last_verified_date</th><td>2026-10-21</td></tr>
+<tr><th>last_verified_date</th><td>2026-10-28</td></tr>
 </tbody>
 </table>
     <div class="toc-inline">
@@ -149,63 +149,43 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
       </ol>
     </div>
 <h2 id="where-i-am">Where I am<a class="anchor-link" href="#where-i-am">#</a></h2>
-<p><code>*triage-and-fix</code> on a production report fixed three bugs, all re-verified as <code>Verified</code>. REQ-FN-040: post
-pages now honour the saved words-per-page setting. REQ-NFR-018: BlogApp saves now refresh the live site, and
-a refresh failure stays on screen. REQ-FN-062: BlogApp picks images with the Windows picker instead of
-WebView2's file dialog, which was crashing it. Build passes with 0 errors; 1,554 unit tests pass. Not
+<p>Phase 1 of 1 (whole product). 158 of 159 rows are Verified. The owner's three decisions are applied:
+BlogApp was tested against the local database (all five BlogApp rows pass) and its production
+connection is restored; subscribers are deactivated, not removed; the profile page has no user
+picker. Token refresh is proven. Only REQ-UI-047 is open, waiting on a TrBlazeUI fix. Nothing is
 deployed yet.</p>
 <h2 id="next-command-to-run">Next command to run<a class="anchor-link" href="#next-command-to-run">#</a></h2>
 <p>Claude Code:</p>
-<pre><code>/TechieFlow:agents:flow-master *build-phase TechieBlog</code></pre>
+<pre><code>/TechieFlow:agents:flow-master *handoff-phase TechieBlog</code></pre>
 <p>OpenCode:</p>
-<pre><code>/flow-master *build-phase TechieBlog</code></pre>
-<p>Why: 88 rows are not built yet: REQ-UI-001, REQ-UI-004, REQ-UI-005, REQ-UI-006, REQ-UI-007, REQ-UI-008 …; 2 rows carry a defect (⚠ in Remarks) that a fix must clear before a verify: REQ-UI-003, REQ-UI-053.</p>
+<pre><code>/flow-master *handoff-phase TechieBlog</code></pre>
+<p>Why: every row in this phase's scope is terminal and handoff has not run yet; working docs/TechieBlog-Checklist.md.</p>
 <h2 id="open-requirements">Open requirements<a class="anchor-link" href="#open-requirements">#</a></h2>
 <table>
 <thead><tr><th>Status</th><th>Count</th></tr></thead>
 <tbody>
 <tr><td>Not Started</td><td>0</td></tr>
-<tr><td>In Progress</td><td>1</td></tr>
+<tr><td>In Progress</td><td>0</td></tr>
 <tr><td>Implemented</td><td>0</td></tr>
-<tr><td>Needs re-verify</td><td>2</td></tr>
-<tr><td>Blocked</td><td>0</td></tr>
-<tr><td>PARTIAL</td><td>1</td></tr>
-<tr><td>FAIL</td><td>86</td></tr>
+<tr><td>Needs re-verify</td><td>0</td></tr>
+<tr><td>Blocked</td><td>1</td></tr>
 </tbody>
 </table>
 <ul>
-<li>[ ] REQ-NFR-025 — Revoke and rotate the committed GitHub PAT out of nuget.config (Phase 6) (In Progress)
-</li>
-<li>[ ] REQ-NFR-017 — CI pipeline — build, test, artifacts on push and PR (Phase 1) (PARTIAL)
-</li>
-<li>[ ] REQ-FN-006 — Password strength validation on staff account creation + reset (Phase 2) (FAIL)
-</li>
-<li>[ ] REQ-FN-008 — Token refresh (Phase 2) (FAIL)
-</li>
-<li>[ ] REQ-FN-009 — 5-role model + 5 authorization policies (Phase 2) (FAIL)
-</li>
-<li>[ ] REQ-FN-011 — Profile read/update + change password (Phase 2) (FAIL)
-</li>
-<li>[ ] REQ-FN-012 — Post CRUD service + repository (Phase 3) (FAIL)
-</li>
-<li>[ ] REQ-FN-013 — Slug generation, uniqueness and slug-based routing (Phase 3) (FAIL)
-</li>
-<li>[ ] REQ-FN-014 — Markdown rendering via Markdig (Phase 3) (FAIL)
-</li>
-<li>[ ] REQ-FN-015 — Draft / Published state handling (Phase 3) (FAIL)
-</li>
-<li>(80 more open rows in docs/TechieBlog-Checklist.md)
+<li>[ ] REQ-UI-047 — Admin layout with grouped navigation (Phase 1) (Blocked)
 </li>
 </ul>
 <h2 id="known-blockers">Known blockers<a class="anchor-link" href="#known-blockers">#</a></h2>
 <ul>
-<li>The fixes are not live yet. Production still splits posts at 500 words and BlogApp still uses the crashing dialog until the owner deploys and rebuilds BlogApp.
+<li>REQ-UI-047: TrBlazeUI never paints the active sidebar item (TR-076), still open in 2.2.0.
 </li>
-<li>BlogApp's full choose-and-upload round trip with the new picker was not exercised: BlogApp is connected to production. The first real upload is the final check.
+<li>BRD-57 still says subscribers can be removed; the owner chose deactivate. Needs <code>*amend-docs</code>.
 </li>
-<li><code>tests/verify/_gates.ts</code> still carries the retired admin password (<code>admin_password</code>); the two new specs override it with the UsageGuide's.
+<li>Owner-only: CI secret <code>TrBlazeUiPackagesToken</code> (REQ-NFR-017); revoke the old GitHub token (REQ-NFR-025); drop the builders' leftover scratch database <code>fxd_techieblog</code> on WinPostgre.
 </li>
-<li><code>tests/verify/cluster-b.spec.ts</code> throws at load without <code>DB_USERS</code>, which aborts any unscoped Playwright run.
+<li>Undeletable test leftovers in the local database: soft-deleted test posts and users, sent test newsletters, test subscribers. No published post remains.
+</li>
+<li>TF-002: the verify boot script cannot reach the app on NAT-mode WSL (worked around). TF-001: Coding Standards over its word limit.
 </li>
 </ul>
 <h2 id="verification-log">Verification log<a class="anchor-link" href="#verification-log">#</a></h2>
@@ -213,28 +193,34 @@ deployed yet.</p>
 <table>
 <thead><tr><th>Date</th><th>Phase</th><th>Result</th><th>Status table</th></tr></thead>
 <tbody>
-<tr><td>2026-08-26</td><td>verify (scoped: REQ-UI-048/FN-025/UI-049)</td><td>3/3 PASS on TrBlazeUI 2.0.3, workarounds removed</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
-<tr><td>2026-08-25</td><td>TrBlazeUI 2.0.3 upgrade + consumer UAT</td><td>8/8 upgrade spec, 1551 unit, build 0 errors</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
-<tr><td>2026-08-25</td><td>scoped verify (production)</td><td>REQ-FN-062 Verified; speaking data/UserStats/uploads confirmed</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
 <tr><td>2026-09-07</td><td>triage-issues</td><td>77/167 Verified</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
 <tr><td>2026-10-21</td><td>triage-and-fix</td><td>65/155 Verified, 12 N/A</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+<tr><td>2026-10-27</td><td>amend-docs</td><td>65/159 Verified, 12 N/A</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+<tr><td>2026-10-28</td><td>build-phase</td><td>156/159 Verified, 12 N/A</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+<tr><td>2026-10-28</td><td>build-phase</td><td>158/159 Verified, 12 N/A</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
 </tbody>
 </table>
 <h2 id="library-feedback-summary">Library feedback summary<a class="anchor-link" href="#library-feedback-summary">#</a></h2>
 <ul>
-<li>TrBlazeUI: 1 open · 0 closed — docs/TechieBlog-TrBlazeUI-Feedback.md
+<li>TechieFlow: 2 open · 0 closed — docs/TechieBlog-TechieFlow-Feedback.md
+</li>
+<li>TrBlazeUI: 2 open · 0 closed — docs/TechieBlog-TrBlazeUI-Feedback.md
 </li>
 </ul>
 <h2 id="standards-compliance">Standards compliance<a class="anchor-link" href="#standards-compliance">#</a></h2>
 <ul>
-<li>Last check 2026-10-21: 0 findings (build-gate <code>SourceConventionTests.cs</code> passed in the unit run), see the checklist Remarks.
+<li>Last check 2026-10-28: 0 findings (build-gate <code>SourceConventionTests.cs</code> passed in the unit run), see the checklist Remarks.
 </li>
 </ul>
 <h2 id="deferred-future"><a id="deferred--future"></a>Deferred / future<a class="anchor-link" href="#deferred-future">#</a></h2>
 <ul>
 <li>The root cause of the WebView2 file-dialog crash (<code>EmbeddedBrowserWebView.dll</code> 0x80000003) was not identified; it was avoided, not fixed upstream.
 </li>
-<li>Undriven: profile save, newsletter Send, subscriber toggles, comment/rating/subscribe submits; Firefox + WebKit for REQ-NFR-009; a real screen-reader pass; the macOS BlogApp head.
+<li>Mockups carry no <code>data-testid</code> anchors, so mockup parity is "not measured" on every screen; adding anchors is <code>*amend-docs</code> work.
+</li>
+<li>REQ-FN-062's SFTP upload path was not exercised (needs the real server's SSH credentials); the folder and desktop paths pass.
+</li>
+<li>BlogApp's media thumbnails do not load against a plain-http local site (mixed content); production uses https.
 </li>
 </ul>
   </main>

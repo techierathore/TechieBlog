@@ -143,6 +143,9 @@ public class ProjectionCompletenessTests
                 "Same public shape as SelectPublishedSql, single row. Read-only path.",
             ["BlogPostRepo.SelectByCategorySql"] =
                 "Same public shape as SelectPublishedSql, filtered by category. Read-only path.",
+            ["BlogPostRepo.SelectRelatedSql"] =
+                "Same public shape as SelectPublishedSql, filtered to posts sharing the category or a tag (REQ-FN-020 "
+                + "related posts on the public post page). Read-only path — never written back.",
             ["BlogPostRepo.SelectScheduledSql"] =
                 "Scheduling read: carries ScheduledPublishOn and PublishedOn, omits the series join. Read-only path.",
             ["BlogPostRepo.SelectDueScheduledSql"] =
@@ -421,13 +424,14 @@ public class ProjectionCompletenessTests
 
     /// <summary>
     /// Every statement in <c>BlogPostRepo</c> that feeds a surface an anonymous visitor can reach.
-    /// These four share one read shape and one job, so they are asserted as a family.
+    /// These five share one read shape and one job, so they are asserted as a family.
     /// </summary>
     public static TheoryData<string> PublicPostReadNames() =>
     [
         "SelectPublishedSql",
         "SelectFeaturedSql",
         "SelectByCategorySql",
+        "SelectRelatedSql",
         "SearchSql"
     ];
 

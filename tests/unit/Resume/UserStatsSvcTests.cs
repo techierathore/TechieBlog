@@ -40,14 +40,14 @@ public class UserStatsSvcTests
     [Theory]
     [InlineData(0L)]
     [InlineData(-1L)]
-    public void GetStatsForUserRejectsInvalidId(long userId)
+    public async Task GetStatsForUserRejectsInvalidId(long userId)
     {
         // Arrange, Act
-        var stats = service.GetStatsForUser(userId);
+        var stats = await service.GetStatsForUserAsync(userId);
 
         // Assert
         Assert.Empty(stats);
-        statsRepo.DidNotReceive().GetByUserId(Arg.Any<long>());
+        await statsRepo.DidNotReceive().GetByUserIdAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -55,13 +55,13 @@ public class UserStatsSvcTests
     /// resume renders a shorter page rather than an error screen.
     /// </summary>
     [Fact]
-    public void GetStatsForUserReturnsEmptyOnRepositoryFailure()
+    public async Task GetStatsForUserReturnsEmptyOnRepositoryFailure()
     {
         // Arrange
-        statsRepo.GetByUserId(1L).Throws(new InvalidOperationException("db down"));
+        statsRepo.GetByUserIdAsync(1L, Arg.Any<CancellationToken>()).Throws(new InvalidOperationException("db down"));
 
         // Act
-        var stats = service.GetStatsForUser(1L);
+        var stats = await service.GetStatsForUserAsync(1L);
 
         // Assert
         Assert.Empty(stats);
@@ -72,28 +72,28 @@ public class UserStatsSvcTests
     /// silently returning every statistic the user owns.
     /// </summary>
     [Fact]
-    public void GetStatsForCategoryRejectsBlankCategory()
+    public async Task GetStatsForCategoryRejectsBlankCategory()
     {
         // Arrange, Act
-        var stats = service.GetStatsForCategory(1L, "   ");
+        var stats = await service.GetStatsForCategoryAsync(1L, "   ");
 
         // Assert
         Assert.Empty(stats);
-        statsRepo.DidNotReceive().GetByUserIdAndCategory(Arg.Any<long>(), Arg.Any<string>());
+        await statsRepo.DidNotReceive().GetByUserIdAndCategoryAsync(Arg.Any<long>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
     /// A category filter is passed straight through to the repository and its rows are returned.
     /// </summary>
     [Fact]
-    public void GetStatsForCategoryReturnsRepositoryRows()
+    public async Task GetStatsForCategoryReturnsRepositoryRows()
     {
         // Arrange
         var community = new UserStat { StatId = 7, UserId = 1, StatLabel = "Talks", StatValue = "40+", StatCategory = "Community" };
-        statsRepo.GetByUserIdAndCategory(1L, "Community").Returns(new[] { community });
+        statsRepo.GetByUserIdAndCategoryAsync(1L, "Community", Arg.Any<CancellationToken>()).Returns(new[] { community });
 
         // Act
-        var stats = service.GetStatsForCategory(1L, "Community").ToList();
+        var stats = (await service.GetStatsForCategoryAsync(1L, "Community")).ToList();
 
         // Assert
         Assert.Equal(7L, Assert.Single(stats).StatId);
@@ -103,13 +103,13 @@ public class UserStatsSvcTests
     /// A statistic with no owner is meaningless and is refused before any insert is attempted.
     /// </summary>
     [Fact]
-    public void CreateStatRejectsMissingOwner()
+    public async Task CreateStatRejectsMissingOwner()
     {
         // Arrange
         var stat = new UserStat { UserId = 0, StatLabel = "Years", StatValue = "20+" };
 
         // Act
-        var result = service.CreateStat(stat);
+        var result = await service.CreateStatAsync(stat);
 
         // Assert
         Assert.Equal("A statistic must belong to a user", result.ErrorMessage);
@@ -123,13 +123,13 @@ public class UserStatsSvcTests
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    public void CreateStatRejectsBlankLabel(string label)
+    public async Task CreateStatRejectsBlankLabel(string label)
     {
         // Arrange
         var stat = new UserStat { UserId = 1, StatLabel = label, StatValue = "20+" };
 
         // Act
-        var result = service.CreateStat(stat);
+        var result = await service.CreateStatAsync(stat);
 
         // Assert
         Assert.StartsWith("Statistic label is required", result.ErrorMessage);
@@ -140,13 +140,13 @@ public class UserStatsSvcTests
     /// database.
     /// </summary>
     [Fact]
-    public void CreateStatRejectsOverlongLabel()
+    public async Task CreateStatRejectsOverlongLabel()
     {
         // Arrange
         var stat = new UserStat { UserId = 1, StatLabel = new string('x', 101), StatValue = "20+" };
 
         // Act
-        var result = service.CreateStat(stat);
+        var result = await service.CreateStatAsync(stat);
 
         // Assert
         Assert.StartsWith("Statistic label is required", result.ErrorMessage);
@@ -156,13 +156,13 @@ public class UserStatsSvcTests
     /// A blank value is refused — a tile with a label but no figure would render as an empty box.
     /// </summary>
     [Fact]
-    public void CreateStatRejectsBlankValue()
+    public async Task CreateStatRejectsBlankValue()
     {
         // Arrange
         var stat = new UserStat { UserId = 1, StatLabel = "Years in software", StatValue = "  " };
 
         // Act
-        var result = service.CreateStat(stat);
+        var result = await service.CreateStatAsync(stat);
 
         // Assert
         Assert.StartsWith("Statistic value is required", result.ErrorMessage);
@@ -173,14 +173,14 @@ public class UserStatsSvcTests
     /// the caller supplied.
     /// </summary>
     [Fact]
-    public void CreateStatStampsGeneratedId()
+    public async Task CreateStatStampsGeneratedId()
     {
         // Arrange
-        statsRepo.Create(Arg.Any<UserStat>()).Returns(99L);
+        statsRepo.CreateAsync(Arg.Any<UserStat>(), Arg.Any<CancellationToken>()).Returns(99L);
         var stat = new UserStat { UserId = 1, StatLabel = "Years in software", StatValue = "20+" };
 
         // Act
-        var result = service.CreateStat(stat);
+        var result = await service.CreateStatAsync(stat);
 
         // Assert
         Assert.Equal(99L, result.Data.StatId);
@@ -191,14 +191,14 @@ public class UserStatsSvcTests
     /// than silently re-creating the row.
     /// </summary>
     [Fact]
-    public void UpdateStatReportsMissingRow()
+    public async Task UpdateStatReportsMissingRow()
     {
         // Arrange
-        statsRepo.GetById(5L).Returns((UserStat?)null);
+        statsRepo.GetByIdAsync(5L, Arg.Any<CancellationToken>()).Returns((UserStat?)null);
         var stat = new UserStat { StatId = 5, UserId = 1, StatLabel = "Years", StatValue = "20+" };
 
         // Act
-        var result = service.UpdateStat(stat);
+        var result = await service.UpdateStatAsync(stat);
 
         // Assert
         Assert.Equal("Statistic not found", result.ErrorMessage);
@@ -208,18 +208,18 @@ public class UserStatsSvcTests
     /// An existing statistic is written through to the repository once its presence is confirmed.
     /// </summary>
     [Fact]
-    public void UpdateStatWritesExistingRow()
+    public async Task UpdateStatWritesExistingRow()
     {
         // Arrange
         var stat = new UserStat { StatId = 5, UserId = 1, StatLabel = "Years", StatValue = "21+" };
-        statsRepo.GetById(5L).Returns(stat);
+        statsRepo.GetByIdAsync(5L, Arg.Any<CancellationToken>()).Returns(stat);
 
         // Act
-        var result = service.UpdateStat(stat);
+        var result = await service.UpdateStatAsync(stat);
 
         // Assert
         Assert.True(result.IsSuccess);
-        statsRepo.Received(1).Update(stat);
+        await statsRepo.Received(1).UpdateAsync(stat, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -227,38 +227,38 @@ public class UserStatsSvcTests
     /// add and edit.
     /// </summary>
     [Fact]
-    public void SaveStatCreatesWhenIdIsZero()
+    public async Task SaveStatCreatesWhenIdIsZero()
     {
         // Arrange
-        statsRepo.Create(Arg.Any<UserStat>()).Returns(11L);
+        statsRepo.CreateAsync(Arg.Any<UserStat>(), Arg.Any<CancellationToken>()).Returns(11L);
         var stat = new UserStat { StatId = 0, UserId = 1, StatLabel = "Articles", StatValue = "200+" };
 
         // Act
-        var result = service.SaveStat(stat);
+        var result = await service.SaveStatAsync(stat);
 
         // Assert
         Assert.True(result.IsSuccess);
-        statsRepo.Received(1).Create(Arg.Any<UserStat>());
-        statsRepo.DidNotReceive().Update(Arg.Any<UserStat>());
+        await statsRepo.Received(1).CreateAsync(Arg.Any<UserStat>(), Arg.Any<CancellationToken>());
+        await statsRepo.DidNotReceive().UpdateAsync(Arg.Any<UserStat>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
     /// A statistic that already carries an identifier is routed to update.
     /// </summary>
     [Fact]
-    public void SaveStatUpdatesWhenIdIsSet()
+    public async Task SaveStatUpdatesWhenIdIsSet()
     {
         // Arrange
         var stat = new UserStat { StatId = 12, UserId = 1, StatLabel = "Articles", StatValue = "201+" };
-        statsRepo.GetById(12L).Returns(stat);
+        statsRepo.GetByIdAsync(12L, Arg.Any<CancellationToken>()).Returns(stat);
 
         // Act
-        var result = service.SaveStat(stat);
+        var result = await service.SaveStatAsync(stat);
 
         // Assert
         Assert.True(result.IsSuccess);
-        statsRepo.Received(1).Update(stat);
-        statsRepo.DidNotReceive().Create(Arg.Any<UserStat>());
+        await statsRepo.Received(1).UpdateAsync(stat, Arg.Any<CancellationToken>());
+        await statsRepo.DidNotReceive().CreateAsync(Arg.Any<UserStat>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -266,13 +266,13 @@ public class UserStatsSvcTests
     /// what happened instead of a false success.
     /// </summary>
     [Fact]
-    public void DeleteStatReportsMissingRow()
+    public async Task DeleteStatReportsMissingRow()
     {
         // Arrange
-        statsRepo.GetById(3L).Returns((UserStat?)null);
+        statsRepo.GetByIdAsync(3L, Arg.Any<CancellationToken>()).Returns((UserStat?)null);
 
         // Act
-        var result = service.DeleteStat(3L);
+        var result = await service.DeleteStatAsync(3L);
 
         // Assert
         Assert.Equal("Statistic not found", result.ErrorMessage);
@@ -282,17 +282,17 @@ public class UserStatsSvcTests
     /// Deleting an existing statistic removes exactly that row.
     /// </summary>
     [Fact]
-    public void DeleteStatRemovesExistingRow()
+    public async Task DeleteStatRemovesExistingRow()
     {
         // Arrange
-        statsRepo.GetById(3L).Returns(new UserStat { StatId = 3, UserId = 1 });
+        statsRepo.GetByIdAsync(3L, Arg.Any<CancellationToken>()).Returns(new UserStat { StatId = 3, UserId = 1 });
 
         // Act
-        var result = service.DeleteStat(3L);
+        var result = await service.DeleteStatAsync(3L);
 
         // Assert
         Assert.True(result.IsSuccess);
-        statsRepo.Received(1).Delete(3L);
+        await statsRepo.Received(1).DeleteAsync(3L, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -300,16 +300,16 @@ public class UserStatsSvcTests
     /// compute order numbers itself.
     /// </summary>
     [Fact]
-    public void ReorderStatsStampsSequencePositions()
+    public async Task ReorderStatsStampsSequencePositions()
     {
         // Arrange
         var first = new UserStat { StatId = 1, UserId = 7, DisplayOrder = 5 };
         var second = new UserStat { StatId = 2, UserId = 7, DisplayOrder = 9 };
-        statsRepo.GetById(1L).Returns(first);
-        statsRepo.GetById(2L).Returns(second);
+        statsRepo.GetByIdAsync(1L, Arg.Any<CancellationToken>()).Returns(first);
+        statsRepo.GetByIdAsync(2L, Arg.Any<CancellationToken>()).Returns(second);
 
         // Act
-        var result = service.ReorderStats(7L, new[] { 2L, 1L });
+        var result = await service.ReorderStatsAsync(7L, new[] { 2L, 1L });
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -322,19 +322,19 @@ public class UserStatsSvcTests
     /// reorder someone else's resume.
     /// </summary>
     [Fact]
-    public void ReorderStatsSkipsForeignRows()
+    public async Task ReorderStatsSkipsForeignRows()
     {
         // Arrange
         var foreign = new UserStat { StatId = 1, UserId = 99, DisplayOrder = 5 };
-        statsRepo.GetById(1L).Returns(foreign);
+        statsRepo.GetByIdAsync(1L, Arg.Any<CancellationToken>()).Returns(foreign);
 
         // Act
-        var result = service.ReorderStats(7L, new[] { 1L });
+        var result = await service.ReorderStatsAsync(7L, new[] { 1L });
 
         // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal(5, foreign.DisplayOrder);
-        statsRepo.DidNotReceive().Update(Arg.Any<UserStat>());
+        await statsRepo.DidNotReceive().UpdateAsync(Arg.Any<UserStat>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -342,10 +342,10 @@ public class UserStatsSvcTests
     /// reporting success.
     /// </summary>
     [Fact]
-    public void ReorderStatsRejectsEmptySequence()
+    public async Task ReorderStatsRejectsEmptySequence()
     {
         // Arrange, Act
-        var result = service.ReorderStats(7L, Array.Empty<long>());
+        var result = await service.ReorderStatsAsync(7L, Array.Empty<long>());
 
         // Assert
         Assert.Equal("A user and at least one statistic are required", result.ErrorMessage);

@@ -21,7 +21,7 @@ import { BASE, login, nav, visualCheck } from './_gates';
  */
 
 const ARTIFACTS = 'tests/.artifacts/req-fn-061';
-const SEED_THEME = 'trblaze-modern';
+const SEED_THEME = 'trblaze-modern'; // only the default when nothing else is known; tests read the live baseline
 const PREVIEW_THEME = 'minimal';
 
 /** Reads `data-site-theme` from a page fetched anonymously, on its own connection. */
@@ -39,13 +39,15 @@ async function anonymousTheme(): Promise<string> {
   }
 }
 
-test('unsaved theme preview on /settings does not leak to anonymous visitors', async ({ page }) => {
+test('REQ-FN-061 unsaved theme preview on /settings does not leak to anonymous visitors', async ({ page }) => {
   const evidence: Record<string, unknown> = {};
 
   // 1. BASELINE — what an anonymous visitor is served before the admin touches anything.
   const themeBefore = await anonymousTheme();
   evidence.themeBefore = themeBefore;
-  expect(themeBefore, 'baseline theme should be the seeded one').toBe(SEED_THEME);
+  // The baseline is whatever the site serves now (a shared dev DB: another run may have changed it);
+  // the preview theme just has to differ from it.
+  test.skip(themeBefore === PREVIEW_THEME, `baseline theme is already ${PREVIEW_THEME}; the preview would not differ`);
 
   // 2. The admin opens /settings and previews a different theme WITHOUT saving.
   const landing = await login(page, 'admin');
@@ -92,7 +94,7 @@ test('unsaved theme preview on /settings does not leak to anonymous visitors', a
   fs.writeFileSync(`${ARTIFACTS}/leak-evidence.json`, JSON.stringify(evidence, null, 2));
 });
 
-test('unsaved edits to other fields on /settings do not leak either', async ({ page }) => {
+test('REQ-FN-061 unsaved edits to other fields on /settings do not leak either', async ({ page }) => {
   const api = await request.newContext({ baseURL: BASE });
   const titleBefore = /<title>([^<]*)<\/title>/.exec(await (await api.get('/')).text())?.[1] ?? '';
 
@@ -121,8 +123,23 @@ test('unsaved edits to other fields on /settings do not leak either', async ({ p
  * Runs the full round trip against the live site and restores the seeded value afterwards, so the
  * database is left exactly as it was found.
  */
-test('saving a theme change on /settings still takes effect site-wide', async ({ page }) => {
+test('REQ-FN-061 saving a theme change on /settings still takes effect site-wide', async ({ page }) => {
+  test.setTimeout(240000);
   const evidence: Record<string, unknown> = {};
+  const baseline = await anonymousTheme();
+  const changeTo = baseline === 'developer' ? 'minimal' : 'developer';
+  evidence.baseline = baseline;
+
+  /** Save propagation is not instant (req-fn-061-save-propagation-timing measures it): poll, never a fixed wait. */
+  const untilAnonymousTheme = async (want: string) => {
+    const deadline = Date.now() + 60000;
+    let seen = await anonymousTheme();
+    while (seen !== want && Date.now() < deadline) {
+      await page.waitForTimeout(2000);
+      seen = await anonymousTheme();
+    }
+    return seen;
+  };
 
   await login(page, 'admin');
   await nav(page, '/settings');
@@ -130,28 +147,41 @@ test('saving a theme change on /settings still takes effect site-wide', async ({
   await page.click('[data-testid="tab-theme"]');
   await expect(page.locator('[data-testid="theme-swatches"]')).toBeVisible({ timeout: 30000 });
 
-  await page.click('[data-testid="theme-swatch-developer"]');
-  await page.waitForTimeout(800);
-  await page.click('[data-testid="save-settings"]');
-  await page.waitForTimeout(4000);
+  /** Chooses a swatch and proves the form took it (aria-pressed) before anything is saved. */
+  const choose = async (theme: string) => {
+    const swatch = page.locator(`[data-testid="theme-swatch-${theme}"]`);
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await swatch.scrollIntoViewIfNeeded();
+      await swatch.click();
+      try {
+        await expect(swatch).toHaveAttribute('aria-pressed', /^(true|)$/, { timeout: 4000 }); // Blazor renders a true bool as an empty attribute
+        return;
+      } catch { /* the circuit was busy; click again */ }
+    }
+    throw new Error(`swatch ${theme} never became selected`);
+  };
 
-  evidence.anonymousThemeAfterSave = await anonymousTheme();
-  expect(evidence.anonymousThemeAfterSave, 'a SAVED theme must reach every visitor').toBe('developer');
-
-  // Restore the seeded value through the same UI, leaving the database as it was found.
-  await page.click('[data-testid="theme-swatch-trblaze-modern"]');
-  await page.waitForTimeout(800);
-  await page.click('[data-testid="save-settings"]');
-  await page.waitForTimeout(4000);
-
-  evidence.anonymousThemeAfterRestore = await anonymousTheme();
-  expect(evidence.anonymousThemeAfterRestore, 'the seeded theme should be restored').toBe(SEED_THEME);
+  try {
+    await choose(changeTo);
+    await page.click('[data-testid="save-settings"]');
+    evidence.anonymousThemeAfterSave = await untilAnonymousTheme(changeTo);
+    expect(evidence.anonymousThemeAfterSave, 'a SAVED theme must reach every visitor').toBe(changeTo);
+  } finally {
+    // Restore the value the site had when the test began, through the same UI. Measured 2026-10-27:
+    // a swatch chosen within a few seconds of the PREVIOUS Save is lost (the form is re-read after
+    // the save and the Save writes the old value back), so the restore waits the page out first.
+    await page.waitForTimeout(12000);
+    await choose(baseline).catch(() => {});
+    await page.click('[data-testid="save-settings"]').catch(() => {});
+    evidence.anonymousThemeAfterRestore = await untilAnonymousTheme(baseline);
+  }
+  expect(evidence.anonymousThemeAfterRestore, 'the starting theme should be restored').toBe(baseline);
 
   fs.mkdirSync(ARTIFACTS, { recursive: true });
   fs.writeFileSync(`${ARTIFACTS}/save-path-evidence.json`, JSON.stringify(evidence, null, 2));
 });
 
-test('/settings still looks right at desktop and mobile widths', async ({ page }) => {
+test('REQ-FN-061 /settings still looks right at desktop and mobile widths', async ({ page }) => {
   await login(page, 'admin');
   await nav(page, '/settings');
   await expect(page.locator('[data-testid="settings-page"]')).toBeVisible({ timeout: 45000 });

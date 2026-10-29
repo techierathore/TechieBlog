@@ -35,7 +35,7 @@ public class SeriesSvcDraftVisibilityTests
     {
         service = new SeriesSvc(seriesRepo, postRepo, NullLogger<SeriesSvc>.Instance);
 
-        seriesRepo.GetBySlug(SeriesSlug).Returns(new BlogSeries
+        seriesRepo.GetBySlugAsync(SeriesSlug, Arg.Any<CancellationToken>()).Returns(new BlogSeries
         {
             SeriesId = SeriesId,
             Name = "Blazor Server in Production",
@@ -43,12 +43,12 @@ public class SeriesSvcDraftVisibilityTests
             PostCount = 1
         });
 
-        postRepo.GetPublishedPostsBySeries(SeriesId).Returns(
+        postRepo.GetPublishedPostsBySeriesAsync(SeriesId, Arg.Any<CancellationToken>()).Returns(
         [
             new BlogPost { PostID = 10, Title = "Published Part", SeriesId = SeriesId, SeriesPartNumber = 1, Published = true }
         ]);
 
-        postRepo.GetPostsBySeries(SeriesId).Returns(
+        postRepo.GetPostsBySeriesAsync(SeriesId, Arg.Any<CancellationToken>()).Returns(
         [
             new BlogPost { PostID = 10, Title = "Published Part", SeriesId = SeriesId, SeriesPartNumber = 1, Published = true },
             new BlogPost { PostID = 11, Title = "Embargoed Draft Part", SeriesId = SeriesId, SeriesPartNumber = 2, Published = false }
@@ -61,10 +61,10 @@ public class SeriesSvcDraftVisibilityTests
     /// draft's title and abstract in front of anonymous visitors.
     /// </summary>
     [Fact]
-    public void GetSeriesBySlugAttachesPublishedPartsOnlyByDefault()
+    public async Task GetSeriesBySlugAttachesPublishedPartsOnlyByDefault()
     {
         // Arrange, Act
-        var series = service.GetSeriesBySlug(SeriesSlug);
+        var series = await service.GetSeriesBySlugAsync(SeriesSlug, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(series);
@@ -77,14 +77,14 @@ public class SeriesSvcDraftVisibilityTests
     /// unfiltered admin one, so the filter is applied in SQL rather than by the caller.
     /// </summary>
     [Fact]
-    public void GetSeriesBySlugUsesThePublishedOnlyRepositoryRead()
+    public async Task GetSeriesBySlugUsesThePublishedOnlyRepositoryRead()
     {
         // Arrange, Act
-        service.GetSeriesBySlug(SeriesSlug);
+        await service.GetSeriesBySlugAsync(SeriesSlug, TestContext.Current.CancellationToken);
 
         // Assert
-        postRepo.Received(1).GetPublishedPostsBySeries(SeriesId);
-        postRepo.DidNotReceive().GetPostsBySeries(Arg.Any<long>());
+        await postRepo.Received(1).GetPublishedPostsBySeriesAsync(SeriesId, Arg.Any<CancellationToken>());
+        await postRepo.DidNotReceive().GetPostsBySeriesAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -92,10 +92,10 @@ public class SeriesSvcDraftVisibilityTests
     /// so the list and the "N Parts" badge above it can never disagree.
     /// </summary>
     [Fact]
-    public void GetSeriesBySlugAttachesAsManyPartsAsTheBadgeCounts()
+    public async Task GetSeriesBySlugAttachesAsManyPartsAsTheBadgeCounts()
     {
         // Arrange, Act
-        var series = service.GetSeriesBySlug(SeriesSlug);
+        var series = await service.GetSeriesBySlugAsync(SeriesSlug, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(series);
@@ -108,16 +108,16 @@ public class SeriesSvcDraftVisibilityTests
     /// series editor.
     /// </summary>
     [Fact]
-    public void GetSeriesBySlugAttachesDraftPartsWhenDraftsAreRequested()
+    public async Task GetSeriesBySlugAttachesDraftPartsWhenDraftsAreRequested()
     {
         // Arrange, Act
-        var series = service.GetSeriesBySlug(SeriesSlug, includeDrafts: true);
+        var series = await service.GetSeriesBySlugAsync(SeriesSlug, includeDrafts: true, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(series);
         Assert.Contains(series!.Posts, post => post.Title == "Embargoed Draft Part");
-        postRepo.Received(1).GetPostsBySeries(SeriesId);
-        postRepo.DidNotReceive().GetPublishedPostsBySeries(Arg.Any<long>());
+        await postRepo.Received(1).GetPostsBySeriesAsync(SeriesId, Arg.Any<CancellationToken>());
+        await postRepo.DidNotReceive().GetPublishedPostsBySeriesAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -129,15 +129,15 @@ public class SeriesSvcDraftVisibilityTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void GetSeriesBySlugRejectsBlankSlugWithoutReading(string slug)
+    public async Task GetSeriesBySlugRejectsBlankSlugWithoutReading(string slug)
     {
         // Arrange, Act
-        var series = service.GetSeriesBySlug(slug);
+        var series = await service.GetSeriesBySlugAsync(slug, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(series);
-        postRepo.DidNotReceive().GetPublishedPostsBySeries(Arg.Any<long>());
-        postRepo.DidNotReceive().GetPostsBySeries(Arg.Any<long>());
+        await postRepo.DidNotReceive().GetPublishedPostsBySeriesAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
+        await postRepo.DidNotReceive().GetPostsBySeriesAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -145,16 +145,16 @@ public class SeriesSvcDraftVisibilityTests
     /// series-not-found state rather than throwing.
     /// </summary>
     [Fact]
-    public void GetSeriesBySlugReturnsNullForUnknownSlug()
+    public async Task GetSeriesBySlugReturnsNullForUnknownSlug()
     {
         // Arrange
-        seriesRepo.GetBySlug("no-such-series").Returns((BlogSeries?)null);
+        seriesRepo.GetBySlugAsync("no-such-series", Arg.Any<CancellationToken>()).Returns((BlogSeries?)null);
 
         // Act
-        var series = service.GetSeriesBySlug("no-such-series");
+        var series = await service.GetSeriesBySlugAsync("no-such-series", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(series);
-        postRepo.DidNotReceive().GetPublishedPostsBySeries(Arg.Any<long>());
+        await postRepo.DidNotReceive().GetPublishedPostsBySeriesAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 }

@@ -16,6 +16,7 @@
  */
 import { test, expect, Page } from '@playwright/test';
 import { BASE, login, nav } from './_gates';
+import { newAdminPage, purgePosts } from './w3-helpers';
 
 const SHOTS = 'test-results-cluster-c';
 
@@ -57,6 +58,14 @@ async function typeAndRead(page: Page, text: string, delay: number) {
 }
 
 test.describe('REQ-UI-016 — post editor keystroke fidelity', () => {
+  // Triage T3 2026-10-28: the save test left a draft behind on every run; remove them through the post list's own delete.
+  test.afterAll(async ({ browser }) => {
+    test.setTimeout(300000);
+    const admin = await newAdminPage(browser, 'admin');
+    await purgePosts(admin, 'Cluster C fidelity').catch(() => {});
+    await admin.context().close();
+  });
+
   test('markdown textarea keeps every keystroke, in order, at 120ms and 1000ms per key', async ({ page }) => {
     test.setTimeout(600000);
     await page.setViewportSize({ width: 1280, height: 900 });
@@ -220,11 +229,15 @@ test.describe('REQ-UI-016 — post editor keystroke fidelity', () => {
     await page.waitForTimeout(600);
 
     // Two tags.
+    // Repaired 2026-10-28 (T3): wait for each add to render before typing the next tag; on a loaded circuit the
+    // second fill raced the first add's re-render and was dropped (measured: tags land 1-3 s after the click).
+    let added = 0;
     for (const tag of [`clusterc${stamp}`, `fidelity${stamp}`]) {
       await page.fill('[data-testid="tag-input"]', tag);
       await page.waitForTimeout(400);
       await page.click('[data-testid="add-tag"]');
-      await page.waitForTimeout(600);
+      added++;
+      await expect(page.locator('[data-testid="selected-tag"]')).toHaveCount(added, { timeout: 30000 });
     }
     await expect(page.locator('[data-testid="selected-tag"]')).toHaveCount(2);
 

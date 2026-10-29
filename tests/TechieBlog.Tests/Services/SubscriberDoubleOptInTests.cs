@@ -56,14 +56,14 @@ public class SubscriberDoubleOptInTests
         // Arrange
         subscriberRepo.GetByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns((Subscriber)null);
-        subscriberRepo.InsertToGetId(Arg.Any<Subscriber>()).Returns(42L);
+        subscriberRepo.InsertToGetIdAsync(Arg.Any<Subscriber>(), Arg.Any<CancellationToken>()).Returns(42L);
 
         // Act
         var result = await service.SubscribePendingAsync("new@example.com");
 
         // Assert
         Assert.True(result.IsSuccess);
-        subscriberRepo.Received(1).InsertToGetId(Arg.Is<Subscriber>(s => !s.IsConfirmed && !s.IsActive));
+        await subscriberRepo.Received(1).InsertToGetIdAsync(Arg.Is<Subscriber>(s => !s.IsConfirmed && !s.IsActive), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -76,7 +76,7 @@ public class SubscriberDoubleOptInTests
         // Arrange
         subscriberRepo.GetByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns((Subscriber)null);
-        subscriberRepo.InsertToGetId(Arg.Any<Subscriber>()).Returns(7L);
+        subscriberRepo.InsertToGetIdAsync(Arg.Any<Subscriber>(), Arg.Any<CancellationToken>()).Returns(7L);
 
         // Act
         var result = await service.SubscribePendingAsync("reader@example.com");
@@ -107,7 +107,7 @@ public class SubscriberDoubleOptInTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        subscriberRepo.DidNotReceive().InsertToGetId(Arg.Any<Subscriber>());
+        await subscriberRepo.DidNotReceive().InsertToGetIdAsync(Arg.Any<Subscriber>(), Arg.Any<CancellationToken>());
         await emailVerification.Received(1).IssueAsync(
             "pending@example.com", Arg.Any<string>(), EmailVerificationPurpose.Subscription, 11L, Arg.Any<string>());
     }
@@ -129,7 +129,7 @@ public class SubscriberDoubleOptInTests
         // Assert
         Assert.True(result.IsSuccess);
         Assert.False(result.Data);
-        subscriberRepo.DidNotReceive().InsertToGetId(Arg.Any<Subscriber>());
+        await subscriberRepo.DidNotReceive().InsertToGetIdAsync(Arg.Any<Subscriber>(), Arg.Any<CancellationToken>());
         await emailVerification.DidNotReceive().IssueAsync(
             Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>(), Arg.Any<string>());
     }
@@ -149,7 +149,7 @@ public class SubscriberDoubleOptInTests
 
         // Assert
         Assert.True(result.IsFailure);
-        subscriberRepo.DidNotReceive().InsertToGetId(Arg.Any<Subscriber>());
+        await subscriberRepo.DidNotReceive().InsertToGetIdAsync(Arg.Any<Subscriber>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -167,7 +167,7 @@ public class SubscriberDoubleOptInTests
 
         // Assert
         Assert.True(result.IsFailure);
-        subscriberRepo.DidNotReceive().InsertToGetId(Arg.Any<Subscriber>());
+        await subscriberRepo.DidNotReceive().InsertToGetIdAsync(Arg.Any<Subscriber>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -180,7 +180,7 @@ public class SubscriberDoubleOptInTests
         // Arrange
         subscriberRepo.GetByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns((Subscriber)null);
-        subscriberRepo.InsertToGetId(Arg.Any<Subscriber>()).Returns(3L);
+        subscriberRepo.InsertToGetIdAsync(Arg.Any<Subscriber>(), Arg.Any<CancellationToken>()).Returns(3L);
         emailVerification
             .IssueAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>(), Arg.Any<string>())
             .Returns(Result<EmailVerificationToken>.Failure("Too many confirmation emails."));
@@ -203,13 +203,13 @@ public class SubscriberDoubleOptInTests
         // Arrange
         subscriberRepo.GetByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns((Subscriber)null);
-        subscriberRepo.InsertToGetId(Arg.Any<Subscriber>()).Returns(9L);
+        subscriberRepo.InsertToGetIdAsync(Arg.Any<Subscriber>(), Arg.Any<CancellationToken>()).Returns(9L);
 
         // Act
         await service.SubscribePendingAsync("  Mixed.Case@Example.COM  ");
 
         // Assert
-        subscriberRepo.Received(1).InsertToGetId(
-            Arg.Is<Subscriber>(s => s.Email == "mixed.case@example.com"));
+        await subscriberRepo.Received(1).InsertToGetIdAsync(
+            Arg.Is<Subscriber>(s => s.Email == "mixed.case@example.com"), Arg.Any<CancellationToken>());
     }
 }

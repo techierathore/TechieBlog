@@ -27,7 +27,7 @@ async function anonymousTheme(): Promise<string> {
   }
 }
 
-test('step 1 — an admin abandons a dirty settings form without saving', async ({ page }) => {
+test('REQ-FN-061 step 1 — an admin abandons a dirty settings form without saving', async ({ page }) => {
   // Mirrors the original spec exactly: ONE long-lived APIRequestContext making an anonymous GET
   // before login and another during the edit. Kept deliberately, as the single variable that
   // differed from this spec's first version, which propagated in <2s.
@@ -44,7 +44,7 @@ test('step 1 — an admin abandons a dirty settings form without saving', async 
   // Test ends here with the form dirty; Playwright disposes the browser context.
 });
 
-test('step 2 — the next Save must reach visitors promptly', async ({ page }) => {
+test('REQ-FN-061 step 2 — the next Save must reach visitors promptly', async ({ page }) => {
   test.setTimeout(5 * 60 * 1000);
 
   const before = await anonymousTheme();

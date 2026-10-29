@@ -45,7 +45,7 @@ public class ResiliencePipelinesTests
     /// A database call that fails once and then succeeds is retried transparently, so a brief
     /// blip never reaches the user.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-012 the database pipeline retries a transient failure")]
     public async Task DatabasePipelineRetriesTransientFailure()
     {
         var pipeline = ResiliencePipelines.BuildDatabasePipeline();
@@ -68,7 +68,7 @@ public class ResiliencePipelinesTests
     /// A permanently failing database call is attempted once plus the configured retries and
     /// then gives up, rather than retrying forever.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-012 the database pipeline stops after its retry budget")]
     public async Task DatabasePipelineStopsAfterTheRetryBudget()
     {
         var pipeline = ResiliencePipelines.BuildDatabasePipeline();
@@ -89,7 +89,7 @@ public class ResiliencePipelinesTests
     /// immediately with <see cref="BrokenCircuitException"/> instead of queueing behind a dead
     /// dependency — the fail-fast signal callers degrade on.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-012 the storage pipeline opens its circuit breaker after sustained failures")]
     public async Task StoragePipelineBreaksAfterSustainedFailures()
     {
         var pipeline = ResiliencePipelines.BuildStoragePipeline();

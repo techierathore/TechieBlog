@@ -23,10 +23,10 @@ import * as path from 'path';
  * UPLOADS_DIR) and its stdout is captured to HOST_LOG. Both are injected, never guessed.
  */
 
-const BASE = process.env.SMOKE_BASE ?? 'http://172.18.144.1:5403';
+const BASE = process.env.SMOKE_BASE ?? process.env.TB_BASE ?? 'http://localhost:5450';
 
 /** Documented seeded Admin from docs/TechieBlog-UsageGuide.md. No account is invented. */
-const ADMIN = { email: 'Ravi@techieblog.com', password: 'admin_password' };
+const ADMIN = { email: 'Ravi@techieblog.com', password: process.env.ADMIN_PASSWORD ?? 'VerifyAdmin#2026' };
 
 /** Absolute WSL path of the host's stdout capture. */
 const HOST_LOG = required('HOST_LOG');

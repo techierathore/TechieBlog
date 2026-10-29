@@ -45,7 +45,7 @@ public class MarkupAccessibilityContractTests
     /// 37-page failure. Accepting the component keeps the guard LIVE; deleting the check would have
     /// made it pass while measuring nothing.</para>
     /// </remarks>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-007 every routable page declares a page title (WCAG 2.4.2)")]
     public void EveryRoutablePageDeclaresAPageTitle()
     {
         var offenders = RoutablePages()
@@ -71,7 +71,7 @@ public class MarkupAccessibilityContractTests
     /// the literal <c>&lt;PageTitle&gt;</c> left this guard reading a handful of pages and passing
     /// vacuously, which is worse than failing: a dead guard still reports green.</para>
     /// </remarks>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-007 page titles are distinct so pages can be told apart (WCAG 2.4.2)")]
     public void PageTitlesAreDistinct()
     {
         var duplicates = RoutablePages()
@@ -104,7 +104,7 @@ public class MarkupAccessibilityContractTests
     /// something. <c>Rating</c>'s own <c>Focusable="false"</c> and <c>ReadOnly</c> are the
     /// supported mechanism now.</para>
     /// </remarks>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-007 no markup depends on the deleted accessibility observer")]
     public void NoMarkupDependsOnTheDeletedAccessibilityObserver()
     {
         var markers = new[] { "data-a11y-decorative", "data-a11y-controls-removed", "data-a11y-role-removed" };
@@ -183,7 +183,7 @@ public class MarkupAccessibilityContractTests
     /// semantics and no tab stop, so hiding it as a decorative duplicate of adjacent text — which
     /// is what <c>StarRating</c> does — is correct rather than a workaround.</para>
     /// </remarks>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-007 interactive ratings are exposed to assistive technology (WCAG 4.1.2)")]
     public void InteractiveRatingsAreNotHiddenFromAssistiveTechnology()
     {
         var offenders = new List<string>();

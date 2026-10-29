@@ -31,7 +31,7 @@ public class AppSecretsTests
     /// no longer present anywhere in BlogModels, so a copy of the repository no longer hands an
     /// attacker the ability to forge an Admin token.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-027 no signing or encryption key literal remains in source")]
     public void CommittedLiteralsAreGoneFromAppConstants()
     {
         var members = typeof(AppConstants)
@@ -60,7 +60,7 @@ public class AppSecretsTests
     /// A missing signing key stops startup with a message naming the configuration key, rather than
     /// quietly falling back to a built-in default.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-027 a missing JWT signing key fails startup loudly")]
     public void MissingSigningKeyFailsLoudly()
     {
         var configuration = BuildConfiguration(null, "a-perfectly-valid-encryption-key");
@@ -74,7 +74,7 @@ public class AppSecretsTests
     /// <summary>
     /// A missing AES key stops startup the same way the missing signing key does.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-027 a missing AES key fails startup loudly")]
     public void MissingEncryptionKeyFailsLoudly()
     {
         var configuration = BuildConfiguration(TestSecretsBootstrap.TestSigningKey, null);
@@ -100,7 +100,7 @@ public class AppSecretsTests
     /// The exact literal that used to sit in AppConstants is refused even when an operator pastes it
     /// into configuration, because it is public knowledge to anyone holding the repository.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-027 the retired committed signing key is refused")]
     public void RetiredCommittedSigningKeyIsRefused()
     {
         var configuration = BuildConfiguration(

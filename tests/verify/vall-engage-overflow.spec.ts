@@ -14,7 +14,8 @@ test.setTimeout(180000);
 const SLUGS = ['blazor-render-modes-explained', 'blazor-circuits-and-state'];
 
 for (const slug of SLUGS) {
-test(`REQ-UI-029/REQ-UI-027 post page horizontal overflow at 390px — ${slug}`, async ({ page }) => {
+// retired 2026-10-27 (W5): diagnostic with no assertion, on retired demo posts; the post page is covered by fxv5-comments / fxv5-rating-subscribe.
+test.skip(`retired: post page horizontal overflow at 390px — ${slug}`, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoPublic(page, `/post/${slug}`);
   await page.evaluate(() => window.scrollTo(0, 0));

@@ -50,6 +50,8 @@ h1,h2,h3,h4{line-height:1.25;letter-spacing:-.02em}
 .tb-nav__inner{max-width:1120px;margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;gap:24px}
 .tb-nav__brand{font-weight:700;font-size:17px;display:flex;align-items:center;gap:8px}
 .tb-nav__brand .dot{width:10px;height:10px;border-radius:50%;background:var(--primary);display:inline-block}
+/* BRD-102: horizontal lockup shown when no site logo is configured */
+.tb-nav__lockup{height:32px;width:auto;display:block}
 .tb-nav__links{display:flex;gap:4px;flex:1}
 .tb-nav__links a{padding:6px 12px;border-radius:calc(var(--radius) - 2px);font-size:14px;color:var(--muted-foreground)}
 .tb-nav__links a:hover{background:var(--accent);color:var(--accent-foreground)}

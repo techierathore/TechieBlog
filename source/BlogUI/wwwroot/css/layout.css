@@ -986,3 +986,13 @@ h1.page-title-centered {
         display: none;
     }
 }
+
+/* [REQ-UI-065 / BRD-102] The header lockup's wordmark is #0F4DBC, about 2.65:1 against the dark
+   page background (measured 2026-10-27) — under the 3:1 WCAG asks of a logo-like graphic. The file
+   is byte-for-byte the owner's, so the fix is a light rounded backing in dark mode only. */
+html.dark .tb-brand-lockup {
+    background: #ffffff;
+    border-radius: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    box-sizing: content-box;
+}

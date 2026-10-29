@@ -32,7 +32,7 @@ public class RollingLogFileTests
     /// Writing well past the configured cap rolls into a numbered companion file instead of growing
     /// one file without bound — the failure that let a single day's log reach 341 MB.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-029 the size cap rolls the log file when exceeded")]
     public void SizeCapRollsTheFileWhenExceeded()
     {
         var directory = CreateTemporaryDirectory();
@@ -83,7 +83,7 @@ public class RollingLogFileTests
     /// whether the two options are mutually exclusive in this version of Serilog.Sinks.File: they are
     /// not, so the head does not have to give one of them up.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-029 the size cap still rolls a shared-write file")]
     public void SizeCapStillRollsWhenTheFileIsShared()
     {
         var directory = CreateTemporaryDirectory();
@@ -105,7 +105,7 @@ public class RollingLogFileTests
     /// Two loggers open at the same time, standing in for two hosts, append to one shared file
     /// instead of the second silently starting its own _001 sequence and diverging.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-029 two concurrent writers share one log file")]
     public void TwoConcurrentWritersShareOneFile()
     {
         var directory = CreateTemporaryDirectory();

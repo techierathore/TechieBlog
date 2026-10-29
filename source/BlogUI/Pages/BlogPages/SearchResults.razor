@@ -13,6 +13,7 @@
 @page "/search"
 @layout MainLayout
 @inject NavigationManager Navigation
+@inject BlogModels.Interfaces.ISiteSettingsService SiteSettingsService
 @inject BlogEngine.Services.BlogSvc BlogSvc
 @inject BlogEngine.Services.CategorySvc CategorySvc
 
@@ -95,7 +96,7 @@
     {
         @* Results Count *@
         <p class="mb-4 text-sm text-muted-foreground" data-testid="search-results-count">
-            Showing <strong class="text-foreground">@searchResults.Count results</strong> for "<strong class="text-foreground">@displayQuery</strong>"
+            Showing <strong class="text-foreground" data-testid="search-total-count">@totalResults @(totalResults == 1 ? "result" : "results")</strong> for "<strong class="text-foreground">@displayQuery</strong>"
         </p>
 
         @* Search Results *@
@@ -191,7 +192,8 @@ else
     private List<BlogModels.Category> categories = new();
     private int totalResults = 0;
     private int currentPage = 1;
-    private const int PageSize = 10;
+    /// <summary>Posts per listing page; refreshed from the cached site setting (REQ-UI-026) on every load.</summary>
+    private int PageSize = 10;
 
     /// <summary>Characters of the post abstract kept in a result card.</summary>
     private const int ExcerptLength = 200;
@@ -260,6 +262,7 @@ else
     {
         hasSearched = true;
         displayQuery = searchQuery;
+        PageSize = Math.Max(1, (await SiteSettingsService.GetSettingsAsync()).PostsPerPage);
 
         // Get total count for pagination
         totalResults = await BlogSvc.GetSearchResultCountAsync(searchQuery);
@@ -379,13 +382,10 @@ else
     /// </summary>
     private string EstimateReadTime(string? content)
     {
-        if (string.IsNullOrWhiteSpace(content))
-            return "1 min read";
-
-        // Average reading speed: 200 words per minute
-        var wordCount = content.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
-        var minutes = Math.Max(1, (int)Math.Ceiling(wordCount / 200.0));
-        return $"{minutes} min read";
+        // REQ-FN-020: one reading-time rule for every surface. This page used to split on ' ' only,
+        // so a multi-line body (words separated by newlines) was undercounted against the same
+        // post's card on the home page and archives.
+        return BlogEngine.Common.ReadingTimeCalculator.Calculate(content ?? string.Empty);
     }
 
     /// <summary>

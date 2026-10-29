@@ -154,4 +154,4 @@ export async function fillCommitted(page: Page, testId: string, value: string) {
 }
 
 export const SHOTS = '.verify/shots/authoring';
-export const MARK = 'VERIFY-0808-';
+export const MARK = process.env.TB_MARK ?? 'VERIFY-0808-';

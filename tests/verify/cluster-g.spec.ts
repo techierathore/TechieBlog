@@ -136,7 +136,8 @@ async function visualGate(page: Page, testIds: string[], label: string) {
 const T0 = { t: 0 };
 const mark = (label: string) => console.log(`[t+${((Date.now() - T0.t) / 1000).toFixed(1)}s] ${label}`);
 
-test.describe('REQ-UI-057 accessible alternative captcha challenge', () => {
+// retired 2026-10-27 (W5): opens the demo post getting-started-with-blazor-server (retired 2026-08-22, UAT-007); superseded by fxv5-captcha-views REQ-UI-057.
+test.describe.skip('retired: accessible alternative captcha challenge', () => {
 
   test('comment form: the alternative is reachable by keyboard alone and announced', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 1000 });

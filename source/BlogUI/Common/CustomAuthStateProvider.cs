@@ -351,6 +351,21 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
     }
 
     /// <summary>
+    /// Reports whether this head survives a forced full-page reload (<c>NavigateTo(..., forceLoad: true)</c>).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> A browser tab does; the desktop head's BlazorWebView does not
+    /// always. A reload issued from inside a menu's click handler tears the renderer down while the
+    /// popover still holds JavaScript object references, the WebView reports "JS object instance
+    /// with ID 3 does not exist" and stays on "Loading BlogApp… An unhandled error has occurred"
+    /// until the operator reloads by hand (REQ-UI-051: logout from BlogApp left a dead window).
+    /// <c>AdminLayout.LogoutAsync</c> asks this before reloading and, where it is <c>false</c>, signs
+    /// out in place instead.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    public virtual bool SupportsFullPageReload => true;
+
+    /// <summary>
     /// Signs the user out of this browser.
     /// </summary>
     /// <remarks>

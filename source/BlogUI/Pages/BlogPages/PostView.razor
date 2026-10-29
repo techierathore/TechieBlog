@@ -61,6 +61,8 @@
 @layout FullWidthLayout
 @inject BlogEngine.Services.BlogSvc BlogService
 @inject BlogEngine.Services.SeriesSvc SeriesService
+@inject BlogEngine.Services.CategorySvc CategorySvc
+@inject BlogEngine.Services.TagSvc TagService
 @inject BlogEngine.Services.CommentSvc CommentService
 @inject BlogEngine.Common.MarkdownRenderer MarkdownRenderer
 @inject BlogModels.Interfaces.IPostViewTracker PostViewTracker
@@ -114,8 +116,8 @@ else if (blogPost != null)
             }
             <div class="post-title-band__inner">
                 <div>
-                    <a href="/category/@GetSlug(GetCategory(blogPost.Tags))" class="no-underline" data-testid="post-category">
-                        <Badge Variant="BadgeVariant.Secondary">@GetCategory(blogPost.Tags)</Badge>
+                    <a href="@CategoryHref(blogPost)" class="no-underline" data-testid="post-category">
+                        <Badge Variant="BadgeVariant.Secondary">@CategoryName(blogPost)</Badge>
                     </a>
                 </div>
 
@@ -293,11 +295,11 @@ else if (blogPost != null)
         }
 
         @* Tags *@
-        @if (!string.IsNullOrWhiteSpace(blogPost.Tags))
+        @if (postTags.Count > 0)
         {
             <div class="my-8 flex flex-wrap items-center gap-2" data-testid="post-tags">
                 <span class="text-sm font-semibold">Tags:</span>
-                @foreach (var tag in GetTags(blogPost.Tags))
+                @foreach (var tag in postTags)
                 {
                     <a href="/tag/@GetSlug(tag)" class="no-underline" data-testid="@($"post-tag-{GetSlug(tag)}")">
                         <Badge Variant="BadgeVariant.Outline">@tag</Badge>
@@ -342,7 +344,7 @@ else if (blogPost != null)
                         <Card Class="h-full" data-testid="related-post-card">
                             <CardContent Class="flex flex-col gap-2 p-4">
                                 <div>
-                                    <Badge Variant="BadgeVariant.Secondary">@GetCategory(related.Tags)</Badge>
+                                    <Badge Variant="BadgeVariant.Secondary">@CategoryName(related)</Badge>
                                 </div>
                                 <h3 class="text-base font-semibold leading-snug">
                                     <a href="/post/@related.Slug"
@@ -387,6 +389,19 @@ else if (blogPost != null)
     private List<BlogBreadcrumbItem> breadcrumbItems = new();
     private BlogModels.BlogPost blogPost;
     private List<BlogModels.BlogPost> relatedPosts = new();
+    private List<BlogModels.Category> categories = new();
+
+    /// <summary>Resolves the post's category from its CategoryId.</summary>
+    private BlogModels.Category? ResolveCategory(BlogModels.BlogPost post)
+        => post.CategoryId > 0 ? categories.FirstOrDefault(c => c.CategoryId == post.CategoryId) : null;
+
+    /// <summary>Display name of the post's category, or "General" when it has none.</summary>
+    private string CategoryName(BlogModels.BlogPost post)
+        => ResolveCategory(post)?.CategoryName is { Length: > 0 } name ? name : "General";
+
+    /// <summary>Archive URL of the post's category, or the category index when it has none.</summary>
+    private string CategoryHref(BlogModels.BlogPost post)
+        => ResolveCategory(post)?.Slug is { Length: > 0 } slug ? $"/category/{slug}" : "/categories";
     private BlogModels.SeriesNavigation seriesNavigation;
     private List<BlogModels.BlogComment> comments = new();
     private BlogModels.PostViewCounts viewCounts = new();
@@ -452,20 +467,25 @@ else if (blogPost != null)
                 // Render once per load rather than re-running Markdig on every markup evaluation.
                 currentContentHtml = GetPaginatedContent();
 
+                // REQ-UI-007: the badge and breadcrumb name the post's real category (CategoryId),
+                // not its first tag - a tag slug under /category/ is a not-found page.
+                categories = (await CategorySvc.GetAllCategoriesAsync()).ToList();
+
+                // REQ-UI-007: tags come from the PostTag junction (what the editor writes), not the
+                // legacy comma-separated BlogPost.Tags text, which a saved post may not carry.
+                postTags = (await TagService.GetTagsForPostAsync(blogPost.PostID))
+                    .Select(t => t.TagName).ToList();
+
                 // Setup breadcrumb
                 breadcrumbItems = new List<BlogBreadcrumbItem>
                 {
                     new BlogBreadcrumbItem { Label = "Home", Url = "/" },
-                    new BlogBreadcrumbItem { Label = GetCategory(blogPost.Tags), Url = $"/category/{GetSlug(GetCategory(blogPost.Tags))}" },
+                    new BlogBreadcrumbItem { Label = CategoryName(blogPost), Url = CategoryHref(blogPost) },
                     new BlogBreadcrumbItem { Label = blogPost.Title, Url = "" }
                 };
 
-                // Load related posts (other recent posts)
-                var allPosts = await BlogService.GetPublishedPostsAsync(4, 0);
-                relatedPosts = allPosts
-                    .Where(p => p.PostID != blogPost.PostID)
-                    .Take(3)
-                    .ToList();
+                // REQ-FN-020: related means sharing this post's category or a tag, never the post itself.
+                relatedPosts = (await BlogService.GetRelatedPostsAsync(blogPost, 3)).ToList();
 
                 // Load series navigation if post is part of a series
                 if (blogPost.SeriesId.HasValue)
@@ -693,6 +713,9 @@ else if (blogPost != null)
 
         return RenderContent(contentPages[pageIndex]);
     }
+
+    /// <summary>Tag names of the current post, read from the PostTag junction.</summary>
+    private List<string> postTags = new();
 
     /// <summary>
     /// Gets the first tag as category, or "General".

@@ -55,9 +55,14 @@ const SQL = {
   categorisedPosts: `SELECT COUNT(*) FROM BlogPost WHERE CategoryId IS NOT NULL AND Published = TRUE AND ${LIVE_POST}`,
   tags: 'SELECT COUNT(*) FROM Tag',
   postTag: `SELECT COUNT(*) FROM PostTag pt JOIN BlogPost p ON p.PostId = pt.PostId WHERE p.Published = TRUE AND (p.IsDeleted = FALSE OR p.IsDeleted IS NULL)`,
-  users: 'SELECT COUNT(*) FROM BlogUser',
+  users: 'SELECT COUNT(*) FROM BlogUser WHERE COALESCE(IsDeleted,false)=false',
   subscribers: 'SELECT COUNT(*) FROM Subscriber',
   postViews: 'SELECT COUNT(*) FROM PostViews',
+  // The Analytics tiles count views of published, non-deleted posts inside the applied window (default: last 30 days, today inclusive).
+  postViewsLast30: `SELECT COUNT(*) FROM PostViews v JOIN BlogPost p ON p.PostId = v.PostId WHERE p.Published = TRUE AND (p.IsDeleted = FALSE OR p.IsDeleted IS NULL) AND v.ViewedOn >= (CURRENT_DATE - INTERVAL '29 days') AND v.ViewedOn < (CURRENT_DATE + INTERVAL '1 day')`,
+  // The dashboard ranks PUBLISHED, non-deleted posts by views in the last 30 days, top 5
+  // (AdminDashboard PopularPostWindowDays/PopularPostCount; AnalyticsRepo.VisiblePostPredicate).
+  popularPostsShown: `SELECT LEAST(5, COUNT(DISTINCT p.PostId)) FROM BlogPost p JOIN PostViews v ON v.PostId = p.PostId AND v.ViewedOn >= ((NOW() AT TIME ZONE 'utc') - INTERVAL '30 days') WHERE p.Published = TRUE AND (p.IsDeleted = FALSE OR p.IsDeleted IS NULL)`,
   setting: (key: string) => `SELECT SettingValue FROM SiteSetting WHERE SettingKey = '${key}'`,
   commentsInDays: (d: number) =>
     `SELECT COUNT(*) FROM BlogComment WHERE GivenOn >= (CURRENT_DATE - INTERVAL '${d - 1} days') AND GivenOn < (CURRENT_DATE + INTERVAL '1 day')`,
@@ -288,7 +293,7 @@ test('REQ-UI-019 admin dashboard tiles show live counts and quick actions are ro
   }
 
   // Popular posts / recent activity.
-  const views = psqlInt(SQL.postViews);
+  const views = psqlInt(SQL.popularPostsShown);
   const popularRows = await page.locator('[data-testid="popular-post-row"]').count();
   const popularEmpty = await page.locator('[data-testid="popular-posts-empty"]').count();
   console.log(`[REQ-UI-019] popular rows=${popularRows} empty-state=${popularEmpty} | psql PostViews=${views}`);
@@ -296,7 +301,7 @@ test('REQ-UI-019 admin dashboard tiles show live counts and quick actions are ro
     expect(popularRows === 0 || popularEmpty > 0, 'with zero PostViews the ranking must not fabricate rows').toBe(true);
     controls.push({ control: 'popular posts', verdict: 'RENDERS', detail: `NO-DATA: psql PostViews=0 → ${popularRows} rows, empty state=${popularEmpty}` });
   } else {
-    expect(popularRows, 'PostViews exist so the ranking must render').toBeGreaterThan(0);
+    expect(popularRows, 'recent views of published posts exist so the ranking must render').toBe(views);
     controls.push({ control: 'popular posts', verdict: 'RENDERS', detail: `${popularRows} ranked rows` });
   }
   const recentItems = await page.locator('[data-testid="recent-activity"] [data-slot="item"], [data-testid="recent-activity"] li').count();
@@ -408,8 +413,8 @@ test('REQ-UI-020 users list renders every seeded user with role badges, search a
 // =====================================================================================
 test('REQ-UI-021 comment queue lists every comment with per-row and bulk moderation actions', async ({ page }) => {
   await signIn(page, 'admin');
-  await nav(page, '/CommentsList', /Comments Management/);
-  const reRender = async () => { await nav(page, '/admin', /^Dashboard$/); await nav(page, '/CommentsList', /Comments Management/); };
+  await nav(page, '/CommentsList', /Comment moderation/);
+  const reRender = async () => { await nav(page, '/admin', /^Dashboard$/); await nav(page, '/CommentsList', /Comment moderation/); };
 
   const controls: ControlResult[] = [];
   controls.push(await renderCheck(page, 'comments grid', '[data-testid="comments-grid"]', 'table'));
@@ -550,13 +555,22 @@ test('REQ-UI-023 tag list shows every tag with post counts and the editor loads 
   controls.push(await renderCheck(page, 'search', '[data-testid="tags-search"]', 'present'));
   controls.push(await renderCheck(page, 'new tag', '[data-testid="new-tag"]', 'present'));
 
-  const rows = await assertAgainstDb('tag rows', async () => page.locator('[data-testid="tag-row-name"]').count(), SQL.tags, reRender);
-  expect(rows.ui, 'tag rows vs psql').toBe(rows.db);
+  // The grid pages at 20 rows, so it shows min(total, 20) tags and the header count carries the total.
+  const pageSize = 20;
+  const total = psqlInt(SQL.tags);
+  const rows = { ui: await page.locator('[data-testid="tag-row-name"]').count(), db: Math.min(total, pageSize) };
+  expect(rows.ui, 'tag rows on page 1 vs min(psql total, 20)').toBe(rows.db);
+  const header = parseInt(((await page.locator('[data-testid="tags-count"]').textContent()) || '').replace(/\D/g, ''), 10);
+  expect(header, 'tags-count header vs psql total').toBe(total);
 
   const slugs = await page.locator('[data-testid="tag-row-slug"]').allTextContents();
   const counts = await page.locator('[data-testid="tag-row-postcount"]').allTextContents();
   const sum = counts.reduce((a, c) => a + (parseInt(c.replace(/\D/g, ''), 10) || 0), 0);
-  const postTag = psqlInt(SQL.postTag);
+  // The grid prints each slug as "/slug".
+  const shown = slugs.map((s) => `'${s.trim().replace(/^\//, '').replace(/'/g, "''")}'`).filter((s) => s !== "''").join(',');
+  const postTag = shown
+    ? psqlInt(`${SQL.postTag} AND pt.TagId IN (SELECT TagId FROM Tag WHERE Slug IN (${shown}))`)
+    : 0;
   console.log(`[REQ-UI-023] rows=${rows.ui} counts=${JSON.stringify(counts)} sum=${sum} | psql PostTag rows=${postTag}`);
   expect(slugs.filter((s) => s.trim()).length, 'every row renders a slug').toBe(rows.ui);
   expect(counts.filter((c) => c.trim().length > 0).length, 'every row renders a post count').toBe(rows.ui);
@@ -601,6 +615,7 @@ test('REQ-UI-023 tag list shows every tag with post counts and the editor loads 
 test('REQ-UI-025 subscribers page renders list, search, status filter and export with honest counts', async ({ page }) => {
   await signIn(page, 'admin');
   await nav(page, '/admin/subscribers', /^Subscribers$/);
+  await expect(page.locator('[data-testid="subscribers-grid"], [data-testid="subscribers-empty"]').first()).toBeVisible({ timeout: 60000 });
 
   const controls: ControlResult[] = [];
   controls.push(await renderCheck(page, 'summary', '[data-testid="subscribers-summary"]', 'value'));
@@ -613,7 +628,8 @@ test('REQ-UI-025 subscribers page renders list, search, status filter and export
   const emptyState = await page.locator('[data-testid="subscribers-empty"]').count();
   const summary = ((await page.locator('[data-testid="subscribers-summary"]').textContent()) || '').replace(/\s+/g, ' ').trim();
   console.log(`[REQ-UI-025] rows=${rows} psql subscribers=${dbRows} empty-state=${emptyState} summary="${summary}"`);
-  expect(rows, 'subscriber rows vs psql').toBe(dbRows);
+  // The grid pages at 20 rows; the summary and tabs carry the full totals.
+  expect(rows, 'subscriber rows on page 1 vs psql (page size 20)').toBe(Math.min(dbRows, 20));
 
   if (dbRows === 0) {
     const numbers = (summary.match(/\d+/g) || []).map(Number);
@@ -811,7 +827,7 @@ test('REQ-UI-044 analytics tiles, panels and date range all move with the applie
   const rating30 = await tile('analytics-stat-rating');
   const comments30 = await tile('analytics-stat-comments');
   const caption30 = ((await page.locator('[data-testid="analytics-range-caption"]').textContent()) || '').trim();
-  const dbViews = psqlInt(SQL.postViews);
+  const dbViews = psqlInt(SQL.postViewsLast30);
   const dbComments30 = psqlInt(SQL.commentsInDays(30));
   console.log(`[REQ-UI-044] default range: views=${views30} unique=${unique30} rating=${rating30} comments=${comments30} caption="${caption30}"`);
   console.log(`[REQ-UI-044] psql: PostViews total=${dbViews}, comments in last 30d=${dbComments30}`);
@@ -941,7 +957,7 @@ test('REQ-UI-047 admin layout groups navigation, highlights the active item and 
   // Every menu destination must open inside AdminLayout, not bounce.
   const routes: [string, RegExp][] = [
     ['/BlogsList', /Posts/i],
-    ['/CommentsList', /Comments Management/],
+    ['/CommentsList', /Comment moderation/],
     ['/admin/tags', /Tags Management/],
     ['/users', /^Users$/],
     ['/admin/subscribers', /^Subscribers$/],
@@ -962,6 +978,29 @@ test('REQ-UI-047 admin layout groups navigation, highlights the active item and 
   const vis = await bothWidths(page, 'admin-layout');
   record('AdminLayout', controls, vis.summary);
   expect(vis.problems, 'visual @ AdminLayout').toEqual([]);
+});
+
+/**
+ * The acceptance line says "the active item is highlighted". A highlight a visitor cannot see is not a
+ * highlight: `aria-current="page"` is present (previous test) but the TrBlazeUI SidebarMenuButton emits
+ * `data-active=""` while its styles key on `data-[active=true]`, so the active item looks identical to
+ * the others. Known library gap TR-076 (docs/TechieBlog-TrBlazeUI-Feedback.md). This test measures the
+ * rendered pixels and is EXPECTED TO FAIL until the library is fixed — do not weaken it.
+ */
+test('REQ-UI-047 the active admin item is visibly highlighted (TR-076 library gap)', async ({ page }) => {
+  await signIn(page, 'admin');
+  await nav(page, '/admin/categories', /Categories Management/);
+  const look = await page.evaluate(() => {
+    const read = (id: string) => {
+      const n = document.querySelector(`[data-testid="${id}"]`) as HTMLElement;
+      const a = (n.closest('a') || n) as HTMLElement;
+      const cs = getComputedStyle(a);
+      return `${cs.backgroundColor}|${cs.color}|${cs.fontWeight}`;
+    };
+    return { active: read('nav-categories'), inactive: read('nav-tags') };
+  });
+  console.log(`[REQ-UI-047] computed look active=${look.active} inactive=${look.inactive}`);
+  expect(look.active, 'the active sidebar item must look different from an inactive one (background, colour or weight)').not.toBe(look.inactive);
 });
 
 test('REQ-UI-047 editor sidebar hides the AdminOnly groups', async ({ page }) => {
@@ -985,7 +1024,7 @@ test('CROSS-CUTTING admin screens are styled, boundary-free and legible in dark 
   const screens: [string, string, RegExp][] = [
     ['dashboard', '/admin', /^Dashboard$/],
     ['users', '/users', /^Users$/],
-    ['comments', '/CommentsList', /Comments Management/],
+    ['comments', '/CommentsList', /Comment moderation/],
     ['categories', '/admin/categories', /Categories Management/],
     ['tags', '/admin/tags', /Tags Management/],
     ['subscribers', '/admin/subscribers', /^Subscribers$/],

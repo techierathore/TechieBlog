@@ -27,7 +27,7 @@ const BASE = process.env.TB_BASE ?? 'http://172.18.144.1:5450';
 const OUT = 'tests/.artifacts/verify-admin';
 fs.mkdirSync(OUT, { recursive: true });
 
-const ADMIN = { email: 'Ravi@techieblog.com', password: 'admin_password' };
+const ADMIN = { email: 'Ravi@techieblog.com', password: process.env.TB_PW_ADMIN ?? 'VerifyAdmin#2026' };
 
 // =====================================================================================
 // psql — SELECT only, read live (the database moves under the run; siblings are writing)
@@ -230,7 +230,10 @@ test('REQ-UI-034 media library: category tabs, gallery, per-card actions, user f
   await mustRender(page, REQ, 'media-library-page', '[data-testid="media-library-page"]', 'present');
   await mustRender(page, REQ, 'upload-image', '[data-testid="upload-image"]');
   await mustRender(page, REQ, 'user-filter-select', '[data-testid="user-filter-select"]');
-  await mustRender(page, REQ, 'image-count', '[data-testid="image-count"]');
+  // `image-count` is rendered only when the selected tab holds images; Profiles may legitimately be empty
+  // (the dev DB has no guaranteed content), so it is required exactly when psql says there are rows.
+  const dbProfilesNow = psqlInt("SELECT COUNT(*) FROM BlogImage WHERE Category = 'profiles'");
+  if (dbProfilesNow > 0) await mustRender(page, REQ, 'image-count', '[data-testid="image-count"]');
 
   // Category tabs: 7 of them, each with a label, each a real tab control after the testid move.
   const tabs = page.locator('[data-testid="category-tabs"] [role="tab"]');
@@ -245,9 +248,13 @@ test('REQ-UI-034 media library: category tabs, gallery, per-card actions, user f
   const dbProfiles = psqlInt("SELECT COUNT(*) FROM BlogImage WHERE Category = 'profiles'");
   const cards = page.locator('[data-testid="image-card"]');
   await expect(cards).toHaveCount(dbProfiles, { timeout: 45000 });
-  const count = ((await page.locator('[data-testid="image-count"]').textContent()) || '').trim();
-  ev(REQ).notes.push(`profiles cards=${await cards.count()} psql=${dbProfiles} badge="${count}"`);
-  expect(count).toContain(`of ${dbProfiles} image`);
+  if (dbProfiles > 0) {
+    const count = ((await page.locator('[data-testid="image-count"]').textContent()) || '').trim();
+    ev(REQ).notes.push(`profiles cards=${await cards.count()} psql=${dbProfiles} badge="${count}"`);
+    expect(count).toContain(`of ${dbProfiles} image`);
+  } else {
+    await expect(page.locator('[data-testid="images-empty"]'), 'an empty Profiles tab shows the empty state').toBeVisible();
+  }
 
   // Non-empty data cells, not just rows.
   for (let i = 0; i < dbProfiles; i++) {
@@ -587,13 +594,21 @@ test('REQ-UI-019 admin dashboard: stat tiles vs psql, quick actions, needs-atten
   const REQ = 'REQ-UI-019';
   await go('/admin', /Dashboard/i);
 
-  const dbPosts = psqlInt(`SELECT COUNT(*) FROM BlogPost WHERE ${LIVE}`);
-  const dbUsers = psqlInt('SELECT COUNT(*) FROM BlogUser');
-  const dbComments = psqlInt('SELECT COUNT(*) FROM BlogComment');
-  const dbSubs = psqlInt('SELECT COUNT(*) FROM Subscriber');
-
+  // Sibling writers add posts/comments/subscribers while this runs: re-render and re-read both the
+  // tiles and the database until a UI read and a psql read taken back to back agree (max 5 tries).
   const val = async (id: string) => Number(((await page.locator(`[data-testid="${id}"]`).textContent()) || '').trim());
-  const ui = { posts: await val('stat-posts-value'), users: await val('stat-users-value'), comments: await val('stat-comments-value'), subs: await val('stat-subscribers-value') };
+  let ui = { posts: 0, users: 0, comments: 0, subs: 0 };
+  let dbPosts = 0, dbUsers = 0, dbComments = 0, dbSubs = 0;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    if (attempt > 0) { await go('/BlogsList', /Posts/i); await go('/admin', /Dashboard/i); }
+    ui = { posts: await val('stat-posts-value'), users: await val('stat-users-value'), comments: await val('stat-comments-value'), subs: await val('stat-subscribers-value') };
+    dbPosts = psqlInt(`SELECT COUNT(*) FROM BlogPost WHERE ${LIVE}`);
+    // Live accounts only: the tile agrees with the /users list, which hides soft-deleted users.
+    dbUsers = psqlInt('SELECT COUNT(*) FROM BlogUser WHERE COALESCE(IsDeleted, FALSE) = FALSE');
+    dbComments = psqlInt('SELECT COUNT(*) FROM BlogComment');
+    dbSubs = psqlInt('SELECT COUNT(*) FROM Subscriber');
+    if (ui.posts === dbPosts && ui.users === dbUsers && ui.comments === dbComments && ui.subs === dbSubs) break;
+  }
   ev(REQ).notes.push(`tiles ui=${JSON.stringify(ui)} psql={posts:${dbPosts},users:${dbUsers},comments:${dbComments},subs:${dbSubs}}`);
   expect(ui.posts).toBe(dbPosts);
   expect(ui.users).toBe(dbUsers);
@@ -606,7 +621,7 @@ test('REQ-UI-019 admin dashboard: stat tiles vs psql, quick actions, needs-atten
 
   // AdminDashboard's hand-rolled <ul>/<li> became ItemGroup/Item in the 2.0.2 sweep; the list must
   // still carry real rows with text, and the 390px overflow that was fixed must stay fixed.
-  await mustRender(page, REQ, 'recent-activity-list', '[data-testid="recent-activity-list"]', 'table');
+  await mustRender(page, REQ, 'recent-activity-list', '[data-testid="recent-activity-list"]', 'present'); // rows are counted explicitly below (ItemGroup is not a table)
   const items = await page.locator('[data-testid="recent-activity-item"]').count();
   const emptyItems = (await page.locator('[data-testid="recent-activity-item"]').allTextContents()).filter((t) => !t.trim()).length;
   ev(REQ).notes.push(`recent-activity ItemGroup: ${items} items, ${emptyItems} blank`);
@@ -627,7 +642,7 @@ test('REQ-UI-020 users list: 4 rows vs psql, role tabs, change-role dialog (TR-0
   test.setTimeout(240000);
   const REQ = 'REQ-UI-020';
   await go('/users', /Users/i);
-  const dbUsers = psqlRows('SELECT FirstName || \' \' || LastName, EmailId FROM BlogUser ORDER BY UserId');
+  const dbUsers = psqlRows('SELECT FirstName || \' \' || LastName, EmailId FROM BlogUser WHERE COALESCE(IsDeleted,false)=false ORDER BY UserId');
   const rows = page.locator('[data-testid="user-row-name"]');
   await expect(rows).toHaveCount(dbUsers.length, { timeout: 45000 });
   const uiNames = (await rows.allTextContents()).map((s) => s.trim());
@@ -754,14 +769,21 @@ test('REQ-UI-023 tags list: 15 rows vs psql with slug and post count', async () 
   const REQ = 'REQ-UI-023';
   await go('/admin/tags', /Tags Management/i);
   const db = psqlRows('SELECT TagName FROM Tag ORDER BY TagName').map((r) => r[0]);
+  // The tags table pages at 20 rows (DataTable InitialPageSize=20, same as the post list) and the dev DB holds more tags
+  // than that (other runs' fixtures), so one page shows min(total, 20) rows; the header count carries the full total.
+  const PAGE = 20;
+  const shown = Math.min(db.length, PAGE);
   const rows = page.locator('[data-testid="tag-row-name"]');
-  await expect(rows).toHaveCount(db.length, { timeout: 45000 });
+  await expect(rows).toHaveCount(shown, { timeout: 45000 });
   const ui = (await rows.allTextContents()).map((s) => s.trim());
-  ev(REQ).notes.push(`tags ui count=${ui.length} psql=${db.length}`);
-  expect([...ui].sort()).toEqual([...db].sort());
+  ev(REQ).notes.push(`tags ui count=${ui.length} of ${db.length} psql`);
+  expect(ui.length, 'every shown row is a distinct tag').toBe(new Set(ui).size);
+  for (const t of ui) expect(db, `row "${t}" is a tag in the database`).toContain(t);
+  expect([...ui]).toEqual([...ui].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })));
+  await expect(page.locator('[data-testid="tags-count"]'), 'header count equals the database').toContainText(String(db.length));
   for (const t of ['tag-row-slug', 'tag-row-postcount']) {
     const v = (await page.locator(`[data-testid="${t}"]`).allTextContents()).map((s) => s.trim());
-    expect(v.filter((x) => x.length > 0).length).toBe(db.length);
+    expect(v.filter((x) => x.length > 0).length).toBe(shown);
     ev(REQ).controls.push({ control: t, verdict: 'RENDERS', detail: `${v.length} non-empty` });
   }
   await mustRender(page, REQ, 'tags-count', '[data-testid="tags-count"]');
@@ -775,17 +797,19 @@ test('REQ-UI-025 subscribers admin: 11 rows / 7 active vs psql, status tabs, con
   await go('/admin/subscribers', /Subscribers/i);
   const dbAll = psqlInt('SELECT COUNT(*) FROM Subscriber');
   const dbActive = psqlInt('SELECT COUNT(*) FROM Subscriber WHERE IsConfirmed = TRUE');
+  // The grid pages at 20 (InitialPageSize=20); the summary and tabs carry the full totals.
+  const pageRows = Math.min(dbAll, 20);
   const rows = page.locator('[data-testid="subscriber-row-email"]');
-  await expect(rows).toHaveCount(dbAll, { timeout: 45000 });
+  await expect(rows).toHaveCount(pageRows, { timeout: 45000 });
   const emails = (await rows.allTextContents()).map((s) => s.trim());
-  expect(emails.filter((e) => e.includes('@')).length).toBe(dbAll);
+  expect(emails.filter((e) => e.includes('@')).length).toBe(pageRows);
   const summary = ((await page.locator('[data-testid="subscribers-summary"]').textContent()) || '').trim();
   ev(REQ).notes.push(`summary="${summary}" psql all=${dbAll} active=${dbActive}`);
   expect(summary).toContain(`${dbAll} total`);
   expect(summary).toContain(`(${dbActive} active)`);
   for (const t of ['subscriber-row-status', 'subscriber-row-consent', 'subscriber-row-date']) {
     const v = (await page.locator(`[data-testid="${t}"]`).allTextContents()).map((s) => s.trim());
-    expect(v.filter((x) => x.length > 0).length).toBe(dbAll);
+    expect(v.filter((x) => x.length > 0).length).toBe(pageRows);
     ev(REQ).controls.push({ control: t, verdict: 'RENDERS', detail: `${v.length} non-empty` });
   }
   await mustRender(page, REQ, 'subscribers-export', '[data-testid="subscribers-export"]');
@@ -793,7 +817,8 @@ test('REQ-UI-025 subscribers admin: 11 rows / 7 active vs psql, status tabs, con
   await page.waitForTimeout(3000);
   const activeRows = await page.locator('[data-testid="subscriber-row-email"]').count();
   ev(REQ).notes.push(`Active tab: ${activeRows} rows vs psql ${dbActive}`);
-  expect(activeRows).toBe(dbActive);
+  expect(activeRows).toBe(Math.min(dbActive, 20));
+  await page.locator('[data-testid="subscribers-tab-active"]').textContent().then((t) => expect(t).toContain(`(${dbActive})`));
   await page.locator('[data-testid="subscribers-tab-all"]').click();
   await page.waitForTimeout(3000);
   await mustLookRight(page, REQ, 'ui025-subscribers');
@@ -877,7 +902,7 @@ test('REQ-UI-037 manage experience: 3 cards vs psql and the "-- My Experience --
 test('REQ-UI-040 manage profile: fields bound to psql; REQ-UI-035 ImagePicker renders with its constraint caption', async () => {
   test.setTimeout(240000);
   const REQ = 'REQ-UI-040';
-  await go('/admin/profile', /My Profile/i);
+  await go('/admin/profile', /Manage Profile/i);
   const db = psqlRows("SELECT COALESCE(FirstName,''), COALESCE(LastName,''), COALESCE(UserName,''), COALESCE(Title,''), COALESCE(Location,'') FROM BlogUser WHERE UserId = 1")[0];
   const read = async (id: string) => (await page.locator(`[data-testid="${id}"]`).inputValue()).trim();
   const ui = [await read('first-name-input'), await read('last-name-input'), await read('username-input'), await read('title-input'), await read('location-input')];
@@ -997,20 +1022,24 @@ test('REQ-UI-044 analytics dashboard: tiles, trend chart, DataTable popular post
   await mustLookRight(page, REQ, 'ui044-analytics');
 });
 
-test('REQ-UI-017 all-posts list: 10 rows vs psql, status tab strip scrolls rather than spills', async () => {
+test('REQ-UI-017 all-posts list: rows vs psql (one 20-row page), status tab strip scrolls rather than spills', async () => {
   test.setTimeout(240000);
   const REQ = 'REQ-UI-017';
   await go('/BlogsList', /All Posts/i);
   const dbAll = psqlInt(`SELECT COUNT(*) FROM BlogPost WHERE ${LIVE}`);
   const dbPub = psqlInt(`SELECT COUNT(*) FROM BlogPost WHERE Published = TRUE AND ${LIVE}`);
+  // The post table pages at 20 rows (DataTable InitialPageSize=20), and the dev DB now holds more than that
+  // (other runs' fixtures), so one page shows min(total, 20) rows; the tab counts carry the full totals.
+  const PAGE = 20;
+  const shownAll = Math.min(dbAll, PAGE);
   const rows = page.locator('[data-testid="post-row-title"]');
-  await expect(rows).toHaveCount(dbAll, { timeout: 45000 });
+  await expect(rows).toHaveCount(shownAll, { timeout: 45000 });
   const titles = (await rows.allTextContents()).map((s) => s.trim());
-  expect(titles.filter((t) => t.length > 0).length).toBe(dbAll);
-  ev(REQ).notes.push(`posts rows=${dbAll} = psql; all titles non-empty`);
+  expect(titles.filter((t) => t.length > 0).length).toBe(shownAll);
+  ev(REQ).notes.push(`posts rows=${shownAll} of ${dbAll} (psql); all titles non-empty`);
   for (const t of ['post-row-author', 'post-row-status', 'post-row-date', 'post-row-slug']) {
     const v = (await page.locator(`[data-testid="${t}"]`).allTextContents()).map((s) => s.trim());
-    expect(v.filter((x) => x.length > 0).length).toBe(dbAll);
+    expect(v.filter((x) => x.length > 0).length).toBe(shownAll);
     ev(REQ).controls.push({ control: t, verdict: 'RENDERS', detail: `${v.length} non-empty` });
   }
   const tabAll = ((await page.locator('[data-testid="posts-tab-all"]').textContent()) || '').trim();
@@ -1020,7 +1049,7 @@ test('REQ-UI-017 all-posts list: 10 rows vs psql, status tab strip scrolls rathe
   expect(tabPub).toContain(`(${dbPub})`);
   await page.locator('[data-testid="posts-tab-published"]').click();
   await page.waitForTimeout(3000);
-  expect(await page.locator('[data-testid="post-row-title"]').count()).toBe(dbPub);
+  expect(await page.locator('[data-testid="post-row-title"]').count()).toBe(Math.min(dbPub, PAGE));
   await page.locator('[data-testid="posts-tab-all"]').click();
   await page.waitForTimeout(3000);
 

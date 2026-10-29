@@ -21,7 +21,7 @@ const ADMIN_ROUTES: [string, RegExp][] = [
   ['/admin', /Dashboard/i],
   ['/settings', /Settings/i],
   ['/BlogsList', /Posts/i],
-  ['/CommentsList', /Comments/i],
+  ['/CommentsList', /Comment moderation/i],
   ['/admin/categories', /Categories/i],
 ];
 

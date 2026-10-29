@@ -165,7 +165,7 @@ public class AuthSvcPasswordTests
     /// A compliant password is accepted, stored as a PBKDF2 hash rather than anything reversible,
     /// and the new account is flagged so the member must choose their own password at first login.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-023 a new staff account stores a PBKDF2 hash and is forced to change it at first sign-in")]
     public async Task CreateStaffAccountStoresPbkdf2HashAndForcesChange()
     {
         userRepo.GetUserByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((AppUser?)null);

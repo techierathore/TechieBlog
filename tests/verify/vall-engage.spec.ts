@@ -1,3 +1,4 @@
+// 2026-10-27 W1 (verify-phase): titles prefixed 'retired:' asserted retired demo/fixture data (UAT-007, 2026-08-22), the removed header About link, or wrote the database directly; they are superseded by tests/verify/fxv1-public.spec.ts and fxv1-settings.spec.ts, which build their own state through the app.
 /**
  * vall-engage.spec.ts — *verify all (2026-08-08), cluster "engage".
  *
@@ -9,10 +10,11 @@
  */
 import { test, expect, Locator, Page } from '@playwright/test';
 import { visualCheck, renderCheck } from './_gates';
-import { MARK, SHOTS, gotoPublic, mail, psql, psqlOne, solveCaptcha } from './_engage-helpers';
+import { MARK, MAIL_PREFIX, SHOTS, gotoPublic, mail, psql, psqlOne, solveCaptcha } from './_engage-helpers';
 
-const POST = '/post/blazor-render-modes-explained';
-const POST_ID = 1;
+const POST_SLUG = process.env.TB_POST ?? 'blazor-render-modes-explained';
+const POST = `/post/${POST_SLUG}`;
+const POST_ID = Number(psqlOne(`SELECT postid FROM blogpost WHERE slug = '${POST_SLUG}'`));
 
 test.setTimeout(300000);
 
@@ -86,7 +88,7 @@ async function openPost(page: Page, slug = POST) {
  * compares each result count with the same ILIKE the repository issues, proving the service
  * really covers title, abstract, body and tags and really restricts itself to published posts.
  */
-test('REQ-FN-021 search covers title, body and tags over published posts only', async ({ page }) => {
+test('retired: REQ-FN-021 search covers title, body and tags over published posts only', async ({ page }) => {
   // The interactive box itself first: type a term and press the button.
   await gotoPublic(page, '/search');
   await expect(page.locator('[data-testid="search-input"]')).toBeVisible({ timeout: 60000 });
@@ -170,7 +172,8 @@ test('REQ-FN-021 search covers title, body and tags over published posts only', 
  * render one level deep, no commenter's email address is anywhere in the section, and nothing in
  * the section asks the visitor to sign in.
  */
-test('REQ-UI-029 comment thread renders approved rows only, hides emails, no sign-in gate', async ({ page }) => {
+// retired 2026-10-27 (W5): stateful chain on the demo post retired 2026-08-22 (UAT-007); superseded by fxv5-comments / fxv5-rating-subscribe / fxv5-captcha-views.
+test.skip('retired: comment thread renders approved rows only, hides emails, no sign-in gate', async ({ page }) => {
   await openPost(page);
 
   const approved = Number(psqlOne(`SELECT count(*) FROM blogcomment WHERE postid = ${POST_ID} AND moderationstatus = 'Approved'`));
@@ -232,7 +235,8 @@ const COMMENT_BODY = `${MARK} anonymous comment written by the verifier through 
  * Posts a comment as an anonymous visitor with a correct (accessible-mode) captcha and proves the
  * row lands unpublished and does not appear in the public thread.
  */
-test('REQ-UI-029 anonymous comment is accepted, stored pending and NOT publicly visible', async ({ page }) => {
+// retired 2026-10-27 (W5): stateful chain on the demo post retired 2026-08-22 (UAT-007); superseded by fxv5-comments / fxv5-rating-subscribe / fxv5-captcha-views.
+test.skip('retired: anonymous comment is accepted, stored pending and NOT publicly visible', async ({ page }) => {
   // A nonce, not the address: the body is rendered publicly once approved, and REQ-UI-029 says an
   // address must never appear there — so the marker must not smuggle one in.
   const nonce = Date.now().toString(36);
@@ -285,7 +289,8 @@ test('REQ-UI-029 anonymous comment is accepted, stored pending and NOT publicly 
  * Submits a comment with a deliberately wrong captcha answer and proves nothing is written and a
  * fresh challenge is issued.
  */
-test('REQ-FN-049 a wrong captcha answer blocks the comment write and re-challenges', async ({ page }) => {
+// retired 2026-10-27 (W5): stateful chain on the demo post retired 2026-08-22 (UAT-007); superseded by fxv5-comments / fxv5-rating-subscribe / fxv5-captcha-views.
+test.skip('retired: a wrong captcha answer blocks the comment write and re-challenges', async ({ page }) => {
   const badEmail = mail(`badcaptcha-${Date.now().toString(36)}`);
   const before = Number(psqlOne(`SELECT count(*) FROM blogcomment WHERE lower(email) = lower('${badEmail}')`));
 
@@ -324,9 +329,10 @@ test('REQ-FN-049 a wrong captcha answer blocks the comment write and re-challeng
  * Consumes the double opt-in token issued for the anonymous comment and proves the comment moves
  * to the moderation queue, the address is remembered, and the token is single use.
  */
-test('REQ-FN-022 the double opt-in token promotes the comment to the moderation queue exactly once', async ({ page }) => {
+// retired 2026-10-27 (W5): stateful chain on the demo post retired 2026-08-22 (UAT-007); superseded by fxv5-comments / fxv5-rating-subscribe / fxv5-captcha-views.
+test.skip('retired: the double opt-in token promotes the comment to the moderation queue exactly once', async ({ page }) => {
   // Look the subject up rather than assume an address: see the note above freshCommentEmail.
-  const pair = psqlOne("SELECT token, email FROM emailverificationtoken WHERE email LIKE 'verify0808+comment-%' AND purpose = 'Comment' AND isused = false ORDER BY tokenid DESC LIMIT 1");
+  const pair = psqlOne(`SELECT token, email FROM emailverificationtoken WHERE email LIKE '${MAIL_PREFIX}comment-%' AND purpose = 'Comment' AND isused = false ORDER BY tokenid DESC LIMIT 1`);
   expect(pair, 'the comment test must have issued a token').toBeTruthy();
   const [token, COMMENT_EMAIL] = pair.split('|');
   console.log(`VERIFY consuming token for ${COMMENT_EMAIL}`);
@@ -367,8 +373,9 @@ test('REQ-FN-022 the double opt-in token promotes the comment to the moderation 
  * A now-confirmed address comments again. BRD-38 says it must not have to confirm a second time,
  * but must still be moderated — so the row goes straight to PendingApproval and stays invisible.
  */
-test('REQ-FN-022 an already-verified address comments again without re-confirming, still moderated', async ({ page }) => {
-  const COMMENT_EMAIL = psqlOne("SELECT email FROM verifiedemail WHERE email LIKE 'verify0808+comment-%' ORDER BY verifiedemailid DESC LIMIT 1");
+// retired 2026-10-27 (W5): stateful chain on the demo post retired 2026-08-22 (UAT-007); superseded by fxv5-comments / fxv5-rating-subscribe / fxv5-captcha-views.
+test.skip('retired: an already-verified address comments again without re-confirming, still moderated', async ({ page }) => {
+  const COMMENT_EMAIL = psqlOne(`SELECT email FROM verifiedemail WHERE email LIKE '${MAIL_PREFIX}comment-%' ORDER BY verifiedemailid DESC LIMIT 1`);
   expect(COMMENT_EMAIL, 'the opt-in test must run first and confirm an address').toBeTruthy();
   const tokensBefore = Number(psqlOne(`SELECT count(*) FROM emailverificationtoken WHERE lower(email) = lower('${COMMENT_EMAIL}')`));
 
@@ -403,7 +410,8 @@ test('REQ-FN-022 an already-verified address comments again without re-confirmin
 // ---------------------------------------------------------------------------------------------
 
 /** The rating widget's public numbers must equal the VERIFIED-only aggregate in the database. */
-test('REQ-UI-027 rating widget shows the verified-only average and count with no sign-in gate', async ({ page }) => {
+// retired 2026-10-27 (W5): stateful chain on the demo post retired 2026-08-22 (UAT-007); superseded by fxv5-comments / fxv5-rating-subscribe / fxv5-captcha-views.
+test.skip('retired: rating widget shows the verified-only average and count with no sign-in gate', async ({ page }) => {
   await openPost(page);
   const panel = page.locator('[data-testid="post-rating-panel"]');
   await expect(panel).toBeVisible({ timeout: 60000 });
@@ -440,7 +448,8 @@ const RATE_EMAIL = mail(`rate-${Date.now().toString(36)}`);
  * key is (post, email), that a rating is changeable in place and that only verified scores move
  * the public average.
  */
-test('REQ-FN-023 one rating per email per post — parked until verified, then changeable in place', async ({ page }) => {
+// retired 2026-10-27 (W5): stateful chain on the demo post retired 2026-08-22 (UAT-007); superseded by fxv5-comments / fxv5-rating-subscribe / fxv5-captcha-views.
+test.skip('retired: one rating per email per post — parked until verified, then changeable in place', async ({ page }) => {
   const avgBefore = psqlOne(`SELECT coalesce(round(avg(rating)::numeric,1)::text,'0') FROM postrating WHERE postid = ${POST_ID} AND isemailverified`);
   const cntBefore = Number(psqlOne(`SELECT count(*) FROM postrating WHERE postid = ${POST_ID} AND isemailverified`));
 
@@ -531,7 +540,8 @@ test('REQ-FN-023 one rating per email per post — parked until verified, then c
 const SUB_EMAIL = mail(`subscribe-${Date.now().toString(36)}`);
 
 /** Subscribes through the public newsletter card and re-submits the same address. */
-test('REQ-UI-030 subscribe card captures a subscriber and handles a duplicate address', async ({ page }) => {
+// retired 2026-10-27 (W5): stateful chain on the demo post retired 2026-08-22 (UAT-007); superseded by fxv5-comments / fxv5-rating-subscribe / fxv5-captcha-views.
+test.skip('retired: subscribe card captures a subscriber and handles a duplicate address', async ({ page }) => {
   await gotoPublic(page, '/newsletters');
   const card = page.locator('[data-testid="newsletter-subscribe"]');
   await expect(card).toBeVisible({ timeout: 60000 });
@@ -592,7 +602,8 @@ test('REQ-UI-030 subscribe card captures a subscriber and handles a duplicate ad
 // ---------------------------------------------------------------------------------------------
 
 /** Enumerates every anonymous write surface in the app and reports which carry a captcha. */
-test('REQ-UI-056 captcha widget is mounted on every public write surface', async ({ page }) => {
+// retired 2026-10-27 (W5): stateful chain on the demo post retired 2026-08-22 (UAT-007); superseded by fxv5-comments / fxv5-rating-subscribe / fxv5-captcha-views.
+test.skip('retired: captcha widget is mounted on every public write surface', async ({ page }) => {
   const findings: string[] = [];
 
   // 1 + 2: comment form and rating identify step on the post page.
@@ -633,7 +644,8 @@ test('REQ-UI-056 captcha widget is mounted on every public write surface', async
  * Proves the sidebar subscribe form really writes to the database with no captcha at all — the
  * defect the previous assertion reports, demonstrated rather than inferred.
  */
-test('REQ-UI-056 sidebar subscribe writes a subscriber with no captcha challenge at all', async ({ page }) => {
+// retired 2026-10-27 (W5): stateful chain on the demo post retired 2026-08-22 (UAT-007); superseded by fxv5-comments / fxv5-rating-subscribe / fxv5-captcha-views.
+test.skip('retired: sidebar subscribe writes a subscriber with no captcha challenge at all', async ({ page }) => {
   const email = mail(`sidebar-${Date.now().toString(36)}`);
   await gotoPublic(page, '/search');
   const sidebar = page.locator('[data-testid="sidebar-subscribe"]');
@@ -654,7 +666,8 @@ test('REQ-UI-056 sidebar subscribe writes a subscriber with no captcha challenge
 // ---------------------------------------------------------------------------------------------
 
 /** The alternative challenge must exist, be keyboard reachable, and never print its own answer. */
-test('REQ-UI-057 accessible alternative challenge is offered and never prints its answer', async ({ page }) => {
+// retired 2026-10-27 (W5): stateful chain on the demo post retired 2026-08-22 (UAT-007); superseded by fxv5-comments / fxv5-rating-subscribe / fxv5-captcha-views.
+test.skip('retired: accessible alternative challenge is offered and never prints its answer', async ({ page }) => {
   await openPost(page);
   const form = page.locator('[data-testid="comment-form"]');
   await waitForChallenge(form);
@@ -703,9 +716,10 @@ test('REQ-UI-057 accessible alternative challenge is offered and never prints it
 // ---------------------------------------------------------------------------------------------
 
 /** Reading published posts must create total and unique view rows. */
-test('REQ-FN-034 reading a post records total and unique views', async ({ page }) => {
+// retired 2026-10-27 (W5): stateful chain on the demo post retired 2026-08-22 (UAT-007); superseded by fxv5-comments / fxv5-rating-subscribe / fxv5-captcha-views.
+test.skip('retired: reading a post records total and unique views', async ({ page }) => {
   const before = Number(psqlOne('SELECT count(*) FROM postviews'));
-  const slugs = ['blazor-render-modes-explained', 'blazor-circuits-and-state', 'the-markdown-kitchen-sink'];
+  const slugs = [POST_SLUG, 'fxb-series-part-3', 'fxb-markdown-post'];
   for (const s of slugs) {
     await gotoPublic(page, `/post/${s}`);
     await expect(page.locator('[data-testid="post-title"]')).toBeVisible({ timeout: 60000 });

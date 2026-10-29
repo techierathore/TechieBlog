@@ -130,10 +130,11 @@ else if (experiences is not null && experiences.Count > 0)
         {
             var allEvents = await EventRepo.GetAllByIdAsync(UserId);
 
-            // Filter for Experience type and order by EventDate descending (newest first)
+            // REQ-UI-037: explicit DisplayOrder first (the admin page promises it), newest first within a tie
             experiences = allEvents
                 .Where(e => e.EventType?.Equals("Experience", StringComparison.OrdinalIgnoreCase) == true)
-                .OrderByDescending(e => e.EventDate)
+                .OrderBy(e => e.DisplayOrder)
+                .ThenByDescending(e => e.StartDate ?? e.EventDate)
                 .ToList();
         }
         catch (Exception)

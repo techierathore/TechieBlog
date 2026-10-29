@@ -32,8 +32,8 @@ namespace BlogUI.Pages.BlogPages;
 /// </remarks>
 public partial class Newsletters : ComponentBase
 {
-    /// <summary>Issues per archive page — matches the six-card grid in mockup 42.</summary>
-    private const int PageSize = 6;
+    /// <summary>Issues per archive page; follows the Blog.PostsPerPage setting (REQ-UI-026) rather than the mockup's six-card grid.</summary>
+    private int PageSize = 10;
 
     /// <summary>Characters of body text used when an issue carries no summary.</summary>
     private const int ExcerptLength = 200;
@@ -63,6 +63,12 @@ public partial class Newsletters : ComponentBase
     [Inject]
     public ISubscriberRepo SubscriberRepo { get; set; } = default!;
 
+    /// <summary>
+    /// Cached site settings, read for the posts-per-page size (REQ-UI-026).
+    /// </summary>
+    [Inject]
+    public ISiteSettingsService SiteSettingsService { get; set; } = default!;
+
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
@@ -88,6 +94,7 @@ public partial class Newsletters : ComponentBase
         isLoading = true;
         try
         {
+            PageSize = Math.Max(1, (await SiteSettingsService.GetSettingsAsync().ConfigureAwait(true)).PostsPerPage);
             var archivePage = await NewsletterService
                 .GetPublishedIssuesAsync(pageNumber, PageSize).ConfigureAwait(true);
 

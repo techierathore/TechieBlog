@@ -196,6 +196,24 @@ public partial class AdminLayout : IDisposable
     }
 
     /// <summary>
+    /// Whether a navigation entry is the one the visitor is on (REQ-UI-047 active-item highlight).
+    /// </summary>
+    /// <remarks>Exact match for <paramref name="exact"/> entries (the dashboard); otherwise the
+    /// current path equals the entry's path or sits beneath it. Case-insensitive.</remarks>
+    /// <param name="href">The entry's route.</param>
+    /// <param name="exact">When true only the identical path is active.</param>
+    /// <returns>True when the entry should render its active style.</returns>
+    public bool IsEntryActive(string href, bool exact = false)
+    {
+        var current = "/" + NavigationManager.ToBaseRelativePath(NavigationManager.Uri).Split('?', '#')[0].TrimEnd('/');
+        var target = href.TrimEnd('/');
+        if (target.Length == 0) target = "/";
+        if (current.Length > 1 && current.EndsWith('/')) current = current.TrimEnd('/');
+        if (current.Equals(target, StringComparison.OrdinalIgnoreCase)) return true;
+        return !exact && current.StartsWith(target + "/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Navigates to the signed-in user's own resume profile page.
     /// </summary>
     public void NavigateToProfile()
@@ -228,8 +246,20 @@ public partial class AdminLayout : IDisposable
     /// <returns>A task that completes once the session has been cleared and navigation started.</returns>
     public async Task LogoutAsync()
     {
-        await ((CustomAuthStateProvider)AuthStateProvider).ClearPersistedSessionAsync();
-        NavigationManager.NavigateTo("/", forceLoad: true);
+        var provider = (CustomAuthStateProvider)AuthStateProvider;
+        await provider.ClearPersistedSessionAsync();
+
+        if (provider.SupportsFullPageReload)
+        {
+            NavigationManager.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        // The desktop head cannot survive a forced reload from inside a menu handler (the WebView is
+        // left on "An unhandled error has occurred" - REQ-UI-051), so it signs out in place: publishing
+        // the anonymous principal makes AuthorizeRouteView refuse the admin page, and the head's own
+        // router (BlogApp's DesktopRedirectToLogin) moves to the sign-in screen without a reload.
+        await provider.MarkUserAsLoggedOut();
     }
 
     /// <summary>

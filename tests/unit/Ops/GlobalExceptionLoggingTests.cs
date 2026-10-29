@@ -38,7 +38,7 @@ public class GlobalExceptionLoggingTests : IDisposable
     /// its stack and the terminating flag, so an operator triaging a silent crash has something to
     /// read.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-013 an unhandled exception reaches the Serilog rolling file")]
     public void UnhandledExceptionReachesTheRollingFile()
     {
         ConfigureFileLogger();

@@ -486,6 +486,6 @@ Or use a SCSS watcher in your IDE.
 
 ## Need Help?
 
-- Check the [Architecture Guide](architecture.md) for technical details
-- Review the [PRD](prd.md) for feature specifications
+- Check the [Architecture Guide](TechieBlog-Architecture.md) for technical details
+- Review the [Business Requirements](TechieBlog-BRD.md) for feature specifications
 - Open an issue on GitHub for bugs or questions

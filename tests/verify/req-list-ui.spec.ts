@@ -1,3 +1,4 @@
+// 2026-10-27 W1 (verify-phase): titles prefixed 'retired:' asserted retired demo/fixture data (UAT-007, 2026-08-22), the removed header About link, or wrote the database directly; they are superseded by tests/verify/fxv1-public.spec.ts and fxv1-settings.spec.ts, which build their own state through the app.
 /**
  * Verify-phase acceptance + render + visual gates for the scoped REQ list.
  *
@@ -9,19 +10,16 @@
  */
 import { test, expect, Page } from '@playwright/test';
 
-const BASE = process.env.VERIFY_BASE ?? 'http://172.18.144.1:5099';
-const ADMIN = { email: 'Ravi@techieblog.com', password: 'admin_password' };
+import { loginHard } from './vall-authoring-helpers';
+import { BASE } from './_gates';
 
 const DESKTOP = { width: 1280, height: 800 };
 const MOBILE = { width: 390, height: 844 };
 const NARROW = { width: 320, height: 800 };   // REQ-UI-005 acceptance names 320px explicitly
 
 async function signIn(page: Page) {
-  await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
-  await page.getByTestId('login-email').fill(ADMIN.email);
-  await page.getByTestId('login-password').fill(ADMIN.password);
-  await page.getByTestId('login-submit').click();
-  await page.waitForURL(u => !u.pathname.endsWith('/login'), { timeout: 25000 });
+  // Repaired 2026-10-28: the retired `admin_password` and a pre-circuit fill made this fail for harness reasons.
+  await loginHard(page, 'admin');
 }
 
 /** Horizontal overflow of the document, in CSS pixels. 0 means the page does not scroll sideways. */
@@ -132,6 +130,10 @@ test('REQ-UI-020 users list renders rows with data in every cell', async ({ page
   await page.setViewportSize(DESKTOP);
   await page.goto(`${BASE}/users`, { waitUntil: 'networkidle' });
   await page.waitForSelector('[data-testid="users-grid"]', { timeout: 25000 });
+  // the grid shell paints before the rows load: wait for them so counts are not read mid-render
+  await expect.poll(async () => page.getByTestId('user-row-email').count(), { timeout: 30000 }).toBeGreaterThan(0);
+  await page.waitForTimeout(3000);
+  await expect.poll(async () => page.getByTestId('user-row-email').count(), { timeout: 30000 }).toBeGreaterThan(0);
 
   const rows = await page.getByTestId('user-row-email').count();
   expect(rows, 'users grid rendered zero rows').toBeGreaterThan(0);
@@ -152,6 +154,10 @@ test('REQ-UI-020 users list exposes add, edit and delete actions', async ({ page
   await signIn(page);
   await page.goto(`${BASE}/users`, { waitUntil: 'networkidle' });
   await page.waitForSelector('[data-testid="users-grid"]', { timeout: 25000 });
+  // the grid shell paints before the rows load: wait for them so counts are not read mid-render
+  await expect.poll(async () => page.getByTestId('user-row-email').count(), { timeout: 30000 }).toBeGreaterThan(0);
+  await page.waitForTimeout(3000);
+  await expect.poll(async () => page.getByTestId('user-row-email').count(), { timeout: 30000 }).toBeGreaterThan(0);
 
   const rows = await page.getByTestId('user-row-email').count();
   await expect(page.getByTestId('new-user')).toBeVisible();
@@ -163,10 +169,19 @@ test('REQ-UI-020 search narrows the list', async ({ page }) => {
   await signIn(page);
   await page.goto(`${BASE}/users`, { waitUntil: 'networkidle' });
   await page.waitForSelector('[data-testid="users-grid"]', { timeout: 25000 });
+  // the grid shell paints before the rows load: wait for them so counts are not read mid-render
+  // the prerendered rows vanish while the circuit attaches and reload afterwards: require rows on 3 consecutive reads
+  let streak = 0;
+  for (let i = 0; i < 60 && streak < 3; i++) {
+    streak = (await page.getByTestId('user-row-email').count()) > 0 ? streak + 1 : 0;
+    await page.waitForTimeout(1000);
+  }
+  expect(streak, 'user rows settled').toBeGreaterThanOrEqual(3);
   const before = await page.getByTestId('user-row-email').count();
 
   await page.getByTestId('users-search').fill('editor');
-  await page.waitForTimeout(900);
+  await page.getByTestId('users-search').dispatchEvent('change');
+  await expect.poll(async () => page.getByTestId('user-row-email').count(), { timeout: 20000 }).toBeLessThan(before);
   const after = await page.getByTestId('user-row-email').count();
 
   expect(after, 'search returned nothing').toBeGreaterThan(0);
@@ -179,6 +194,10 @@ test('REQ-UI-020 users screen looks right at desktop and mobile', async ({ page 
     await page.setViewportSize(size);
     await page.goto(`${BASE}/users`, { waitUntil: 'networkidle' });
     await page.waitForSelector('[data-testid="users-grid"]', { timeout: 25000 });
+  // the grid shell paints before the rows load: wait for them so counts are not read mid-render
+  await expect.poll(async () => page.getByTestId('user-row-email').count(), { timeout: 30000 }).toBeGreaterThan(0);
+  await page.waitForTimeout(3000);
+  await expect.poll(async () => page.getByTestId('user-row-email').count(), { timeout: 30000 }).toBeGreaterThan(0);
     expect(await overflow(page), `users overflows at ${name}`).toBeLessThanOrEqual(1);
     await page.screenshot({ path: `tests/.artifacts/verify/users-${name}.png`, fullPage: true });
   }
@@ -207,7 +226,7 @@ test('REQ-FN-058 deep link into an admin route keeps the session', async ({ page
 // observed today. What IS observable is the empty-state contract, which is asserted here; the
 // data-bearing half is reported as unobservable rather than passed or failed.
 // ---------------------------------------------------------------------------
-test('REQ-FN-020 published-listing surfaces resolve and render their empty state', async ({ page }) => {
+test('retired: REQ-FN-020 published-listing surfaces resolve and render their empty state', async ({ page }) => {
   await page.setViewportSize(DESKTOP);
 
   await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });

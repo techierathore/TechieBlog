@@ -1,3 +1,4 @@
+// 2026-10-27 W1 (verify-phase): titles prefixed 'retired:' asserted retired demo/fixture data (UAT-007, 2026-08-22), the removed header About link, or wrote the database directly; they are superseded by tests/verify/fxv1-public.spec.ts and fxv1-settings.spec.ts, which build their own state through the app.
 /*
   cluster-e.spec.ts — self-smoke for the cluster E FIX pass (2026-08-09).
 
@@ -13,7 +14,7 @@
 
 import { test, expect, Page, Locator } from '@playwright/test';
 
-const BASE = process.env.CLUSTER_E_BASE ?? 'http://172.18.144.1:5385';
+const BASE = process.env.CLUSTER_E_BASE ?? process.env.TB_BASE ?? 'http://localhost:5450';
 const SHOTS = 'test-results-cluster-e';
 
 const NUMBER_WORDS = [
@@ -185,7 +186,8 @@ test('REQ-UI-056 newsletter card refuses an unsolved captcha and accepts a solve
 /* REQ-UI-056 — comment form and rating panel on a post page                   */
 /* -------------------------------------------------------------------------- */
 
-test('REQ-UI-056 comment form requires the captcha and still accepts a solved one', async ({ page }) => {
+// retired 2026-10-27 (W5): opens the demo post blazor-render-modes-explained (retired 2026-08-22, UAT-007); the post surfaces are covered by fxv5-captcha-views REQ-UI-056.
+test.skip('retired: comment form requires the captcha and still accepts a solved one', async ({ page }) => {
   await page.goto(`${BASE}/post/blazor-render-modes-explained`, { waitUntil: 'domcontentloaded' });
   await waitForShellSettled(page);
 
@@ -214,7 +216,8 @@ test('REQ-UI-056 comment form requires the captcha and still accepts a solved on
   await page.screenshot({ path: `${SHOTS}/req-ui-056-comment-1280.png` });
 });
 
-test('REQ-UI-056 rating panel requires the captcha and still accepts a solved one', async ({ page }) => {
+// retired 2026-10-27 (W5): opens the demo post blazor-render-modes-explained (retired 2026-08-22, UAT-007); the post surfaces are covered by fxv5-captcha-views REQ-UI-056.
+test.skip('retired: rating panel requires the captcha and still accepts a solved one', async ({ page }) => {
   await page.goto(`${BASE}/post/blazor-render-modes-explained`, { waitUntil: 'domcontentloaded' });
   await waitForShellSettled(page);
 
@@ -249,7 +252,7 @@ test('REQ-UI-056 rating panel requires the captcha and still accepts a solved on
 /* -------------------------------------------------------------------------- */
 
 for (const width of [1280, 390]) {
-  test(`REQ-UI-045 BlogSidebar renders its data at ${width}`, async ({ page }) => {
+  test(`retired: REQ-UI-045 BlogSidebar renders its data at ${width}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`${BASE}/about`, { waitUntil: 'domcontentloaded' });
     await waitForShellSettled(page);
@@ -308,7 +311,7 @@ test('REQ-UI-004 a denied role lands on the bare auth shell, not nested in the b
   // The sign-in button only works once the circuit is interactive.
   await page.waitForTimeout(5000);
   await page.locator('[data-testid="login-email"]').fill('author@techieblog.test');
-  await page.locator('[data-testid="login-password"]').fill('Author#Pass1');
+  await page.locator('[data-testid="login-password"]').fill('TriageYolo2026');
   await page.locator('[data-testid="login-submit"]').click();
   await page.waitForURL(/BlogsList/, { timeout: 30000 });
 

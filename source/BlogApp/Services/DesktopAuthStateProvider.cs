@@ -58,6 +58,13 @@ public class DesktopAuthStateProvider : CustomAuthStateProvider
         this.connectionContext = connectionContext ?? throw new ArgumentNullException(nameof(connectionContext));
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>Always <c>false</c>: the BlazorWebView has no address bar and no reliable document reload,
+    /// so shared screens sign out and redirect in place (REQ-UI-051).</para>
+    /// </remarks>
+    public override bool SupportsFullPageReload => false;
+
     /// <summary>
     /// Resolves the current user, treating an unusable token as "signed out".
     /// </summary>

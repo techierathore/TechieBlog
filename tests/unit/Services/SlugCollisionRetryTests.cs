@@ -27,31 +27,6 @@ public class SlugCollisionRetryTests
     private const string UnslugabbleTitle = "日本語のタイトル";
 
     /// <summary>
-    /// A post author who typed their own slug keeps it through every retry: three collisions produce
-    /// <c>hand-picked-4</c>, never the title-derived <c>my-title-N</c> the old loop fell back to.
-    /// </summary>
-    [Fact]
-    public void CreatePostKeepsTheSuppliedSlugAcrossEveryRetry()
-    {
-        // Arrange
-        var repo = Substitute.For<IBlogPostRepo>();
-        repo.SlugExists("hand-picked").Returns(true);
-        repo.SlugExists("hand-picked-2").Returns(true);
-        repo.SlugExists("hand-picked-3").Returns(true);
-        repo.InsertToGetId(Arg.Any<BlogPost>()).Returns(11);
-        var post = ValidPost();
-        post.Slug = "hand-picked";
-
-        // Act
-        var result = new BlogSvc(repo, NullLogger<BlogSvc>.Instance).CreatePost(post);
-
-        // Assert
-        Assert.True(result.IsSuccess);
-        Assert.Equal("hand-picked-4", post.Slug);
-        repo.DidNotReceive().SlugExists(Arg.Is<string>(s => s != null && s.StartsWith("my-title")));
-    }
-
-    /// <summary>
     /// The async twin allocates the same slug from the same collisions, so the pair cannot drift.
     /// </summary>
     [Fact]
@@ -73,6 +48,7 @@ public class SlugCollisionRetryTests
         // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal("hand-picked-4", post.Slug);
+        await repo.DidNotReceive().SlugExistsAsync(Arg.Is<string>(s => s != null && s.StartsWith("my-title")), Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -80,23 +56,23 @@ public class SlugCollisionRetryTests
     /// edited is still applied to every candidate rather than only the first.
     /// </summary>
     [Fact]
-    public void UpdatePostKeepsTheSuppliedSlugAcrossEveryRetry()
+    public async Task UpdatePostKeepsTheSuppliedSlugAcrossEveryRetry()
     {
         // Arrange
         var repo = Substitute.For<IBlogPostRepo>();
-        repo.GetSingle(5).Returns(ValidPost(5));
-        repo.SlugExists("hand-picked", 5).Returns(true);
-        repo.SlugExists("hand-picked-2", 5).Returns(true);
+        repo.GetSingleAsync(5, Arg.Any<CancellationToken>()).Returns(ValidPost(5));
+        repo.SlugExistsAsync("hand-picked", 5, Arg.Any<CancellationToken>()).Returns(true);
+        repo.SlugExistsAsync("hand-picked-2", 5, Arg.Any<CancellationToken>()).Returns(true);
         var post = ValidPost(5);
         post.Slug = "hand-picked";
 
         // Act
-        var result = new BlogSvc(repo, NullLogger<BlogSvc>.Instance).UpdatePost(post);
+        var result = await new BlogSvc(repo, NullLogger<BlogSvc>.Instance).UpdatePostAsync(post);
 
         // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal("hand-picked-3", post.Slug);
-        repo.Received(1).SlugExists("hand-picked-3", 5);
+        await repo.Received(1).SlugExistsAsync("hand-picked-3", 5, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -104,90 +80,68 @@ public class SlugCollisionRetryTests
     /// copied into all four taxonomy services, so all four are pinned.
     /// </summary>
     [Fact]
-    public void CreateCategoryKeepsTheSuppliedSlugAcrossEveryRetry()
+    public async Task CreateCategoryKeepsTheSuppliedSlugAcrossEveryRetry()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
-        repo.SlugExists("hand-picked").Returns(true);
-        repo.SlugExists("hand-picked-2").Returns(true);
-        repo.InsertToGetId(Arg.Any<Category>()).Returns(3);
+        repo.SlugExistsAsync("hand-picked", 0, Arg.Any<CancellationToken>()).Returns(true);
+        repo.SlugExistsAsync("hand-picked-2", 0, Arg.Any<CancellationToken>()).Returns(true);
+        repo.InsertToGetIdAsync(Arg.Any<Category>(), Arg.Any<CancellationToken>()).Returns(3);
 
         // Act
-        var result = new CategorySvc(repo, NullLogger<CategorySvc>.Instance)
-            .CreateCategory(new Category { CategoryName = "Web Development", Slug = "hand-picked" });
+        var result = await new CategorySvc(repo, NullLogger<CategorySvc>.Instance)
+            .CreateCategoryAsync(new Category { CategoryName = "Web Development", Slug = "hand-picked" });
 
         // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal("hand-picked-3", result.Data.Slug);
-        repo.DidNotReceive().SlugExists(Arg.Is<string>(s => s != null && s.StartsWith("web-development")));
+        await repo.DidNotReceive().SlugExistsAsync(Arg.Is<string>(s => s != null && s.StartsWith("web-development")), Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
     /// Same rule in the tag taxonomy.
     /// </summary>
     [Fact]
-    public void CreateTagKeepsTheSuppliedSlugAcrossEveryRetry()
+    public async Task CreateTagKeepsTheSuppliedSlugAcrossEveryRetry()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.SlugExists("hand-picked").Returns(true);
-        repo.SlugExists("hand-picked-2").Returns(true);
-        repo.InsertToGetId(Arg.Any<BlogTag>()).Returns(4);
+        repo.SlugExistsAsync("hand-picked", 0, Arg.Any<CancellationToken>()).Returns(true);
+        repo.SlugExistsAsync("hand-picked-2", 0, Arg.Any<CancellationToken>()).Returns(true);
+        repo.InsertToGetIdAsync(Arg.Any<BlogTag>(), Arg.Any<CancellationToken>()).Returns(4);
 
         // Act
-        var result = new TagSvc(repo, NullLogger<TagSvc>.Instance)
-            .CreateTag(new BlogTag { TagName = "Blazor Server", Slug = "hand-picked" });
+        var result = await new TagSvc(repo, NullLogger<TagSvc>.Instance)
+            .CreateTagAsync(new BlogTag { TagName = "Blazor Server", Slug = "hand-picked" });
 
         // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal("hand-picked-3", result.Data.Slug);
-        repo.DidNotReceive().SlugExists(Arg.Is<string>(s => s != null && s.StartsWith("blazor-server")));
+        await repo.DidNotReceive().SlugExistsAsync(Arg.Is<string>(s => s != null && s.StartsWith("blazor-server")), Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
     /// Same rule for a series.
     /// </summary>
     [Fact]
-    public void CreateSeriesKeepsTheSuppliedSlugAcrossEveryRetry()
+    public async Task CreateSeriesKeepsTheSuppliedSlugAcrossEveryRetry()
     {
         // Arrange
         var seriesRepo = Substitute.For<IBlogSeriesRepo>();
         var postRepo = Substitute.For<IBlogPostRepo>();
-        seriesRepo.SlugExists("hand-picked").Returns(true);
-        seriesRepo.SlugExists("hand-picked-2").Returns(true);
-        seriesRepo.InsertToGetId(Arg.Any<BlogSeries>()).Returns(9);
+        seriesRepo.SlugExistsAsync("hand-picked", 0, Arg.Any<CancellationToken>()).Returns(true);
+        seriesRepo.SlugExistsAsync("hand-picked-2", 0, Arg.Any<CancellationToken>()).Returns(true);
+        seriesRepo.InsertToGetIdAsync(Arg.Any<BlogSeries>(), Arg.Any<CancellationToken>()).Returns(9L);
 
         // Act
-        var result = new SeriesSvc(seriesRepo, postRepo, NullLogger<SeriesSvc>.Instance)
-            .CreateSeries(new BlogSeries { Name = "Blazor In Production", Slug = "hand-picked" });
+        var result = await new SeriesSvc(seriesRepo, postRepo, NullLogger<SeriesSvc>.Instance)
+            .CreateSeriesAsync(new BlogSeries { Name = "Blazor In Production", Slug = "hand-picked" });
 
         // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal("hand-picked-3", result.Data.Slug);
-        seriesRepo.DidNotReceive().SlugExists(Arg.Is<string>(s => s != null && s.StartsWith("blazor-in-production")));
-    }
-
-    /// <summary>
-    /// A title the allow-list empties out no longer reaches the insert as an empty slug: the row is
-    /// stored under an identifier-based address instead, which is what keeps it reachable by URL.
-    /// </summary>
-    [Fact]
-    public void CreatePostNeverPersistsAnEmptySlug()
-    {
-        // Arrange
-        var repo = Substitute.For<IBlogPostRepo>();
-        repo.InsertToGetId(Arg.Any<BlogPost>()).Returns(11);
-        var post = ValidPost();
-        post.Title = UnslugabbleTitle;
-
-        // Act
-        var result = new BlogSvc(repo, NullLogger<BlogSvc>.Instance).CreatePost(post);
-
-        // Assert
-        Assert.True(result.IsSuccess);
-        Assert.False(string.IsNullOrWhiteSpace(post.Slug));
-        Assert.StartsWith("post-", post.Slug);
-        repo.DidNotReceive().InsertToGetId(Arg.Is<BlogPost>(p => p != null && string.IsNullOrWhiteSpace(p.Slug)));
+        await seriesRepo.DidNotReceive().SlugExistsAsync(
+            Arg.Is<string>(s => s != null && s.StartsWith("blazor-in-production")), Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -211,6 +165,7 @@ public class SlugCollisionRetryTests
         Assert.True(result.IsSuccess);
         Assert.False(string.IsNullOrWhiteSpace(post.Slug));
         Assert.StartsWith("post-", post.Slug);
+        await repo.DidNotReceive().InsertToGetIdAsync(Arg.Is<BlogPost>(p => p != null && string.IsNullOrWhiteSpace(p.Slug)), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -218,17 +173,17 @@ public class SlugCollisionRetryTests
     /// <c>post-{id}</c> form, because on an update the identifier is already known.
     /// </summary>
     [Fact]
-    public void UpdatePostSubstitutesTheIdentifierWhenTheTitleYieldsNoSlug()
+    public async Task UpdatePostSubstitutesTheIdentifierWhenTheTitleYieldsNoSlug()
     {
         // Arrange
         var repo = Substitute.For<IBlogPostRepo>();
-        repo.GetSingle(5).Returns(ValidPost(5));
+        repo.GetSingleAsync(5, Arg.Any<CancellationToken>()).Returns(ValidPost(5));
         var post = ValidPost(5);
         post.Title = UnslugabbleTitle;
         post.Slug = string.Empty;
 
         // Act
-        var result = new BlogSvc(repo, NullLogger<BlogSvc>.Instance).UpdatePost(post);
+        var result = await new BlogSvc(repo, NullLogger<BlogSvc>.Instance).UpdatePostAsync(post);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -239,45 +194,46 @@ public class SlugCollisionRetryTests
     /// The taxonomy services never persist an empty slug either.
     /// </summary>
     [Fact]
-    public void CreateCategoryAndCreateTagNeverPersistAnEmptySlug()
+    public async Task CreateCategoryAndCreateTagNeverPersistAnEmptySlug()
     {
         // Arrange
         var categoryRepo = Substitute.For<ICategoryRepo>();
         var tagRepo = Substitute.For<IBlogTagRepo>();
-        categoryRepo.InsertToGetId(Arg.Any<Category>()).Returns(3);
-        tagRepo.InsertToGetId(Arg.Any<BlogTag>()).Returns(4);
+        categoryRepo.InsertToGetIdAsync(Arg.Any<Category>(), Arg.Any<CancellationToken>()).Returns(3);
+        tagRepo.InsertToGetIdAsync(Arg.Any<BlogTag>(), Arg.Any<CancellationToken>()).Returns(4);
 
         // Act
-        var category = new CategorySvc(categoryRepo, NullLogger<CategorySvc>.Instance)
-            .CreateCategory(new Category { CategoryName = UnslugabbleTitle });
-        var tag = new TagSvc(tagRepo, NullLogger<TagSvc>.Instance)
-            .CreateTag(new BlogTag { TagName = UnslugabbleTitle });
+        var category = await new CategorySvc(categoryRepo, NullLogger<CategorySvc>.Instance)
+            .CreateCategoryAsync(new Category { CategoryName = UnslugabbleTitle });
+        var tag = await new TagSvc(tagRepo, NullLogger<TagSvc>.Instance)
+            .CreateTagAsync(new BlogTag { TagName = UnslugabbleTitle });
 
         // Assert
         Assert.StartsWith("category-", category.Data.Slug);
         Assert.StartsWith("tag-", tag.Data.Slug);
-        categoryRepo.DidNotReceive().InsertToGetId(Arg.Is<Category>(c => c != null && string.IsNullOrWhiteSpace(c.Slug)));
-        tagRepo.DidNotReceive().InsertToGetId(Arg.Is<BlogTag>(t => t != null && string.IsNullOrWhiteSpace(t.Slug)));
+        await categoryRepo.DidNotReceive().InsertToGetIdAsync(Arg.Is<Category>(c => c != null && string.IsNullOrWhiteSpace(c.Slug)), Arg.Any<CancellationToken>());
+        await tagRepo.DidNotReceive().InsertToGetIdAsync(Arg.Is<BlogTag>(t => t != null && string.IsNullOrWhiteSpace(t.Slug)), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
     /// A series created from an unslugabble name is addressable too.
     /// </summary>
     [Fact]
-    public void CreateSeriesNeverPersistsAnEmptySlug()
+    public async Task CreateSeriesNeverPersistsAnEmptySlug()
     {
         // Arrange
         var seriesRepo = Substitute.For<IBlogSeriesRepo>();
         var postRepo = Substitute.For<IBlogPostRepo>();
-        seriesRepo.InsertToGetId(Arg.Any<BlogSeries>()).Returns(9);
+        seriesRepo.InsertToGetIdAsync(Arg.Any<BlogSeries>(), Arg.Any<CancellationToken>()).Returns(9L);
 
         // Act
-        var result = new SeriesSvc(seriesRepo, postRepo, NullLogger<SeriesSvc>.Instance)
-            .CreateSeries(new BlogSeries { Name = UnslugabbleTitle });
+        var result = await new SeriesSvc(seriesRepo, postRepo, NullLogger<SeriesSvc>.Instance)
+            .CreateSeriesAsync(new BlogSeries { Name = UnslugabbleTitle });
 
         // Assert
         Assert.StartsWith("series-", result.Data.Slug);
-        seriesRepo.DidNotReceive().InsertToGetId(Arg.Is<BlogSeries>(s => s != null && string.IsNullOrWhiteSpace(s.Slug)));
+        await seriesRepo.DidNotReceive().InsertToGetIdAsync(
+            Arg.Is<BlogSeries>(s => s != null && string.IsNullOrWhiteSpace(s.Slug)), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -286,22 +242,22 @@ public class SlugCollisionRetryTests
     /// second finds that same row rather than inserting a duplicate.
     /// </summary>
     [Fact]
-    public void GetOrCreateTagResolvesAnUnslugabbleNameToAStableSlug()
+    public async Task GetOrCreateTagResolvesAnUnslugabbleNameToAStableSlug()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.InsertToGetId(Arg.Any<BlogTag>()).Returns(4);
+        repo.InsertToGetIdAsync(Arg.Any<BlogTag>(), Arg.Any<CancellationToken>()).Returns(4);
         var service = new TagSvc(repo, NullLogger<TagSvc>.Instance);
 
         // Act — first save inserts, then the row exists and the second save must find it.
-        var created = service.GetOrCreateTag(UnslugabbleTitle);
-        repo.GetBySlug(created!.Slug).Returns(new BlogTag { TagId = 4, TagName = UnslugabbleTitle, Slug = created.Slug });
-        var reused = service.GetOrCreateTag(UnslugabbleTitle);
+        var created = await service.GetOrCreateTagAsync(UnslugabbleTitle);
+        repo.GetBySlugAsync(created!.Slug, Arg.Any<CancellationToken>()).Returns(new BlogTag { TagId = 4, TagName = UnslugabbleTitle, Slug = created.Slug });
+        var reused = await service.GetOrCreateTagAsync(UnslugabbleTitle);
 
         // Assert
         Assert.StartsWith("tag-", created.Slug);
         Assert.Equal(created.Slug, reused!.Slug);
-        repo.Received(1).InsertToGetId(Arg.Any<BlogTag>());
+        await repo.Received(1).InsertToGetIdAsync(Arg.Any<BlogTag>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>

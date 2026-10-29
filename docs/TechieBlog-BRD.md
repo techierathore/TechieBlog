@@ -1,5 +1,9 @@
 # TechieBlog — Business Requirements
 
+| | |
+|---|---|
+| Phase | 1 of 1 |
+
 <!-- AGENT-ONLY AUTHORING NOTES. Instructions to the DRAFTING AGENT, not content for the reader.
   STABLE IDS: every requirement has a BRD-{N} ID. IDs are append-only across revisions.
   DEPTH MANDATE: human document, read as rendered HTML. One-line entries belong ONLY in §10.
@@ -40,9 +44,10 @@
    - [F-TPL: Template distribution & developer experience](#f-tpl-template-distribution-developer-experience)
    - [F-OPS: Operations, logging & delivery pipeline](#f-ops-operations-logging-delivery-pipeline)
    - [F-DESK: BlogApp desktop admin application](#f-desk-blogapp-desktop-admin-application)
+   - [F-BRAND: Brand identity & icons](#f-brand-brand-identity-icons) *(added 2026-10-27)*
 10. [Functional requirements (BRD ledger)](#functional-requirements-brd-ledger)
 11. [Non-functional requirements](#non-functional-requirements)
-12. [Constraints & assumptions](#constraints-assumptions)
+12. [Constraints and assumptions](#constraints-and-assumptions)
 13. [Success metrics](#success-metrics)
 14. [Risks](#risks)
 15. [Glossary](#glossary)
@@ -134,14 +139,14 @@ BRD-94…BRD-97).
 
 Written by the status gate after every build, verify and handoff; not by hand.
 
-**Snapshot as of 2026-10-21.** Live per-requirement status: `PROJECT-STATUS.md` and the Requirements Status table in `docs/TechieBlog-Checklist.md`.
+**Snapshot as of 2026-10-28.** Live per-requirement status: `PROJECT-STATUS.md` and the Requirements Status table in `docs/TechieBlog-Checklist.md`.
 
 | Screen | Requirements | Verified | Open | Status |
 |---|---|---|---|---|
-| UI / Pages | 49 | 4 | 45 | Partial |
-| Functional requirements | 48 | 18 | 30 | Partial |
-| Non-functional | 22 | 18 | 4 | Partial |
-| Unmapped | 36 | 25 | 11 | Partial |
+| UI / Pages | 49 | 48 | 1 | Partial |
+| Functional requirements | 48 | 48 | 0 | Done |
+| Non-functional | 37 | 37 | 0 | Done |
+| Unmapped | 25 | 25 | 0 | Done |
 
 ## 5. Stakeholders / users
 
@@ -788,6 +793,49 @@ flowchart LR
 
 **Requirements:** BRD-94, BRD-95, BRD-96, BRD-97
 
+### F-BRAND: Brand identity & icons
+
+**Personas:** Reader (sees the header and the browser tab), Admin (BlogApp taskbar icon), template adopter (README) · **Phase:** 11 · *added 2026-10-27*
+
+TechieBlog now has an approved logo set, kept by the owner in
+`C:\1MyCode\MyAiChats\3-Resources\Brand\logos\` (`/mnt/c/1MyCode/MyAiChats/3-Resources/Brand/logos/`
+from WSL). Five files make up the set: `TechieBlog-appicon.svg` (the TechieRathore-blue `#0F4DBC` tile
+with the white glyph), `TechieBlog-appiconfg.svg` (the glyph alone), `TechieBlog-horizontal.svg` and
+`TechieBlog-horizontal.png` (glyph plus wordmark — the "horizontal lockup") and `TechieBlog.png` (the
+tile at 1024 px). Until now the product wore placeholders: the .NET-template purple on BlogApp's icon
+and splash, a Lucide `code` glyph or plain text in the site header, no favicon at all, and a
+text-only README.
+
+The rule for every file in the set is the same: **it is copied into the repository byte for byte.**
+Nobody redraws, re-exports, crops or optimises a logo. Where a size the set does not contain is needed
+(the 32 px favicon, the 192 px and 512 px icons), it is **rendered from the tile by a script that
+lives in the repository**, so the output can be reproduced and is never hand-made.
+
+| Surface | Files | Where they live | What changes |
+|---------|-------|-----------------|--------------|
+| BlogApp icon + splash | `TechieBlog-appicon.svg` → `appicon.svg`, `TechieBlog-appiconfg.svg` → `appiconfg.svg` and → `splash.svg` | `source/BlogApp/Resources/AppIcon/`, `source/BlogApp/Resources/Splash/` | The `MauiIcon` and `MauiSplashScreen` colour in `BlogApp.csproj` moves from `#512BD4` to `#0F4DBC`; no hand-made PNG under `Resources/`; `bin/` and `obj/` are cleaned before the first build so the old icon cannot survive in the build cache |
+| Site header | `TechieBlog-horizontal.svg`, `TechieBlog-appiconfg.svg` | `source/BlogUI/wwwroot/images/brand/` | With **no** site logo configured, the header's brand link shows the horizontal lockup instead of plain text. A configured logo still wins exactly as today (UAT-021 / UAT-022) |
+| Browser tab | `favicon.ico` (32 px), `icon-192.png`, `icon-512.png` | rendered into `source/BlogUI/wwwroot/images/brand/` by a script under `scripts/` | Linked in the `<head>` of every page |
+| README | `TechieBlog-horizontal.png` (and `TechieBlog.png`, the tile the icon script renders from) | `docs/brand/` | The lockup sits above the title at the top of `README.md` |
+
+**Dark mode — default taken 2026-10-27 (YOLO), owner may overrule.** The lockup's wordmark is drawn in
+`#0F4DBC`. On a near-black dark-mode header that is roughly 2.6 : 1 contrast, under the 3 : 1 WCAG asks
+of a logo-like graphic (BRD-84). Default: ship the file unchanged in both modes, because the byte-for-byte
+rule comes from the owner; the build measures the contrast in dark mode and records it on the checklist
+row. If it is too faint, the fix is a light rounded backing behind the image in dark mode only (CSS, the
+file is untouched); swapping to `TechieBlog-wordmark-white.png` from the brand folder would need the
+owner's say, since it is not part of the approved set named here.
+
+**Acceptance (one per requirement):**
+
+- *Acceptance for BRD-102:* When a visitor opens any public page of a fresh clone with no site logo configured, then the header's brand link shows the horizontal lockup; when the admin then sets a logo in Site Settings, the header shows that logo instead, exactly as before this change. Mockup: [01-home](mockups/01-home.html).
+- *Acceptance for BRD-103:* When a visitor opens any page of the website, then the browser tab shows the new TechieBlog favicon, and `favicon.ico`, `icon-192.png` and `icon-512.png` are produced by running the script under `scripts/` — running it again yields the same files.
+- *Acceptance for BRD-104:* When the owner builds and launches BlogApp on Windows after cleaning `bin/` and `obj/`, then the taskbar shows the blue TechieBlog tile and the splash shows the glyph on `#0F4DBC`.
+- *Acceptance for BRD-105:* When someone opens the repository on GitHub, then `README.md` renders the horizontal lockup above the title.
+- *Acceptance for all four:* every copied file under `source/BlogApp/Resources/`, `source/BlogUI/wwwroot/images/brand/` and `docs/brand/` is byte-identical to its original in the brand folder (a checksum comparison, not an eyeball).
+
+**Requirements:** BRD-102, BRD-103, BRD-104, BRD-105
+
 ## 10. Functional requirements (BRD ledger)
 
 <!-- One line per discrete capability. Append-only IDs. Each names its catalog feature. -->
@@ -879,6 +927,10 @@ flowchart LR
 - **BRD-99** — The system shall protect every public write surface (comment, rating, subscribe) with a **self-hosted** CAPTCHA challenge — generated, rendered and validated in-process using only the .NET base class library, with no third-party library or external service *(F-CMT, F-RATE, F-SUB)* <!-- added 2026-08-06 -->
 - **BRD-100** — A visitor can browse a public archive of past newsletter issues at `/newsletters`, newest first, with paging, and subscribe from that page *(F-SUB)* <!-- added 2026-08-06 -->
 - **BRD-101** — A visitor can read an individual published newsletter issue at `/newsletter/{slug}`, with navigation to the previous and next issue *(F-SUB)* <!-- added 2026-08-06 -->
+- **BRD-102** — When no site logo is configured, the public header's brand link shall show the approved TechieBlog horizontal lockup (glyph and wordmark, served from `source/BlogUI/wwwroot/images/brand/`) instead of plain text; a configured site logo still takes precedence exactly as today (UAT-021/022) *(F-BRAND)* <!-- added 2026-10-27 -->
+- **BRD-103** — Every page of the website shall link a `favicon.ico` (32 px), `icon-192.png` and `icon-512.png` in its `<head>`, all rendered from the approved tile by a script kept under `scripts/` — never made by hand *(F-BRAND)* <!-- added 2026-10-27 -->
+- **BRD-104** — BlogApp's app icon, icon foreground and splash screen shall be the approved TechieBlog files copied byte for byte (splash = the glyph-only file), with `#0F4DBC` replacing `#512BD4` as the `MauiIcon` and `MauiSplashScreen` colour, and no hand-made PNG under `Resources/` *(F-BRAND)* <!-- added 2026-10-27 -->
+- **BRD-105** — `README.md` shall open with the horizontal lockup PNG, committed under `docs/brand/`, above the title, so it renders on GitHub *(F-BRAND)* <!-- added 2026-10-27 -->
 
 ## 11. Non-functional requirements
 
@@ -917,7 +969,7 @@ flowchart LR
 - **BRD-90** — Observability: Serilog file-based logging in every executable head — rolling file sink under `logs/`, wired at startup before anything else can fail, unhandled exceptions logged, `Log.CloseAndFlush()` on exit, class libraries logging through `ILogger<T>` only (see Coding Standards §Logging). *Met. Both the `AppDomain.UnhandledException` and `TaskScheduler.UnobservedTaskException` handlers are wired — `source/TechieBlog/Observability/GlobalExceptionLogging.cs`.*
 - **BRD-91** — Build integrity: the solution shall build with zero errors on a clean clone, and package references shall be pinned rather than floating.
 
-## 12. Constraints & assumptions
+## 12. Constraints and assumptions
 
 **Constraints**
 
@@ -988,12 +1040,13 @@ flowchart LR
 - **TrBlazeUI** — the owner's shadcn/ui-inspired Blazor component library (`TrBlazeUI.Components`, GitHub Packages NuGet feed). **Adopted 2026-08-06 as this project's UI library (BRD-92)**, replacing Microsoft Fluent UI Blazor. **TechieRag** — TechieFlow's RAG library; still not used (this project has no AI/RAG features).
 
 ---
-Last updated: 2026-08-14
-Highest BRD ID: BRD-101
+Last updated: 2026-10-27
+Highest BRD ID: BRD-105
 Last amended: 2026-08-06 — TrBlazeUI adoption (BRD-92), portfolio home + no public admin entry (BRD-30 revised, BRD-93), BlogApp MAUI desktop admin (BRD-94…97, F-DESK); design-review pass: F-AUTHOR + F-FAV retired (BRD-43/44/53/54/55), reader accounts dropped (BRD-13, BRD-37), anonymous email-identified comments and ratings (BRD-36/40/41 revised)
 Retired IDs (never reused): BRD-1, BRD-13, BRD-37, BRD-43, BRD-44, BRD-53, BRD-54, BRD-55
 Added 2026-08-06 (second design-review pass): BRD-98 email verification · BRD-99 self-hosted captcha ·
 BRD-100 public newsletter archive · BRD-101 public newsletter issue view
+Added 2026-10-27 (brand assets, F-BRAND): BRD-102 header lockup · BRD-103 favicon + icons from a script · BRD-104 BlogApp icon/splash · BRD-105 README lockup
 Sources harvested: docs/OldDocs/prd.md, docs/prd/ (sharded), docs/OldDocs/project-brief.md, docs/architecture.md, docs/architecture/ (sharded), docs/OldDocs/front-end-spec.md, docs/OldDocs/feature-ideation-images-resume.md, docs/OldDocs/MVP-EXECUTION-PLAN.md, docs/OldDocs/FIX-PLAN.md, docs/OldDocs/FAST-TRACK-BACKLOG.md, docs/OldDocs/SM-HANDOFF.md, docs/OldDocs/epic-image-resume-multiauthor.md, docs/stories/*.story.md (44), docs/qa/gates/*.yml (19), docs/deployment.md, docs/customization.md, docs/database-migration-guide.md, docs/DataMigrationGuide.md, docs/packaging-strategy-brainstorm.md, docs/template-release-checklist.md, README.md, GETTING_STARTED.md
 Custom instructions applied: none — user replied "all" (harvest every detected doc)
 Drafted from reverse-doc — review and edit. New BRDs may be added (append-only); do not renumber.

@@ -36,9 +36,9 @@ namespace BlogEngine;
 /// straight onto <c>CaptchaSvc</c> — to "simplify", or in a test host — is removing REQ-NFR-024
 /// from the entire application.</para>
 ///
-/// <para><b>Not registered here (or anywhere):</b> <c>SvcTokenRepo</c>, deleted under REQ-FN-052.
-/// It had never appeared in this container or in <see cref="BlogSvcInitializer"/>, which is why it
-/// could be removed without a single call site changing.</para>
+/// <para><b>No separate service-token repository exists</b> (REQ-FN-052): the orphaned repository for a table
+/// no migration ever created was deleted. It had never appeared in this container or in
+/// <see cref="BlogSvcInitializer"/>, which is why it could be removed without a single call site changing.</para>
 ///
 /// <para><b>Usage:</b> <see cref="IVerificationEmailSender"/> is registered with
 /// <c>TryAdd</c> semantics, so a host that registers a real SMTP-backed sender BEFORE calling

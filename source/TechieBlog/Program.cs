@@ -294,6 +294,16 @@ try
     // Initialize BlogEngine Services
     BlogSvcInitializer.Initialize(builder.Services, dbConnectionString);
 
+    // REQ-FN-015 / REQ-FN-037 / REQ-FN-038: BlogSvc evicts ICacheService on every content change, but
+    // RSS, the sitemap and the public listings live in the separate OUTPUT cache (15 / 5 minutes), so
+    // an unpublished post stayed in the feed and a published one stayed out. Registered after the
+    // engine graph so this decorator is the ICacheService every consumer resolves.
+    builder.Services.AddSingleton<ICacheService>(serviceProvider =>
+        new OutputCacheEvictingCacheService(
+            ActivatorUtilities.CreateInstance<MemoryCacheService>(serviceProvider),
+            serviceProvider.GetRequiredService<IOutputCacheStore>(),
+            serviceProvider.GetRequiredService<ILogger<OutputCacheEvictingCacheService>>()));
+
     // -------------------------------------------------------------------------
     // Uploaded media location (REQ-FN-025)
     // Resolved ONCE, here, and registered so the static-file mapping below and the storage factory
@@ -309,6 +319,21 @@ try
         .AddInteractiveServerComponents(options =>
         {
             options.DetailedErrors = true;
+        })
+        // [REQ-UI-016] SignalR's default MaximumReceiveMessageSize is 32 KB. The post editor's
+        // Markdown textarea sends the WHOLE body to the circuit on each change, wrapped in the
+        // event JSON, so a body of roughly 15 KB or more overran the limit: the server dropped the
+        // message (and the circuit), the form kept its old empty body, and Save answered
+        // "Content is required". The limit is raised to a deliberate 1 MiB (1_048_576 bytes) - about
+        // 30x the default and room for a book-length article (~500 KB of Markdown after JSON
+        // escaping) - while still capping what one anonymous-or-signed-in client can push in a
+        // single frame. Anything above it is a different problem (use the media upload), not a
+        // reason to raise this again. `Blazor:MaxReceiveMessageSizeBytes` overrides it (the
+        // regression test boots a host at 32768 to prove the old behaviour).
+        .AddHubOptions(options =>
+        {
+            options.MaximumReceiveMessageSize =
+                builder.Configuration.GetValue<long?>("Blazor:MaxReceiveMessageSizeBytes") ?? 1024 * 1024;
         });
 
     // -------------------------------------------------------------------------
@@ -719,9 +744,9 @@ try
     }).DisableRateLimiting().AllowAnonymous().CacheOutput(policy => policy.NoCache());
 
     // Sitemap.xml endpoint for SEO - output cached as a feed (REQ-NFR-018)
-    app.MapGet("/sitemap.xml", (SitemapSvc sitemapSvc) =>
+    app.MapGet("/sitemap.xml", async (SitemapSvc sitemapSvc, HttpContext context) =>
     {
-        var xml = sitemapSvc.GenerateSitemap();
+        var xml = await sitemapSvc.GenerateSitemapAsync(context.RequestAborted);
         return Results.Content(xml, "application/xml");
     }).CacheOutput(OutputCachePolicies.Feed);
 

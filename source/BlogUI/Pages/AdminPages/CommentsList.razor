@@ -558,13 +558,26 @@
         }
     }
 
-    private void MarkAsSpam(CommentViewModel comment)
+    /// <summary>
+    /// Marks one comment as spam and persists the decision (REQ-UI-021).
+    /// </summary>
+    /// <param name="comment">The grid row being marked.</param>
+    /// <returns>A task that completes when the outcome has been shown.</returns>
+    private async Task MarkAsSpam(CommentViewModel comment)
     {
-        // For now, spam just changes UI status since we don't have a spam field
-        // A full implementation would add an IsSpam field to the model
-        comment.Status = "Spam";
-        StatusMessage = "Comment marked as spam.";
-        IsError = false;
+        var result = await CommentService.RejectCommentAsync(comment.CommentId, true);
+        if (result.IsSuccess)
+        {
+            comment.Status = "Spam";
+            StatusMessage = "Comment marked as spam.";
+            IsError = false;
+            ApplyFilter();
+        }
+        else
+        {
+            StatusMessage = result.ErrorMessage ?? "Failed to mark comment as spam.";
+            IsError = true;
+        }
     }
 
     private void ReplyToComment(CommentViewModel comment)

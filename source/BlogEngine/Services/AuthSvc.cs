@@ -67,7 +67,7 @@ namespace BlogEngine.Services;
 /// <see cref="RefreshSessionAsync"/> rewrites the row with a replacement token and slides the
 /// window; when the second runs out the session is over and only a sign-in creates a new one. There
 /// is no separate refresh-token artefact and none should be added — REQ-FN-052 deleted the
-/// <c>svctoken</c> table as dead code and <c>UserLogin</c> is the single store of interactive
+/// orphaned service-token data-access stack as dead code and <c>UserLogin</c> is the single store of interactive
 /// session state.</para>
 ///
 /// <para><b>Usage:</b> Registered as a transient service by <c>BlogSvcInitializer</c>.</para>
@@ -493,7 +493,7 @@ public class AuthSvc
     /// window — and writes one information-level log line naming the session that was renewed.</para>
     /// <para><b>Why the expired token is accepted as its own refresh token.</b> This product has no
     /// separate refresh-token artefact and deliberately does not grow one: the sibling requirement
-    /// REQ-FN-052 deleted the <c>svctoken</c> table as dead code, and <c>UserLogin</c> is the only
+    /// REQ-FN-052 deleted the orphaned service-token data-access stack as dead code, and <c>UserLogin</c> is the only
     /// store of interactive session state. The security property a refresh token normally provides
     /// — "possession of this proves the session was not merely observed" — is provided here by the
     /// row itself: the exact string must be present, the status must be <c>ValidToken</c>, and the

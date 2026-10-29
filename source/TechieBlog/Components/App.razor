@@ -45,6 +45,12 @@
     }
     <base href="/" />
 
+    @* REQ-NFR-043 / BRD-103: browser-tab icons, rendered from the approved brand tile by
+       scripts/render-brand-icons.cs (never hand-made). Served from the BlogUI RCL (ADR-017). *@
+    <link rel="icon" href="_content/BlogUI/images/brand/favicon.ico" sizes="32x32" />
+    <link rel="icon" type="image/png" href="_content/BlogUI/images/brand/icon-192.png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="_content/BlogUI/images/brand/icon-512.png" />
+
     @*
         RSS auto-discovery (REQ-UI-046, BRD-63). This tag is the entire mechanism by which a
         browser, a reader extension or an aggregator finds the feed from any page of the site —

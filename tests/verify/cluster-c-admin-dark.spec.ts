@@ -21,7 +21,7 @@ const ADMIN: [string, string, RegExp][] = [
   ['admin', '/admin', /Dashboard/i],
   ['settings', '/settings', /Settings/i],
   ['blogslist', '/BlogsList', /All Posts|Posts/i],
-  ['commentslist', '/CommentsList', /Comments Management|Comments/i],
+  ['commentslist', '/CommentsList', /Comment moderation/i],
   ['admincategories', '/admin/categories', /Categories Management|Categories/i],
 ];
 

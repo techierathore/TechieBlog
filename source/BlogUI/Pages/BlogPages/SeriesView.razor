@@ -20,6 +20,9 @@
 @layout FullWidthLayout
 
 @inject BlogEngine.Services.SeriesSvc SeriesService
+@inject NavigationManager Navigation
+@* REQ-UI-010 / REQ-UI-058 - the ambient request, used only to turn an unknown slug into a real 404. *@
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
 
 @* REQ-NFR-007 / WCAG 2.4.2 Page Titled. *@
 <SiteBrandTitle Page="@(series == null ? "Series" : series.Name)" Separator=" · " />
@@ -320,8 +323,11 @@
             }
             else
             {
-                // Series not found
+                // Series not found: answer a real 404 (the site's designed 404 page) rather than a
+                // soft 200 carrying an in-page panel - same mechanism as PostView.
                 series = new BlogModels.BlogSeries();
+                Navigation.NotFound();
+                BlogUI.Common.NotFoundResponse.Apply(HttpContextAccessor?.HttpContext);
             }
         }
     }

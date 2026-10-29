@@ -120,7 +120,7 @@ async function loginAsAdmin(page: Page) {
     'the sign-in did not reach the admin shell').toBeVisible({ timeout: 20000 });
 }
 
-test.describe('REQ-UI-052 admin surface', () => {
+test.describe('web admin tables (formerly tagged with the BlogApp row id; retired port + password): admin surface', () => {
   test('every admin route renders real data, not an empty error boundary', async ({ page }) => {
     const pageErrors: string[] = [];
     page.on('pageerror', e => pageErrors.push(String(e)));

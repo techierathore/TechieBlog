@@ -36,7 +36,7 @@ public class PostViewQueueTests
     /// A render hands the view to the queue and returns without writing anything, which is the whole
     /// point of REQ-NFR-034 — a read request must not wait on a write.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-034 a post render queues the view instead of writing it inline")]
     public async Task RenderQueuesTheViewInsteadOfWritingIt()
     {
         var repo = new FakePostViewRepo();
@@ -114,7 +114,7 @@ public class PostViewQueueTests
     /// A saturated queue drops the view and says so, rather than blocking the render — losing one
     /// visitor-day of one post is cheaper than making a reader wait for an analytics write.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-034 a saturated view queue drops rather than blocking the render")]
     public void SaturatedQueueDropsRatherThanBlocking()
     {
         var queue = BuildQueue();

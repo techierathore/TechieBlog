@@ -139,7 +139,7 @@ async function visualGate(page: Page, testIds: string[], label: string) {
   return boxes;
 }
 
-test.describe('REQ-UI-019 / REQ-FN-036 admin dashboard', () => {
+test.describe('superseded (constants-era check bound to retired demo data: comments tile != 0, 480 views, /comments route, retired passwords; replaced by vall-admin.spec.ts, vall-engage-admin.spec.ts and bp-b-admin.spec.ts): admin dashboard', () => {
   test('every stat tile shows the real database number and popular posts are truly ranked', async ({ page }) => {
     await login(page);
 

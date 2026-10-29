@@ -16,6 +16,7 @@
 @inject BlogEngine.Services.CategorySvc CategoryService
 @inject BlogEngine.Services.BlogSvc BlogService
 @inject NavigationManager Navigation
+@inject BlogModels.Interfaces.ISiteSettingsService SiteSettingsService
 
 @* REQ-NFR-007 / WCAG 2.4.2 Page Titled. *@
 <SiteBrandTitle Page="@(category == null ? "Categories" : category.CategoryName)" Separator=" · " />
@@ -162,7 +163,8 @@ else
     private int currentPage = 1;
     private int totalPages = 1;
     private int totalPosts = 0;
-    private const int PageSize = 9;
+    /// <summary>Posts per listing page; refreshed from the cached site setting (REQ-UI-026) on every load.</summary>
+    private int PageSize = 10;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -174,6 +176,7 @@ else
         isLoading = true;
         notFound = false;
         showCategoryList = false;
+        PageSize = Math.Max(1, (await SiteSettingsService.GetSettingsAsync()).PostsPerPage);
 
         try
         {

@@ -7,11 +7,11 @@ import { test, expect, Page } from '@playwright/test';
  * which `Verified` also requires.
  */
 
-const BASE = process.env.VERIFY_BASE ?? 'http://172.18.144.1:5561';
+const BASE = process.env.TB_BASE ?? process.env.BASE_URL ?? 'http://localhost:5450';
 
 const SCREENS = [
   { name: 'home', path: '/' },
-  { name: 'post', path: '/post/blazor-circuits-and-state' },
+  { name: 'post', path: '/post/' + (process.env.VERIFY_POST_SLUG ?? 'fxv0-markdown-showcase') }, // demo content retired 2026-08-22 (UAT-007); fxv0- is the verify seed
   { name: 'category', path: '/category/programming' },
   { name: 'newsletters', path: '/newsletters' },
 ];
@@ -103,7 +103,7 @@ for (const screen of SCREENS) {
       expect(bad, `${screen.path} @${vp.label} controls off-canvas: ${bad.join(' ; ')}`).toHaveLength(0);
 
       await page.screenshot({
-        path: `tests/.artifacts/req-nfr-001/${screen.name}-${vp.label}.png`,
+        path: `tests/.artifacts/verify/T3/req-nfr-001/${screen.name}-${vp.label}.png`,
         fullPage: true,
       });
     });

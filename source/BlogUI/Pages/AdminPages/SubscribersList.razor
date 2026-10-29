@@ -334,20 +334,17 @@
     {
         try
         {
-            var subscribers = await SubscriberService.GetSubscribersForExportAsync();
-            var csv = "Email,Name,SubscribedOn,Status\n";
-            foreach (var s in subscribers)
-            {
-                // Escape commas in fields
-                var name = s.Name?.Replace("\"", "\"\"") ?? "";
-                csv += $"\"{s.Email}\",\"{name}\",{s.SubscribedOn:yyyy-MM-dd},{(s.IsActive ? "Active" : "Inactive")}\n";
-            }
+            // REQ-FN-031: export exactly the rows the admin is looking at - the status tab and the
+            // search term already applied - with each subscriber's real status. This used to export
+            // every ACTIVE subscriber whatever was filtered, labelling all of them "Active".
+            var subscribers = (FilteredList ?? new List<Subscriber>()).ToList();
+            var csv = BlogEngine.Common.SubscriberCsv.Build(subscribers);
 
             // Download file using JS interop
             var fileName = $"subscribers-{DateTime.Now:yyyyMMdd}.csv";
             await JSRuntime.InvokeVoidAsync("downloadCsv", fileName, csv);
 
-            StatusMessage = $"Exported {subscribers.Count()} subscribers.";
+            StatusMessage = $"Exported {subscribers.Count} subscribers.";
             IsError = false;
         }
         catch (Exception)

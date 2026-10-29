@@ -248,6 +248,8 @@ public class PostEditorRouteReloadTests : BunitContext
     private IRenderedComponent<ManagePost> RenderEditorPage(long pageId, IBlogPostRepo? postRepo = null)
     {
         RegisterEditorServices(postRepo ?? BuildPostRepo());
+        // [REQ-UI-016] ManagePost withholds the form until the circuit is attached (EditorReady).
+        SetRendererInfo(new RendererInfo("Server", true));
         ComponentFactories.AddStub<ImagePicker>();
         return Render<ManagePost>(parameters => parameters.Add(page => page.PageId, pageId));
     }

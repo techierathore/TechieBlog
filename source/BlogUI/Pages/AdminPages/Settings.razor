@@ -8,7 +8,7 @@
     BRD-69 — values persist through ISiteSettingsService (PostgreSQL settings table)
     and apply without an app restart.
 
-    Layout: admin shell, Tabs section switcher, card grid, sticky save bar.
+    Layout: admin shell, Tabs section switcher, card grid, save bar below the sections.
 *@
 
 @page "/settings"
@@ -522,10 +522,12 @@
     }
 </div>
 
-@* Sticky save bar *@
+@* Save bar. Static, not sticky: under the old min-h-screen shell the "sticky" never engaged, so
+   this is the bar users have always had; once the shell became h-screen it floated over the
+   storage fields at 390px (2026-10-28). *@
 @if (!isLoading)
 {
-    <div class="sticky bottom-0 z-10 -mx-4 mt-6 flex items-center justify-end gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
+    <div class="-mx-4 mt-6 flex items-center justify-end gap-3 border-t border-border bg-background/95 px-4 py-3 md:-mx-6 md:px-6">
         <Button OnClick="SaveSettings" Disabled="@isSaving" data-testid="save-settings">
             @if (isSaving)
             {

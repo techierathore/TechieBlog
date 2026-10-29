@@ -439,6 +439,29 @@ mount; DbUp runs automatically on boot, so the app account needs DDL rights on f
   network reach to the site's PostgreSQL, and the DB must accept remote connections from the admin's
   machine (a deployment consideration for adopters).
 
+- **ADR-017 — Brand assets are copied, never redrawn; derived sizes come from a script in the repo**
+  (2026-10-27, BRD-102…105, status *planned*). Reason: the owner keeps one approved logo set
+  outside the repo (`/mnt/c/1MyCode/MyAiChats/3-Resources/Brand/logos/`); a hand-exported or
+  "optimised" copy drifts from it silently, and a hand-made favicon cannot be reproduced. Decisions:
+  (a) the five approved files are copied **byte for byte** — BlogApp's `Resources/AppIcon/appicon.svg`
+  + `appiconfg.svg` and `Resources/Splash/splash.svg` (= the glyph-only file), the site's
+  `source/BlogUI/wwwroot/images/brand/` (horizontal lockup SVG + glyph SVG), and `docs/brand/`
+  (lockup PNG for the README, plus the 1024 px tile PNG that the icon script renders from); identity
+  is checked by checksum against the brand folder. (b) The site's copies live in the **`BlogUI` RCL**,
+  not the host, so they are served as `_content/BlogUI/images/brand/…` to whichever head renders the
+  page. (c) `favicon.ico` (32 px), `icon-192.png` and `icon-512.png` are rendered from the tile by a
+  script under `scripts/` — a .NET 10 file-based app (`dotnet run scripts/<name>.cs`) using SkiaSharp,
+  because this machine has neither ImageMagick nor Python Pillow (measured 2026-10-27) and the repo
+  already builds with .NET; the script writes the `.ico` container itself (a PNG-in-ICO entry), since
+  SkiaSharp has no ICO encoder. The outputs are committed and linked from the host's `App.razor`
+  `<head>`. (d) Header fallback order becomes: configured `General.SiteLogo` → the horizontal lockup.
+  The admin sidebar and the sign-in shell keep their existing fallback (only the public header was
+  asked for). (e) BlogApp's `MauiIcon` / `MauiSplashScreen` colour is `#0F4DBC`; MAUI rasterises the
+  SVGs at build time, so no PNG is added under `Resources/`, and `bin/` + `obj/` are cleaned once so
+  the cached purple icon cannot survive. Consequence: a template adopter who runs the rename script
+  keeps the TechieBlog lockup in the header until they configure their own logo or replace the files —
+  the rename script only touches `source/TechieBlog/`, so it never alters these assets.
+
 ## 8. Target architecture — planned deltas
 
 Everything below is **designed but not built**. It is carried forward verbatim in intent from
@@ -610,4 +633,4 @@ current conformance is unknown (§9).
 | Code scan of `source/` | Everything marked "as-built": csproj versions, DI registrations, routes, policies, service/repository surfaces, Serilog wiring, absent subsystems |
 
 ---
-Last updated: 2026-08-06 (amended: ADR-010…016 — TrBlazeUI, portfolio home, BlogApp, anonymous engagement, no public author pages, verification + self-hosted captcha, public newsletter archive)
+Last updated: 2026-10-27 (amended: ADR-017 — brand assets; earlier: 2026-08-06 ADR-010…016 — TrBlazeUI, portfolio home, BlogApp, anonymous engagement, no public author pages, verification + self-hosted captcha, public newsletter archive)

@@ -15,25 +15,50 @@ import { BASE, nav, renderCheck, ControlResult } from './_gates';
 import { psql, report, expectVisualClean, bothWidths, signIn, settle } from './vall-resume-helpers';
 
 const SHOTS = '.verify/shots/resume';
-const FIXTURES = path.resolve('.verify/fixtures');
+// The fixture files used to live in an untracked `.verify/fixtures` folder that no longer exists; they are
+// generated per run instead (2026-10-27) so the spec carries everything it needs.
+const FIXTURES = path.resolve('tests/.artifacts/verify/w3/fixtures-vall');
+const PNG_1X1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
 
-test.beforeAll(() => fs.mkdirSync(SHOTS, { recursive: true }));
+test.beforeAll(() => {
+  fs.mkdirSync(SHOTS, { recursive: true });
+  fs.mkdirSync(FIXTURES, { recursive: true });
+  fs.writeFileSync(path.join(FIXTURES, 'verify-0808-small.png'), PNG_1X1);
+  fs.writeFileSync(path.join(FIXTURES, 'verify-0808-huge.png'), Buffer.concat([PNG_1X1, Buffer.alloc(2_400_000)])); // > the 2 MB profiles cap
+  fs.writeFileSync(path.join(FIXTURES, 'verify-0808-bad.txt'), 'not an image\n');
+});
 
 // Seven verification agents share this host; a page can take ~10s just to go interactive.
 test.beforeEach(({}, testInfo) => testInfo.setTimeout(420000));
 
-/** Removes every row and file this cluster created, whatever the outcome of a test. */
+/**
+ * Reports any row this cluster left behind. The verify phase forbids database writes, so rows are removed
+ * through the app (the media library's delete dialog), never through psql; this only READS.
+ */
 function cleanupUploads() {
-  const paths = psql("SELECT imagepath FROM blogimage WHERE imagename LIKE 'verify-0808%'")
+  return psql("SELECT imagepath FROM blogimage WHERE imagename LIKE 'verify-0808%'")
     .split('\n')
     .map((s) => s.trim())
     .filter(Boolean);
-  for (const p of paths) {
-    const disk = path.join('source/BlogUI/wwwroot', p.replace(/^\//, ''));
-    if (fs.existsSync(disk)) fs.unlinkSync(disk);
+}
+
+/** Deletes every leftover verify-0808 image through the media library UI. */
+async function deleteLeftoversThroughUi(page: import('@playwright/test').Page) {
+  await nav(page, '/admin/images', /Media Library/i);
+  await settle(page);
+  for (const tab of ['Profiles', 'CV', 'Logos', 'Icons', 'Blog', 'Awards', 'General']) {
+    const t = page.locator('[data-testid="category-tabs"] [role="tab"]').filter({ hasText: new RegExp(`^${tab}`, 'i') }).first();
+    if (!(await t.count())) continue;
+    await t.click();
+    await page.waitForTimeout(1500);
+    for (let i = 0; i < 5; i++) {
+      const card = page.locator('[data-testid="image-card"]').filter({ hasText: 'verify-0808' }).first();
+      if (!(await card.count())) break;
+      await card.locator('[data-testid="delete-image"]').click();
+      await page.locator('[data-testid="delete-confirm"]').click();
+      await page.waitForTimeout(2500);
+    }
   }
-  psql("DELETE FROM blogimage WHERE imagename LIKE 'verify-0808%'");
-  return paths;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -61,20 +86,26 @@ test('REQ-UI-034 media library shows category tabs, uploads through its own dial
     expect(tabCount, 'seven upload categories must each have a tab').toBe(7);
 
     const emptyBefore = await page.locator('[data-testid="images-empty"]').count();
+    // The shown tab either lists its images (grid) or states it is empty; both render truthfully, and the
+    // dev DB is not guaranteed to be empty (other runs' rows exist), so neither is demanded.
+    const gridShown = await page.locator('[data-testid="image-grid"]').count();
     controls.push({
       control: 'gallery by category',
-      verdict: startRows === 0 ? 'RENDERS' : 'RENDER-EMPTY',
-      detail:
-        startRows === 0
-          ? `NO-DATA: blogimage holds ${startRows} rows and the page shows its empty state (${emptyBefore} empty panels)`
-          : `blogimage holds ${startRows} rows`,
+      verdict: gridShown + emptyBefore > 0 ? 'RENDERS' : 'RENDER-EMPTY',
+      detail: `blogimage holds ${startRows} rows; the shown tab renders ${gridShown ? 'its grid' : 'its empty state'}`,
     });
 
     // ---- upload through the page's own dialog (this IS the acceptance test) ----
     await page.click('[data-testid="upload-image"]');
     const dialog = page.locator('[data-testid="image-upload-dialog"]');
     await expect(dialog).toBeVisible();
-    await dialog.locator('input[type="file"]').setInputFiles(path.join(FIXTURES, 'verify-0808-small.png'));
+    // The dropzone's listener attaches after the dialog renders; a file set earlier is dropped silently, so set it
+    // again until the dialog reports the staged file.
+    for (let attempt = 0; attempt < 5 && !(await dialog.locator('[data-testid="upload-selected-file"]').isVisible()); attempt++) {
+      await page.waitForTimeout(1500);
+      await dialog.locator('input[type="file"]').setInputFiles(path.join(FIXTURES, 'verify-0808-small.png'));
+      await dialog.locator('[data-testid="upload-selected-file"]').waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
+    }
     await expect(dialog.locator('[data-testid="upload-selected-file"]')).toBeVisible();
     await dialog.locator('[data-testid="upload-confirm"]').click();
     await expect(dialog).toBeHidden({ timeout: 30000 });
@@ -104,7 +135,8 @@ test('REQ-UI-034 media library shows category tabs, uploads through its own dial
     controls.push(await renderCheck(page, 'image count', '[data-testid="image-count"]'));
     controls.push(await renderCheck(page, 'copy URL', '[data-testid="copy-image-url"]', 'present'));
     controls.push(await renderCheck(page, 'delete', '[data-testid="delete-image"]', 'present'));
-    await expect(page.locator('[data-testid="image-card"]')).toHaveCount(1);
+    // The dev DB already holds other rows (other runs' images): assert OUR card, not a global count.
+    await expect(page.locator('[data-testid="image-card"]').filter({ hasText: 'verify-0808' })).toHaveCount(1);
 
     const visuals = await bothWidths(page, 'req-ui-034-media-library');
 
@@ -122,13 +154,14 @@ test('REQ-UI-034 media library shows category tabs, uploads through its own dial
     const rowsAfterDelete = Number(psql("SELECT count(*) FROM blogimage WHERE imagename LIKE 'verify-0808%'"));
     console.log('REQ-UI-034 rows after in-app delete =', rowsAfterDelete);
     expect(rowsAfterDelete, 'delete must remove the metadata row').toBe(0);
-    const diskPath = path.join('source/BlogUI/wwwroot', imagePath.replace(/^\//, ''));
-    expect(fs.existsSync(diskPath), 'delete must remove the stored file').toBe(false);
+    const goneStatus = (await page.request.get(`${BASE}${imagePath}`)).status();
+    expect(goneStatus, 'delete must remove the stored file (the path no longer serves)').toBe(404);
 
     report('/admin/images', controls, visuals);
     for (const c of controls) expect(c.verdict, `${c.control}: ${c.detail}`).toBe('RENDERS');
     visuals.forEach(expectVisualClean);
   } finally {
+    if (cleanupUploads().length) await deleteLeftoversThroughUi(page).catch(() => {});
     console.log('REQ-UI-034 CLEANUP leftovers =', JSON.stringify(cleanupUploads()), 'blogimage total =', psql('SELECT count(*) FROM blogimage'));
   }
 });
@@ -178,6 +211,7 @@ test('REQ-FN-025 the upload service rejects a file that breaks its category size
     // Neither rejection may leave a row or a file behind.
     expect(Number(psql("SELECT count(*) FROM blogimage WHERE imagename LIKE 'verify-0808%'"))).toBe(0);
   } finally {
+    if (cleanupUploads().length) await deleteLeftoversThroughUi(page).catch(() => {});
     console.log('REQ-FN-025 CLEANUP leftovers =', JSON.stringify(cleanupUploads()));
   }
 });
@@ -214,8 +248,14 @@ test('REQ-UI-035 the ImagePicker uploads into its own category, binds the path a
     await picker.locator('[data-testid="upload-new-image"]').click();
     const uploadDialog = page.locator('[data-testid="image-upload-dialog"]');
     await expect(uploadDialog).toBeVisible();
-    await uploadDialog.locator('input[type="file"]').setInputFiles(path.join(FIXTURES, 'verify-0808-small.png'));
-    await uploadDialog.locator('[data-testid="upload-confirm"]').click();
+    await page.waitForTimeout(2000);
+    // A file staged before the dialog's circuit handler is wired is dropped silently (the confirm
+    // button then stays disabled), so stage again until the dialog shows the selected file.
+    for (let i = 0; i < 4; i++) {
+      await uploadDialog.locator('input[type="file"]').setInputFiles(path.join(FIXTURES, 'verify-0808-small.png'));
+      if (await uploadDialog.locator('[data-testid="upload-selected-file"]').waitFor({ timeout: 8000 }).then(() => true, () => false)) break;
+    }
+    await uploadDialog.locator('[data-testid="upload-confirm"]').click({ timeout: 30000 });
     await expect(uploadDialog).toBeHidden({ timeout: 40000 });
     await expect(picker.locator('[data-testid="selected-image"]')).toBeVisible({ timeout: 20000 });
 
@@ -232,9 +272,16 @@ test('REQ-UI-035 the ImagePicker uploads into its own category, binds the path a
     await picker.locator('[data-testid="choose-from-library"]').click();
     const gallery = page.locator('[data-testid="image-gallery-dialog"]');
     await expect(gallery).toBeVisible();
-    await expect(gallery.locator('[data-testid="gallery-image"]')).toHaveCount(1, { timeout: 30000 });
+    // The library dialog lists the picker's category only: the tile count equals the profiles rows in the database
+    // (other rows already exist there), and our new image is among them.
+    await expect(gallery.locator('[data-testid="gallery-image"]').first()).toBeVisible({ timeout: 30000 });
+    await expect(gallery.locator(`img[src="${storedPath}"]`)).toHaveCount(1, { timeout: 30000 });
+    const tileSrcs = await gallery.locator('[data-testid="gallery-image"] img, img[data-testid="gallery-image"]').evaluateAll((els) => els.map((e) => (e as HTMLImageElement).getAttribute('src')));
+    expect(tileSrcs.every((src) => (src ?? '').startsWith('/uploads/profiles/')), 'only profiles images are listed').toBe(true);
+    // (an exact count would race other writers' uploads; every tile must be a profiles row, and ours is one)
+    expect(tileSrcs.length, 'no more tiles than profiles rows').toBeLessThanOrEqual(Number(psql("SELECT count(*) FROM blogimage WHERE category='profiles'")));
     controls.push(await renderCheck(page, 'gallery grid (category-filtered)', '[data-testid="gallery-grid"]', 'present'));
-    await gallery.locator('[data-testid="gallery-image"]').first().click();
+    await gallery.locator('[data-testid="gallery-image"]').filter({ has: page.locator(`img[src="${storedPath}"]`) }).first().click().catch(async () => { await gallery.locator(`img[src="${storedPath}"]`).first().click(); });
     await page.waitForTimeout(1000);
     await expect(picker.locator('[data-testid="selected-image"]')).toBeVisible();
     expect(await picker.locator('[data-testid="selected-image"]').getAttribute('src')).toBe(storedPath);
@@ -250,6 +297,7 @@ test('REQ-UI-035 the ImagePicker uploads into its own category, binds the path a
     report('ImagePicker (/admin/profile)', controls, []);
     for (const c of controls) expect(c.verdict, `${c.control}: ${c.detail}`).toBe('RENDERS');
   } finally {
+    await deleteLeftoversThroughUi(page).catch(() => {});
     console.log('REQ-UI-035 CLEANUP removed =', JSON.stringify(cleanupUploads()));
   }
 });

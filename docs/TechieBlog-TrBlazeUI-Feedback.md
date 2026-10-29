@@ -1,12 +1,13 @@
 # TechieBlog → TrBlazeUI feedback
 
 ## Summary
-- **Current disposition through TR-074: all TrBlazeUI findings are closed in library source.** Historical numbering has gaps and sub-findings (`TR-072b`…`TR-072d`), so this document deliberately reports the highest assigned ID instead of repeating the stale “66 entries” count.
-- **Open library defects:** none from this report. TR-066/TR-067 and TR-068…TR-075 (including TR-072b/c/d) are resolved and verified.
+- **Current disposition through TR-076: all TrBlazeUI findings are closed in library source.** Historical numbering has gaps and sub-findings (`TR-072b`…`TR-072d`), so this document deliberately reports the highest assigned ID instead of repeating the stale “66 entries” count.
+- **Open library defects:** none in library source. TR-066/TR-067 and TR-068…TR-076 (including TR-072b/c/d) are resolved and verified; TR-076's fix ships in **2.2.1**, which is not on the feed until the TrBlazeUI owner publishes that release.
 - **Ships in: TrBlazeUI 2.0.3** — published to the feed and **consumed by TechieBlog since 2026-08-25** (`TrBlazeUI.Components` + `TrBlazeUI.Icons.Lucide` 2.0.3 in all three csprojs; build 0 errors, `dotnet test` 1551/0). TR-075 ships in **2.1.9**.
 - **Consumer action — DONE 2026-08-25.** Every row of the resolution table below was measured against a running TechieBlog host on 2.0.3 *before* its workaround was removed (`tests/verify/trblazeui-203-upgrade.spec.ts`, 8/8; evidence `tests/.artifacts/trblazeui-203/notes.json`). See "Consumer verification on 2.0.3" under the table for what was removed, what was kept, and why.
 - **One new finding on 2.0.3 — TR-075** (2026-08-26, Low–Medium a11y): a styled `Select` inside `DialogContent` drops focus to `<body>` after a pick, so `Escape` cannot dismiss the dialog until the user Tabs back in; mouse paths unaffected. **Fixed upstream in 2.1.9.**
-- Last consolidated: **2026-08-26**. Next free ID **TR-076** (the bottom counter line is authoritative).
+- **TR-076** (2026-10-27): `SidebarMenuButton IsActive` rendered `data-active=""`, so the active nav item painted like its neighbours. **Fixed upstream in 2.2.1** (not on the feed until that release is published; see the entry).
+- Last consolidated: **2026-10-29** (TR-076 reply). Next free ID **TR-077** (the bottom counter line is authoritative).
 
 ## ✅ Resolution — 2026-08-25, TrBlazeUI **2.0.3** (pending publish)
 
@@ -1791,7 +1792,59 @@ TR-074 recorded 2026-08-24 by *trblazeui (UAT-027 / REQ-UI-045 — post detail p
   assertion after a pick.
 
 TR-075 recorded 2026-08-26 by *verify (REQ-UI-048 / REQ-FN-025 / REQ-UI-049 — 2.0.3 re-verification).
-**Next free ID: TR-076.**
+### TR-076 - SidebarMenuButton renders `data-active=""`, so its `data-[active=true]` styles never apply (2.0.3)
+
+> ✅ **TR-076 — FIXED upstream, in TrBlazeUI 2.2.1** (2026-10-29, TrBlazeUI REQ-UI-059 — Verified).
+> **Not on the feed yet:** the 2.2.1 packages are built and checked, but the push to GitHub Packages
+> was refused (the only stored token can read packages, not publish them). They appear when the
+> TrBlazeUI owner publishes the 2.2.1 release. Until then the feed's newest is still 2.2.0, which has the bug.
+>
+> - `SidebarMenuButton` and `SidebarMenuSubButton` now render `data-active="true"` or
+>   `data-active="false"`, never the bare `data-active=""`, and keep `aria-current="page"` on the
+>   active item. The shipped `data-[active=true]:bg-sidebar-accent font-medium
+>   text-sidebar-accent-foreground` styles now apply.
+> - `Href` + `Match` auto-activation now paints too: a link that matches the current URL gets the
+>   sidebar accent background and text (and medium weight on `SidebarMenuButton`), still with
+>   `aria-current="page"`. `IsActive` is no longer needed for a nav link to look current.
+> - Checked every other TrBlazeUI component that writes a `data-*` attribute from a bool: none other
+>   had this mismatch. The menu items that write `data-disabled=""` are styled by `data-[disabled]`,
+>   which matches it.
+> - Proof, in TrBlazeUI: rendered-markup and computed-style test `tests/verify/req-ui-059.spec.ts` on
+>   the harness page `/verify-tr076` (both states, `IsActive` and `Href`+`Match`, light and dark):
+>   active background `oklch(0.97 0 0)` light / `oklch(0.269 0 0)` dark against `rgba(0, 0, 0, 0)`
+>   for the inactive item, font-weight 500 against 400.
+>
+> **Sevak's grey dark-theme nav item (REQ-UI-066, REQ-UI-074, 21–22 Oct) — related, but not the
+> same cause.** Sevak's nav links use `Href` without `IsActive`, so they never rendered
+> `data-active` at all. Their missing highlight was the second half of this entry (`Href`+`Match` set
+> `aria-current` but no style), which is why Sevak added its own `a[aria-current="page"]` rule. The
+> grey-instead-of-indigo in dark mode came from that app rule (a 12% accent mix on the dark
+> sidebar), not from the library. Sevak's rule is more specific than the library's classes, so it
+> keeps winning after 2.2.1. Sevak still needs it for indigo, because the library's own active colour
+> is the theme's neutral `--sidebar-accent`.
+>
+> **Verify from here** (after moving the pins to 2.2.1): on `/admin/series`, the active
+> `<a data-testid="nav-series">` has `data-active="true"` and a non-transparent computed
+> `background-color`, and its inactive neighbours have `data-active="false"` and a transparent one.
+> The hand-written `[data-active]` rule was never added here, so there is nothing to remove.
+
+*Found:* 2026-10-27, build-phase cluster A, REQ-UI-047 (admin active-item highlight).
+*Expected:* `<SidebarMenuButton IsActive="true">` paints the active style (`data-[active=true]:bg-sidebar-accent ...`).
+*Actual:* `IsActive="true"` emits the boolean-style attribute `data-active=""` (inactive buttons emit no attribute), but the
+shipped class list keys its active styling on `data-[active=true]`. Measured on `/admin/series`: the active
+`<a data-testid="nav-series">` has `data-active=""`, computed `background-color: rgba(0, 0, 0, 0)`, font-weight 400, identical to
+its inactive neighbours. `Href`+`Match` auto-activation does set `aria-current` but no visible style either.
+*Workaround (not adopted):* a hand-written `[data-active]` rule in utilities.css would paint it; not added because
+library gaps are logged, not patched.
+*Suggested fix:* render `data-active="@(IsActive ? "true" : "false")"`, or change the classes to `data-[active]:`.
+
+*Re-checked against the latest release:* 2026-10-27. The feed's newest stable version is **2.2.0** (the project pins 2.0.3).
+`HtmlRenderer` probe (`tests/.artifacts/build-phase-20261027/tr220-probe/`) rendering `<SidebarMenuButton IsActive="true">`:
+2.0.3 and 2.2.0 both emit `<button … data-active data-state="closed" aria-current="page">`, and 2.2.0's class list still
+keys on `data-[active=true]`. **Still open in 2.2.0**; upgrading does not fix it.
+
+TR-076 recorded 2026-10-27 by *build-phase cluster A (REQ-UI-047).
+**Next free ID: TR-077.**
 
 > **Note on this file's own "next free ID" bookkeeping:** the task brief that led to TR-073 named
 > **TR-067** as the next free id, following the SUMMARY section at the top of this file rather than

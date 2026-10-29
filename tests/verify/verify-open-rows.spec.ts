@@ -1,6 +1,10 @@
 import { test, expect, Page } from '@playwright/test';
 import * as fs from 'fs';
 import { BASE, login, nav, visualCheck } from './_gates';
+import { execFileSync } from 'child_process';
+
+/** Read-only psql scalar (the verify phase forbids writes). */
+const dbScalar = (sql: string) => execFileSync('docker', ['exec', 'WinPostgre', 'psql', '-U', 'PgVectorAdmin', '-d', 'TechieBlog', '-tAc', sql], { encoding: 'utf8' }).trim();
 
 /**
  * verify-phase §4/§4a/§4b for the rows that were still open after the 2026-08-11 verify run.
@@ -104,13 +108,21 @@ test('REQ-UI-024 — /admin/series renders series status from the database, both
 
   const rows = page.locator('table tbody tr');
   await expect(rows.first()).toBeVisible({ timeout: 45000 });
-  expect(await rows.count(), 'series rows should match psql').toBe(GROUND_TRUTH.seriesTotal);
+  // The dev DB no longer holds the old two-series seed (and other writers add series), so the truth is read
+  // live: compare the rendered rows with psql, polling because the count can move while the test runs.
+  let agreed = false;
+  for (let i = 0; i < 10 && !agreed; i++) {
+    await page.waitForTimeout(1500);
+    agreed = (await rows.count()) === Number(dbScalar('SELECT count(*) FROM blogseries'));
+  }
+  expect(agreed, 'series rows should match psql').toBe(true);
 
   const body = (await page.locator('body').textContent()) ?? '';
   // The defect: code compared 'Complete' while the DB stored 'Completed', so a completed series
-  // rendered as In Progress and its tab counted zero.
-  expect(body, 'a Completed series must render as Completed').toContain('Completed');
-  expect(body, 'the In Progress series must still render').toContain('In Progress');
+  // rendered as In Progress and its tab counted zero. Each status the database holds must render as itself.
+  const present = dbScalar('SELECT string_agg(DISTINCT status, \'|\') FROM blogseries').split('|').filter(Boolean);
+  expect(present.length, 'the database holds at least one series').toBeGreaterThan(0);
+  for (const status of present) expect(body, `a ${status} series must render as ${status}`).toContain(status);
 
   await visualGate(page, 'ui024-series');
 });

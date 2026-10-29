@@ -25,7 +25,8 @@ test.beforeEach(({}, testInfo) => testInfo.setTimeout(420000));
 // REQ-UI-036 / REQ-FN-027 — the public resume page
 // ---------------------------------------------------------------------------------------------
 
-test('REQ-UI-036 public resume renders hero, about, experience, skills, awards and contact for the site owner', async ({ page }) => {
+// retired 2026-10-27 (W6): needs the demo about-stats the owner retired 2026-08-22 (UAT-007); superseded by w6-resume.spec.ts REQ-UI-036
+test.skip('retired: public resume renders hero, about, experience, skills, awards and contact for the site owner', async ({ page }) => {
   const dbSkills = Number(psql('SELECT count(*) FROM userskills WHERE userid=1'));
   const dbAwards = Number(psql('SELECT count(*) FROM userawards WHERE userid=1'));
   const dbExp = Number(psql("SELECT count(*) FROM userevents WHERE userid=1 AND type='Experience'"));
@@ -373,7 +374,8 @@ test('REQ-FN-053 saving Manage Profile with no edits does not erase the site own
 // REQ-FN-028 — CV upload and public download
 // ---------------------------------------------------------------------------------------------
 
-test('REQ-FN-028 a PDF CV uploaded on Manage Profile is downloadable from the public resume', async ({ page }) => {
+// retired 2026-10-27 (W6): restores cvfilepath with a psql UPDATE (no DB writes in verify phase); superseded by w6-resume.spec.ts REQ-FN-028
+test.skip('retired: a PDF CV uploaded on Manage Profile is downloadable from the public resume', async ({ page }) => {
   const originalCv = psql("SELECT COALESCE(cvfilepath,'') FROM bloguser WHERE userid=1");
   console.log('REQ-FN-028 original cvfilepath =', JSON.stringify(originalCv));
   let uploadedPath = '';

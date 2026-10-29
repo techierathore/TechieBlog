@@ -8,7 +8,7 @@ namespace TechieBlog.Tests.Services;
 
 /// <summary>
 /// Tests for REQ-FN-055 — a soft-deleted post cannot be moved back into the published state by any
-/// transition, and the blocking members log a persistence failure exactly as their async twins do.
+/// transition, and the transitions log a persistence failure.
 /// </summary>
 /// <remarks>
 /// <para><b>Purpose:</b> <c>DeletePost</c> checked <c>IsDeleted</c>; <c>QuickPublish</c>,
@@ -20,29 +20,10 @@ namespace TechieBlog.Tests.Services;
 /// <para><b>Why these fail against the old code:</b> each arranges a stored post with
 /// <c>IsDeleted = true</c> and asserts the transition is refused; the old code succeeded.</para>
 /// <para><b>Dependencies:</b> xUnit v3, NSubstitute for <see cref="IBlogPostRepo"/>,
-/// <see cref="RecordingLogger{T}"/> for the sync/async logging-parity tests. No database.</para>
+/// <see cref="RecordingLogger{T}"/> for the logging tests. No database.</para>
 /// </remarks>
 public class PublishStateDeletedPostTests
 {
-    /// <summary>
-    /// The one-click publish button on the admin grid refuses a soft-deleted post and writes nothing.
-    /// </summary>
-    [Fact]
-    public void QuickPublishRefusesADeletedPost()
-    {
-        // Arrange
-        var repo = Substitute.For<IBlogPostRepo>();
-        repo.GetSingle(5).Returns(DeletedPost(5));
-
-        // Act
-        var result = BuildService(repo).QuickPublish(5);
-
-        // Assert
-        Assert.True(result.IsFailure);
-        Assert.Equal("Post is deleted and cannot be published", result.ErrorMessage);
-        repo.DidNotReceive().Update(Arg.Any<BlogPost>());
-    }
-
     /// <summary>
     /// The async twin refuses identically — a divergence here would leave the defect reachable from
     /// whichever surface had migrated.
@@ -68,41 +49,19 @@ public class PublishStateDeletedPostTests
     /// "already published" — the deleted state is the honest reason and is checked first.
     /// </summary>
     [Fact]
-    public void QuickPublishReportsDeletionRatherThanAlreadyPublished()
+    public async Task QuickPublishReportsDeletionRatherThanAlreadyPublished()
     {
         // Arrange
         var repo = Substitute.For<IBlogPostRepo>();
         var post = DeletedPost(5);
         post.Published = true;
-        repo.GetSingle(5).Returns(post);
+        repo.GetSingleAsync(5, Arg.Any<CancellationToken>()).Returns(post);
 
         // Act
-        var result = BuildService(repo).QuickPublish(5);
+        var result = await BuildService(repo).QuickPublishAsync(5);
 
         // Assert
         Assert.Equal("Post is deleted and cannot be published", result.ErrorMessage);
-    }
-
-    /// <summary>
-    /// Unpublishing a soft-deleted post is refused; the row is already out of every public query and
-    /// touching it would only restamp <c>UpdatedOn</c>.
-    /// </summary>
-    [Fact]
-    public void UnpublishPostRefusesADeletedPost()
-    {
-        // Arrange
-        var repo = Substitute.For<IBlogPostRepo>();
-        var post = DeletedPost(5);
-        post.Published = true;
-        repo.GetSingle(5).Returns(post);
-
-        // Act
-        var result = BuildService(repo).UnpublishPost(5);
-
-        // Assert
-        Assert.True(result.IsFailure);
-        Assert.Equal("Post is deleted", result.ErrorMessage);
-        repo.DidNotReceive().Update(Arg.Any<BlogPost>());
     }
 
     /// <summary>
@@ -127,28 +86,6 @@ public class PublishStateDeletedPostTests
     }
 
     /// <summary>
-    /// Cancelling the schedule of a soft-deleted post is refused, because clearing the schedule would
-    /// quietly move it into the plain-draft state the admin grid lists.
-    /// </summary>
-    [Fact]
-    public void CancelScheduleRefusesADeletedPost()
-    {
-        // Arrange
-        var repo = Substitute.For<IBlogPostRepo>();
-        var post = DeletedPost(5);
-        post.ScheduledPublishOn = DateTime.UtcNow.AddDays(1);
-        repo.GetSingle(5).Returns(post);
-
-        // Act
-        var result = BuildService(repo).CancelSchedule(5);
-
-        // Assert
-        Assert.True(result.IsFailure);
-        Assert.Equal("Post is deleted", result.ErrorMessage);
-        repo.DidNotReceive().Update(Arg.Any<BlogPost>());
-    }
-
-    /// <summary>
     /// The async cancel twin refuses identically.
     /// </summary>
     [Fact]
@@ -167,27 +104,6 @@ public class PublishStateDeletedPostTests
         Assert.True(result.IsFailure);
         Assert.Equal("Post is deleted", result.ErrorMessage);
         await repo.DidNotReceive().UpdateAsync(Arg.Any<BlogPost>(), Arg.Any<CancellationToken>());
-    }
-
-    /// <summary>
-    /// The object-carrying publish route is closed too: <c>PublishPost</c> refuses before it mutates
-    /// the caller's post, so the caller is not left holding an object that claims to be published.
-    /// </summary>
-    [Fact]
-    public void PublishPostRefusesADeletedPostWithoutMutatingIt()
-    {
-        // Arrange
-        var repo = Substitute.For<IBlogPostRepo>();
-        var post = DeletedPost(5);
-
-        // Act
-        var result = BuildService(repo).PublishPost(post);
-
-        // Assert
-        Assert.True(result.IsFailure);
-        Assert.Equal("Post is deleted and cannot be published", result.ErrorMessage);
-        Assert.False(post.Published);
-        repo.DidNotReceive().Update(Arg.Any<BlogPost>());
     }
 
     /// <summary>
@@ -215,22 +131,22 @@ public class PublishStateDeletedPostTests
     /// <c>UpdatePost</c> re-checks against the database before writing.
     /// </summary>
     [Fact]
-    public void UpdatePostRefusesToPublishARowDeletedInAnotherTab()
+    public async Task UpdatePostRefusesToPublishARowDeletedInAnotherTab()
     {
         // Arrange
         var repo = Substitute.For<IBlogPostRepo>();
-        repo.GetSingle(5).Returns(DeletedPost(5));
+        repo.GetSingleAsync(5, Arg.Any<CancellationToken>()).Returns(DeletedPost(5));
         var stale = ValidPost(5);
         stale.IsDeleted = false;
         stale.Published = true;
 
         // Act
-        var result = BuildService(repo).UpdatePost(stale);
+        var result = await BuildService(repo).UpdatePostAsync(stale);
 
         // Assert
         Assert.True(result.IsFailure);
         Assert.Equal("Post is deleted and cannot be published", result.ErrorMessage);
-        repo.DidNotReceive().Update(Arg.Any<BlogPost>());
+        await repo.DidNotReceive().UpdateAsync(Arg.Any<BlogPost>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -238,20 +154,20 @@ public class PublishStateDeletedPostTests
     /// draft, which is what leaves "restore, then republish" possible rather than freezing the row.
     /// </summary>
     [Fact]
-    public void UpdatePostStillAllowsADraftSaveOfADeletedPost()
+    public async Task UpdatePostStillAllowsADraftSaveOfADeletedPost()
     {
         // Arrange
         var repo = Substitute.For<IBlogPostRepo>();
-        repo.GetSingle(5).Returns(DeletedPost(5));
+        repo.GetSingleAsync(5, Arg.Any<CancellationToken>()).Returns(DeletedPost(5));
         var draft = ValidPost(5);
         draft.Published = false;
 
         // Act
-        var result = BuildService(repo).UpdatePost(draft);
+        var result = await BuildService(repo).UpdatePostAsync(draft);
 
         // Assert
         Assert.True(result.IsSuccess);
-        repo.Received(1).Update(draft);
+        await repo.Received(1).UpdateAsync(draft, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -259,53 +175,41 @@ public class PublishStateDeletedPostTests
     /// the fix is a refusal of one state rather than a general narrowing.
     /// </summary>
     [Fact]
-    public void QuickPublishStillPublishesALivePost()
+    public async Task QuickPublishStillPublishesALivePost()
     {
         // Arrange
         var repo = Substitute.For<IBlogPostRepo>();
-        repo.GetSingle(5).Returns(ValidPost(5));
+        repo.GetSingleAsync(5, Arg.Any<CancellationToken>()).Returns(ValidPost(5));
 
         // Act
-        var result = BuildService(repo).QuickPublish(5);
+        var result = await BuildService(repo).QuickPublishAsync(5);
 
         // Assert
         Assert.True(result.IsSuccess);
-        repo.Received(1).Update(Arg.Is<BlogPost>(p => p != null && p.Published));
+        await repo.Received(1).UpdateAsync(Arg.Is<BlogPost>(p => p != null && p.Published), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
-    /// SYNC/ASYNC LOGGING PARITY (REQ-FN-055, second clause). The three blocking transitions returned
-    /// the exception message without logging it, while their async twins logged. Both halves of each
-    /// pair must now record the same error, or a persistence failure on the blocking path leaves no
-    /// trace in the log at all.
+    /// LOGGING OF PERSISTENCE FAILURES (REQ-FN-055, second clause). Each of the three transitions
+    /// must record the failed write in the log, or a persistence failure leaves no trace at all.
     /// </summary>
     [Fact]
-    public async Task BlockingTransitionsLogPersistenceFailuresLikeTheirAsyncTwins()
+    public async Task TransitionsLogPersistenceFailures()
     {
         // Arrange
-        var syncLogger = new RecordingLogger<BlogSvc>();
-        var asyncLogger = new RecordingLogger<BlogSvc>();
-        var syncRepo = BuildFailingRepo();
-        var asyncRepo = BuildFailingRepo();
-        var syncService = new BlogSvc(syncRepo, syncLogger);
-        var asyncService = new BlogSvc(asyncRepo, asyncLogger);
+        var logger = new RecordingLogger<BlogSvc>();
+        var service = new BlogSvc(BuildFailingRepo(), logger);
         var token = TestContext.Current.CancellationToken;
 
         // Act
-        syncService.UnpublishPost(1);
-        syncService.QuickPublish(2);
-        syncService.CancelSchedule(3);
-        await asyncService.UnpublishPostAsync(1, token);
-        await asyncService.QuickPublishAsync(2, token);
-        await asyncService.CancelScheduleAsync(3, token);
+        await service.UnpublishPostAsync(1, token);
+        await service.QuickPublishAsync(2, token);
+        await service.CancelScheduleAsync(3, token);
 
         // Assert
-        Assert.Equal(3, syncLogger.Entries.Count(entry => entry.Level == LogLevel.Error));
-        Assert.Equal(
-            asyncLogger.Entries.Where(entry => entry.Level == LogLevel.Error).Select(entry => entry.Message),
-            syncLogger.Entries.Where(entry => entry.Level == LogLevel.Error).Select(entry => entry.Message));
+        Assert.Equal(3, logger.Entries.Count(entry => entry.Level == LogLevel.Error));
         Assert.All(
-            syncLogger.Entries.Where(entry => entry.Level == LogLevel.Error),
+            logger.Entries.Where(entry => entry.Level == LogLevel.Error),
             entry => Assert.Equal("boom", entry.Error?.Message));
     }
 
@@ -338,14 +242,10 @@ public class PublishStateDeletedPostTests
         var scheduled = ValidPost(3);
         scheduled.ScheduledPublishOn = DateTime.UtcNow.AddDays(1);
 
-        repo.GetSingle(1).Returns(published);
-        repo.GetSingle(2).Returns(draft);
-        repo.GetSingle(3).Returns(scheduled);
         repo.GetSingleAsync(1, Arg.Any<CancellationToken>()).Returns(published);
         repo.GetSingleAsync(2, Arg.Any<CancellationToken>()).Returns(draft);
         repo.GetSingleAsync(3, Arg.Any<CancellationToken>()).Returns(scheduled);
 
-        repo.When(r => r.Update(Arg.Any<BlogPost>())).Do(_ => throw new InvalidOperationException("boom"));
         repo.When(r => r.UpdateAsync(Arg.Any<BlogPost>(), Arg.Any<CancellationToken>()))
             .Do(_ => throw new InvalidOperationException("boom"));
 

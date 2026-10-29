@@ -27,7 +27,8 @@ function categoryOrder(html: string): string[] {
   return seen;
 }
 
-test('REQ-UI-064 /admin/skills renders categories in the authored order, not alphabetically', async ({ page }) => {
+// retired 2026-10-27 (W6): asserts the 13 demo skills retired 2026-08-22 (UAT-007); superseded by w6-resume.spec.ts REQ-UI-064
+test.skip('retired: /admin/skills renders categories in the authored order, not alphabetically', async ({ page }) => {
   await login(page, 'admin');
   await nav(page, '/admin/skills');
   await expect(page.locator('[data-testid="skill-row"]').first()).toBeVisible({ timeout: 45000 });
@@ -40,7 +41,8 @@ test('REQ-UI-064 /admin/skills renders categories in the authored order, not alp
   expect(order, 'categories must NOT be hard-coded alphabetical').not.toEqual(ALPHABETICAL);
 });
 
-test('REQ-UI-064 every skill row carries a visible order badge', async ({ page }) => {
+// retired 2026-10-27 (W6): demo skills retired 2026-08-22 (UAT-007); superseded by w6-resume.spec.ts REQ-UI-064
+test.skip('retired: every skill row carries a visible order badge', async ({ page }) => {
   await login(page, 'admin');
   await nav(page, '/admin/skills');
   await expect(page.locator('[data-testid="skill-row"]').first()).toBeVisible({ timeout: 45000 });
@@ -58,7 +60,8 @@ test('REQ-UI-064 every skill row carries a visible order badge', async ({ page }
     Array.from({ length: 13 }, (unused, i) => i + 1));
 });
 
-test('REQ-UI-064 the public resume renders the same category order as admin', async () => {
+// retired 2026-10-27 (W6): demo skills retired 2026-08-22 (UAT-007); superseded by w6-resume.spec.ts REQ-UI-064
+test.skip('retired: the public resume renders the same category order as admin', async () => {
   const api = await request.newContext({ baseURL: BASE });
   try {
     const html = await (await api.get('/resume')).text();

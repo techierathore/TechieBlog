@@ -34,7 +34,7 @@ public class CommentSvcTests
         Assert.True(result.IsSuccess);
         Assert.Equal(CommentModerationStatus.PendingVerification, stored.ModerationStatus);
         Assert.False(stored.Published);
-        Assert.Empty(context.Service.GetCommentsByPostId(7));
+        Assert.Empty(await context.Service.GetCommentsByPostIdAsync(7));
     }
 
     /// <summary>
@@ -48,7 +48,7 @@ public class CommentSvcTests
 
         await context.Service.SubmitCommentAsync(BuildSubmission());
 
-        Assert.Empty(context.Service.GetPendingComments());
+        Assert.Empty(await context.Service.GetPendingCommentsAsync());
     }
 
     /// <summary>
@@ -64,10 +64,10 @@ public class CommentSvcTests
 
         await context.VerificationService.ConsumeAsync(token);
 
-        var queued = context.Service.GetPendingComments().Single();
+        var queued = (await context.Service.GetPendingCommentsAsync()).Single();
         Assert.Equal(CommentModerationStatus.PendingApproval, queued.ModerationStatus);
         Assert.False(queued.Published);
-        Assert.Empty(context.Service.GetCommentsByPostId(7));
+        Assert.Empty(await context.Service.GetCommentsByPostIdAsync(7));
     }
 
     /// <summary>
@@ -81,10 +81,10 @@ public class CommentSvcTests
         await context.VerificationService.ConsumeAsync(context.TokenRepo.Tokens.Single().Token);
         var commentId = context.CommentRepo.Comments.Single().CommentID;
 
-        var approval = context.Service.ApproveComment(commentId);
+        var approval = await context.Service.ApproveCommentAsync(commentId);
 
         Assert.True(approval.IsSuccess);
-        Assert.Single(context.Service.GetCommentsByPostId(7));
+        Assert.Single(await context.Service.GetCommentsByPostIdAsync(7));
     }
 
     /// <summary>
@@ -98,7 +98,7 @@ public class CommentSvcTests
         await context.Service.SubmitCommentAsync(BuildSubmission());
         var commentId = context.CommentRepo.Comments.Single().CommentID;
 
-        var approval = context.Service.ApproveComment(commentId);
+        var approval = await context.Service.ApproveCommentAsync(commentId);
 
         Assert.True(approval.IsFailure);
     }
@@ -201,7 +201,7 @@ public class CommentSvcTests
 
         await context.Service.RejectCommentAsync(commentId, true);
 
-        Assert.Empty(context.Service.GetPendingComments());
+        Assert.Empty(await context.Service.GetPendingCommentsAsync());
         Assert.Equal(CommentModerationStatus.Spam, context.CommentRepo.Comments.Single().ModerationStatus);
     }
 
@@ -220,8 +220,8 @@ public class CommentSvcTests
         Assert.True(context.SiteSettingsService.Settings.AreCommentsModerated);
         Assert.Equal(CommentModerationStatus.PendingApproval, result.Data.ModerationStatus);
         Assert.False(context.CommentRepo.Comments.Single().Published);
-        Assert.Empty(context.Service.GetCommentsByPostId(7));
-        Assert.Single(context.Service.GetPendingComments());
+        Assert.Empty(await context.Service.GetCommentsByPostIdAsync(7));
+        Assert.Single(await context.Service.GetPendingCommentsAsync());
     }
 
     /// <summary>
@@ -239,8 +239,8 @@ public class CommentSvcTests
 
         Assert.Equal(CommentModerationStatus.Approved, result.Data.ModerationStatus);
         Assert.True(context.CommentRepo.Comments.Single().Published);
-        Assert.Single(context.Service.GetCommentsByPostId(7));
-        Assert.Empty(context.Service.GetPendingComments());
+        Assert.Single(await context.Service.GetCommentsByPostIdAsync(7));
+        Assert.Empty(await context.Service.GetPendingCommentsAsync());
     }
 
     /// <summary>
@@ -257,7 +257,7 @@ public class CommentSvcTests
         await context.VerificationService.ConsumeAsync(context.TokenRepo.Tokens.Single().Token);
 
         Assert.Equal(CommentModerationStatus.Approved, context.CommentRepo.Comments.Single().ModerationStatus);
-        Assert.Single(context.Service.GetCommentsByPostId(7));
+        Assert.Single(await context.Service.GetCommentsByPostIdAsync(7));
     }
 
     /// <summary>
@@ -274,7 +274,7 @@ public class CommentSvcTests
 
         Assert.True(result.Data.IsEmailVerificationRequired);
         Assert.Equal(CommentModerationStatus.PendingVerification, context.CommentRepo.Comments.Single().ModerationStatus);
-        Assert.Empty(context.Service.GetCommentsByPostId(7));
+        Assert.Empty(await context.Service.GetCommentsByPostIdAsync(7));
     }
 
     /// <summary>
@@ -291,7 +291,7 @@ public class CommentSvcTests
         var result = await context.Service.SubmitCommentAsync(BuildSubmission());
 
         Assert.Equal(CommentModerationStatus.PendingApproval, result.Data.ModerationStatus);
-        Assert.Empty(context.Service.GetCommentsByPostId(7));
+        Assert.Empty(await context.Service.GetCommentsByPostIdAsync(7));
     }
 
     /// <summary>
@@ -307,8 +307,8 @@ public class CommentSvcTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(3, result.Data);
-        Assert.Equal(3, context.Service.GetCommentsByPostId(7).Count());
-        Assert.Empty(context.Service.GetPendingComments());
+        Assert.Equal(3, (await context.Service.GetCommentsByPostIdAsync(7)).Count());
+        Assert.Empty(await context.Service.GetPendingCommentsAsync());
     }
 
     /// <summary>
@@ -327,7 +327,7 @@ public class CommentSvcTests
         var result = await context.Service.ApproveCommentsAsync([.. confirmed, unconfirmed]);
 
         Assert.Equal(1, result.Data);
-        Assert.Single(context.Service.GetCommentsByPostId(7));
+        Assert.Single(await context.Service.GetCommentsByPostIdAsync(7));
         Assert.Equal(
             CommentModerationStatus.PendingVerification,
             context.CommentRepo.Comments.Single(c => c.CommentID == unconfirmed).ModerationStatus);
@@ -347,7 +347,7 @@ public class CommentSvcTests
         var result = await context.Service.RejectCommentsAsync(ids, isSpam: true);
 
         Assert.Equal(2, result.Data);
-        Assert.Empty(context.Service.GetCommentsByPostId(7));
+        Assert.Empty(await context.Service.GetCommentsByPostIdAsync(7));
         Assert.All(context.CommentRepo.Comments, c =>
         {
             Assert.Equal(CommentModerationStatus.Spam, c.ModerationStatus);
@@ -388,7 +388,7 @@ public class CommentSvcTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(0, result.Data);
-        Assert.Single(context.Service.GetPendingComments());
+        Assert.Single(await context.Service.GetPendingCommentsAsync());
     }
 
     /// <summary>

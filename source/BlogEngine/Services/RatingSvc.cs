@@ -20,8 +20,8 @@ namespace BlogEngine.Services;
 ///
 /// <para><b>The security-relevant rule: an unverified rating must never affect the public
 /// average.</b> A rating is stored with a verified flag, and <i>every</i> aggregate read —
-/// <see cref="GetAverageRating"/>, <see cref="GetRatingCount"/>,
-/// <see cref="GetPostRatingStats"/> and <see cref="GetTopRatedPostIds"/> — goes through repository
+/// <see cref="GetAverageRatingAsync"/>, <see cref="GetRatingCountAsync"/>,
+/// <see cref="GetPostRatingStatsAsync"/> and <see cref="GetTopRatedPostIdsAsync"/> — goes through repository
 /// SQL that filters on it. Without that filter the star rating would be an open ballot box: anyone
 /// could type an address they do not own and move a post's score, repeatedly, with different
 /// addresses. The parked row is deliberately kept and shown back to <i>its own submitter</i> via
@@ -59,16 +59,13 @@ namespace BlogEngine.Services;
 /// <para><b>Usage:</b> Registered transient by <c>BlogSvcInitializer</c>. Read methods swallow
 /// errors and return neutral values (0, null, empty), because a broken rating widget must never
 /// take a blog post down with it — which also means a zero average cannot be distinguished from a
-/// read failure without checking the log. Note the mixed sync/async surface: each of the three
-/// aggregate reads exists twice, as a blocking member and as an <c>…Async</c> twin (REQ-NFR-026
-/// stage 3), while the per-address reads and every mutation are asynchronous only. <b>Call the
-/// twins.</b> The blocking members are retained until stage 4 deletes them; the home page's
-/// latest-articles grid asks every card for an average and a count, so those two reads were among
-/// the last blocking calls left on the most-hit route in the application.</para>
+/// read failure without checking the log. Every member is asynchronous (REQ-NFR-026): the blocking aggregate reads were
+/// deleted in stage 4, and the home page's latest-articles grid, which asks every card for an average
+/// and a count, uses the async reads.</para>
 ///
 /// <para><b>Caching (REQ-NFR-018).</b> The three aggregate reads —
-/// <see cref="GetPostRatingStats"/>, <see cref="GetAverageRating"/> and
-/// <see cref="GetRatingCount"/> — go through <see cref="ICacheService"/> under
+/// <see cref="GetPostRatingStatsAsync"/>, <see cref="GetAverageRatingAsync"/> and
+/// <see cref="GetRatingCountAsync"/> — go through <see cref="ICacheService"/> under
 /// <c>CacheTags.Content</c>, keyed by post id. They are the N+1 behind the home page: the
 /// latest-articles grid asks each of its cards for an average and a count, so three article cards
 /// cost six round trips on every render of a figure that changes when somebody rates a post, which
@@ -280,35 +277,6 @@ public class RatingSvc
     }
 
     /// <summary>
-    /// Gets the aggregate figures for a post.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Average and count over <b>verified ratings only</b> — the
-    /// filter lives in the repository's SQL, and it is what stops an unconfirmed submission moving
-    /// a public number.</para>
-    /// <para><b>Side Effects:</b> None beyond logging. A read failure returns zeroes, which render
-    /// as an unrated post rather than an error.</para>
-    /// </remarks>
-    /// <param name="postId">The post id.</param>
-    /// <returns>Average and count over the verified ratings; zeroed on error.</returns>
-    public PostRatingStats GetPostRatingStats(long postId)
-    {
-        try
-        {
-            return ServiceCache.Read(
-                cacheService,
-                ServiceCache.RatingStatsKey(postId),
-                CacheTags.Content,
-                () => ratingRepo.GetStatsByPost(postId));
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error getting rating stats for post {PostId}", postId);
-            return new PostRatingStats { AverageRating = 0, RatingCount = 0 };
-        }
-    }
-
-    /// <summary>
     /// Gets the aggregate figures for a post together with one address's own score.
     /// </summary>
     /// <remarks>
@@ -344,61 +312,6 @@ public class RatingSvc
         }
     }
 
-    /// <summary>
-    /// Gets the average of the verified ratings for a post.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Verified ratings only. A post with no verified ratings and a
-    /// post whose read failed both return 0 — check <see cref="GetRatingCount"/> to tell "unrated"
-    /// from "rated zero", which cannot otherwise be distinguished.</para>
-    /// <para><b>Side Effects:</b> None beyond logging.</para>
-    /// </remarks>
-    /// <param name="postId">The post id.</param>
-    /// <returns>The average, 0 to 5; 0 on error.</returns>
-    public double GetAverageRating(long postId)
-    {
-        try
-        {
-            return ServiceCache.Read(
-                cacheService,
-                ServiceCache.RatingAverageKey(postId),
-                CacheTags.Content,
-                () => ratingRepo.GetAverageByPost(postId));
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error getting average rating for post {PostId}", postId);
-            return 0;
-        }
-    }
-
-    /// <summary>
-    /// Gets the number of verified ratings for a post.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Verified ratings only, so the "based on N ratings" caption
-    /// matches the average beside it. Parked submissions are invisible to this count.</para>
-    /// <para><b>Side Effects:</b> None beyond logging.</para>
-    /// </remarks>
-    /// <param name="postId">The post id.</param>
-    /// <returns>The count; 0 on error.</returns>
-    public int GetRatingCount(long postId)
-    {
-        try
-        {
-            return ServiceCache.Read(
-                cacheService,
-                ServiceCache.RatingCountKey(postId),
-                CacheTags.Content,
-                () => ratingRepo.GetCountByPost(postId));
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error getting rating count for post {PostId}", postId);
-            return 0;
-        }
-    }
-
     // =================================================================================================
     // Async surface — REQ-NFR-026 stage 3. Preferred over the three blocking aggregate reads above.
     //
@@ -418,7 +331,7 @@ public class RatingSvc
     /// Gets the aggregate figures for a post, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> The async twin of <see cref="GetPostRatingStats"/> and
+    /// <para><b>Business Logic:</b> The async twin of <c>GetPostRatingStats</c> and
     /// behaviourally identical to it. Average and count over <b>verified ratings only</b> — the
     /// filter lives in the repository's SQL, and it is what stops an unconfirmed submission moving
     /// a public number.</para>
@@ -452,7 +365,7 @@ public class RatingSvc
     /// Gets the average of the verified ratings for a post, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> The async twin of <see cref="GetAverageRating"/>. Verified
+    /// <para><b>Business Logic:</b> The async twin of <c>GetAverageRating</c>. Verified
     /// ratings only. A post with no verified ratings and a post whose read failed both return 0 —
     /// check <see cref="GetRatingCountAsync"/> to tell "unrated" from "rated zero", which cannot
     /// otherwise be distinguished.</para>
@@ -484,7 +397,7 @@ public class RatingSvc
     /// Gets the number of verified ratings for a post, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> The async twin of <see cref="GetRatingCount"/>. Verified ratings
+    /// <para><b>Business Logic:</b> The async twin of <c>GetRatingCount</c>. Verified ratings
     /// only, so the "based on N ratings" caption matches the average beside it. Parked submissions
     /// are invisible to this count.</para>
     /// <para><b>Flow:</b> read through the cache under this twin's own key → await the repository →
@@ -512,24 +425,26 @@ public class RatingSvc
     }
 
     /// <summary>
-    /// Gets the ids of the best-rated posts.
+    /// Gets the ids of the best-rated posts, without blocking the calling thread.
     /// </summary>
     /// <remarks>
     /// <para><b>Business Logic:</b> Ranks on verified ratings only, so a post cannot be pushed into
     /// the "top rated" list by unconfirmed submissions. <paramref name="minRatings"/> is the
     /// small-sample guard: a single five-star rating would otherwise outrank a post with fifty
     /// ratings averaging 4.8, so raise it above the default of 1 on a busy site.</para>
-    /// <para><b>Side Effects:</b> None beyond logging. Returns ids only — the caller resolves the
+    /// <para><b>Side Effects:</b> None beyond logging. Returns ids only - the caller resolves the
     /// posts, and must apply its own published filter before rendering them.</para>
     /// </remarks>
     /// <param name="count">Maximum number of posts to return.</param>
     /// <param name="minRatings">Minimum verified ratings a post needs to qualify.</param>
+    /// <param name="cancellationToken">Cancels the query.</param>
     /// <returns>Post ids ordered by average score; empty on error.</returns>
-    public IEnumerable<long> GetTopRatedPostIds(int count = 10, int minRatings = 1)
+    public async Task<IEnumerable<long>> GetTopRatedPostIdsAsync(
+        int count = 10, int minRatings = 1, CancellationToken cancellationToken = default)
     {
         try
         {
-            return ratingRepo.GetTopRatedPostIds(count, minRatings);
+            return await ratingRepo.GetTopRatedPostIdsAsync(count, minRatings, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

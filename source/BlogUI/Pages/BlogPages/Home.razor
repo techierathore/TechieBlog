@@ -66,7 +66,7 @@ else
 
         @* REQ-FN-020 / BRD-31 — the featured post: the newest published article, given its own
            full-width block above the grid so the landing page always leads with one piece of
-           writing. Selection is BlogSvc.GetFeaturedPost(); nothing is curated by hand. *@
+           writing. Selection is BlogSvc.GetFeaturedPostAsync(); nothing is curated by hand. *@
         @if (featuredPost is not null)
         {
             <section class="py-4" data-testid="home-featured">

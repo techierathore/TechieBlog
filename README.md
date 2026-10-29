@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/brand/TechieBlog-horizontal.png" alt="TechieBlog" width="480">
+</p>
+
 # TechieBlog — Blazor Blog Engine Template
 
 > A production-ready, Blazor-native blogging engine and personal-site platform built on .NET 10 LTS.
@@ -132,6 +136,12 @@ flagged `MustChangePassword`, so the first sign-in lands on the change-password 
 > **A fresh database starts EMPTY of content.** The seed creates the staff accounts and the taxonomy
 > only — no sample posts. Every page has a designed empty state, so the site is presentable from the
 > first run and you are never deleting someone else's demo data.
+
+### Admin entry point
+
+The public site deliberately has **no login link** — readers never see a sign-in prompt. The
+administrator signs in directly at **`/login`** (for example `http://localhost:5373/login`) and, once
+authenticated, lands on the admin dashboard at **`/admin`**. Bookmark the `/login` URL.
 
 ---
 

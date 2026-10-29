@@ -106,7 +106,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <div class="layout">
   <nav class="side">
     <h1>TechieBlog — Business Requirements</h1>
-    <div class="sub">Last rendered: 2026-10-21</div>
+    <div class="sub">Last rendered: 2026-10-28</div>
     <div class="group">Contents</div>
     <ol>
         <li><a href="#table-of-contents">Table of Contents</a></li>
@@ -142,9 +142,10 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
         <li class="h3"><a href="#f-tpl-template-distribution-developer-experience">F-TPL: Template distribution &amp;amp; developer experience</a></li>
         <li class="h3"><a href="#f-ops-operations-logging-delivery-pipeline">F-OPS: Operations, logging &amp;amp; delivery pipeline</a></li>
         <li class="h3"><a href="#f-desk-blogapp-desktop-admin-application">F-DESK: BlogApp desktop admin application</a></li>
+        <li class="h3"><a href="#f-brand-brand-identity-icons">F-BRAND: Brand identity &amp;amp; icons</a></li>
         <li><a href="#functional-requirements-brd-ledger">10. Functional requirements (BRD ledger)</a></li>
         <li><a href="#non-functional-requirements">11. Non-functional requirements</a></li>
-        <li><a href="#constraints-assumptions">12. Constraints &amp;amp; assumptions</a></li>
+        <li><a href="#constraints-and-assumptions">12. Constraints and assumptions</a></li>
         <li><a href="#success-metrics">13. Success metrics</a></li>
         <li><a href="#risks">14. Risks</a></li>
         <li><a href="#glossary">15. Glossary</a></li>
@@ -152,7 +153,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   </nav>
   <main>
     <h1>TechieBlog — Business Requirements</h1>
-    <div class="subtitle">Rendered 2026-10-21 &middot; source <code>TechieBlog-BRD.md</code></div>
+    <div class="subtitle">Rendered 2026-10-28 &middot; source <code>TechieBlog-BRD.md</code></div>
 
     <div class="toc-inline">
       <div>Contents</div>
@@ -190,14 +191,21 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
         <li class="h3"><a href="#f-tpl-template-distribution-developer-experience">F-TPL: Template distribution &amp;amp; developer experience</a></li>
         <li class="h3"><a href="#f-ops-operations-logging-delivery-pipeline">F-OPS: Operations, logging &amp;amp; delivery pipeline</a></li>
         <li class="h3"><a href="#f-desk-blogapp-desktop-admin-application">F-DESK: BlogApp desktop admin application</a></li>
+        <li class="h3"><a href="#f-brand-brand-identity-icons">F-BRAND: Brand identity &amp;amp; icons</a></li>
         <li><a href="#functional-requirements-brd-ledger">10. Functional requirements (BRD ledger)</a></li>
         <li><a href="#non-functional-requirements">11. Non-functional requirements</a></li>
-        <li><a href="#constraints-assumptions">12. Constraints &amp;amp; assumptions</a></li>
+        <li><a href="#constraints-and-assumptions">12. Constraints and assumptions</a></li>
         <li><a href="#success-metrics">13. Success metrics</a></li>
         <li><a href="#risks">14. Risks</a></li>
         <li><a href="#glossary">15. Glossary</a></li>
       </ol>
     </div>
+<table>
+<thead><tr><th></th><th></th></tr></thead>
+<tbody>
+<tr><td>Phase</td><td>1 of 1</td></tr>
+</tbody>
+</table>
 <h2 id="table-of-contents">Table of Contents<a class="anchor-link" href="#table-of-contents">#</a></h2>
 <ol>
 <li><a href="#executive-summary">Executive summary</a>
@@ -264,13 +272,15 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 </li>
 <li><a href="#f-desk-blogapp-desktop-admin-application">F-DESK: BlogApp desktop admin application</a>
 </li>
+<li><a href="#f-brand-brand-identity-icons">F-BRAND: Brand identity &amp; icons</a> <em>(added 2026-10-27)</em>
+</li>
 </ul>
 </li>
 <li><a href="#functional-requirements-brd-ledger">Functional requirements (BRD ledger)</a>
 </li>
 <li><a href="#non-functional-requirements">Non-functional requirements</a>
 </li>
-<li><a href="#constraints-assumptions">Constraints &amp; assumptions</a>
+<li><a href="#constraints-and-assumptions">Constraints and assumptions</a>
 </li>
 <li><a href="#success-metrics">Success metrics</a>
 </li>
@@ -355,14 +365,14 @@ theme repository remains a post-MVP aspiration. The MAUI Blazor Hybrid desktop w
 BRD-94…BRD-97).</p>
 <h2 id="development-status"><a id="4-development-status"></a>4. Development status<a class="anchor-link" href="#development-status">#</a></h2>
 <p>Written by the status gate after every build, verify and handoff; not by hand.</p>
-<p><strong>Snapshot as of 2026-10-21.</strong> Live per-requirement status: <code>PROJECT-STATUS.md</code> and the Requirements Status table in <code>docs/TechieBlog-Checklist.md</code>.</p>
+<p><strong>Snapshot as of 2026-10-28.</strong> Live per-requirement status: <code>PROJECT-STATUS.md</code> and the Requirements Status table in <code>docs/TechieBlog-Checklist.md</code>.</p>
 <table>
 <thead><tr><th>Screen</th><th>Requirements</th><th>Verified</th><th>Open</th><th>Status</th></tr></thead>
 <tbody>
-<tr><td>UI / Pages</td><td>49</td><td>4</td><td>45</td><td>Partial</td></tr>
-<tr><td>Functional requirements</td><td>48</td><td>18</td><td>30</td><td>Partial</td></tr>
-<tr><td>Non-functional</td><td>22</td><td>18</td><td>4</td><td>Partial</td></tr>
-<tr><td>Unmapped</td><td>36</td><td>25</td><td>11</td><td>Partial</td></tr>
+<tr><td>UI / Pages</td><td>49</td><td>48</td><td>1</td><td>Partial</td></tr>
+<tr><td>Functional requirements</td><td>48</td><td>48</td><td>0</td><td>Done</td></tr>
+<tr><td>Non-functional</td><td>37</td><td>37</td><td>0</td><td>Done</td></tr>
+<tr><td>Unmapped</td><td>25</td><td>25</td><td>0</td><td>Done</td></tr>
 </tbody>
 </table>
 <h2 id="stakeholders-users"><a id="5-stakeholders--users"></a>5. Stakeholders / users<a class="anchor-link" href="#stakeholders-users">#</a></h2>
@@ -1036,6 +1046,50 @@ PostgreSQL instance — disconnected editing is out of scope by design.</p>
   Direct --&gt; Site["published content immediately live on the website"]</pre>
 </div>
 <p><strong>Requirements:</strong> BRD-94, BRD-95, BRD-96, BRD-97</p>
+<h3 id="f-brand-brand-identity-icons"><a id="f-brand-brand-identity--icons"></a>F-BRAND: Brand identity &amp; icons<a class="anchor-link" href="#f-brand-brand-identity-icons">#</a></h3>
+<p><strong>Personas:</strong> Reader (sees the header and the browser tab), Admin (BlogApp taskbar icon), template adopter (README) · <strong>Phase:</strong> 11 · <em>added 2026-10-27</em></p>
+<p>TechieBlog now has an approved logo set, kept by the owner in
+<code>C:\1MyCode\MyAiChats\3-Resources\Brand\logos\</code> (<code>/mnt/c/1MyCode/MyAiChats/3-Resources/Brand/logos/</code>
+from WSL). Five files make up the set: <code>TechieBlog-appicon.svg</code> (the TechieRathore-blue <code>#0F4DBC</code> tile
+with the white glyph), <code>TechieBlog-appiconfg.svg</code> (the glyph alone), <code>TechieBlog-horizontal.svg</code> and
+<code>TechieBlog-horizontal.png</code> (glyph plus wordmark — the "horizontal lockup") and <code>TechieBlog.png</code> (the
+tile at 1024 px). Until now the product wore placeholders: the .NET-template purple on BlogApp's icon
+and splash, a Lucide <code>code</code> glyph or plain text in the site header, no favicon at all, and a
+text-only README.</p>
+<p>The rule for every file in the set is the same: <strong>it is copied into the repository byte for byte.</strong>
+Nobody redraws, re-exports, crops or optimises a logo. Where a size the set does not contain is needed
+(the 32 px favicon, the 192 px and 512 px icons), it is <strong>rendered from the tile by a script that
+lives in the repository</strong>, so the output can be reproduced and is never hand-made.</p>
+<table>
+<thead><tr><th>Surface</th><th>Files</th><th>Where they live</th><th>What changes</th></tr></thead>
+<tbody>
+<tr><td>BlogApp icon + splash</td><td><code>TechieBlog-appicon.svg</code> → <code>appicon.svg</code>, <code>TechieBlog-appiconfg.svg</code> → <code>appiconfg.svg</code> and → <code>splash.svg</code></td><td><code>source/BlogApp/Resources/AppIcon/</code>, <code>source/BlogApp/Resources/Splash/</code></td><td>The <code>MauiIcon</code> and <code>MauiSplashScreen</code> colour in <code>BlogApp.csproj</code> moves from <code>#512BD4</code> to <code>#0F4DBC</code>; no hand-made PNG under <code>Resources/</code>; <code>bin/</code> and <code>obj/</code> are cleaned before the first build so the old icon cannot survive in the build cache</td></tr>
+<tr><td>Site header</td><td><code>TechieBlog-horizontal.svg</code>, <code>TechieBlog-appiconfg.svg</code></td><td><code>source/BlogUI/wwwroot/images/brand/</code></td><td>With <strong>no</strong> site logo configured, the header's brand link shows the horizontal lockup instead of plain text. A configured logo still wins exactly as today (UAT-021 / UAT-022)</td></tr>
+<tr><td>Browser tab</td><td><code>favicon.ico</code> (32 px), <code>icon-192.png</code>, <code>icon-512.png</code></td><td>rendered into <code>source/BlogUI/wwwroot/images/brand/</code> by a script under <code>scripts/</code></td><td>Linked in the <code>&lt;head&gt;</code> of every page</td></tr>
+<tr><td>README</td><td><code>TechieBlog-horizontal.png</code> (and <code>TechieBlog.png</code>, the tile the icon script renders from)</td><td><code>docs/brand/</code></td><td>The lockup sits above the title at the top of <code>README.md</code></td></tr>
+</tbody>
+</table>
+<p><strong>Dark mode — default taken 2026-10-27 (YOLO), owner may overrule.</strong> The lockup's wordmark is drawn in
+<code>#0F4DBC</code>. On a near-black dark-mode header that is roughly 2.6 : 1 contrast, under the 3 : 1 WCAG asks
+of a logo-like graphic (BRD-84). Default: ship the file unchanged in both modes, because the byte-for-byte
+rule comes from the owner; the build measures the contrast in dark mode and records it on the checklist
+row. If it is too faint, the fix is a light rounded backing behind the image in dark mode only (CSS, the
+file is untouched); swapping to <code>TechieBlog-wordmark-white.png</code> from the brand folder would need the
+owner's say, since it is not part of the approved set named here.</p>
+<p><strong>Acceptance (one per requirement):</strong></p>
+<ul>
+<li><em>Acceptance for BRD-102:</em> When a visitor opens any public page of a fresh clone with no site logo configured, then the header's brand link shows the horizontal lockup; when the admin then sets a logo in Site Settings, the header shows that logo instead, exactly as before this change. Mockup: <a href="mockups/01-home.html">01-home</a>.
+</li>
+<li><em>Acceptance for BRD-103:</em> When a visitor opens any page of the website, then the browser tab shows the new TechieBlog favicon, and <code>favicon.ico</code>, <code>icon-192.png</code> and <code>icon-512.png</code> are produced by running the script under <code>scripts/</code> — running it again yields the same files.
+</li>
+<li><em>Acceptance for BRD-104:</em> When the owner builds and launches BlogApp on Windows after cleaning <code>bin/</code> and <code>obj/</code>, then the taskbar shows the blue TechieBlog tile and the splash shows the glyph on <code>#0F4DBC</code>.
+</li>
+<li><em>Acceptance for BRD-105:</em> When someone opens the repository on GitHub, then <code>README.md</code> renders the horizontal lockup above the title.
+</li>
+<li><em>Acceptance for all four:</em> every copied file under <code>source/BlogApp/Resources/</code>, <code>source/BlogUI/wwwroot/images/brand/</code> and <code>docs/brand/</code> is byte-identical to its original in the brand folder (a checksum comparison, not an eyeball).
+</li>
+</ul>
+<p><strong>Requirements:</strong> BRD-102, BRD-103, BRD-104, BRD-105</p>
 <h2 id="functional-requirements-brd-ledger"><a id="10-functional-requirements-brd-ledger"></a>10. Functional requirements (BRD ledger)<a class="anchor-link" href="#functional-requirements-brd-ledger">#</a></h2>
 <ul>
 <li><s><strong>BRD-1</strong></s> — <em>(removed 2026-08-06: no reader accounts exist — commenting, rating and subscribing are anonymous and email-verified, so public self-service registration has no purpose. Staff accounts are created by an admin under BRD-10.)</em> A visitor can register for an account <em>(F-AUTH)</em>
@@ -1212,6 +1266,14 @@ PostgreSQL instance — disconnected editing is out of scope by design.</p>
 </li>
 <li><strong>BRD-101</strong> — A visitor can read an individual published newsletter issue at <code>/newsletter/{slug}</code>, with navigation to the previous and next issue <em>(F-SUB)</em> &lt;!-- added 2026-08-06 --&gt;
 </li>
+<li><strong>BRD-102</strong> — When no site logo is configured, the public header's brand link shall show the approved TechieBlog horizontal lockup (glyph and wordmark, served from <code>source/BlogUI/wwwroot/images/brand/</code>) instead of plain text; a configured site logo still takes precedence exactly as today (UAT-021/022) <em>(F-BRAND)</em> &lt;!-- added 2026-10-27 --&gt;
+</li>
+<li><strong>BRD-103</strong> — Every page of the website shall link a <code>favicon.ico</code> (32 px), <code>icon-192.png</code> and <code>icon-512.png</code> in its <code>&lt;head&gt;</code>, all rendered from the approved tile by a script kept under <code>scripts/</code> — never made by hand <em>(F-BRAND)</em> &lt;!-- added 2026-10-27 --&gt;
+</li>
+<li><strong>BRD-104</strong> — BlogApp's app icon, icon foreground and splash screen shall be the approved TechieBlog files copied byte for byte (splash = the glyph-only file), with <code>#0F4DBC</code> replacing <code>#512BD4</code> as the <code>MauiIcon</code> and <code>MauiSplashScreen</code> colour, and no hand-made PNG under <code>Resources/</code> <em>(F-BRAND)</em> &lt;!-- added 2026-10-27 --&gt;
+</li>
+<li><strong>BRD-105</strong> — <code>README.md</code> shall open with the horizontal lockup PNG, committed under <code>docs/brand/</code>, above the title, so it renders on GitHub <em>(F-BRAND)</em> &lt;!-- added 2026-10-27 --&gt;
+</li>
 </ul>
 <h2 id="non-functional-requirements"><a id="11-non-functional-requirements"></a>11. Non-functional requirements<a class="anchor-link" href="#non-functional-requirements">#</a></h2>
 <p><strong>Performance targets</strong></p>
@@ -1264,7 +1326,7 @@ PostgreSQL instance — disconnected editing is out of scope by design.</p>
 <li><strong>BRD-91</strong> — Build integrity: the solution shall build with zero errors on a clean clone, and package references shall be pinned rather than floating.
 </li>
 </ul>
-<h2 id="constraints-assumptions"><a id="12-constraints--assumptions"></a>12. Constraints &amp; assumptions<a class="anchor-link" href="#constraints-assumptions">#</a></h2>
+<h2 id="constraints-and-assumptions"><a id="12-constraints-and-assumptions"></a>12. Constraints and assumptions<a class="anchor-link" href="#constraints-and-assumptions">#</a></h2>
 <p><strong>Constraints</strong></p>
 <table>
 <thead><tr><th>Constraint</th><th>Detail</th></tr></thead>
@@ -1355,12 +1417,13 @@ workflows exist); <strong>R-3</strong> is closed (PBKDF2-HMAC-SHA256 at 210 000 
 </li>
 </ul>
 <hr>
-<p>Last updated: 2026-08-14
-Highest BRD ID: BRD-101
+<p>Last updated: 2026-10-27
+Highest BRD ID: BRD-105
 Last amended: 2026-08-06 — TrBlazeUI adoption (BRD-92), portfolio home + no public admin entry (BRD-30 revised, BRD-93), BlogApp MAUI desktop admin (BRD-94…97, F-DESK); design-review pass: F-AUTHOR + F-FAV retired (BRD-43/44/53/54/55), reader accounts dropped (BRD-13, BRD-37), anonymous email-identified comments and ratings (BRD-36/40/41 revised)
 Retired IDs (never reused): BRD-1, BRD-13, BRD-37, BRD-43, BRD-44, BRD-53, BRD-54, BRD-55
 Added 2026-08-06 (second design-review pass): BRD-98 email verification · BRD-99 self-hosted captcha ·
 BRD-100 public newsletter archive · BRD-101 public newsletter issue view
+Added 2026-10-27 (brand assets, F-BRAND): BRD-102 header lockup · BRD-103 favicon + icons from a script · BRD-104 BlogApp icon/splash · BRD-105 README lockup
 Sources harvested: docs/OldDocs/prd.md, docs/prd/ (sharded), docs/OldDocs/project-brief.md, docs/architecture.md, docs/architecture/ (sharded), docs/OldDocs/front-end-spec.md, docs/OldDocs/feature-ideation-images-resume.md, docs/OldDocs/MVP-EXECUTION-PLAN.md, docs/OldDocs/FIX-PLAN.md, docs/OldDocs/FAST-TRACK-BACKLOG.md, docs/OldDocs/SM-HANDOFF.md, docs/OldDocs/epic-image-resume-multiauthor.md, docs/stories/<em>.story.md (44), docs/qa/gates/</em>.yml (19), docs/deployment.md, docs/customization.md, docs/database-migration-guide.md, docs/DataMigrationGuide.md, docs/packaging-strategy-brainstorm.md, docs/template-release-checklist.md, README.md, GETTING_STARTED.md
 Custom instructions applied: none — user replied "all" (harvest every detected doc)
 Drafted from reverse-doc — review and edit. New BRDs may be added (append-only); do not renumber.</p>
