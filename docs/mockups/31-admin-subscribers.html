@@ -10,10 +10,11 @@
     Stat row       → TbCard ×3 stat tiles (Total / Active / Unsubscribed)
     Filters        → TbInput (search email) + TbSelect (status)
     Table          → TbDataTable (email .mono, status TbBadge, subscribed date, source,
-                     action Remove)
+                     action Deactivate / Activate)
     Pagination     → TbPagination
   States: loading → TbSkeleton rows; empty list → TbEmpty "No subscribers yet";
-          Remove → TbDialog confirm + TbToast "Subscriber removed"; Export CSV streams
+          Deactivate → TbDialog confirm + TbToast "Subscriber deactivated" (row kept,
+          status becomes Unsubscribed; BRD-57, changed 2026-10-28); Export CSV streams
           the filtered set (BRD-58).
   Data: 486 total = 462 active + 24 unsubscribed; sources: Footer form, Post CTA,
         Newsletter landing, Import.
@@ -171,14 +172,14 @@
         <table class="tb">
           <thead><tr><th>Email</th><th>Status</th><th>Subscribed</th><th>Source</th><th style="text-align:right">Actions</th></tr></thead>
           <tbody>
-            <tr><td class="mono" style="font-size:13.5px">deepak.verma@yahoo.com</td><td><span class="badge badge-success">Active</span></td><td class="muted">Jul 30, 2026</td><td class="muted">Post CTA</td><td style="text-align:right"><button class="btn btn-sm btn-ghost" style="color:var(--destructive)">Remove</button></td></tr>
-            <tr><td class="mono" style="font-size:13.5px">meera.iyer@gmail.com</td><td><span class="badge badge-success">Active</span></td><td class="muted">Jul 22, 2026</td><td class="muted">Footer form</td><td style="text-align:right"><button class="btn btn-sm btn-ghost" style="color:var(--destructive)">Remove</button></td></tr>
-            <tr><td class="mono" style="font-size:13.5px">anita.sharma@outlook.com</td><td><span class="badge badge-success">Active</span></td><td class="muted">Jul 18, 2026</td><td class="muted">Newsletter landing</td><td style="text-align:right"><button class="btn btn-sm btn-ghost" style="color:var(--destructive)">Remove</button></td></tr>
-            <tr><td class="mono" style="font-size:13.5px">arjun.patel@live.com</td><td><span class="badge badge-outline">Unsubscribed</span></td><td class="muted">Jun 29, 2026</td><td class="muted">Footer form</td><td style="text-align:right"><button class="btn btn-sm btn-ghost" style="color:var(--destructive)">Remove</button></td></tr>
-            <tr><td class="mono" style="font-size:13.5px">sanjay.k@proton.me</td><td><span class="badge badge-success">Active</span></td><td class="muted">Jun 14, 2026</td><td class="muted">Post CTA</td><td style="text-align:right"><button class="btn btn-sm btn-ghost" style="color:var(--destructive)">Remove</button></td></tr>
-            <tr><td class="mono" style="font-size:13.5px">kavita.joshi@gmail.com</td><td><span class="badge badge-success">Active</span></td><td class="muted">May 27, 2026</td><td class="muted">Newsletter landing</td><td style="text-align:right"><button class="btn btn-sm btn-ghost" style="color:var(--destructive)">Remove</button></td></tr>
-            <tr><td class="mono" style="font-size:13.5px">rahul.menon@hotmail.com</td><td><span class="badge badge-outline">Unsubscribed</span></td><td class="muted">May 9, 2026</td><td class="muted">Import</td><td style="text-align:right"><button class="btn btn-sm btn-ghost" style="color:var(--destructive)">Remove</button></td></tr>
-            <tr><td class="mono" style="font-size:13.5px">priya.nair@gmail.com</td><td><span class="badge badge-success">Active</span></td><td class="muted">Apr 21, 2026</td><td class="muted">Footer form</td><td style="text-align:right"><button class="btn btn-sm btn-ghost" style="color:var(--destructive)">Remove</button></td></tr>
+            <tr><td class="mono" style="font-size:13.5px">deepak.verma@yahoo.com</td><td><span class="badge badge-success">Active</span></td><td class="muted">Jul 30, 2026</td><td class="muted">Post CTA</td><td style="text-align:right"><button class="btn btn-sm btn-ghost" style="color:var(--destructive)">Deactivate</button></td></tr>
+            <tr><td class="mono" style="font-size:13.5px">meera.iyer@gmail.com</td><td><span class="badge badge-success">Active</span></td><td class="muted">Jul 22, 2026</td><td class="muted">Footer form</td><td style="text-align:right"><button class="btn btn-sm btn-ghost" style="color:var(--destructive)">Deactivate</button></td></tr>
+            <tr><td class="mono" style="font-size:13.5px">anita.sharma@outlook.com</td><td><span class="badge badge-success">Active</span></td><td class="muted">Jul 18, 2026</td><td class="muted">Newsletter landing</td><td style="text-align:right"><button class="btn btn-sm btn-ghost" style="color:var(--destructive)">Deactivate</button></td></tr>
+            <tr><td class="mono" style="font-size:13.5px">arjun.patel@live.com</td><td><span class="badge badge-outline">Unsubscribed</span></td><td class="muted">Jun 29, 2026</td><td class="muted">Footer form</td><td style="text-align:right"><button class="btn btn-sm btn-ghost">Activate</button></td></tr>
+            <tr><td class="mono" style="font-size:13.5px">sanjay.k@proton.me</td><td><span class="badge badge-success">Active</span></td><td class="muted">Jun 14, 2026</td><td class="muted">Post CTA</td><td style="text-align:right"><button class="btn btn-sm btn-ghost" style="color:var(--destructive)">Deactivate</button></td></tr>
+            <tr><td class="mono" style="font-size:13.5px">kavita.joshi@gmail.com</td><td><span class="badge badge-success">Active</span></td><td class="muted">May 27, 2026</td><td class="muted">Newsletter landing</td><td style="text-align:right"><button class="btn btn-sm btn-ghost" style="color:var(--destructive)">Deactivate</button></td></tr>
+            <tr><td class="mono" style="font-size:13.5px">rahul.menon@hotmail.com</td><td><span class="badge badge-outline">Unsubscribed</span></td><td class="muted">May 9, 2026</td><td class="muted">Import</td><td style="text-align:right"><button class="btn btn-sm btn-ghost">Activate</button></td></tr>
+            <tr><td class="mono" style="font-size:13.5px">priya.nair@gmail.com</td><td><span class="badge badge-success">Active</span></td><td class="muted">Apr 21, 2026</td><td class="muted">Footer form</td><td style="text-align:right"><button class="btn btn-sm btn-ghost" style="color:var(--destructive)">Deactivate</button></td></tr>
           </tbody>
         </table>
       </div>

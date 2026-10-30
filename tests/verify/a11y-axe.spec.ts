@@ -10,7 +10,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const BASE = process.env.TB_BASE ?? 'http://localhost:5431';
-const OUT = path.join(process.cwd(), 'test-results', 'a11y-reaudit');
+const OUT = path.join(process.cwd(), 'tests/.artifacts/test-results', 'a11y-reaudit');
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
 const URLS: Array<[string, string]> = [

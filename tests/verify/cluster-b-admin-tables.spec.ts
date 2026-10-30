@@ -36,10 +36,10 @@ const BASE = process.env.SMOKE_BASE ?? 'https://localhost:7481';
 const ADMIN = { email: 'Ravi@techieblog.com', password: 'admin_password' };
 
 /**
- * Where screenshots are written. Playwright wipes `test-results/` at the start of every run, and
+ * Where screenshots are written. Playwright wipes `tests/.artifacts/test-results/` at the start of every run, and
  * sibling clusters run concurrently, so evidence masters are written outside it and copied in.
  */
-const SHOTS = process.env.SHOT_DIR ?? 'test-results/cluster-b';
+const SHOTS = process.env.SHOT_DIR ?? 'tests/.artifacts/test-results/cluster-b';
 
 /** Text Blazor's default ErrorBoundary renders when a component throws. */
 const ERROR_BOUNDARY_TEXT = 'An unhandled error has occurred';

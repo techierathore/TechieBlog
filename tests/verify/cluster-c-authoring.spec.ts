@@ -18,7 +18,7 @@ import { test, expect, Page } from '@playwright/test';
 import { BASE, login, nav } from './_gates';
 import { newAdminPage, purgePosts } from './w3-helpers';
 
-const SHOTS = 'test-results-cluster-c';
+const SHOTS = 'tests/.artifacts/test-results-cluster-c';
 
 /** The exact string the verifier used. 15 characters, two of them significant Markdown. */
 const FIDELITY_TEXT = '## Live heading';

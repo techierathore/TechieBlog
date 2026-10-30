@@ -20,7 +20,7 @@ import { BASE, login, nav, renderCheck, visualCheck } from './_gates';
  * Ground truth is cross-checked against values read straight out of PostgreSQL and pinned below.
  */
 
-const SCREENSHOTS = 'test-results-cluster-k';
+const SCREENSHOTS = 'tests/.artifacts/test-results-cluster-k';
 
 /** SELECT slug FROM blogpost WHERE published=TRUE AND isdeleted=FALSE ORDER BY postid LIMIT 1; */
 const POST_SLUG = 'blazor-render-modes-explained';

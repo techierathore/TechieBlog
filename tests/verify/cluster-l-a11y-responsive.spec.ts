@@ -17,7 +17,7 @@
     4. The two Routes.razor defects: the transient double shell while auth state
        resolves, and the 404 screen swap after hydration.
 
-  Everything is written to test-results-cluster-l/ as JSON plus screenshots.
+  Everything is written to tests/.artifacts/test-results-cluster-l/ as JSON plus screenshots.
 */
 import { test, expect, Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
@@ -26,7 +26,7 @@ import * as path from 'path';
 
 const BASE = process.env.TB_BASE ?? 'http://172.18.144.1:5392';
 const TAG = process.env.TB_TAG ?? 'after';
-const OUT = path.join(process.cwd(), 'test-results-cluster-l');
+const OUT = path.join(process.cwd(), 'tests/.artifacts/test-results-cluster-l');
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
 const ADMIN_EMAIL = 'Ravi@techieblog.com';

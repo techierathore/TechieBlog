@@ -269,7 +269,7 @@ test.describe('superseded (constants-era check bound to retired demo data: comme
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.waitForTimeout(800);
     const desktop = await visualGate(page, panels, 'dashboard@1280');
-    await page.screenshot({ path: 'test-results/cluster-b/dashboard-1280.png', fullPage: true });
+    await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-b/dashboard-1280.png', fullPage: true });
 
     // The four tiles sit on one row at 1280 (xl:grid-cols-4) and must not overlap.
     const tiles = desktop.filter(b => b.id.startsWith('stat-'));
@@ -284,6 +284,6 @@ test.describe('superseded (constants-era check bound to retired demo data: comme
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(800);
     await visualGate(page, panels, 'dashboard@390');
-    await page.screenshot({ path: 'test-results/cluster-b/dashboard-390.png', fullPage: true });
+    await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-b/dashboard-390.png', fullPage: true });
   });
 });

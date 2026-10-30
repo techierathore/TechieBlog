@@ -109,13 +109,13 @@ test.describe.skip('retired: analytics dashboard', () => {
     await page.waitForTimeout(500);
     await visualGate(page, ['analytics-stat-tiles', 'analytics-popular-card', 'analytics-trend-card',
       'analytics-category-card', 'analytics-range-card'], 'analytics@1280');
-    await page.screenshot({ path: 'test-results/cluster-d/analytics-1280.png', fullPage: true });
+    await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-d/analytics-1280.png', fullPage: true });
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(500);
     await visualGate(page, ['analytics-stat-tiles', 'analytics-popular-card', 'analytics-trend-card',
       'analytics-category-card', 'analytics-range-card'], 'analytics@390');
-    await page.screenshot({ path: 'test-results/cluster-d/analytics-390.png', fullPage: true });
+    await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-d/analytics-390.png', fullPage: true });
   });
 });
 
@@ -151,12 +151,12 @@ test.describe.skip('retired: newsletter composer', () => {
     await page.waitForTimeout(500);
     await visualGate(page, ['newsletter-compose-card', 'newsletter-history-card',
       'newsletter-recipients-card', 'newsletter-body', 'newsletter-audience'], 'composer@1280');
-    await page.screenshot({ path: 'test-results/cluster-d/composer-1280.png', fullPage: true });
+    await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-d/composer-1280.png', fullPage: true });
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(500);
     await visualGate(page, ['newsletter-compose-card', 'newsletter-history-card',
       'newsletter-recipients-card', 'newsletter-body', 'newsletter-audience'], 'composer@390');
-    await page.screenshot({ path: 'test-results/cluster-d/composer-390.png', fullPage: true });
+    await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-d/composer-390.png', fullPage: true });
   });
 });

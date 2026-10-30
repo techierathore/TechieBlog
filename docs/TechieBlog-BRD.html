@@ -106,7 +106,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <div class="layout">
   <nav class="side">
     <h1>TechieBlog — Business Requirements</h1>
-    <div class="sub">Last rendered: 2026-10-28</div>
+    <div class="sub">Last rendered: 2026-10-30</div>
     <div class="group">Contents</div>
     <ol>
         <li><a href="#table-of-contents">Table of Contents</a></li>
@@ -153,7 +153,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   </nav>
   <main>
     <h1>TechieBlog — Business Requirements</h1>
-    <div class="subtitle">Rendered 2026-10-28 &middot; source <code>TechieBlog-BRD.md</code></div>
+    <div class="subtitle">Rendered 2026-10-30 &middot; source <code>TechieBlog-BRD.md</code></div>
 
     <div class="toc-inline">
       <div>Contents</div>
@@ -365,12 +365,12 @@ theme repository remains a post-MVP aspiration. The MAUI Blazor Hybrid desktop w
 BRD-94…BRD-97).</p>
 <h2 id="development-status"><a id="4-development-status"></a>4. Development status<a class="anchor-link" href="#development-status">#</a></h2>
 <p>Written by the status gate after every build, verify and handoff; not by hand.</p>
-<p><strong>Snapshot as of 2026-10-28.</strong> Live per-requirement status: <code>PROJECT-STATUS.md</code> and the Requirements Status table in <code>docs/TechieBlog-Checklist.md</code>.</p>
+<p><strong>Snapshot as of 2026-10-30.</strong> Live per-requirement status: <code>PROJECT-STATUS.md</code> and the Requirements Status table in <code>docs/TechieBlog-Checklist.md</code>.</p>
 <table>
 <thead><tr><th>Screen</th><th>Requirements</th><th>Verified</th><th>Open</th><th>Status</th></tr></thead>
 <tbody>
-<tr><td>UI / Pages</td><td>49</td><td>48</td><td>1</td><td>Partial</td></tr>
-<tr><td>Functional requirements</td><td>48</td><td>48</td><td>0</td><td>Done</td></tr>
+<tr><td>UI / Pages</td><td>49</td><td>47</td><td>2</td><td>Partial</td></tr>
+<tr><td>Functional requirements</td><td>48</td><td>47</td><td>1</td><td>Partial</td></tr>
 <tr><td>Non-functional</td><td>37</td><td>37</td><td>0</td><td>Done</td></tr>
 <tr><td>Unmapped</td><td>25</td><td>25</td><td>0</td><td>Done</td></tr>
 </tbody>
@@ -869,8 +869,9 @@ dropped. The <code>IsSiteOwner</code> flag and username column stay (used by F-R
 <h3 id="f-sub-subscribers-newsletter"><a id="f-sub-subscribers--newsletter"></a>F-SUB: Subscribers &amp; newsletter<a class="anchor-link" href="#f-sub-subscribers-newsletter">#</a></h3>
 <p><strong>Personas:</strong> Visitor (subscribes), Admin (manages, sends) · <strong>Phase:</strong> 5</p>
 <p>A subscribe form (sidebar, footer or dedicated placement) captures an email address with validation
-and duplicate handling. Admins see the subscriber list with search and status filtering, can remove
-subscribers, and can export the list.</p>
+and duplicate handling. Admins see the subscriber list with search and status filtering, can deactivate
+subscribers, and can export the list. A deactivated subscriber is kept, not deleted: the row and its
+consent record stay, and that address gets no more newsletters (owner decision 2026-10-28, BRD-57).</p>
 <p><strong>Extended 2026-08-06.</strong> Subscribing is now <strong>double opt-in</strong> (BRD-98) and captcha-protected
 (BRD-99): the address is stored as <em>pending</em> until the emailed confirmation link is used. The site
 also gains a <strong>public newsletter archive</strong> — the admin composes issues (BRD-59) and every sent issue
@@ -884,7 +885,7 @@ carries the primary subscribe form.</p>
 <tr><td>Newsletter archive</td><td><code>/newsletters</code></td><td>Public list of past issues, newest first, paged; subscribe form</td></tr>
 <tr><td>Newsletter issue</td><td><code>/newsletter/{Slug}</code></td><td>A single published issue with previous/next navigation</td></tr>
 <tr><td>Email confirmation</td><td><code>/verify/{Token}</code></td><td>Landing page for the double opt-in link (comment, rating or subscription)</td></tr>
-<tr><td>Subscribers admin</td><td><code>/admin/subscribers</code></td><td>List, search, status, remove, export, <code>AdminOnly</code></td></tr>
+<tr><td>Subscribers admin</td><td><code>/admin/subscribers</code></td><td>List, search, status, deactivate, export, <code>AdminOnly</code></td></tr>
 </tbody>
 </table>
 <p><strong>Requirements:</strong> BRD-56, BRD-57, BRD-58, BRD-59, BRD-98, BRD-99, BRD-100, BRD-101</p>
@@ -1204,7 +1205,7 @@ owner's say, since it is not part of the approved set named here.</p>
 </li>
 <li><strong>BRD-56</strong> — A visitor can subscribe to the blog with an email address, with validation and duplicate handling <em>(F-SUB)</em> &lt;!-- from: docs/OldDocs/prd.md FR20 --&gt;
 </li>
-<li><strong>BRD-57</strong> — An admin can list, search, filter by status and remove subscribers <em>(F-SUB)</em> &lt;!-- from: docs/OldDocs/prd.md FR21 --&gt;
+<li><strong>BRD-57</strong> — An admin can list, search, filter by status and deactivate subscribers; a deactivated subscriber is kept, never deleted <em>(F-SUB; changed 2026-10-28 by owner decision: was "remove")</em> &lt;!-- from: docs/OldDocs/prd.md FR21 --&gt;
 </li>
 <li><strong>BRD-58</strong> — An admin can export the subscriber list <em>(F-SUB)</em> &lt;!-- from: docs/OldDocs/prd.md FR23 --&gt;
 </li>

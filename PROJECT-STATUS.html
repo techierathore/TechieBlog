@@ -106,7 +106,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <div class="layout">
   <nav class="side">
     <h1>TechieBlog — Status</h1>
-    <div class="sub">Last rendered: 2026-10-28</div>
+    <div class="sub">Last rendered: 2026-10-30</div>
     <div class="group">Contents</div>
     <ol>
         <li><a href="#where-i-am">Where I am</a></li>
@@ -121,16 +121,16 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   </nav>
   <main>
     <h1>TechieBlog — Status</h1>
-    <div class="subtitle">Rendered 2026-10-28 &middot; source <code>PROJECT-STATUS.md</code></div>
+    <div class="subtitle">Rendered 2026-10-30 &middot; source <code>PROJECT-STATUS.md</code></div>
     <div class="cta-next" style="padding:20px; background:var(--cta-bg); border:2px solid var(--accent); border-radius:10px; margin:20px 0;">
       <div style="font-size:11px; color:var(--muted); letter-spacing:.5px;">NEXT COMMAND TO RUN</div>
-      <div style="font-family:var(--mono); font-size:18px; margin-top:6px;">/TechieFlow:agents:flow-master *handoff-phase TechieBlog</div>
+      <div style="font-family:var(--mono); font-size:18px; margin-top:6px;">/TechieFlow:agents:verifier *verify all TechieBlog</div>
     </div>
 <table>
 <tbody>
 <tr><th>project</th><td>TechieBlog</td></tr>
-<tr><th>last_updated</th><td>2026-10-28</td></tr>
-<tr><th>current_phase</th><td>Phase 1 of 1 (kept whole) · Handoff — 158 of 159 verified</td></tr>
+<tr><th>last_updated</th><td>2026-10-30</td></tr>
+<tr><th>current_phase</th><td>Phase 1 of 1 (whole product) · Verify — 3 to verify</td></tr>
 <tr><th>last_verified_build</th><td>PASS</td></tr>
 <tr><th>last_verified_date</th><td>2026-10-28</td></tr>
 </tbody>
@@ -149,17 +149,16 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
       </ol>
     </div>
 <h2 id="where-i-am">Where I am<a class="anchor-link" href="#where-i-am">#</a></h2>
-<p>Phase 1 of 1 (whole product). 158 of 159 rows are Verified. The owner's three decisions are applied:
-BlogApp was tested against the local database (all five BlogApp rows pass) and its production
-connection is restored; subscribers are deactivated, not removed; the profile page has no user
-picker. Token refresh is proven. Only REQ-UI-047 is open, waiting on a TrBlazeUI fix. Nothing is
-deployed yet.</p>
+<p>Phase 1 of 1 (whole product). 156 of 159 rows are Verified; 3 wait for the verifier. BRD-57 now says
+subscribers are deactivated, not removed; the code already did that, so REQ-UI-025 and REQ-FN-031
+only need re-verifying. TrBlazeUI is on 2.2.1, which fixes the sidebar highlight, so REQ-UI-047 is
+unblocked. Build 0 errors, 1 536 unit tests pass. Nothing is deployed yet.</p>
 <h2 id="next-command-to-run">Next command to run<a class="anchor-link" href="#next-command-to-run">#</a></h2>
 <p>Claude Code:</p>
-<pre><code>/TechieFlow:agents:flow-master *handoff-phase TechieBlog</code></pre>
+<pre><code>/TechieFlow:agents:verifier *verify all TechieBlog</code></pre>
 <p>OpenCode:</p>
-<pre><code>/flow-master *handoff-phase TechieBlog</code></pre>
-<p>Why: every row in this phase's scope is terminal and handoff has not run yet; working docs/TechieBlog-Checklist.md.</p>
+<pre><code>/flow-verifier *verify all TechieBlog</code></pre>
+<p>Why: 3 rows are built and not verified: REQ-UI-025, REQ-UI-047, REQ-FN-031; working docs/TechieBlog-Checklist.md.</p>
 <h2 id="open-requirements">Open requirements<a class="anchor-link" href="#open-requirements">#</a></h2>
 <table>
 <thead><tr><th>Status</th><th>Count</th></tr></thead>
@@ -167,25 +166,25 @@ deployed yet.</p>
 <tr><td>Not Started</td><td>0</td></tr>
 <tr><td>In Progress</td><td>0</td></tr>
 <tr><td>Implemented</td><td>0</td></tr>
-<tr><td>Needs re-verify</td><td>0</td></tr>
-<tr><td>Blocked</td><td>1</td></tr>
+<tr><td>Needs re-verify</td><td>3</td></tr>
+<tr><td>Blocked</td><td>0</td></tr>
 </tbody>
 </table>
 <ul>
-<li>[ ] REQ-UI-047 — Admin layout with grouped navigation (Phase 1) (Blocked)
+<li>[ ] REQ-FN-031 — Subscriber list / search / status / deactivate / export (Phase 5) (Needs re-verify)
+</li>
+<li>[ ] REQ-UI-025 — Subscribers admin page (Phase 5) (Needs re-verify)
+</li>
+<li>[ ] REQ-UI-047 — Admin layout with grouped navigation (Phase 1) (Needs re-verify)
 </li>
 </ul>
 <h2 id="known-blockers">Known blockers<a class="anchor-link" href="#known-blockers">#</a></h2>
 <ul>
-<li>REQ-UI-047: TrBlazeUI never paints the active sidebar item (TR-076), still open in 2.2.0.
-</li>
-<li>BRD-57 still says subscribers can be removed; the owner chose deactivate. Needs <code>*amend-docs</code>.
-</li>
 <li>Owner-only: CI secret <code>TrBlazeUiPackagesToken</code> (REQ-NFR-017); revoke the old GitHub token (REQ-NFR-025); drop the builders' leftover scratch database <code>fxd_techieblog</code> on WinPostgre.
 </li>
-<li>Undeletable test leftovers in the local database: soft-deleted test posts and users, sent test newsletters, test subscribers. No published post remains.
+<li>The local database has no published post, so home-page checks that need a post card cannot run until one is seeded.
 </li>
-<li>TF-002: the verify boot script cannot reach the app on NAT-mode WSL (worked around). TF-001: Coding Standards over its word limit.
+<li>TF-002: the verify boot script cannot reach the app on NAT-mode WSL (worked around). TF-001: fixed upstream, not yet re-checked here.
 </li>
 </ul>
 <h2 id="verification-log">Verification log<a class="anchor-link" href="#verification-log">#</a></h2>
@@ -193,23 +192,23 @@ deployed yet.</p>
 <table>
 <thead><tr><th>Date</th><th>Phase</th><th>Result</th><th>Status table</th></tr></thead>
 <tbody>
-<tr><td>2026-09-07</td><td>triage-issues</td><td>77/167 Verified</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
 <tr><td>2026-10-21</td><td>triage-and-fix</td><td>65/155 Verified, 12 N/A</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
 <tr><td>2026-10-27</td><td>amend-docs</td><td>65/159 Verified, 12 N/A</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
 <tr><td>2026-10-28</td><td>build-phase</td><td>156/159 Verified, 12 N/A</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
 <tr><td>2026-10-28</td><td>build-phase</td><td>158/159 Verified, 12 N/A</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+<tr><td>2026-10-30</td><td>amend-docs</td><td>156/159 Verified, 12 N/A</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
 </tbody>
 </table>
 <h2 id="library-feedback-summary">Library feedback summary<a class="anchor-link" href="#library-feedback-summary">#</a></h2>
 <ul>
-<li>TechieFlow: 2 open · 0 closed — docs/TechieBlog-TechieFlow-Feedback.md
+<li>TechieFlow: 1 open · 1 fixed upstream, not yet re-checked (TF-001) · 0 closed — docs/TechieBlog-TechieFlow-Feedback.md
 </li>
-<li>TrBlazeUI: 2 open · 0 closed — docs/TechieBlog-TrBlazeUI-Feedback.md
+<li>TrBlazeUI: 0 open · 2 closed — docs/TechieBlog-TrBlazeUI-Feedback.md
 </li>
 </ul>
 <h2 id="standards-compliance">Standards compliance<a class="anchor-link" href="#standards-compliance">#</a></h2>
 <ul>
-<li>Last check 2026-10-28: 0 findings (build-gate <code>SourceConventionTests.cs</code> passed in the unit run), see the checklist Remarks.
+<li>Last check 2026-10-30: 0 findings, see the checklist Remarks.
 </li>
 </ul>
 <h2 id="deferred-future"><a id="deferred--future"></a>Deferred / future<a class="anchor-link" href="#deferred-future">#</a></h2>

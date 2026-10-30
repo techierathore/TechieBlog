@@ -18,7 +18,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const BASE = process.env.TB_BASE ?? 'http://127.0.0.1:5441';
-const OUT = process.env.TB_OUT ?? path.join(process.cwd(), 'test-results', 'cluster-g');
+const OUT = process.env.TB_OUT ?? path.join(process.cwd(), 'tests/.artifacts/test-results', 'cluster-g');
 fs.mkdirSync(OUT, { recursive: true });
 
 const THEMES = ['trblaze-modern', 'developer', 'minimal'];

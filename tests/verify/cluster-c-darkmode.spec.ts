@@ -12,7 +12,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const BASE = process.env.TB_BASE ?? 'https://localhost:7373';
-const OUT = 'test-results/cluster-c';
+const OUT = 'tests/.artifacts/test-results/cluster-c';
 
 const ADMIN_EMAIL = 'Ravi@techieblog.com';
 const ADMIN_PASSWORD = 'admin_password';

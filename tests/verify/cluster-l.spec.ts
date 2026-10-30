@@ -151,12 +151,12 @@ test('admin stats page does full CRUD and the resume follows', async ({ page }) 
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.waitForTimeout(1200);
   await visualGate(page, adminIds, 'admin-stats@1280');
-  await page.screenshot({ path: 'test-results/req-fn-027-admin-stats-1280.png', fullPage: true });
+  await page.screenshot({ path: 'tests/.artifacts/test-results/req-fn-027-admin-stats-1280.png', fullPage: true });
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(1200);
   await visualGate(page, adminIds, 'admin-stats@390');
-  await page.screenshot({ path: 'test-results/req-fn-027-admin-stats-390.png', fullPage: true });
+  await page.screenshot({ path: 'tests/.artifacts/test-results/req-fn-027-admin-stats-390.png', fullPage: true });
   await page.setViewportSize({ width: 1280, height: 900 });
 
   // ---------- Public resume renders About + statistics with real values ----------
@@ -176,12 +176,12 @@ test('admin stats page does full CRUD and the resume follows', async ({ page }) 
   await anonPage.setViewportSize({ width: 1280, height: 900 });
   await anonPage.waitForTimeout(1200);
   await visualGate(anonPage, resumeIds, 'resume@1280');
-  await anonPage.screenshot({ path: 'test-results/req-fn-027-resume-1280.png', fullPage: true });
+  await anonPage.screenshot({ path: 'tests/.artifacts/test-results/req-fn-027-resume-1280.png', fullPage: true });
 
   await anonPage.setViewportSize({ width: 390, height: 844 });
   await anonPage.waitForTimeout(1200);
   await visualGate(anonPage, resumeIds, 'resume@390');
-  await anonPage.screenshot({ path: 'test-results/req-fn-027-resume-390.png', fullPage: true });
+  await anonPage.screenshot({ path: 'tests/.artifacts/test-results/req-fn-027-resume-390.png', fullPage: true });
 
   // ---------- DELETE (also the cleanup that keeps the seeded resume presentable) ----------
   await page.waitForTimeout(500);

@@ -22,7 +22,7 @@ const BASE = process.env.TB_BASE ?? 'http://172.18.144.1:5473';
 const OUT = 'tests/.artifacts/trblazeui-203';
 fs.mkdirSync(OUT, { recursive: true });
 
-const ADMIN = { email: 'Ravi@techieblog.com', password: 'admin_password' };
+const ADMIN = { email: 'Ravi@techieblog.com', password: process.env.TB_PW_ADMIN ?? 'VerifyAdmin#2026' };
 
 let page: Page;
 const notes: string[] = [];

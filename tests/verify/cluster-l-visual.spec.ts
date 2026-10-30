@@ -10,7 +10,7 @@ import { test, expect, Page } from '@playwright/test';
 import * as path from 'path';
 
 const BASE = process.env.TB_BASE ?? 'http://172.18.144.1:5392';
-const OUT = path.join(process.cwd(), 'test-results-cluster-l');
+const OUT = path.join(process.cwd(), 'tests/.artifacts/test-results-cluster-l');
 const ADMIN_EMAIL = 'Ravi@techieblog.com';
 const ADMIN_PASSWORD = 'admin_password';
 

@@ -18,7 +18,7 @@
 import { test, expect, Page } from '@playwright/test';
 import { BASE, login, nav } from './_gates';
 
-const SHOTS = 'test-results-cluster-d';
+const SHOTS = 'tests/.artifacts/test-results-cluster-d';
 const SMOKE_ROLE = 'ClusterD Smoke Architect';
 const SMOKE_COMPANY = 'ClusterD Smoke Corp';
 const SMOKE_ROLE_EDITED = 'ClusterD Smoke Architect EDITED';

@@ -139,12 +139,12 @@ BRD-94…BRD-97).
 
 Written by the status gate after every build, verify and handoff; not by hand.
 
-**Snapshot as of 2026-10-28.** Live per-requirement status: `PROJECT-STATUS.md` and the Requirements Status table in `docs/TechieBlog-Checklist.md`.
+**Snapshot as of 2026-10-30.** Live per-requirement status: `PROJECT-STATUS.md` and the Requirements Status table in `docs/TechieBlog-Checklist.md`.
 
 | Screen | Requirements | Verified | Open | Status |
 |---|---|---|---|---|
-| UI / Pages | 49 | 48 | 1 | Partial |
-| Functional requirements | 48 | 48 | 0 | Done |
+| UI / Pages | 49 | 47 | 2 | Partial |
+| Functional requirements | 48 | 47 | 1 | Partial |
 | Non-functional | 37 | 37 | 0 | Done |
 | Unmapped | 25 | 25 | 0 | Done |
 
@@ -610,8 +610,9 @@ dropped. The `IsSiteOwner` flag and username column stay (used by F-RESUME); the
 **Personas:** Visitor (subscribes), Admin (manages, sends) · **Phase:** 5
 
 A subscribe form (sidebar, footer or dedicated placement) captures an email address with validation
-and duplicate handling. Admins see the subscriber list with search and status filtering, can remove
-subscribers, and can export the list.
+and duplicate handling. Admins see the subscriber list with search and status filtering, can deactivate
+subscribers, and can export the list. A deactivated subscriber is kept, not deleted: the row and its
+consent record stay, and that address gets no more newsletters (owner decision 2026-10-28, BRD-57).
 
 **Extended 2026-08-06.** Subscribing is now **double opt-in** (BRD-98) and captcha-protected
 (BRD-99): the address is stored as *pending* until the emailed confirmation link is used. The site
@@ -626,7 +627,7 @@ carries the primary subscribe form.
 | Newsletter archive | `/newsletters` | Public list of past issues, newest first, paged; subscribe form |
 | Newsletter issue | `/newsletter/{Slug}` | A single published issue with previous/next navigation |
 | Email confirmation | `/verify/{Token}` | Landing page for the double opt-in link (comment, rating or subscription) |
-| Subscribers admin | `/admin/subscribers` | List, search, status, remove, export, `AdminOnly` |
+| Subscribers admin | `/admin/subscribers` | List, search, status, deactivate, export, `AdminOnly` |
 
 **Requirements:** BRD-56, BRD-57, BRD-58, BRD-59, BRD-98, BRD-99, BRD-100, BRD-101
 
@@ -896,7 +897,7 @@ owner's say, since it is not part of the approved set named here.
 - ~~**BRD-54**~~ — *(removed 2026-08-06: same reason as BRD-53; the site owner's resume at `/resume` is the only public profile)* A visitor can view an author's profile at `/author/{username}` *(F-AUTHOR)*
 - ~~**BRD-55**~~ — *(removed 2026-08-06: no public author routes remain; the single-site-owner flag stays, per F-RESUME)* Unique URL-safe usernames with 404 on unknown *(F-AUTHOR)*
 - **BRD-56** — A visitor can subscribe to the blog with an email address, with validation and duplicate handling *(F-SUB)* <!-- from: docs/OldDocs/prd.md FR20 -->
-- **BRD-57** — An admin can list, search, filter by status and remove subscribers *(F-SUB)* <!-- from: docs/OldDocs/prd.md FR21 -->
+- **BRD-57** — An admin can list, search, filter by status and deactivate subscribers; a deactivated subscriber is kept, never deleted *(F-SUB; changed 2026-10-28 by owner decision: was "remove")* <!-- from: docs/OldDocs/prd.md FR21 -->
 - **BRD-58** — An admin can export the subscriber list *(F-SUB)* <!-- from: docs/OldDocs/prd.md FR23 -->
 - **BRD-59** — An admin can compose and send a newsletter to subscribers over SMTP, with preview, send history and an unsubscribe link *(F-SUB)* <!-- from: docs/OldDocs/prd.md FR22 -->
 - **BRD-60** — The system shall track total and unique views per post *(F-ANA)* <!-- from: docs/OldDocs/prd.md FR24 -->

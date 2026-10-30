@@ -96,7 +96,7 @@ async function expectPopulated(locator: Locator, label: string) {
 async function expectLooksRight(page: Page, width: number, name: string) {
   await page.setViewportSize({ width, height: width < 500 ? 844 : 900 });
   await page.waitForTimeout(1200);
-  await page.screenshot({ path: `test-results-cluster-h/${name}-${width}.png`, fullPage: true });
+  await page.screenshot({ path: `tests/.artifacts/test-results-cluster-h/${name}-${width}.png`, fullPage: true });
 
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

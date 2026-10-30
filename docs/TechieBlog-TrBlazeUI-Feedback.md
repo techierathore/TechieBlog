@@ -1,13 +1,15 @@
 # TechieBlog → TrBlazeUI feedback
 
 ## Summary
-- **Current disposition through TR-076: all TrBlazeUI findings are closed in library source.** Historical numbering has gaps and sub-findings (`TR-072b`…`TR-072d`), so this document deliberately reports the highest assigned ID instead of repeating the stale “66 entries” count.
-- **Open library defects:** none in library source. TR-066/TR-067 and TR-068…TR-076 (including TR-072b/c/d) are resolved and verified; TR-076's fix ships in **2.2.1**, which is not on the feed until the TrBlazeUI owner publishes that release.
-- **Ships in: TrBlazeUI 2.0.3** — published to the feed and **consumed by TechieBlog since 2026-08-25** (`TrBlazeUI.Components` + `TrBlazeUI.Icons.Lucide` 2.0.3 in all three csprojs; build 0 errors, `dotnet test` 1551/0). TR-075 ships in **2.1.9**.
-- **Consumer action — DONE 2026-08-25.** Every row of the resolution table below was measured against a running TechieBlog host on 2.0.3 *before* its workaround was removed (`tests/verify/trblazeui-203-upgrade.spec.ts`, 8/8; evidence `tests/.artifacts/trblazeui-203/notes.json`). See "Consumer verification on 2.0.3" under the table for what was removed, what was kept, and why.
-- **One new finding on 2.0.3 — TR-075** (2026-08-26, Low–Medium a11y): a styled `Select` inside `DialogContent` drops focus to `<body>` after a pick, so `Escape` cannot dismiss the dialog until the user Tabs back in; mouse paths unaffected. **Fixed upstream in 2.1.9.**
-- **TR-076** (2026-10-27): `SidebarMenuButton IsActive` rendered `data-active=""`, so the active nav item painted like its neighbours. **Fixed upstream in 2.2.1** (not on the feed until that release is published; see the entry).
-- Last consolidated: **2026-10-29** (TR-076 reply). Next free ID **TR-077** (the bottom counter line is authoritative).
+- **Nothing is blocked.** The tracker counts 2 entries (TR-031, TR-076): 0 open, 0 fixed upstream and not yet re-checked, 2 closed.
+- Every other finding, TR-001 to TR-075 (with sub-findings TR-072b to TR-072d), is a bullet inside the dated sections below. All are resolved in library source. None was dropped.
+- **TechieBlog runs TrBlazeUI 2.2.1** since 2026-10-29 (`TrBlazeUI.Components` and `TrBlazeUI.Icons.Lucide` in all three projects; build 0 errors, 1 534 unit tests pass).
+- Re-checked on the running app on 2.2.1 (`tests/verify/trblazeui-221-upgrade.spec.ts`):
+  - TR-075: after a pick in the upload dialog's Select, focus is back on the trigger and one Escape closes the dialog.
+  - TR-076: on `/admin/series` the active item has `data-active="true"` and a painted background; the 17 others read `"false"`.
+- Neither had a workaround here, so no app code changed.
+- The 2.0.3 workaround removals still hold: 7 of 8 checks pass live; the eighth needs a published post (there are none), so its utilities were confirmed in the 2.2.1 stylesheet.
+- Next free ID **TR-077** (the bottom counter line is authoritative).
 
 ## ✅ Resolution — 2026-08-25, TrBlazeUI **2.0.3** (pending publish)
 
@@ -745,6 +747,8 @@ app code.**
   > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed exactly as suggested — `ReadOnly` renders `role="img"` + `aria-label="Rated 4 out of 5"` with the stars `aria-hidden` and no radio semantics. Your `aria-hidden` + `sr-only` wrapper can go, and `AriaLabel` is useful again.
 
 ### TR-031 — audit findings appended (2026-08-07, Cluster J)
+
+> ✅ **Closed 2026-10-30** — re-checked here: Not re-run today (0 published posts, so no Rating renders). Closed on the record already in this file: the 2.0.2 per-entry table marks TR-031 Fixed (buttons, roving tabindex, aria-checked, unique gradient ids), and the app-side fallback was removed 2026-08-11 by cluster G after the stars were measured keyboard-operable.
 
 The original TR-031 entry above is **confirmed in full** by the axe/keyboard pass, with these
 measured specifics added:
@@ -1759,6 +1763,9 @@ TR-074 recorded 2026-08-24 by *trblazeui (UAT-027 / REQ-UI-045 — post detail p
 ## Found verifying the 2.0.3 upgrade (2026-08-26, *verify REQ-UI-048 · REQ-FN-025 · REQ-UI-049)
 
 > ✅ **TR-075 — FIXED upstream, in 2.1.9** — after an option is picked in a styled `Select` nested in `DialogContent`, focus returns to the `SelectTrigger` so `Escape` still dismisses the dialog. Demo at `/components/dialog`; test `tests/verify/req-ui-055.spec.ts`.
+>
+> **Re-checked here 2026-10-29 on 2.2.1:** `/admin/images` upload dialog, keyboard pick → `document.activeElement` is
+> `upload-category-select`, and one `Escape` closes the dialog. Test `tests/verify/trblazeui-221-upgrade.spec.ts`.
 
 - **TR-075 — after an option is picked in a styled `Select` nested in `DialogContent`, focus is
   dropped to `<body>` instead of returning to the `SelectTrigger`, so `Escape` no longer dismisses
@@ -1798,6 +1805,10 @@ TR-075 recorded 2026-08-26 by *verify (REQ-UI-048 / REQ-FN-025 / REQ-UI-049 — 
 > **Not on the feed yet:** the 2.2.1 packages are built and checked, but the push to GitHub Packages
 > was refused (the only stored token can read packages, not publish them). They appear when the
 > TrBlazeUI owner publishes the 2.2.1 release. Until then the feed's newest is still 2.2.0, which has the bug.
+>
+> **Re-checked here 2026-10-29 on 2.2.1 (now on the feed, pins moved):** on `/admin/series` `nav-series` has
+> `data-active="true"`, `aria-current="page"`, background `oklch(0.269 0 0)`, weight 500; the 17 other items have
+> `data-active="false"` and a transparent background. Test `tests/verify/trblazeui-221-upgrade.spec.ts`.
 >
 > - `SidebarMenuButton` and `SidebarMenuSubButton` now render `data-active="true"` or
 >   `data-active="false"`, never the bare `data-active=""`, and keep `aria-current="page"` on the
@@ -1853,3 +1864,5 @@ TR-076 recorded 2026-10-27 by *build-phase cluster A (REQ-UI-047).
 > summary needs its own pass to reconcile the count (66 → at least 73 entries) — out of scope for
 > a single-defect UAT fix, flagged here so the next agent that reads only the summary is not misled
 > the same way.
+>
+> **Reconciled 2026-10-29 (`*amend-docs`):** the top Summary now takes its counts from `tf-feedback.sh`.

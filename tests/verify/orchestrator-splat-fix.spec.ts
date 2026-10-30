@@ -103,7 +103,7 @@ test.describe('Repaired admin pages render after the TrBlazeUI splatting fix', (
       await expect(page.locator(route.marker).first(),
         `${route.label} did not render its repaired marker`).toBeVisible({ timeout: 15000 });
 
-      await page.screenshot({ path: `test-results/orchestrator/${route.label}-1280.png`, fullPage: true });
+      await page.screenshot({ path: `tests/.artifacts/test-results/orchestrator/${route.label}-1280.png`, fullPage: true });
     }
 
     expect(consoleErrors, `page errors: ${consoleErrors.join(' | ')}`).toHaveLength(0);
@@ -127,7 +127,7 @@ test.describe('Repaired admin pages render after the TrBlazeUI splatting fix', (
           .toBeLessThanOrEqual(overflow.clientWidth + 1);
 
         if (width === 390) {
-          await page.screenshot({ path: `test-results/orchestrator/${route.label}-390.png`, fullPage: true });
+          await page.screenshot({ path: `tests/.artifacts/test-results/orchestrator/${route.label}-390.png`, fullPage: true });
         }
       }
     }

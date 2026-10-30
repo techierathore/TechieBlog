@@ -93,7 +93,7 @@ test.describe('REQ-NFR-002 — every seeded account authenticates against its PB
         expect(await errorAlert.first().isVisible()).toBeFalsy();
       }
       await page.screenshot({
-        path: `test-results/cluster-d-login-${account.label}.png`,
+        path: `tests/.artifacts/test-results/cluster-d-login-${account.label}.png`,
         fullPage: true,
       });
     });
@@ -131,14 +131,14 @@ test.describe.skip('superseded by w2-accounts (stale seeded passwords, leaves an
       expect(weakText).toMatch(/uppercase/i);
       expect(weakText).toMatch(/number/i);
 
-      await page.screenshot({ path: 'test-results/cluster-d-adduser-weak-1280.png', fullPage: true });
+      await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-d-adduser-weak-1280.png', fullPage: true });
       await assertNoHorizontalOverflow(page, 'AddUser weak @1280');
 
       await page.setViewportSize({ width: 390, height: 844 });
       await page.waitForTimeout(800);
       await expect(status).toBeVisible();
       expect((await status.innerText()).trim().length).toBeGreaterThan(10);
-      await page.screenshot({ path: 'test-results/cluster-d-adduser-weak-390.png', fullPage: true });
+      await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-d-adduser-weak-390.png', fullPage: true });
       await assertNoHorizontalOverflow(page, 'AddUser weak @390');
 
       // ---- compliant password --------------------------------------------
@@ -151,7 +151,7 @@ test.describe.skip('superseded by w2-accounts (stale seeded passwords, leaves an
 
       const successText = (await status.innerText()).trim();
       expect(successText).toMatch(/created successfully/i);
-      await page.screenshot({ path: 'test-results/cluster-d-adduser-ok-1280.png', fullPage: true });
+      await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-d-adduser-ok-1280.png', fullPage: true });
     });
 });
 
@@ -176,13 +176,13 @@ test.describe.skip('superseded by w2-accounts (stale seeded passwords, leaves an
     expect(text.length, 'reset validation alert rendered blank').toBeGreaterThan(10);
     expect(text).toMatch(/8 characters/i);
 
-    await page.screenshot({ path: 'test-results/cluster-d-reset-weak-1280.png', fullPage: true });
+    await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-d-reset-weak-1280.png', fullPage: true });
     await assertNoHorizontalOverflow(page, 'reset weak @1280');
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(800);
     await expect(message).toBeVisible();
-    await page.screenshot({ path: 'test-results/cluster-d-reset-weak-390.png', fullPage: true });
+    await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-d-reset-weak-390.png', fullPage: true });
     await assertNoHorizontalOverflow(page, 'reset weak @390');
   });
 });

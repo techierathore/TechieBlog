@@ -15,7 +15,7 @@
 import { test, expect, Page, Locator } from '@playwright/test';
 
 const BASE = process.env.CLUSTER_E_BASE ?? process.env.TB_BASE ?? 'http://localhost:5450';
-const SHOTS = 'test-results-cluster-e';
+const SHOTS = 'tests/.artifacts/test-results-cluster-e';
 
 const NUMBER_WORDS = [
   'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',

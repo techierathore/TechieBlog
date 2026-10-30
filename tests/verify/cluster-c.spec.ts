@@ -184,7 +184,7 @@ test.describe('Cluster C — role landings and the Author post list', () => {
         `${role.label} was shown the access-denied card`).toBe(0);
 
       await page.screenshot({
-        path: `test-results/cluster-c-landing-${role.label.toLowerCase()}-1280.png`,
+        path: `tests/.artifacts/test-results/cluster-c-landing-${role.label.toLowerCase()}-1280.png`,
         fullPage: true,
       });
     });
@@ -226,13 +226,13 @@ test.describe('Cluster C — role landings and the Author post list', () => {
 
     // VISUAL-TRUTH at 1280.
     await visualGate(page, ['admin-sidebar', 'admin-content'], 'author posts @1280');
-    await page.screenshot({ path: 'test-results/cluster-c-author-posts-1280.png', fullPage: true });
+    await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-c-author-posts-1280.png', fullPage: true });
 
     // VISUAL-TRUTH at 390.
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(1200);
     await visualGate(page, ['admin-content'], 'author posts @390');
-    await page.screenshot({ path: 'test-results/cluster-c-author-posts-390.png', fullPage: true });
+    await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-c-author-posts-390.png', fullPage: true });
   });
 
   test('Admin sees every post on the same list', async ({ page }) => {
@@ -263,7 +263,7 @@ test.describe('Cluster C — role landings and the Author post list', () => {
     expect(await tabCount('draft'), 'Draft tab count').toBe(EXPECTED_TABS.draft);
     expect(await tabCount('scheduled'), 'Scheduled tab count').toBe(EXPECTED_TABS.scheduled);
 
-    await page.screenshot({ path: 'test-results/cluster-c-admin-posts-1280.png', fullPage: true });
+    await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-c-admin-posts-1280.png', fullPage: true });
   });
 
   test('Author is refused AdminOnly and is offered a landing it can open', async ({ page }) => {
@@ -279,7 +279,7 @@ test.describe('Cluster C — role landings and the Author post list', () => {
     expect(await dashboard.getAttribute('href'),
       'the access-denied button still points at the EditorOrAbove dashboard').toBe('/BlogsList');
 
-    await page.screenshot({ path: 'test-results/cluster-c-author-denied-1280.png', fullPage: true });
+    await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-c-author-denied-1280.png', fullPage: true });
   });
 
   test('Contributor is refused every staff surface', async ({ page }) => {
@@ -300,6 +300,6 @@ test.describe('Cluster C — role landings and the Author post list', () => {
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(800);
-    await page.screenshot({ path: 'test-results/cluster-c-contributor-denied-390.png', fullPage: true });
+    await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-c-contributor-denied-390.png', fullPage: true });
   });
 });
