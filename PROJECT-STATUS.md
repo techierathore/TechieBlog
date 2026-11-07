@@ -1,31 +1,28 @@
 ---
 project: TechieBlog
-last_updated: 2026-10-30
-current_phase: Phase 1 of 1 (whole product) · Verify — 3 to verify
+last_updated: 2026-11-05
+current_phase: Phase 1 of 1 (whole product) · UAT — handoff done, 159 of 159 verified
 last_verified_build: PASS
-last_verified_date: 2026-10-28
+last_verified_date: 2026-11-05
 ---
 
 # TechieBlog — Status
 
 ## Where I am
 
-Phase 1 of 1 (whole product). 156 of 159 rows are Verified; 3 wait for the verifier. BRD-57 now says
-subscribers are deactivated, not removed; the code already did that, so REQ-UI-025 and REQ-FN-031
-only need re-verifying. TrBlazeUI is on 2.2.1, which fixes the sidebar highlight, so REQ-UI-047 is
-unblocked. Build 0 errors, 1 536 unit tests pass. Nothing is deployed yet.
+Phase 1 of 1 (whole product, kept as one plan by owner decision on 2026-10-27). Every row is Verified (159 of 159, 12 not applicable): the post editor's owner check landed today and TrBlazeUI is at 2.2.2. Handoff ran on 2026-11-02; the UsageGuide and DevGuide record today's fix. Build PASS; nothing is deployed. Waiting on the owner's UAT.
 
 ## Next command to run
 
 Claude Code:
 ```
-/TechieFlow:agents:verifier *verify all TechieBlog
+(owner) set current_phase to Released after UAT — no agent command
 ```
 OpenCode:
 ```
-/flow-verifier *verify all TechieBlog
+(owner) set current_phase to Released after UAT — no agent command
 ```
-Why: 3 rows are built and not verified: REQ-UI-025, REQ-UI-047, REQ-FN-031; working docs/TechieBlog-Checklist.md.
+Why: every row in this phase's scope is terminal and handoff has run; waiting on the owner; working docs/TechieBlog-Checklist.md.
 
 ## Open requirements
 
@@ -34,18 +31,14 @@ Why: 3 rows are built and not verified: REQ-UI-025, REQ-UI-047, REQ-FN-031; work
 | Not Started | 0 |
 | In Progress | 0 |
 | Implemented | 0 |
-| Needs re-verify | 3 |
+| Needs re-verify | 0 |
 | Blocked | 0 |
 
-- [ ] REQ-FN-031 — Subscriber list / search / status / deactivate / export (Phase 5) (Needs re-verify)
-- [ ] REQ-UI-025 — Subscribers admin page (Phase 5) (Needs re-verify)
-- [ ] REQ-UI-047 — Admin layout with grouped navigation (Phase 1) (Needs re-verify)
+- None
 
 ## Known blockers
 
-- Owner-only: CI secret `TrBlazeUiPackagesToken` (REQ-NFR-017); revoke the old GitHub token (REQ-NFR-025); drop the builders' leftover scratch database `fxd_techieblog` on WinPostgre.
-- The local database has no published post, so home-page checks that need a post card cannot run until one is seeded.
-- TF-002: the verify boot script cannot reach the app on NAT-mode WSL (worked around). TF-001: fixed upstream, not yet re-checked here.
+- Owner-only: CI secret `TrBlazeUiPackagesToken` (REQ-NFR-017); revoke the old GitHub token (REQ-NFR-025); drop the scratch database `fxd_techieblog` and the 34 `fxv*@example.com` builder accounts (ids 11–44) on WinPostgre.
 
 ## Verification log
 
@@ -53,16 +46,16 @@ Last five passes; older passes live in `docs/metrics/gates.jsonl`.
 
 | Date | Phase | Result | Status table |
 |---|---|---|---|
-| 2026-10-21 | triage-and-fix | 65/155 Verified, 12 N/A | docs/TechieBlog-Checklist.md#requirements-status |
-| 2026-10-27 | amend-docs | 65/159 Verified, 12 N/A | docs/TechieBlog-Checklist.md#requirements-status |
-| 2026-10-28 | build-phase | 156/159 Verified, 12 N/A | docs/TechieBlog-Checklist.md#requirements-status |
-| 2026-10-28 | build-phase | 158/159 Verified, 12 N/A | docs/TechieBlog-Checklist.md#requirements-status |
 | 2026-10-30 | amend-docs | 156/159 Verified, 12 N/A | docs/TechieBlog-Checklist.md#requirements-status |
+| 2026-11-02 | status | 155/159 Verified, 12 N/A | docs/TechieBlog-Checklist.md#requirements-status |
+| 2026-11-02 | handoff-phase | NOT READY: 155/159 Verified, 12 N/A, 4 to re-verify | docs/TechieBlog-Checklist.md#requirements-status |
+| 2026-11-05 | triage-and-fix | 158/159 Verified, 12 N/A | docs/TechieBlog-Checklist.md#requirements-status |
+| 2026-11-05 | build-phase | 159/159 Verified, 12 N/A | docs/TechieBlog-Checklist.md#requirements-status |
 
 ## Library feedback summary
 
-- TechieFlow: 1 open · 1 fixed upstream, not yet re-checked (TF-001) · 0 closed — docs/TechieBlog-TechieFlow-Feedback.md
-- TrBlazeUI: 0 open · 2 closed — docs/TechieBlog-TrBlazeUI-Feedback.md
+- TechieFlow: 1 open (TF-003, minor, blocks nothing) · 1 fixed upstream, not yet re-checked (TF-001) · 1 closed — docs/TechieBlog-TechieFlow-Feedback.md
+- TrBlazeUI: 0 open · 3 closed — docs/TechieBlog-TrBlazeUI-Feedback.md
 
 ## Standards compliance
 
@@ -70,7 +63,9 @@ Last five passes; older passes live in `docs/metrics/gates.jsonl`.
 
 ## Deferred / future
 
-- The root cause of the WebView2 file-dialog crash (`EmbeddedBrowserWebView.dll` 0x80000003) was not identified; it was avoided, not fixed upstream.
-- Mockups carry no `data-testid` anchors, so mockup parity is "not measured" on every screen; adding anchors is `*amend-docs` work.
-- REQ-FN-062's SFTP upload path was not exercised (needs the real server's SSH credentials); the folder and desktop paths pass.
-- BlogApp's media thumbnails do not load against a plain-http local site (mixed content); production uses https.
+- DevGuide 2026-11-02 defects found by reading, not reproduced (⚠ Remarks on 9 rows). Needs `*triage-issues`.
+- The comment seed trips the spam guard's five-comments-per-address-per-hour rule when the screens run more than a few times in one hour; the Admin Dashboard and Comment Moderation screens then grade as not staged.
+- Mockups have no `data-testid` anchors, so parity is unmeasured (`*amend-docs`).
+- The WebView2 file-dialog crash was avoided, not fixed upstream.
+- REQ-FN-062's SFTP path was not exercised (needs server SSH credentials).
+- BlogApp thumbnails fail against a plain-http local site; production uses https.

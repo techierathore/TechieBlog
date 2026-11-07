@@ -1565,3 +1565,6 @@ playwright-report/
 logs/
 /docs/.last-verify.json
 .DS_Store
+
+# TechieFlow framework — deployed copies, never commit (managed by scaffold/update-framework.sh)
+tests/verify/testsettings.Local.json

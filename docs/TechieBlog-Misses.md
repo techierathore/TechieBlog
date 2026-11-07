@@ -3,26 +3,28 @@
 | | |
 |---|---|
 | App | TechieBlog |
-| Count | 108 logged: 2 open, 93 fixed, 13 will not fix |
+| Count | 110 logged: 1 open, 97 fixed, 12 will not fix |
 | Source | `docs/metrics/misses.jsonl`, one row per miss record. Rewritten by `tf-misses-md.sh` on every new record. Never edit it: a wrong row is corrected by a new record. |
-| Updated | 2026-10-29 |
+| Updated | 2026-11-05 |
 
 **Whose gap** answers the four questions of the miss protocol: **the app's spec** did not say it, so the checklist line is fixed; **the framework never said it**, so one requirement line and a check are added; **the check was too weak** (a review, or a script that did not fire), so the check is fixed; **said and ignored**, so the rule becomes a hook or is deleted. **not sorted** means the record predates the sort or nobody has answered yet; `bash .tfcore/utils/tf-emit.sh --amend <miss> sort <spec|unsaid|weak-check|ignored>` completes it.
 
-## Open (2)
+## Open (1)
 
 | Miss | Found | Whose gap | What went wrong |
 |---|---|---|---|
-| MISS-TechieBlog-20261028-12 (REQ-UI-047) | 2026-10-28 by gate | not sorted | no sentence recorded (partial-implementation, src) |
 | MISS-TechieBlog-20260907-01 | 2026-09-07 by gate | not sorted | triage edited 1 file(s) under src, source or tests, which a triage never does: source/TechieBlog/wwwroot/uploads/blog/blog-2-20260907002216-7bc38ddb.jpg |
 
-## Fixed (93)
+## Fixed (97)
 
 | Miss | Found | Closed | Whose gap | What went wrong |
 |---|---|---|---|---|
+| MISS-TechieBlog-20261105-02 (REQ-UI-016) | 2026-11-05 by gate | 2026-11-05 by build-phase | not sorted | no sentence recorded (partial-implementation, src) |
+| MISS-TechieBlog-20261105-01 (REQ-UI-017) | 2026-11-05 by owner | 2026-11-05 by fix-issues | the check was too weak | As Admin on /BlogsList, typing in the search box and leaving it, or clicking a row's Delete, replaces the page with Something went wrong (TrBlazeUI 2.2.1 SelectValue, TR-077); reproduced 1 of 1 each on 2026-11-05 before the 2.2.2 upgrade |
 | MISS-TechieBlog-20261029-01 (REQ-NFR-041) | 2026-10-29 by owner | 2026-10-29 by log-miss | the check was too weak | Nine Playwright specs wrote their screenshots to test-results-cluster-*/ and test-results-tr054/ folders at the repo root instead of under tests/.artifacts/, crowding the root. |
 | MISS-TechieBlog-20261028-14 (REQ-UI-025) | 2026-10-28 by gate | 2026-10-28 by build-phase | not sorted | no sentence recorded (regression, src) |
 | MISS-TechieBlog-20261028-13 (REQ-UI-025) | 2026-10-28 by agent-review | 2026-10-29 by amend-docs | the app's spec | BRD-57 says an admin can remove subscribers, but the owner chose deactivate only to keep the consent record; the BRD line needs rewording. |
+| MISS-TechieBlog-20261028-12 (REQ-UI-047) | 2026-10-28 by gate | 2026-11-05 by fix-issues | not sorted | no sentence recorded (partial-implementation, src) |
 | MISS-TechieBlog-20261028-11 (REQ-UI-034) | 2026-10-28 by gate | 2026-10-28 by build-phase | not sorted | no sentence recorded (partial-implementation, src) |
 | MISS-TechieBlog-20261028-10 (REQ-UI-026) | 2026-10-28 by gate | 2026-10-28 by build-phase | not sorted | no sentence recorded (partial-implementation, src) |
 | MISS-TechieBlog-20261028-09 (REQ-UI-025) | 2026-10-28 by gate | 2026-10-28 by build-phase | not sorted | no sentence recorded (partial-implementation, src) |
@@ -102,6 +104,7 @@
 | MISS-TechieBlog-20260906-25 (REQ-UI-030) | 2026-09-06 by gate | 2026-10-28 by build-phase | not sorted | no sentence recorded (regression, src) |
 | MISS-TechieBlog-20260906-24 (REQ-UI-029) | 2026-09-06 by gate | 2026-10-28 by build-phase | not sorted | no sentence recorded (regression, src) |
 | MISS-TechieBlog-20260906-23 (REQ-UI-027) | 2026-09-06 by gate | 2026-10-28 by build-phase | not sorted | no sentence recorded (regression, src) |
+| MISS-TechieBlog-20260906-21 (REQ-UI-025) | 2026-09-06 by gate | 2026-11-05 by fix-issues | not sorted | no sentence recorded (regression, src) |
 | MISS-TechieBlog-20260906-20 (REQ-UI-024) | 2026-09-06 by gate | 2026-10-28 by build-phase | not sorted | no sentence recorded (regression, src) |
 | MISS-TechieBlog-20260906-11 (REQ-UI-012) | 2026-09-06 by gate | 2026-10-28 by build-phase | not sorted | no sentence recorded (regression, src) |
 | MISS-TechieBlog-20260906-10 (REQ-UI-011) | 2026-09-06 by gate | 2026-10-28 by build-phase | not sorted | no sentence recorded (regression, src) |
@@ -114,14 +117,13 @@
 | MISS-TechieBlog-20260906-02 (REQ-UI-003) | 2026-09-06 by gate | 2026-10-28 by build-phase | not sorted | no sentence recorded (regression, src) |
 | MISS-TechieBlog-20260906-01 (REQ-UI-001) | 2026-09-06 by gate | 2026-10-28 by build-phase | not sorted | no sentence recorded (regression, src) |
 
-## Will not fix (13)
+## Will not fix (12)
 
 | Miss | Found | Closed | Whose gap | What went wrong |
 |---|---|---|---|---|
 | MISS-TechieBlog-20260906-39 (REQ-UI-047) | 2026-09-06 by gate | 2026-09-07 by log-miss | not sorted | no sentence recorded (regression, src) |
 | MISS-TechieBlog-20260906-28 (REQ-UI-034) | 2026-09-06 by gate | 2026-09-07 by log-miss | not sorted | no sentence recorded (regression, src) |
 | MISS-TechieBlog-20260906-22 (REQ-UI-026) | 2026-09-06 by gate | 2026-09-07 by log-miss | not sorted | no sentence recorded (regression, src) |
-| MISS-TechieBlog-20260906-21 (REQ-UI-025) | 2026-09-06 by gate | 2026-09-07 by log-miss | not sorted | no sentence recorded (regression, src) |
 | MISS-TechieBlog-20260906-19 (REQ-UI-023) | 2026-09-06 by gate | 2026-09-07 by log-miss | not sorted | no sentence recorded (regression, src) |
 | MISS-TechieBlog-20260906-18 (REQ-UI-022) | 2026-09-06 by gate | 2026-09-07 by log-miss | not sorted | no sentence recorded (regression, src) |
 | MISS-TechieBlog-20260906-17 (REQ-UI-021) | 2026-09-06 by gate | 2026-09-07 by log-miss | not sorted | no sentence recorded (regression, src) |

@@ -139,12 +139,12 @@ BRD-94…BRD-97).
 
 Written by the status gate after every build, verify and handoff; not by hand.
 
-**Snapshot as of 2026-10-30.** Live per-requirement status: `PROJECT-STATUS.md` and the Requirements Status table in `docs/TechieBlog-Checklist.md`.
+**Snapshot as of 2026-11-05.** Live per-requirement status: `PROJECT-STATUS.md` and the Requirements Status table in `docs/TechieBlog-Checklist.md`.
 
 | Screen | Requirements | Verified | Open | Status |
 |---|---|---|---|---|
-| UI / Pages | 49 | 47 | 2 | Partial |
-| Functional requirements | 48 | 47 | 1 | Partial |
+| UI / Pages | 49 | 49 | 0 | Done |
+| Functional requirements | 48 | 48 | 0 | Done |
 | Non-functional | 37 | 37 | 0 | Done |
 | Unmapped | 25 | 25 | 0 | Done |
 

@@ -326,6 +326,19 @@ partial class ManagePost : ComponentBase
             return;
         }
 
+        // [REQ-UI-016] 2026-11-05: the same rule as the posts list. An Author may edit only their
+        // own posts; an Admin or an Editor may edit any. Another author's post is not loaded into
+        // the form at all, so nothing on this page can read or save it.
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (!PostAccess.CanEdit(authState.User, PageObj))
+        {
+            PageObj = null;
+            PageHeader = "Not your post";
+            StatusMessage = "This post belongs to another author. You can edit only your own posts.";
+            IsError = true;
+            return;
+        }
+
         PageHeader = "Edit Post";
         AnswerDetail = PageObj.PostContent ?? string.Empty;
         SlugPreview = PageObj.Slug ?? string.Empty;
@@ -411,12 +424,20 @@ partial class ManagePost : ComponentBase
                 PageObj.CategoryId = categoryId;
             }
 
-            // Get current user ID
+            // [REQ-UI-016] 2026-11-05: a new post is owned by the signed-in user. An existing post
+            // keeps its owner (saving used to hand it to whoever saved it), and only that owner, an
+            // Editor or an Admin may save it; the load already refused anyone else, this is the
+            // second lock on the same door.
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var userIdClaim = authState.User.FindFirst(ClaimTypes.PrimarySid)?.Value;
-            if (long.TryParse(userIdClaim, out long userId))
+            if (PageObj.PostID <= 0 || PageObj.UserID <= 0)
             {
-                PageObj.UserID = userId;
+                PageObj.UserID = PostAccess.UserIdOf(authState.User);
+            }
+            else if (!PostAccess.CanEdit(authState.User, PageObj))
+            {
+                StatusMessage = "This post belongs to another author. You can edit only your own posts.";
+                IsError = true;
+                return;
             }
 
             // Generate slug if not provided
@@ -663,12 +684,20 @@ partial class ManagePost : ComponentBase
                 PageObj.SeriesPartNumber = null;
             }
 
-            // Get current user ID
+            // [REQ-UI-016] 2026-11-05: a new post is owned by the signed-in user. An existing post
+            // keeps its owner (saving used to hand it to whoever saved it), and only that owner, an
+            // Editor or an Admin may save it; the load already refused anyone else, this is the
+            // second lock on the same door.
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var userIdClaim = authState.User.FindFirst(ClaimTypes.PrimarySid)?.Value;
-            if (long.TryParse(userIdClaim, out long userId))
+            if (PageObj.PostID <= 0 || PageObj.UserID <= 0)
             {
-                PageObj.UserID = userId;
+                PageObj.UserID = PostAccess.UserIdOf(authState.User);
+            }
+            else if (!PostAccess.CanEdit(authState.User, PageObj))
+            {
+                StatusMessage = "This post belongs to another author. You can edit only your own posts.";
+                IsError = true;
+                return;
             }
 
             // Generate slug if not provided
@@ -820,12 +849,20 @@ partial class ManagePost : ComponentBase
                 PageObj.SeriesPartNumber = null;
             }
 
-            // Get current user ID
+            // [REQ-UI-016] 2026-11-05: a new post is owned by the signed-in user. An existing post
+            // keeps its owner (saving used to hand it to whoever saved it), and only that owner, an
+            // Editor or an Admin may save it; the load already refused anyone else, this is the
+            // second lock on the same door.
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var userIdClaim = authState.User.FindFirst(ClaimTypes.PrimarySid)?.Value;
-            if (long.TryParse(userIdClaim, out long userId))
+            if (PageObj.PostID <= 0 || PageObj.UserID <= 0)
             {
-                PageObj.UserID = userId;
+                PageObj.UserID = PostAccess.UserIdOf(authState.User);
+            }
+            else if (!PostAccess.CanEdit(authState.User, PageObj))
+            {
+                StatusMessage = "This post belongs to another author. You can edit only your own posts.";
+                IsError = true;
+                return;
             }
 
             // Generate slug if not provided

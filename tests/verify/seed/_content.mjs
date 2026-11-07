@@ -226,9 +226,16 @@ async function postIndex(admin, force) {
   if (!postIndexCache || force) postIndexCache = await postRows(admin, 'fxv0-');
   return postIndexCache;
 }
+/**
+ * The live row for a seed post. A soft-deleted copy keeps the exact slug, so the app gives the next copy
+ * "<slug>-2"; matching the slug or "<slug>-<n>" finds that live copy instead of creating "-3", "-4", …
+ * on every run (the duplicates PROJECT-STATUS listed under Deferred until 2026-11-05).
+ */
 export async function postId(admin, key, force) {
-  const r = (await postIndex(admin, force)).find((x) => x.slug === POSTS[key].slug);
-  return r ? { id: r.id, status: r.status } : null;
+  const want = POSTS[key].slug;
+  const copies = (await postIndex(admin, force)).filter((x) => x.slug === want || new RegExp(`^${want}-\\d+$`).test(x.slug));
+  const r = copies.find((x) => x.slug === want) || copies[0];
+  return r ? { id: r.id, status: r.status, slug: r.slug } : null;
 }
 async function ensureSeries(admin) {
   await open(admin, '/admin/series', '[data-testid="series-grid"], [data-testid="series-empty"]');
@@ -251,7 +258,7 @@ async function ensurePost(admin, key) {
   const p = POSTS[key];
   const found = await postId(admin, key);
   const want = p.publish ? 'Published' : 'Draft';
-  if (found && (found.status === want || (!p.publish && found.status !== 'Published'))) { log(`post ${key} present (${found.status})`); return found.id; }
+  if (found && (found.status === want || (!p.publish && found.status !== 'Published'))) { log(`post ${key} present (${found.status}, /${found.slug})`); return found; }
   if (p.series) await ensureSeries(admin);
   if (!found) {
     log(`create post ${key}`);
@@ -281,7 +288,7 @@ async function ensurePost(admin, key) {
   let fin = null;
   const ok = await until(async () => { fin = await postId(admin, key, true); return !!fin && (p.publish ? fin.status === 'Published' : true); }, 90000, 1500);
   if (!ok) throw new Error(`post ${key} did not reach the expected state`);
-  return fin.id;
+  return fin;
 }
 
 // ------------------------------------------------------------------ subscribers
@@ -356,12 +363,13 @@ async function commentRows(admin) {
 }
 async function ensureComments(admin, newAnon) {
   await ensureLogin(admin);
-  await ensurePost(admin, 'markdown');
+  const post = await ensurePost(admin, 'markdown');
   let rows = await commentRows(admin);
   for (const c of COMMENTS) {
     if (rows.some((r) => r.author === c.name)) continue;
     const page = await newAnon();
-    await gotoPublic(page, `/post/${POSTS.markdown.slug}`, '[data-testid="comment-form"]');
+    // the LIVE copy's slug: the base slug may belong to a soft-deleted copy, whose public page has no comment form
+    await gotoPublic(page, `/post/${post.slug}`, '[data-testid="comment-form"]');
     const form = page.locator('[data-testid="comment-form"]');
     await form.locator('[data-testid="comment-name"]').fill(c.name);
     await form.locator('[data-testid="comment-email"]').fill(c.email);
@@ -501,7 +509,7 @@ export async function seed(pieces, printRoute) {
   await withSession(async ({ admin, newAnon }) => {
     for (const piece of pieces) {
       const [kind, arg] = piece.split(':');
-      if (kind === 'post') { await ensureLogin(admin); const id = await ensurePost(admin, arg); routes.push(`post.${arg}.id=${id}`, `post.${arg}.slug=${POSTS[arg].slug}`); }
+      if (kind === 'post') { await ensureLogin(admin); const live = await ensurePost(admin, arg); routes.push(`post.${arg}.id=${live.id}`, `post.${arg}.slug=${live.slug}`); }
       else if (kind === 'series') {
         await ensureLogin(admin);
         for (const k of ['part1', 'part2', 'part3']) await ensurePost(admin, k);

@@ -15,6 +15,8 @@
 @inject BlogEngine.Services.TagSvc TagService
 @inject BlogEngine.Services.CategorySvc CategoryService
 @inject NavigationManager Navigation
+@* [REQ-UI-016] 2026-11-05: the preview applies the posts list's ownership rule (PostAccess). *@
+@inject AuthenticationStateProvider AuthStateProvider
 @* UAT-024: opens a published post's public URL outside this admin window. *@
 @inject IExternalLinkOpener LinkOpener
 
@@ -28,6 +30,22 @@
         <Spinner />
         <span class="text-muted-foreground">Loading preview...</span>
     </div>
+}
+else if (isForbidden)
+{
+    @* [REQ-UI-016] 2026-11-05: another author's post is never shown here; only Admins and Editors
+       may preview every post, an Author only their own (the same rule as the posts list). *@
+    <Empty Title="Not your post"
+           Description="This post belongs to another author. You can preview only your own posts."
+           data-testid="preview-forbidden">
+        <Icon><LucideIcon Name="lock" Size="48" /></Icon>
+        <ChildContent>
+            <Button Href="/BlogsList" data-testid="preview-forbidden-back-to-posts">
+                <LucideIcon Name="arrow-left" Size="16" />
+                Back to Posts
+            </Button>
+        </ChildContent>
+    </Empty>
 }
 else if (blogPost == null)
 {
@@ -204,6 +222,8 @@ else
     private List<string> postTags = new();
     private string categoryName = string.Empty;
     private bool isLoading = true;
+    /// <summary>True when the post exists but the signed-in user may not see it (REQ-UI-016).</summary>
+    private bool isForbidden;
     private bool isPublishing;
     private string statusMessage = string.Empty;
     private bool isError;
@@ -223,6 +243,17 @@ else
             blogPost = await BlogService.GetSinglePostAsync(PostId);
             if (blogPost != null)
             {
+                // [REQ-UI-016] 2026-11-05: an Author previews only their own posts; the post is
+                // dropped before any of its content reaches the page.
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                isForbidden = !PostAccess.CanEdit(authState.User, blogPost);
+                if (isForbidden)
+                {
+                    blogPost = null;
+                    isLoading = false;
+                    return;
+                }
+
                 // REQ-UI-018: tags come from the PostTag junction and the category from CategoryId,
                 // exactly as the published page reads them - never from the legacy Tags text.
                 postTags = (await TagService.GetTagsForPostAsync(blogPost.PostID)).Select(t => t.TagName).ToList();

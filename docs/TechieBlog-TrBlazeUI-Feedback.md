@@ -1,15 +1,14 @@
 # TechieBlog → TrBlazeUI feedback
 
 ## Summary
-- **Nothing is blocked.** The tracker counts 2 entries (TR-031, TR-076): 0 open, 0 fixed upstream and not yet re-checked, 2 closed.
-- Every other finding, TR-001 to TR-075 (with sub-findings TR-072b to TR-072d), is a bullet inside the dated sections below. All are resolved in library source. None was dropped.
-- **TechieBlog runs TrBlazeUI 2.2.1** since 2026-10-29 (`TrBlazeUI.Components` and `TrBlazeUI.Icons.Lucide` in all three projects; build 0 errors, 1 534 unit tests pass).
-- Re-checked on the running app on 2.2.1 (`tests/verify/trblazeui-221-upgrade.spec.ts`):
-  - TR-075: after a pick in the upload dialog's Select, focus is back on the trigger and one Escape closes the dialog.
-  - TR-076: on `/admin/series` the active item has `data-active="true"` and a painted background; the 17 others read `"false"`.
-- Neither had a workaround here, so no app code changed.
-- The 2.0.3 workaround removals still hold: 7 of 8 checks pass live; the eighth needs a published post (there are none), so its utilities were confirmed in the 2.2.1 stylesheet.
-- Next free ID **TR-077** (the bottom counter line is authoritative).
+- **Nothing is blocked.** The tracker counts 3 entries (TR-031, TR-076, TR-077): 0 open, 0 fixed upstream and not yet re-checked, 3 closed.
+- **Closed 2026-11-05: TR-077 (major).** On TrBlazeUI 2.2.2 `SelectValue` no longer crashes the Admin posts list. Last consolidated: 2026-11-05.
+- Every other finding, TR-001 to TR-075 (with sub-findings TR-072b to TR-072d), is a bullet inside the dated sections below, all resolved in library source. None was dropped.
+- **TechieBlog runs TrBlazeUI 2.2.2** since 2026-11-05 (both packages in all three projects; whole-solution build 0 errors). It ran 2.2.1 from 2026-10-29.
+- Re-checked on 2.2.2 (`tests/verify/trblazeui-222-upgrade.spec.ts`, 3 of 3 pass): the posts-list search filters, a row's Delete opens its dialog and deletes, the editor stays usable after a publish, no `RuntimeBinderException` logged. On 2.2.1 the search and Delete failed 1 of 1 each.
+- Re-checked on 2.2.1 (`tests/verify/trblazeui-221-upgrade.spec.ts`): TR-075 and TR-076 hold.
+- None of the three had a workaround here, so no app code changed. The 2.0.3 workaround removals still hold.
+- Next free ID **TR-078** (the bottom counter line is authoritative).
 
 ## ✅ Resolution — 2026-08-25, TrBlazeUI **2.0.3** (pending publish)
 
@@ -1855,7 +1854,31 @@ library gaps are logged, not patched.
 keys on `data-[active=true]`. **Still open in 2.2.0**; upgrading does not fix it.
 
 TR-076 recorded 2026-10-27 by *build-phase cluster A (REQ-UI-047).
-**Next free ID: TR-077.**
+
+### TR-077 - `SelectValue.GetSelectedText` throws `RuntimeBinderException` on a re-render (2.2.1)
+
+> ✅ **Closed 2026-11-05** — re-checked here: Re-checked 2026-11-05 on TrBlazeUI 2.2.2 (pins moved in all three projects, whole-solution build 0 errors): on /BlogsList as Admin, typing fxv0-tr077 in the search box and leaving it filtered the list to the matching rows with the Bulk Actions placeholder still showing; a row's Delete opened the confirm dialog and confirming removed that row (4 rows); a new post published from the editor, then edited, saved and its series dropdown opened, never showed the error page; the app log holds no RuntimeBinderException. Test tests/verify/trblazeui-222-upgrade.spec.ts, 3 of 3 pass; on 2.2.1 the same search and Delete failed 1 of 1 each the same morning
+
+- **Severity:** major
+- **Blocks:** no — the posts list loads; only its search box is unusable for an Admin until a fix
+- **Repro:** sign in as Admin, open `/BlogsList` (3 posts listed), type `fxv0` in the search box
+  (`data-testid="posts-search"`) and leave the field. The page has `<Select TValue="string" @bind-Value="BulkAction">`
+  with `<SelectValue Placeholder="Bulk Actions" />` (`source/BlogUI/Pages/AdminPages/BlogsList.razor:265-272`);
+  `BulkAction` is the plain string `""` (`BlogsList.razor.cs:71`).
+- **Expected:** the list filters; the bulk-action Select keeps showing its placeholder.
+- **Actual:** the error boundary replaces the page with "Something went wrong". Log:
+  `RuntimeBinderException: The best overloaded method match for 'TrBlazeUI.Primitives.Select.SelectContext<string>.HasItemWithValue(string)' has some invalid arguments`
+  at `TrBlazeUI.Components.Select.SelectValue.GetSelectedText()` ← `SelectValue.BuildRenderTree`. Reproduced 5 times
+  out of 5 on 2026-11-02. Clicking a row's Delete button (`post-delete`) crashes the same way, before the confirm
+  dialog opens. Also seen once in the post editor right after a publish.
+- **Encountered in:** `*handoff-phase` → `*devguide`, 2026-11-02, REQ-UI-017 (posts list), REQ-UI-016 (post editor).
+- **Workaround:** none taken (library gaps are logged, not patched).
+- **Suggested fix:** call `HasItemWithValue` through the typed `SelectContext<TValue>` instead of `dynamic`. A `dynamic`
+  call whose argument holds `null` binds on the argument's static type (`object`), which matches no
+  `HasItemWithValue(string)` overload. [Likely cause — the library source was not read here.]
+
+TR-077 recorded 2026-11-02 by *devguide (chained from *handoff-phase).
+**Next free ID: TR-078.**
 
 > **Note on this file's own "next free ID" bookkeeping:** the task brief that led to TR-073 named
 > **TR-067** as the next free id, following the SUMMARY section at the top of this file rather than

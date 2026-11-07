@@ -302,6 +302,9 @@ public class PostEditorRouteReloadTests : BunitContext
         postRepo.GetSingleAsync(5, Arg.Any<CancellationToken>()).Returns(new BlogPost
         {
             PostID = 5,
+            // [REQ-UI-016] 2026-11-05: owned by the signed-in test user (PrimarySid 1), as the
+            // editor now loads only a post its user may edit.
+            UserID = 1,
             Title = "Indexing Basics for .NET Developers",
             Slug = "postgres-indexing-for-dotnet-developers",
             PostContent = PostABody,
@@ -315,6 +318,9 @@ public class PostEditorRouteReloadTests : BunitContext
         postRepo.GetSingleAsync(7, Arg.Any<CancellationToken>()).Returns(new BlogPost
         {
             PostID = 7,
+            // [REQ-UI-016] 2026-11-05: owned by the signed-in test user (PrimarySid 1), as the
+            // editor now loads only a post its user may edit.
+            UserID = 1,
             Title = "The Markdown Kitchen Sink",
             Slug = "the-markdown-kitchen-sink",
             PostContent = PostBBody,
