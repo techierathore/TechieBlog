@@ -82,7 +82,10 @@ public class NuGetConfigCredentialTests
 
     private static IEnumerable<string> EnumerateConfigs(string root)
     {
-        foreach (var file in Directory.EnumerateFiles(root, "*.config", SearchOption.TopDirectoryOnly))
+        // Case-insensitive on purpose: the root file is "NuGet.Config", and Linux CI matches "*.config"
+        // case-sensitively by default, so the gate found nothing there while passing on Windows.
+        var options = new EnumerationOptions { MatchCasing = MatchCasing.CaseInsensitive, RecurseSubdirectories = false };
+        foreach (var file in Directory.EnumerateFiles(root, "*.config", options))
         {
             if (Path.GetFileName(file).Equals("nuget.config", StringComparison.OrdinalIgnoreCase))
             {
