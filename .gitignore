@@ -410,9 +410,10 @@ logs/
 
 # Local NuGet feed credentials (REQ-NFR-025). Holds a GitHub PAT in <ClearTextPassword>
 # for the TrBlazeUI GitHub Packages feed, so it must never be committed.
-# NOTE: this file is ALREADY TRACKED — ignoring it does not untrack it and does not remove it
-# from history. It still needs `git rm --cached nuget.config`, and the PAT still needs REVOKING
-# on GitHub. CI does not use it: .github/workflows/ci.yml writes a throwaway nuget.ci.config.
+# Untracked since ~2026-10-29 (git rm --cached done), so a CI checkout has NO root NuGet.Config.
+# Nothing in CI needs it: .github/workflows/ci.yml writes a throwaway nuget.ci.config, and
+# .dockerignore keeps it out of the image build. Git on Windows matches this line case-insensitively,
+# so it also covers "NuGet.Config".
 /nuget.config
 
 # TechieFlow agent artifacts — machine-generated test harness & logs, never commit (managed by scaffold/update-framework.sh)

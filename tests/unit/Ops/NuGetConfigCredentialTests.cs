@@ -43,8 +43,10 @@ public class NuGetConfigCredentialTests
         var root = RepositoryLocator.FindRoot();
         Assert.SkipWhen(root == null, "repository root not found next to the test assembly");
 
+        // Zero files is a PASS, not a failure: the root NuGet.Config is gitignored and untracked
+        // (REQ-NFR-025), so a clean CI checkout has none. Asserting one exists failed every CI run
+        // from 2026-10-29 while passing on any dev machine that still had the local file.
         var files = EnumerateConfigs(root!).ToList();
-        Assert.True(files.Count > 0, "expected at least the root NuGet.Config to be found");
 
         var problems = new List<string>();
         foreach (var file in files)
