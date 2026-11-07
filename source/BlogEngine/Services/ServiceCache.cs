@@ -132,6 +132,22 @@ public static class ServiceCache
         $"content:posts:category:{categoryId}:{pageSize}:{offset}";
 
     /// <summary>
+    /// Builds the key for the related-posts strip of one post.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The subject post, its category and the strip length all change the
+    /// rows returned. The subject's tags are not in the key: a tag edit goes through the content-tag
+    /// invalidation every post save already triggers.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <param name="postId">The subject post.</param>
+    /// <param name="categoryId">The subject's category, or <c>null</c> when it has none.</param>
+    /// <param name="take">Maximum number of related posts requested.</param>
+    /// <returns>The cache key for that strip.</returns>
+    public static string RelatedPostsKey(long postId, long? categoryId, int take) =>
+        $"content:posts:related:{postId}:{categoryId}:{take}";
+
+    /// <summary>
     /// Builds the key for the published-post count of one category.
     /// </summary>
     /// <remarks>

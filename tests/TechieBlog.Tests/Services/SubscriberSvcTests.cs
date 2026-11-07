@@ -38,10 +38,10 @@ public class SubscriberSvcTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void SubscribeRejectsBlankEmail(string email)
+    public async Task SubscribeRejectsBlankEmail(string email)
     {
         // Arrange, Act
-        var result = service.Subscribe(email);
+        var result = await service.SubscribeAsync(email, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("Email address is required.", result.ErrorMessage);
@@ -57,10 +57,10 @@ public class SubscriberSvcTests
     [InlineData("missing@tld")]
     [InlineData("two@@at.com")]
     [InlineData("spaces in@example.com")]
-    public void SubscribeRejectsMalformedEmail(string email)
+    public async Task SubscribeRejectsMalformedEmail(string email)
     {
         // Arrange, Act
-        var result = service.Subscribe(email);
+        var result = await service.SubscribeAsync(email, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("Please enter a valid email address.", result.ErrorMessage);
@@ -71,14 +71,14 @@ public class SubscriberSvcTests
     /// identifier the repository handed back.
     /// </summary>
     [Fact]
-    public void SubscribeStoresNewSubscriber()
+    public async Task SubscribeStoresNewSubscriber()
     {
         // Arrange
-        subscriberRepo.EmailExists("new@example.com").Returns(false);
-        subscriberRepo.InsertToGetId(Arg.Any<Subscriber>()).Returns(42L);
+        subscriberRepo.EmailExistsAsync("new@example.com", Arg.Any<CancellationToken>()).Returns(false);
+        subscriberRepo.InsertToGetIdAsync(Arg.Any<Subscriber>(), Arg.Any<CancellationToken>()).Returns(42L);
 
         // Act
-        var result = service.Subscribe("new@example.com", "New Reader");
+        var result = await service.SubscribeAsync("new@example.com", "New Reader", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(42L, result.Data.SubscriberId);
@@ -89,14 +89,14 @@ public class SubscriberSvcTests
     /// address entered with different casing cannot subscribe twice.
     /// </summary>
     [Fact]
-    public void SubscribeNormalisesEmailToLowerCase()
+    public async Task SubscribeNormalisesEmailToLowerCase()
     {
         // Arrange
-        subscriberRepo.EmailExists(Arg.Any<string>()).Returns(false);
-        subscriberRepo.InsertToGetId(Arg.Any<Subscriber>()).Returns(1L);
+        subscriberRepo.EmailExistsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
+        subscriberRepo.InsertToGetIdAsync(Arg.Any<Subscriber>(), Arg.Any<CancellationToken>()).Returns(1L);
 
         // Act
-        var result = service.Subscribe("  Mixed.Case@Example.COM  ");
+        var result = await service.SubscribeAsync("  Mixed.Case@Example.COM  ", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("mixed.case@example.com", result.Data.Email);
@@ -107,14 +107,14 @@ public class SubscriberSvcTests
     /// the subscriber name.
     /// </summary>
     [Fact]
-    public void SubscribeDefaultsNameToEmailLocalPart()
+    public async Task SubscribeDefaultsNameToEmailLocalPart()
     {
         // Arrange
-        subscriberRepo.EmailExists(Arg.Any<string>()).Returns(false);
-        subscriberRepo.InsertToGetId(Arg.Any<Subscriber>()).Returns(1L);
+        subscriberRepo.EmailExistsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
+        subscriberRepo.InsertToGetIdAsync(Arg.Any<Subscriber>(), Arg.Any<CancellationToken>()).Returns(1L);
 
         // Act
-        var result = service.Subscribe("reader@example.com");
+        var result = await service.SubscribeAsync("reader@example.com", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("reader", result.Data.Name);
@@ -125,15 +125,15 @@ public class SubscriberSvcTests
     /// duplicate row.
     /// </summary>
     [Fact]
-    public void SubscribeRejectsAlreadyActiveEmail()
+    public async Task SubscribeRejectsAlreadyActiveEmail()
     {
         // Arrange
-        subscriberRepo.EmailExists("dup@example.com").Returns(true);
-        subscriberRepo.GetByEmail("dup@example.com")
+        subscriberRepo.EmailExistsAsync("dup@example.com", Arg.Any<CancellationToken>()).Returns(true);
+        subscriberRepo.GetByEmailAsync("dup@example.com", Arg.Any<CancellationToken>())
             .Returns(new Subscriber { SubscriberId = 7, Email = "dup@example.com", IsActive = true });
 
         // Act
-        var result = service.Subscribe("dup@example.com");
+        var result = await service.SubscribeAsync("dup@example.com", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("This email is already subscribed.", result.ErrorMessage);
@@ -152,19 +152,19 @@ public class SubscriberSvcTests
     /// that had removed them. The async behaviour is the correct one and both now share it.
     /// </remarks>
     [Fact]
-    public void SubscribeReactivatesLapsedSubscriber()
+    public async Task SubscribeReactivatesLapsedSubscriber()
     {
         // Arrange
-        subscriberRepo.EmailExists("back@example.com").Returns(true);
-        subscriberRepo.GetByEmail("back@example.com")
+        subscriberRepo.EmailExistsAsync("back@example.com", Arg.Any<CancellationToken>()).Returns(true);
+        subscriberRepo.GetByEmailAsync("back@example.com", Arg.Any<CancellationToken>())
             .Returns(new Subscriber { SubscriberId = 9, Email = "back@example.com", IsActive = false });
 
         // Act
-        var result = service.Subscribe("back@example.com");
+        var result = await service.SubscribeAsync("back@example.com", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        subscriberRepo.Received(1).RecordConsent(9L, Arg.Is<string>(token => token.Length == 64));
-        subscriberRepo.DidNotReceive().UpdateStatus(9L, true);
+        await subscriberRepo.Received(1).RecordConsentAsync(9L, Arg.Is<string>(token => token.Length == 64), Arg.Any<CancellationToken>());
+        await subscriberRepo.DidNotReceive().UpdateStatusAsync(9L, true, Arg.Any<CancellationToken>());
         Assert.True(result.IsSuccess);
         Assert.True(result.Data.IsConfirmed);
         Assert.NotNull(result.Data.ConfirmedOn);
@@ -177,14 +177,14 @@ public class SubscriberSvcTests
     /// failure result rather than an exception escaping to the UI.
     /// </summary>
     [Fact]
-    public void SubscribeReturnsFailureWhenRepositoryThrows()
+    public async Task SubscribeReturnsFailureWhenRepositoryThrows()
     {
         // Arrange
-        subscriberRepo.EmailExists(Arg.Any<string>()).Returns(false);
-        subscriberRepo.InsertToGetId(Arg.Any<Subscriber>()).Throws(new InvalidOperationException("db down"));
+        subscriberRepo.EmailExistsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
+        subscriberRepo.InsertToGetIdAsync(Arg.Any<Subscriber>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("db down"));
 
         // Act
-        var result = service.Subscribe("boom@example.com");
+        var result = await service.SubscribeAsync("boom@example.com", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("Failed to subscribe. Please try again later.", result.ErrorMessage);
@@ -194,10 +194,10 @@ public class SubscriberSvcTests
     /// Unsubscribing a blank address is rejected before the repository is touched.
     /// </summary>
     [Fact]
-    public void UnsubscribeRejectsBlankEmail()
+    public async Task UnsubscribeRejectsBlankEmail()
     {
         // Arrange, Act
-        var result = service.Unsubscribe("  ");
+        var result = await service.UnsubscribeAsync("  ", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("Email address is required.", result.ErrorMessage);
@@ -207,13 +207,13 @@ public class SubscriberSvcTests
     /// Unsubscribing an address that was never subscribed reports "not found".
     /// </summary>
     [Fact]
-    public void UnsubscribeReportsUnknownEmail()
+    public async Task UnsubscribeReportsUnknownEmail()
     {
         // Arrange
-        subscriberRepo.GetByEmail("ghost@example.com").Returns((Subscriber?)null);
+        subscriberRepo.GetByEmailAsync("ghost@example.com", Arg.Any<CancellationToken>()).Returns((Subscriber?)null);
 
         // Act
-        var result = service.Unsubscribe("ghost@example.com");
+        var result = await service.UnsubscribeAsync("ghost@example.com", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("Email not found in subscribers list.", result.ErrorMessage);
@@ -224,17 +224,17 @@ public class SubscriberSvcTests
     /// deleting the row, preserving the audit trail.
     /// </summary>
     [Fact]
-    public void UnsubscribeDeactivatesKnownSubscriber()
+    public async Task UnsubscribeDeactivatesKnownSubscriber()
     {
         // Arrange
-        subscriberRepo.GetByEmail("bye@example.com")
+        subscriberRepo.GetByEmailAsync("bye@example.com", Arg.Any<CancellationToken>())
             .Returns(new Subscriber { SubscriberId = 11, Email = "bye@example.com", IsActive = true });
 
         // Act
-        service.Unsubscribe("bye@example.com");
+        await service.UnsubscribeAsync("bye@example.com", TestContext.Current.CancellationToken);
 
         // Assert
-        subscriberRepo.Received(1).UpdateStatus(11L, false);
+        await subscriberRepo.Received(1).UpdateStatusAsync(11L, false, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -242,13 +242,13 @@ public class SubscriberSvcTests
     /// "not found" and performs no write.
     /// </summary>
     [Fact]
-    public void UpdateSubscriberStatusRejectsUnknownId()
+    public async Task UpdateSubscriberStatusRejectsUnknownId()
     {
         // Arrange
-        subscriberRepo.GetSingle(99L).Returns((Subscriber?)null);
+        subscriberRepo.GetSingleAsync(99L, Arg.Any<CancellationToken>()).Returns((Subscriber?)null);
 
         // Act
-        var result = service.UpdateSubscriberStatus(99L, false);
+        var result = await service.UpdateSubscriberStatusAsync(99L, false, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("Subscriber not found.", result.ErrorMessage);
@@ -259,13 +259,13 @@ public class SubscriberSvcTests
     /// running an unbounded LIKE.
     /// </summary>
     [Fact]
-    public void SearchSubscribersFallsBackToAllForBlankQuery()
+    public async Task SearchSubscribersFallsBackToAllForBlankQuery()
     {
         // Arrange
-        subscriberRepo.GetAll().Returns(new[] { new Subscriber { SubscriberId = 1 } });
+        subscriberRepo.GetAllAsync(Arg.Any<CancellationToken>()).Returns(new[] { new Subscriber { SubscriberId = 1 } }.AsEnumerable());
 
         // Act
-        var found = service.SearchSubscribers("   ");
+        var found = await service.SearchSubscribersAsync("   ", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(found);
@@ -276,13 +276,13 @@ public class SubscriberSvcTests
     /// sequence so the admin page still renders.
     /// </summary>
     [Fact]
-    public void GetAllSubscribersReturnsEmptyWhenRepositoryThrows()
+    public async Task GetAllSubscribersReturnsEmptyWhenRepositoryThrows()
     {
         // Arrange
-        subscriberRepo.GetAll().Throws(new InvalidOperationException("db down"));
+        subscriberRepo.GetAllAsync(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("db down"));
 
         // Act
-        var found = service.GetAllSubscribers();
+        var found = await service.GetAllSubscribersAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(found);
@@ -293,14 +293,14 @@ public class SubscriberSvcTests
     /// supplies.
     /// </summary>
     [Fact]
-    public void GetSubscriberStatsReportsRepositoryCounts()
+    public async Task GetSubscriberStatsReportsRepositoryCounts()
     {
         // Arrange
-        subscriberRepo.GetTotalCount().Returns(10);
-        subscriberRepo.GetActiveCount().Returns(6);
+        subscriberRepo.GetTotalCountAsync(Arg.Any<CancellationToken>()).Returns(10);
+        subscriberRepo.GetActiveCountAsync(Arg.Any<CancellationToken>()).Returns(6);
 
         // Act
-        var stats = service.GetSubscriberStats();
+        var stats = await service.GetSubscriberStatsAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal((10, 6), stats);
@@ -311,13 +311,13 @@ public class SubscriberSvcTests
     /// than breaking the dashboard.
     /// </summary>
     [Fact]
-    public void GetSubscriberStatsReturnsZeroesWhenRepositoryThrows()
+    public async Task GetSubscriberStatsReturnsZeroesWhenRepositoryThrows()
     {
         // Arrange
-        subscriberRepo.GetTotalCount().Throws(new InvalidOperationException("db down"));
+        subscriberRepo.GetTotalCountAsync(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("db down"));
 
         // Act
-        var stats = service.GetSubscriberStats();
+        var stats = await service.GetSubscriberStatsAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal((0, 0), stats);

@@ -62,7 +62,7 @@ async function reachability(page: Page, testId: string) {
 
 test('REQ-UI-021 the moderation status tabs are all usable on a 390px viewport', async ({ page }) => {
   await signIn(page);
-  await nav(page, '/CommentsList', /Comments Management/);
+  await nav(page, '/CommentsList', /Comment moderation/);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(1500);
 

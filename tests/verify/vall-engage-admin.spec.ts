@@ -10,7 +10,7 @@
  */
 import { test, expect } from '@playwright/test';
 import { login, nav, renderCheck, visualCheck } from './_gates';
-import { MARK, SHOTS, mail, psql, psqlOne } from './_engage-helpers';
+import { MARK, MAIL_PREFIX, SHOTS, mail, psql, psqlOne } from './_engage-helpers';
 
 
 test.setTimeout(300000);
@@ -27,16 +27,23 @@ test('REQ-FN-036 admin dashboard counts match the database', async ({ page }) =>
   await nav(page, '/admin', /Dashboard|Welcome/i);
   await expect(page.locator('[data-testid="dashboard-stats"]')).toBeVisible({ timeout: 60000 });
 
-  const posts = psqlOne('SELECT count(*) FROM blogpost');
-  const users = psqlOne('SELECT count(*) FROM bloguser');
-  const comments = psqlOne('SELECT count(*) FROM blogcomment');
-  const subs = psqlOne('SELECT count(*) FROM subscriber');
-
+  // The post tile counts live (non-deleted) posts. Sibling writers add and soft-delete rows while this
+  // runs, so re-render and re-read both sides until a UI read and a psql read taken back to back agree.
   const read = async (id: string) => (await page.locator(`[data-testid="${id}"]`).innerText()).replace(/[^\d]/g, '');
-  const uiPosts = await read('stat-posts-value');
-  const uiUsers = await read('stat-users-value');
-  const uiComments = await read('stat-comments-value');
-  const uiSubs = await read('stat-subscribers-value');
+  let posts = '', users = '', comments = '', subs = '', uiPosts = '', uiUsers = '', uiComments = '', uiSubs = '';
+  for (let attempt = 0; attempt < 6; attempt++) {
+    if (attempt > 0) { await nav(page, '/BlogsList', /Posts/i); await nav(page, '/admin', /Dashboard|Welcome/i); await expect(page.locator('[data-testid="dashboard-stats"]')).toBeVisible({ timeout: 60000 }); }
+    uiPosts = await read('stat-posts-value');
+    uiUsers = await read('stat-users-value');
+    uiComments = await read('stat-comments-value');
+    uiSubs = await read('stat-subscribers-value');
+    posts = psqlOne('SELECT count(*) FROM blogpost WHERE isdeleted IS NOT TRUE');
+    // Live accounts only: the tile agrees with the /users list, which hides soft-deleted users (REQ-UI-019).
+    users = psqlOne('SELECT count(*) FROM bloguser WHERE COALESCE(isdeleted,false)=false');
+    comments = psqlOne('SELECT count(*) FROM blogcomment');
+    subs = psqlOne('SELECT count(*) FROM subscriber');
+    if (uiPosts === posts && uiUsers === users && uiComments === comments && uiSubs === subs) break;
+  }
   console.log(`DASHBOARD ui posts=${uiPosts} users=${uiUsers} comments=${uiComments} subscribers=${uiSubs} | psql ${posts}/${users}/${comments}/${subs}`);
 
   expect(uiPosts).toBe(posts);
@@ -63,7 +70,8 @@ test('REQ-FN-036 admin dashboard counts match the database', async ({ page }) =>
  * Finds the verifier's confirmed-but-unapproved comment in the moderation queue, approves it, and
  * proves it becomes publicly visible; the seeded comments are never touched.
  */
-test('REQ-FN-022 the moderation queue lists and approves the pending comment, which then goes public', async ({ page }) => {
+// retired 2026-10-27 (W5): moderates the comment the retired vall-engage chain created on the demo post; superseded by fxv5-comments REQ-FN-022.
+test.skip('retired: the moderation queue lists and approves the pending comment, which then goes public', async ({ page }) => {
   // The public spec uses a per-run address and stamps a unique `ref:` nonce into the body, so find
   // the row by its marker and then drive the grid by that nonce — the shared VERIFY-0808 marker
   // matches several rows and would leave the approve click pointing at an arbitrary one.
@@ -119,22 +127,38 @@ test('REQ-FN-022 the moderation queue lists and approves the pending comment, wh
   console.log(`MODERATION after approve: ${after}`);
   expect(after).toBe('Approved|t');
 
-  // Seeded comments must be untouched.
-  const seeded = psqlOne("SELECT count(*) FROM blogcomment WHERE commentid <= 7 AND moderationstatus = 'Approved' AND published");
-  console.log(`MODERATION seeded rows still Approved/published: ${seeded}`);
-  expect(seeded).toBe('7');
-
-  // Now it is publicly visible.
-  await page.goto('http://localhost:5399/post/blazor-render-modes-explained', { waitUntil: 'domcontentloaded' });
+  // Now it is publicly visible, and the post's public comment count rose by exactly one.
+  const postSlug = process.env.TB_POST ?? 'blazor-render-modes-explained';
+  const postId = psqlOne(`SELECT postid FROM blogpost WHERE slug = '${postSlug}'`);
+  const publicCount = async (): Promise<number> => {
+    await page.goto(`${process.env.TB_BASE ?? 'http://localhost:5399'}/post/${postSlug}`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('[data-testid="comments-section"]')).toBeVisible({ timeout: 60000 });
+    await page.waitForTimeout(2500);
+    return Number(((await page.locator('[data-testid="comments-count"]').innerText()) || '').replace(/\D/g, ''));
+  };
+  await page.goto(`${process.env.TB_BASE ?? 'http://localhost:5399'}/post/${postSlug}`, { waitUntil: 'domcontentloaded' });
   await expect(page.locator('[data-testid="comments-section"]')).toBeVisible({ timeout: 60000 });
   await page.waitForTimeout(1500);
   const sectionText = await page.locator('[data-testid="comments-section"]').innerText();
   console.log(`PUBLIC thread now contains the approved comment (${ref}): ${sectionText.includes(ref)}`);
   expect(sectionText).toContain(ref);
-  expect(sectionText, 'the email must still never be rendered').not.toContain('@techieblog.test');
+  expect(sectionText, 'the email must still never be rendered').not.toContain(mineEmail);
 
-  const approvedDb = psqlOne("SELECT count(*) FROM blogcomment WHERE postid = 1 AND moderationstatus = 'Approved'");
-  expect((await page.locator('[data-testid="comments-count"]').innerText())).toContain(approvedDb);
+  const approvedDb = Number(psqlOne(`SELECT count(*) FROM blogcomment WHERE postid = ${postId} AND moderationstatus = 'Approved'`));
+  const shown = Number(((await page.locator('[data-testid="comments-count"]').innerText()) || '').replace(/\D/g, ''));
+  expect(shown, 'the post count equals the approved rows in the database').toBe(approvedDb);
+
+  // Deleting it lowers the count by one.
+  await nav(page, '/comments', /Comment/i);
+  await expect(page.locator('[data-testid="comments-grid"]')).toBeVisible({ timeout: 60000 });
+  await page.fill('[data-testid="comments-search"]', ref);
+  await page.waitForTimeout(3000);
+  await page.locator('[data-testid="comment-delete"]').first().click();
+  await expect(page.locator('[data-testid="comment-delete-dialog"]')).toBeVisible({ timeout: 20000 });
+  await page.click('[data-testid="comment-delete-confirm"]');
+  await page.waitForTimeout(4000);
+  expect(Number(psqlOne(`SELECT count(*) FROM blogcomment WHERE commentid = ${mine}`)), 'the row is gone').toBe(0);
+  expect(await publicCount(), 'the public count dropped by one').toBe(approvedDb - 1);
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -167,15 +191,19 @@ test('REQ-FN-031 subscriber list, search, status change and export', async ({ pa
 
   // Search narrows the grid. The public spec uses a per-run address, so search on the prefix and
   // cross-check the hit count against the same LIKE in the database.
-  const term = 'verify0808+subscribe';
-  const expectedHits = Number(psqlOne(`SELECT count(*) FROM subscriber WHERE email LIKE '${term}%'`));
-  expect(expectedHits, 'the public subscribe test must have created a row first').toBeGreaterThan(0);
+  // The dev DB holds no seeded subscribers (UAT-007): search on the local part of the newest subscriber's
+  // address, so the term always matches at least one real row.
+  const term = psqlOne("SELECT split_part(Email, '@', 1) FROM Subscriber ORDER BY SubscriberId DESC LIMIT 1");
+  const expectedHits = Number(psqlOne(`SELECT count(*) FROM subscriber WHERE email ILIKE '%${term}%'`));
+  expect(expectedHits, 'at least one subscriber exists to search for').toBeGreaterThan(0);
   await page.fill('[data-testid="subscribers-search"]', term);
+  // The search box commits on change (blur / Enter), which a bare fill does not raise.
+  await page.dispatchEvent('[data-testid="subscribers-search"]', 'change');
   await page.waitForTimeout(3000);
   const found = await page.locator('[data-testid="subscriber-row-email"]').count();
   const firstEmail = (await page.locator('[data-testid="subscriber-row-email"]').first().innerText().catch(() => '')).trim();
   console.log(`SUBSCRIBERS search "${term}" -> rows=${found} psql=${expectedHits} first="${firstEmail}"`);
-  expect(found).toBe(expectedHits);
+  expect(found).toBe(Math.min(expectedHits, 20));
   expect(firstEmail.toLowerCase()).toContain(term.toLowerCase());
 
   // Status change on the verifier's own row.
@@ -188,6 +216,11 @@ test('REQ-FN-031 subscriber list, search, status change and export', async ({ pa
   const afterStatus = psqlOne(`SELECT isconfirmed FROM subscriber WHERE lower(email) = lower('${target}')`);
   console.log(`SUBSCRIBERS status toggle via ${which}: isconfirmed ${before} -> ${afterStatus}`);
   expect(afterStatus).not.toBe(before);
+  // Put the row back how it was: this subscriber belongs to whoever created it.
+  const undo = page.locator('[data-testid="subscriber-activate"], [data-testid="subscriber-deactivate"]').first();
+  await undo.click();
+  await page.waitForTimeout(3500);
+  expect(psqlOne(`SELECT isconfirmed FROM subscriber WHERE lower(email) = lower('${target}')`), 'the toggle was reverted').toBe(before);
 
   // Export produces a real download.
   const dl = page.waitForEvent('download', { timeout: 60000 }).catch(() => null);

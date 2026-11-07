@@ -93,6 +93,16 @@ public class BlogTagRepo : GenericRepository<BlogTag>, IBlogTagRepo
 
     private const string InsertJunctionSql = "INSERT INTO PostTag (PostId, TagId) VALUES (@PostId, @TagId)";
 
+    // [REQ-FN-021] The junction is the source of truth for a post's tags; BlogPost.Tags is a legacy
+    // comma-separated mirror that list cards and the search fallback still read. It is rewritten in the
+    // same transaction as the junction so the two can never disagree after a save.
+    private const string SyncLegacyTagsSql = @"
+            UPDATE BlogPost SET Tags = COALESCE((
+                SELECT string_agg(t.TagName, ', ' ORDER BY t.TagName)
+                FROM PostTag pt INNER JOIN Tag t ON t.TagId = pt.TagId
+                WHERE pt.PostId = @PostId), '')
+            WHERE PostID = @PostId";
+
     private const string SelectTagsForPostSql = @"
             SELECT t.TagId, t.TagName, t.Slug
             FROM Tag t
@@ -447,6 +457,9 @@ public class BlogTagRepo : GenericRepository<BlogTag>, IBlogTagRepo
                 }
             }
 
+            await connection.ExecuteAsync(new CommandDefinition(
+                SyncLegacyTagsSql, new { PostId = postId }, transaction, cancellationToken: cancellationToken)).ConfigureAwait(false);
+
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         }
         catch
@@ -671,6 +684,8 @@ public class BlogTagRepo : GenericRepository<BlogTag>, IBlogTagRepo
                     connection.Execute(InsertJunctionSql, new { PostId = postId, TagId = tagId }, transaction);
                 }
             }
+
+            connection.Execute(SyncLegacyTagsSql, new { PostId = postId }, transaction);
 
             transaction.Commit();
         }

@@ -155,7 +155,7 @@ public class ScheduledPostPublisher : BackgroundService
             using var scope = services.CreateScope();
             var blogSvc = scope.ServiceProvider.GetRequiredService<BlogSvc>();
 
-            var duePosts = blogSvc.GetDueScheduledPosts().ToList();
+            var duePosts = (await blogSvc.GetDueScheduledPostsAsync()).ToList();
 
             if (duePosts.Count == 0)
             {
@@ -174,7 +174,7 @@ public class ScheduledPostPublisher : BackgroundService
                     post.ScheduledPublishOn = null;
                     post.UpdatedOn = DateTime.UtcNow;
 
-                    var result = blogSvc.UpdatePost(post);
+                    var result = await blogSvc.UpdatePostAsync(post);
 
                     if (result.IsSuccess)
                     {

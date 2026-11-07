@@ -105,7 +105,7 @@ public class LogFileSettingsTests
     /// The file template lives inside the resolved directory and carries the shared file-name stem
     /// Serilog appends its date and sequence to.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-037 every head's log file lands in one resolved directory")]
     public void ResolveComposesTheFileTemplateInsideTheDirectory()
     {
         var settings = LogFileSettings.Resolve(BuildConfiguration(), AnchorPath);
@@ -119,7 +119,7 @@ public class LogFileSettingsTests
     /// The shipped defaults bound total disk at 100 MB per host — the number the previous
     /// configuration never stated and which turned out to be 350 MB.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-037 worst-case log volume is the product of the size and count limits")]
     public void WorstCaseTotalIsTheProductOfTheTwoLimits()
     {
         var settings = LogFileSettings.Resolve(BuildConfiguration(), AnchorPath);

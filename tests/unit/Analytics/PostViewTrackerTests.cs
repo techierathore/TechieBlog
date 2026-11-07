@@ -73,7 +73,7 @@ public class PostViewTrackerTests
     /// The same visitor reading the same post twice inside the window is counted once, so a refresh
     /// loop cannot inflate the total.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-034 a repeat visit to the same post is deduplicated")]
     public async Task RepeatVisitToSamePostIsDeduplicated()
     {
         var repo = new FakePostViewRepo();

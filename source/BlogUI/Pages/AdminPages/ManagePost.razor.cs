@@ -184,8 +184,42 @@ partial class ManagePost : ComponentBase
     /// </remarks>
     public string EditorResetKey => $"post-{loadedPostId}-{editorGeneration}";
 
+    /// <summary>
+    /// True once the editor is safe to paint: the circuit is attached AND the lookups the form
+    /// needs (categories, tags, series) have loaded.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>[REQ-UI-016] Why the form is withheld.</b> Every page here is prerendered, then the
+    /// circuit attaches and the component is initialised a SECOND time from scratch. Until that
+    /// happens the prerendered form is visible but inert: a click on the Category select opens
+    /// nothing, so the dropdown "has no options" (measured: 0 options for the first ~1 s after the
+    /// title box appears, 8 from ~3 s on, longer under load), and text typed into it is wiped when
+    /// the circuit takes over. Gating on <c>RendererInfo.IsInteractive</c> makes the visible form
+    /// and the working form the same moment. The second flag covers the shorter gap inside the
+    /// interactive pass, where <see cref="OnInitializedAsync"/> has not yet filled
+    /// <see cref="Categories"/>.</para>
+    /// </remarks>
+    public bool EditorReady => RendererInfo.IsInteractive && lookupsLoaded;
+
+    /// <summary>Set when <see cref="OnInitializedAsync"/> has finished loading the form's lookups.</summary>
+    private bool lookupsLoaded;
+
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await LoadLookupsAsync();
+        }
+        finally
+        {
+            // Even when a lookup throws, the form must not stay a spinner forever.
+            lookupsLoaded = true;
+        }
+    }
+
+    /// <summary>Loads the lookups that are the same for every post.</summary>
+    private async Task LoadLookupsAsync()
     {
         // Load categories for dropdown
         Categories = (await CategoryService.GetAllCategoriesAsync()).ToList();
@@ -292,6 +326,19 @@ partial class ManagePost : ComponentBase
             return;
         }
 
+        // [REQ-UI-016] 2026-11-05: the same rule as the posts list. An Author may edit only their
+        // own posts; an Admin or an Editor may edit any. Another author's post is not loaded into
+        // the form at all, so nothing on this page can read or save it.
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (!PostAccess.CanEdit(authState.User, PageObj))
+        {
+            PageObj = null;
+            PageHeader = "Not your post";
+            StatusMessage = "This post belongs to another author. You can edit only your own posts.";
+            IsError = true;
+            return;
+        }
+
         PageHeader = "Edit Post";
         AnswerDetail = PageObj.PostContent ?? string.Empty;
         SlugPreview = PageObj.Slug ?? string.Empty;
@@ -377,12 +424,20 @@ partial class ManagePost : ComponentBase
                 PageObj.CategoryId = categoryId;
             }
 
-            // Get current user ID
+            // [REQ-UI-016] 2026-11-05: a new post is owned by the signed-in user. An existing post
+            // keeps its owner (saving used to hand it to whoever saved it), and only that owner, an
+            // Editor or an Admin may save it; the load already refused anyone else, this is the
+            // second lock on the same door.
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var userIdClaim = authState.User.FindFirst(ClaimTypes.PrimarySid)?.Value;
-            if (long.TryParse(userIdClaim, out long userId))
+            if (PageObj.PostID <= 0 || PageObj.UserID <= 0)
             {
-                PageObj.UserID = userId;
+                PageObj.UserID = PostAccess.UserIdOf(authState.User);
+            }
+            else if (!PostAccess.CanEdit(authState.User, PageObj))
+            {
+                StatusMessage = "This post belongs to another author. You can edit only your own posts.";
+                IsError = true;
+                return;
             }
 
             // Generate slug if not provided
@@ -629,12 +684,20 @@ partial class ManagePost : ComponentBase
                 PageObj.SeriesPartNumber = null;
             }
 
-            // Get current user ID
+            // [REQ-UI-016] 2026-11-05: a new post is owned by the signed-in user. An existing post
+            // keeps its owner (saving used to hand it to whoever saved it), and only that owner, an
+            // Editor or an Admin may save it; the load already refused anyone else, this is the
+            // second lock on the same door.
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var userIdClaim = authState.User.FindFirst(ClaimTypes.PrimarySid)?.Value;
-            if (long.TryParse(userIdClaim, out long userId))
+            if (PageObj.PostID <= 0 || PageObj.UserID <= 0)
             {
-                PageObj.UserID = userId;
+                PageObj.UserID = PostAccess.UserIdOf(authState.User);
+            }
+            else if (!PostAccess.CanEdit(authState.User, PageObj))
+            {
+                StatusMessage = "This post belongs to another author. You can edit only your own posts.";
+                IsError = true;
+                return;
             }
 
             // Generate slug if not provided
@@ -786,12 +849,20 @@ partial class ManagePost : ComponentBase
                 PageObj.SeriesPartNumber = null;
             }
 
-            // Get current user ID
+            // [REQ-UI-016] 2026-11-05: a new post is owned by the signed-in user. An existing post
+            // keeps its owner (saving used to hand it to whoever saved it), and only that owner, an
+            // Editor or an Admin may save it; the load already refused anyone else, this is the
+            // second lock on the same door.
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var userIdClaim = authState.User.FindFirst(ClaimTypes.PrimarySid)?.Value;
-            if (long.TryParse(userIdClaim, out long userId))
+            if (PageObj.PostID <= 0 || PageObj.UserID <= 0)
             {
-                PageObj.UserID = userId;
+                PageObj.UserID = PostAccess.UserIdOf(authState.User);
+            }
+            else if (!PostAccess.CanEdit(authState.User, PageObj))
+            {
+                StatusMessage = "This post belongs to another author. You can edit only your own posts.";
+                IsError = true;
+                return;
             }
 
             // Generate slug if not provided

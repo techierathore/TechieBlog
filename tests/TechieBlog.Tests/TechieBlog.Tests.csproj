@@ -111,6 +111,9 @@
   <ItemGroup>
     <Compile Include="..\..\source\TechieBlog\Observability\GlobalExceptionLogging.cs"
              Link="LinkedSource\GlobalExceptionLogging.cs" />
+    <!-- REQ-FN-015 / REQ-FN-037 / REQ-FN-038: the output-cache-evicting cache decorator, linked for the same reason. -->
+    <Compile Include="..\..\source\TechieBlog\Services\OutputCacheEvictingCacheService.cs"
+             Link="LinkedSource\OutputCacheEvictingCacheService.cs" />
     <!--
       REQ-NFR-028: same reasoning for the forwarded-headers allow-list. The tests assert against the
       real production type, but a ProjectReference to source/TechieBlog would pull in BlogUI.

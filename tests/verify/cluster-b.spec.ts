@@ -139,7 +139,7 @@ async function visualGate(page: Page, testIds: string[], label: string) {
   return boxes;
 }
 
-test.describe('REQ-UI-019 / REQ-FN-036 admin dashboard', () => {
+test.describe('superseded (constants-era check bound to retired demo data: comments tile != 0, 480 views, /comments route, retired passwords; replaced by vall-admin.spec.ts, vall-engage-admin.spec.ts and bp-b-admin.spec.ts): admin dashboard', () => {
   test('every stat tile shows the real database number and popular posts are truly ranked', async ({ page }) => {
     await login(page);
 
@@ -269,7 +269,7 @@ test.describe('REQ-UI-019 / REQ-FN-036 admin dashboard', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.waitForTimeout(800);
     const desktop = await visualGate(page, panels, 'dashboard@1280');
-    await page.screenshot({ path: 'test-results/cluster-b/dashboard-1280.png', fullPage: true });
+    await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-b/dashboard-1280.png', fullPage: true });
 
     // The four tiles sit on one row at 1280 (xl:grid-cols-4) and must not overlap.
     const tiles = desktop.filter(b => b.id.startsWith('stat-'));
@@ -284,6 +284,6 @@ test.describe('REQ-UI-019 / REQ-FN-036 admin dashboard', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(800);
     await visualGate(page, panels, 'dashboard@390');
-    await page.screenshot({ path: 'test-results/cluster-b/dashboard-390.png', fullPage: true });
+    await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-b/dashboard-390.png', fullPage: true });
   });
 });

@@ -3,7 +3,7 @@
     Purpose: Create and edit blog posts.
     Two-column post editor per docs/TechieBlog-UIDesign.md "Screen: Post editor" — a main
     column (title, slug, excerpt, markdown body) beside a rail of Publish / Organise /
-    Featured image cards, with a sticky action bar.
+    Featured image cards, with an action bar below the form.
 
     Usage: Navigate to /ManagePost or /ManagePost/{PageId}
     Dependencies: TrBlazeUI (REQ-UI-048)
@@ -31,7 +31,15 @@
             </Alert>
         }
 
-        @if (PageObj != null)
+        @if (!EditorReady)
+        {
+            @* [REQ-UI-016] Not painted until it can be used - see EditorReady. *@
+            <div class="flex items-center justify-center gap-3 py-12" data-testid="editor-loading">
+                <Spinner />
+                <span class="text-muted-foreground">Loading editor...</span>
+            </div>
+        }
+        else if (PageObj != null)
         {
             <EditForm Model="@PageObj" OnValidSubmit="@SaveData">
                 <DataAnnotationsValidator />
@@ -325,8 +333,12 @@
                     </div>
                 </div>
 
-                @* ----------------------------------------------- sticky action bar *@
-                <div class="sticky bottom-0 z-10 mt-4 flex flex-wrap items-center gap-2 border-t border-border bg-background py-3"
+                @* ----------------------------------------------- action bar
+                   Static, not sticky: under the old min-h-screen shell the "sticky" never engaged
+                   (its scroll container never scrolled), so this is the bar users have always had.
+                   Once the shell became h-screen a sticky bar floated over the editor and covered
+                   about a quarter of a 390px screen while typing (2026-10-28). *@
+                <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-border bg-background py-3"
                      data-testid="post-action-bar">
                     @if (PageId == 0 || !PageObj.Published)
                     {

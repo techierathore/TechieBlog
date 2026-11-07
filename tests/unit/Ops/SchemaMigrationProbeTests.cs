@@ -47,7 +47,7 @@ public class SchemaMigrationProbeTests
     /// FAILS rather than passes — a gate that goes green when it cannot see its own expectation is
     /// the exact defect this requirement closes, one level up.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-039 an unreadable scripts folder fails the migration probe rather than passing")]
     public void UnreadableScriptsFolderFailsRatherThanPasses()
     {
         var recorder = new RecordingLogger<SchemaMigrationProbe>();
@@ -67,7 +67,7 @@ public class SchemaMigrationProbeTests
     /// An unreachable database produces a failed result rather than an exception, so the readiness
     /// endpoint still answers with a parsable body that the deployment pipeline can read.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-039 an unreachable database fails the migration probe without throwing")]
     public void UnreachableDatabaseFailsWithoutThrowing()
     {
         var probe = new SchemaMigrationProbe(
@@ -107,7 +107,7 @@ public class SchemaMigrationProbeTests
     /// what stops the check rotting into a literal that passes while the newest migration is the one
     /// that failed.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-039 the expected migrations are derived from the scripts folder")]
     public void ExpectationIsDerivedFromTheScriptsFolder()
     {
         var folder = CreateScriptsFolder("001-CreateTables.sql", "029-SomethingNew.sql", "notes.txt");

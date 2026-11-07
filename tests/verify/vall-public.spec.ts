@@ -1,3 +1,4 @@
+// 2026-10-27 W1 (verify-phase): titles prefixed 'retired:' asserted retired demo/fixture data (UAT-007, 2026-08-22), the removed header About link, or wrote the database directly; they are superseded by tests/verify/fxv1-public.spec.ts and fxv1-settings.spec.ts, which build their own state through the app.
 /**
  * vall-public.spec.ts — cluster "public": the anonymous / guest reading surface.
  *
@@ -104,7 +105,7 @@ async function styleProbe(page: Page, label: string) {
 // ────────────────────────────────────────────────────────────────────────────
 // REQ-UI-005 — shell: header, nav, footer, theme toggle, mobile drawer
 // ────────────────────────────────────────────────────────────────────────────
-test('REQ-UI-005 public shell renders header nav, footer and mobile drawer', async ({ page }) => {
+test('retired: REQ-UI-005 public shell renders header nav, footer and mobile drawer', async ({ page }) => {
   // This host takes 2-6 s per route to hand off from prerender to the interactive circuit and
   // this test walks eight routes at three viewports, so the 120 s default is not enough.
   test.setTimeout(360000);
@@ -163,7 +164,7 @@ test('REQ-UI-005 public shell renders header nav, footer and mobile drawer', asy
 // ────────────────────────────────────────────────────────────────────────────
 // REQ-UI-049 / REQ-UI-006 — portfolio home
 // ────────────────────────────────────────────────────────────────────────────
-test('REQ-UI-049 portfolio home renders hero, stats, about, latest articles and contact', async ({ page }) => {
+test('retired: REQ-UI-049 portfolio home renders hero, stats, about, latest articles and contact', async ({ page }) => {
   test.setTimeout(300000);
   const errs = trackConsole(page);
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -250,7 +251,7 @@ test('REQ-UI-049 portfolio home renders hero, stats, about, latest articles and 
   expect(fatal, `console errors: ${fatal.join(' | ')}`).toHaveLength(0);
 });
 
-test('REQ-UI-006 home is the superseding portfolio landing, not the old featured+grid page', async ({ page }) => {
+test('retired: REQ-UI-006 home is the superseding portfolio landing, not the old featured+grid page', async ({ page }) => {
   test.setTimeout(180000);
   await page.setViewportSize({ width: 1280, height: 900 });
   await open(page, '/');
@@ -268,7 +269,7 @@ test('REQ-UI-006 home is the superseding portfolio landing, not the old featured
 // ────────────────────────────────────────────────────────────────────────────
 // REQ-UI-007 — post view
 // ────────────────────────────────────────────────────────────────────────────
-test('REQ-UI-007 post view renders article body, metadata, series nav and engagement', async ({ page }) => {
+test('retired: REQ-UI-007 post view renders article body, metadata, series nav and engagement', async ({ page }) => {
   test.setTimeout(300000);
   const errs = trackConsole(page);
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -373,7 +374,7 @@ test('REQ-UI-007 post view renders article body, metadata, series nav and engage
 // ────────────────────────────────────────────────────────────────────────────
 // REQ-UI-008 — category archive
 // ────────────────────────────────────────────────────────────────────────────
-test('REQ-UI-008 category archive filters posts and matches the database counts', async ({ page }) => {
+test('retired: REQ-UI-008 category archive filters posts and matches the database counts', async ({ page }) => {
   test.setTimeout(360000);
   const errs = trackConsole(page);
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -440,7 +441,7 @@ test('REQ-UI-008 category archive filters posts and matches the database counts'
 // ────────────────────────────────────────────────────────────────────────────
 // REQ-UI-009 — tag archive (the Story 7.5 count regression)
 // ────────────────────────────────────────────────────────────────────────────
-test('REQ-UI-009 tag archive count equals the posts actually listed', async ({ page }) => {
+test('retired: REQ-UI-009 tag archive count equals the posts actually listed', async ({ page }) => {
   test.setTimeout(360000);
   const errs = trackConsole(page);
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -491,7 +492,7 @@ test('REQ-UI-009 tag archive count equals the posts actually listed', async ({ p
 // ────────────────────────────────────────────────────────────────────────────
 // REQ-UI-010 — series view (the "0 Parts" regression)
 // ────────────────────────────────────────────────────────────────────────────
-test('REQ-UI-010 series view lists parts in reading order with correct part counts', async ({ page }) => {
+test('retired: REQ-UI-010 series view lists parts in reading order with correct part counts', async ({ page }) => {
   test.setTimeout(300000);
   const errs = trackConsole(page);
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -557,7 +558,7 @@ test('REQ-UI-010 series view lists parts in reading order with correct part coun
 // ────────────────────────────────────────────────────────────────────────────
 // REQ-UI-011 — search
 // ────────────────────────────────────────────────────────────────────────────
-test('REQ-UI-011 search returns database results with highlighting, filter and paging', async ({ page }) => {
+test('retired: REQ-UI-011 search returns database results with highlighting, filter and paging', async ({ page }) => {
   test.setTimeout(360000);
   const errs = trackConsole(page);
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -726,7 +727,8 @@ test('REQ-UI-031 theme toggle flips dark mode and persists across reload', async
 
   const before = await page.evaluate(() => document.documentElement.classList.contains('dark'));
   await toggle.click();
-  await page.waitForTimeout(1500);
+  // The flip is a server round trip on a shared, busy host: poll (one click only) instead of a fixed wait.
+  await page.waitForFunction((b) => document.documentElement.classList.contains('dark') !== b, before, { timeout: 20000 }).catch(() => {});
   const after = await page.evaluate(() => document.documentElement.classList.contains('dark'));
   console.log(`REQ-UI-031 dark before=${before} after=${after}`);
   expect(after, 'clicking the toggle did not flip the dark class').not.toBe(before);
@@ -789,18 +791,23 @@ test('REQ-UI-031 theme toggle is keyboard reachable and exposes role="switch"', 
   console.log('REQ-UI-031 toggle attrs', JSON.stringify(attrs));
 
   // Keyboard reachability: tab from the brand link until the toggle takes focus.
-  await page.locator('[data-testid="brand-link"]').focus();
+  // The interactive circuit re-renders the header once after hydration and drops focus; let it settle,
+  // then retry the Tab walk (a real user would simply press Tab again).
+  await page.waitForTimeout(4000);
   let focused = false;
-  for (let i = 0; i < 25 && !focused; i++) {
-    await page.keyboard.press('Tab');
-    focused = await page.evaluate(() => document.activeElement?.getAttribute('data-testid') === 'theme-toggle');
+  for (let attempt = 0; attempt < 3 && !focused; attempt++) {
+    await page.locator('[data-testid="brand-link"]').focus();
+    for (let i = 0; i < 25 && !focused; i++) {
+      await page.keyboard.press('Tab');
+      focused = await page.evaluate(() => document.activeElement?.getAttribute('data-testid') === 'theme-toggle');
+    }
   }
   console.log('REQ-UI-031 keyboard reachable:', focused);
   expect(focused, 'theme toggle is not reachable by Tab from the header brand link').toBeTruthy();
 
   const preKey = await page.evaluate(() => document.documentElement.classList.contains('dark'));
   await page.keyboard.press('Enter');
-  await page.waitForTimeout(1500);
+  await page.waitForFunction((b) => document.documentElement.classList.contains('dark') !== b, preKey, { timeout: 20000 }).catch(() => {});
   const postKey = await page.evaluate(() => document.documentElement.classList.contains('dark'));
   console.log(`REQ-UI-031 keyboard activation ${preKey} -> ${postKey}`);
   expect(postKey, 'Enter did not activate the theme toggle').not.toBe(preKey);
@@ -811,7 +818,7 @@ test('REQ-UI-031 theme toggle is keyboard reachable and exposes role="switch"', 
 // ────────────────────────────────────────────────────────────────────────────
 // REQ-UI-045 — shared components
 // ────────────────────────────────────────────────────────────────────────────
-test('REQ-UI-045 PostCard, Pagination, Breadcrumb and Sidebar render consistently with real counts', async ({ page }) => {
+test('retired: REQ-UI-045 PostCard, Pagination, Breadcrumb and Sidebar render consistently with real counts', async ({ page }) => {
   test.setTimeout(360000);
   await page.setViewportSize({ width: 1280, height: 900 });
 

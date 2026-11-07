@@ -1,12 +1,14 @@
 # TechieBlog → TrBlazeUI feedback
 
 ## Summary
-- **Current disposition through TR-074: all TrBlazeUI findings are closed in library source.** Historical numbering has gaps and sub-findings (`TR-072b`…`TR-072d`), so this document deliberately reports the highest assigned ID instead of repeating the stale “66 entries” count.
-- **Open library defects:** none from this report. TR-066/TR-067 and TR-068…TR-075 (including TR-072b/c/d) are resolved and verified.
-- **Ships in: TrBlazeUI 2.0.3** — published to the feed and **consumed by TechieBlog since 2026-08-25** (`TrBlazeUI.Components` + `TrBlazeUI.Icons.Lucide` 2.0.3 in all three csprojs; build 0 errors, `dotnet test` 1551/0). TR-075 ships in **2.1.9**.
-- **Consumer action — DONE 2026-08-25.** Every row of the resolution table below was measured against a running TechieBlog host on 2.0.3 *before* its workaround was removed (`tests/verify/trblazeui-203-upgrade.spec.ts`, 8/8; evidence `tests/.artifacts/trblazeui-203/notes.json`). See "Consumer verification on 2.0.3" under the table for what was removed, what was kept, and why.
-- **One new finding on 2.0.3 — TR-075** (2026-08-26, Low–Medium a11y): a styled `Select` inside `DialogContent` drops focus to `<body>` after a pick, so `Escape` cannot dismiss the dialog until the user Tabs back in; mouse paths unaffected. **Fixed upstream in 2.1.9.**
-- Last consolidated: **2026-08-26**. Next free ID **TR-076** (the bottom counter line is authoritative).
+- **Nothing is blocked.** The tracker counts 3 entries (TR-031, TR-076, TR-077): 0 open, 0 fixed upstream and not yet re-checked, 3 closed.
+- **Closed 2026-11-05: TR-077 (major).** On TrBlazeUI 2.2.2 `SelectValue` no longer crashes the Admin posts list. Last consolidated: 2026-11-05.
+- Every other finding, TR-001 to TR-075 (with sub-findings TR-072b to TR-072d), is a bullet inside the dated sections below, all resolved in library source. None was dropped.
+- **TechieBlog runs TrBlazeUI 2.2.2** since 2026-11-05 (both packages in all three projects; whole-solution build 0 errors). It ran 2.2.1 from 2026-10-29.
+- Re-checked on 2.2.2 (`tests/verify/trblazeui-222-upgrade.spec.ts`, 3 of 3 pass): the posts-list search filters, a row's Delete opens its dialog and deletes, the editor stays usable after a publish, no `RuntimeBinderException` logged. On 2.2.1 the search and Delete failed 1 of 1 each.
+- Re-checked on 2.2.1 (`tests/verify/trblazeui-221-upgrade.spec.ts`): TR-075 and TR-076 hold.
+- None of the three had a workaround here, so no app code changed. The 2.0.3 workaround removals still hold.
+- Next free ID **TR-078** (the bottom counter line is authoritative).
 
 ## ✅ Resolution — 2026-08-25, TrBlazeUI **2.0.3** (pending publish)
 
@@ -744,6 +746,8 @@ app code.**
   > ✅ **RESOLVED 2.1.0 (2026-08-11)** — fixed exactly as suggested — `ReadOnly` renders `role="img"` + `aria-label="Rated 4 out of 5"` with the stars `aria-hidden` and no radio semantics. Your `aria-hidden` + `sr-only` wrapper can go, and `AriaLabel` is useful again.
 
 ### TR-031 — audit findings appended (2026-08-07, Cluster J)
+
+> ✅ **Closed 2026-10-30** — re-checked here: Not re-run today (0 published posts, so no Rating renders). Closed on the record already in this file: the 2.0.2 per-entry table marks TR-031 Fixed (buttons, roving tabindex, aria-checked, unique gradient ids), and the app-side fallback was removed 2026-08-11 by cluster G after the stars were measured keyboard-operable.
 
 The original TR-031 entry above is **confirmed in full** by the axe/keyboard pass, with these
 measured specifics added:
@@ -1758,6 +1762,9 @@ TR-074 recorded 2026-08-24 by *trblazeui (UAT-027 / REQ-UI-045 — post detail p
 ## Found verifying the 2.0.3 upgrade (2026-08-26, *verify REQ-UI-048 · REQ-FN-025 · REQ-UI-049)
 
 > ✅ **TR-075 — FIXED upstream, in 2.1.9** — after an option is picked in a styled `Select` nested in `DialogContent`, focus returns to the `SelectTrigger` so `Escape` still dismisses the dialog. Demo at `/components/dialog`; test `tests/verify/req-ui-055.spec.ts`.
+>
+> **Re-checked here 2026-10-29 on 2.2.1:** `/admin/images` upload dialog, keyboard pick → `document.activeElement` is
+> `upload-category-select`, and one `Escape` closes the dialog. Test `tests/verify/trblazeui-221-upgrade.spec.ts`.
 
 - **TR-075 — after an option is picked in a styled `Select` nested in `DialogContent`, focus is
   dropped to `<body>` instead of returning to the `SelectTrigger`, so `Escape` no longer dismisses
@@ -1791,7 +1798,87 @@ TR-074 recorded 2026-08-24 by *trblazeui (UAT-027 / REQ-UI-045 — post detail p
   assertion after a pick.
 
 TR-075 recorded 2026-08-26 by *verify (REQ-UI-048 / REQ-FN-025 / REQ-UI-049 — 2.0.3 re-verification).
-**Next free ID: TR-076.**
+### TR-076 - SidebarMenuButton renders `data-active=""`, so its `data-[active=true]` styles never apply (2.0.3)
+
+> ✅ **TR-076 — FIXED upstream, in TrBlazeUI 2.2.1** (2026-10-29, TrBlazeUI REQ-UI-059 — Verified).
+> **Not on the feed yet:** the 2.2.1 packages are built and checked, but the push to GitHub Packages
+> was refused (the only stored token can read packages, not publish them). They appear when the
+> TrBlazeUI owner publishes the 2.2.1 release. Until then the feed's newest is still 2.2.0, which has the bug.
+>
+> **Re-checked here 2026-10-29 on 2.2.1 (now on the feed, pins moved):** on `/admin/series` `nav-series` has
+> `data-active="true"`, `aria-current="page"`, background `oklch(0.269 0 0)`, weight 500; the 17 other items have
+> `data-active="false"` and a transparent background. Test `tests/verify/trblazeui-221-upgrade.spec.ts`.
+>
+> - `SidebarMenuButton` and `SidebarMenuSubButton` now render `data-active="true"` or
+>   `data-active="false"`, never the bare `data-active=""`, and keep `aria-current="page"` on the
+>   active item. The shipped `data-[active=true]:bg-sidebar-accent font-medium
+>   text-sidebar-accent-foreground` styles now apply.
+> - `Href` + `Match` auto-activation now paints too: a link that matches the current URL gets the
+>   sidebar accent background and text (and medium weight on `SidebarMenuButton`), still with
+>   `aria-current="page"`. `IsActive` is no longer needed for a nav link to look current.
+> - Checked every other TrBlazeUI component that writes a `data-*` attribute from a bool: none other
+>   had this mismatch. The menu items that write `data-disabled=""` are styled by `data-[disabled]`,
+>   which matches it.
+> - Proof, in TrBlazeUI: rendered-markup and computed-style test `tests/verify/req-ui-059.spec.ts` on
+>   the harness page `/verify-tr076` (both states, `IsActive` and `Href`+`Match`, light and dark):
+>   active background `oklch(0.97 0 0)` light / `oklch(0.269 0 0)` dark against `rgba(0, 0, 0, 0)`
+>   for the inactive item, font-weight 500 against 400.
+>
+> **Sevak's grey dark-theme nav item (REQ-UI-066, REQ-UI-074, 21–22 Oct) — related, but not the
+> same cause.** Sevak's nav links use `Href` without `IsActive`, so they never rendered
+> `data-active` at all. Their missing highlight was the second half of this entry (`Href`+`Match` set
+> `aria-current` but no style), which is why Sevak added its own `a[aria-current="page"]` rule. The
+> grey-instead-of-indigo in dark mode came from that app rule (a 12% accent mix on the dark
+> sidebar), not from the library. Sevak's rule is more specific than the library's classes, so it
+> keeps winning after 2.2.1. Sevak still needs it for indigo, because the library's own active colour
+> is the theme's neutral `--sidebar-accent`.
+>
+> **Verify from here** (after moving the pins to 2.2.1): on `/admin/series`, the active
+> `<a data-testid="nav-series">` has `data-active="true"` and a non-transparent computed
+> `background-color`, and its inactive neighbours have `data-active="false"` and a transparent one.
+> The hand-written `[data-active]` rule was never added here, so there is nothing to remove.
+
+*Found:* 2026-10-27, build-phase cluster A, REQ-UI-047 (admin active-item highlight).
+*Expected:* `<SidebarMenuButton IsActive="true">` paints the active style (`data-[active=true]:bg-sidebar-accent ...`).
+*Actual:* `IsActive="true"` emits the boolean-style attribute `data-active=""` (inactive buttons emit no attribute), but the
+shipped class list keys its active styling on `data-[active=true]`. Measured on `/admin/series`: the active
+`<a data-testid="nav-series">` has `data-active=""`, computed `background-color: rgba(0, 0, 0, 0)`, font-weight 400, identical to
+its inactive neighbours. `Href`+`Match` auto-activation does set `aria-current` but no visible style either.
+*Workaround (not adopted):* a hand-written `[data-active]` rule in utilities.css would paint it; not added because
+library gaps are logged, not patched.
+*Suggested fix:* render `data-active="@(IsActive ? "true" : "false")"`, or change the classes to `data-[active]:`.
+
+*Re-checked against the latest release:* 2026-10-27. The feed's newest stable version is **2.2.0** (the project pins 2.0.3).
+`HtmlRenderer` probe (`tests/.artifacts/build-phase-20261027/tr220-probe/`) rendering `<SidebarMenuButton IsActive="true">`:
+2.0.3 and 2.2.0 both emit `<button … data-active data-state="closed" aria-current="page">`, and 2.2.0's class list still
+keys on `data-[active=true]`. **Still open in 2.2.0**; upgrading does not fix it.
+
+TR-076 recorded 2026-10-27 by *build-phase cluster A (REQ-UI-047).
+
+### TR-077 - `SelectValue.GetSelectedText` throws `RuntimeBinderException` on a re-render (2.2.1)
+
+> ✅ **Closed 2026-11-05** — re-checked here: Re-checked 2026-11-05 on TrBlazeUI 2.2.2 (pins moved in all three projects, whole-solution build 0 errors): on /BlogsList as Admin, typing fxv0-tr077 in the search box and leaving it filtered the list to the matching rows with the Bulk Actions placeholder still showing; a row's Delete opened the confirm dialog and confirming removed that row (4 rows); a new post published from the editor, then edited, saved and its series dropdown opened, never showed the error page; the app log holds no RuntimeBinderException. Test tests/verify/trblazeui-222-upgrade.spec.ts, 3 of 3 pass; on 2.2.1 the same search and Delete failed 1 of 1 each the same morning
+
+- **Severity:** major
+- **Blocks:** no — the posts list loads; only its search box is unusable for an Admin until a fix
+- **Repro:** sign in as Admin, open `/BlogsList` (3 posts listed), type `fxv0` in the search box
+  (`data-testid="posts-search"`) and leave the field. The page has `<Select TValue="string" @bind-Value="BulkAction">`
+  with `<SelectValue Placeholder="Bulk Actions" />` (`source/BlogUI/Pages/AdminPages/BlogsList.razor:265-272`);
+  `BulkAction` is the plain string `""` (`BlogsList.razor.cs:71`).
+- **Expected:** the list filters; the bulk-action Select keeps showing its placeholder.
+- **Actual:** the error boundary replaces the page with "Something went wrong". Log:
+  `RuntimeBinderException: The best overloaded method match for 'TrBlazeUI.Primitives.Select.SelectContext<string>.HasItemWithValue(string)' has some invalid arguments`
+  at `TrBlazeUI.Components.Select.SelectValue.GetSelectedText()` ← `SelectValue.BuildRenderTree`. Reproduced 5 times
+  out of 5 on 2026-11-02. Clicking a row's Delete button (`post-delete`) crashes the same way, before the confirm
+  dialog opens. Also seen once in the post editor right after a publish.
+- **Encountered in:** `*handoff-phase` → `*devguide`, 2026-11-02, REQ-UI-017 (posts list), REQ-UI-016 (post editor).
+- **Workaround:** none taken (library gaps are logged, not patched).
+- **Suggested fix:** call `HasItemWithValue` through the typed `SelectContext<TValue>` instead of `dynamic`. A `dynamic`
+  call whose argument holds `null` binds on the argument's static type (`object`), which matches no
+  `HasItemWithValue(string)` overload. [Likely cause — the library source was not read here.]
+
+TR-077 recorded 2026-11-02 by *devguide (chained from *handoff-phase).
+**Next free ID: TR-078.**
 
 > **Note on this file's own "next free ID" bookkeeping:** the task brief that led to TR-073 named
 > **TR-067** as the next free id, following the SUMMARY section at the top of this file rather than
@@ -1800,3 +1887,5 @@ TR-075 recorded 2026-08-26 by *verify (REQ-UI-048 / REQ-FN-025 / REQ-UI-049 — 
 > summary needs its own pass to reconcile the count (66 → at least 73 entries) — out of scope for
 > a single-defect UAT fix, flagged here so the next agent that reads only the summary is not misled
 > the same way.
+>
+> **Reconciled 2026-10-29 (`*amend-docs`):** the top Summary now takes its counts from `tf-feedback.sh`.

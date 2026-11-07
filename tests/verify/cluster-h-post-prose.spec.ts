@@ -1,3 +1,4 @@
+// 2026-10-27 W1 (verify-phase): titles prefixed 'retired:' asserted retired demo/fixture data (UAT-007, 2026-08-22), the removed header About link, or wrote the database directly; they are superseded by tests/verify/fxv1-public.spec.ts and fxv1-settings.spec.ts, which build their own state through the app.
 /**
  * cluster-h-post-prose.spec.ts — REQ-UI-007 (TrBlazeUI 2.0.2 adoption pass, 2026-08-11).
  *
@@ -93,7 +94,7 @@ async function measure(page: Page): Promise<Reflow> {
   });
 }
 
-test.describe('REQ-UI-007 — the post body reflows through <Prose>', () => {
+test.describe('retired: REQ-UI-007 — the post body reflows through <Prose>', () => {
   test('the kitchen-sink post has no page-level horizontal scroll at 390 or 1280', async ({ page }) => {
     test.setTimeout(180000);
     fs.mkdirSync(SHOTS, { recursive: true });

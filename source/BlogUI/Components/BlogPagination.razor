@@ -14,7 +14,8 @@
 @if (TotalPages > 1)
 {
     <Pagination data-testid="pagination">
-        <PaginationContent>
+        @* flex-wrap: "Previous 1 2 3 Next" is ~330px, wider than a 320px phone (REQ-UI-005/045). *@
+        <PaginationContent Class="flex-wrap justify-center">
 
             <PaginationItem>
                 <PaginationPrevious Disabled="@(CurrentPage <= 1)"

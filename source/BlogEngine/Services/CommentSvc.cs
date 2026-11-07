@@ -29,18 +29,15 @@ namespace BlogEngine.Services;
 /// <para><b>Usage:</b> Registered per request. The read methods are safe for the public page
 /// because the repository filters on the approved status.</para>
 ///
-/// <para><b>Async surface (REQ-NFR-026 stage 3):</b> the four members the Blazor pages call —
-/// <see cref="GetCommentsByPostId"/>, <see cref="GetAllComments"/>, <see cref="ApproveComment"/>
-/// and <see cref="DeleteComment"/> — each have an <c>…Async</c> twin carrying a
-/// <see cref="CancellationToken"/>. <b>Call the twins.</b> The blocking members are retained until
-/// stage 4 deletes them, and every twin is written line for line against its original so the
-/// filters, the null-to-empty coalescing and the verbatim <c>Result</c> failure strings are
-/// identical on both paths.</para>
+/// <para><b>Async surface (REQ-NFR-026):</b> every repository access in this service is awaited.
+/// The blocking twins (<c>GetCommentsByPostId</c>, <c>GetAllComments</c>, <c>ApproveComment</c>,
+/// <c>DeleteComment</c>) were deleted; the surviving members carry an <c>…Async</c> name and,
+/// where they touch the repository per call, a <see cref="CancellationToken"/>.</para>
 ///
 /// <para><b>Nothing here is cached, deliberately.</b> Unlike <c>RatingSvc</c>, whose per-post
 /// aggregates sit under <c>CacheTags.Content</c>, a comment read must be current: a moderator has
 /// to see the decision they just made, and an approved comment has to appear on the article at
-/// once. A ten-minute entry over <see cref="GetAllComments"/> would make the moderation grid lie
+/// once. A ten-minute entry over <see cref="GetAllCommentsAsync"/> would make the moderation grid lie
 /// about its own actions.</para>
 ///
 /// <para><b>Exception text never reaches the caller (REQ-NFR-033).</b> Every mutation used to
@@ -238,7 +235,7 @@ public class CommentSvc
 
         if (issued.IsFailure)
         {
-            commentRepo.Delete(comment.CommentID);
+            await commentRepo.DeleteAsync(comment.CommentID).ConfigureAwait(false);
             return Result<CommentSubmissionOutcome>.Failure(issued.ErrorMessage);
         }
 
@@ -352,29 +349,6 @@ public class CommentSvc
     }
 
     /// <summary>
-    /// Gets the approved comment thread for a post.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> The repository filters on the approved status, so nothing
-    /// unconfirmed or unmoderated can leak onto the page.</para>
-    /// <para><b>Side Effects:</b> None.</para>
-    /// </remarks>
-    /// <param name="postId">The post id.</param>
-    /// <returns>Approved top-level comments with their replies; empty on error.</returns>
-    public IEnumerable<BlogComment> GetCommentsByPostId(long postId)
-    {
-        try
-        {
-            return commentRepo.GetAllById(postId) ?? Enumerable.Empty<BlogComment>();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error getting comments for post ID: {PostId}", postId);
-            return Enumerable.Empty<BlogComment>();
-        }
-    }
-
-    /// <summary>
     /// Gets the whole moderation queue.
     /// </summary>
     /// <remarks>
@@ -383,11 +357,11 @@ public class CommentSvc
     /// <para><b>Side Effects:</b> None.</para>
     /// </remarks>
     /// <returns>Comments awaiting a decision; empty on error.</returns>
-    public IEnumerable<BlogComment> GetPendingComments()
+    public async Task<IEnumerable<BlogComment>> GetPendingCommentsAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            return commentRepo.GetPendingComments() ?? Enumerable.Empty<BlogComment>();
+            return await commentRepo.GetPendingCommentsAsync(cancellationToken).ConfigureAwait(false) ?? Enumerable.Empty<BlogComment>();
         }
         catch (Exception ex)
         {
@@ -422,11 +396,11 @@ public class CommentSvc
     /// <param name="pageSize">Rows per page.</param>
     /// <param name="offset">Rows to skip.</param>
     /// <returns>A page of comments; empty on error.</returns>
-    public IEnumerable<BlogComment> GetPagedComments(int pageSize, int offset)
+    public async Task<IEnumerable<BlogComment>> GetPagedCommentsAsync(int pageSize, int offset, CancellationToken cancellationToken = default)
     {
         try
         {
-            return commentRepo.GetPagedData(pageSize, offset) ?? Enumerable.Empty<BlogComment>();
+            return await commentRepo.GetPagedDataAsync(pageSize, offset, cancellationToken).ConfigureAwait(false) ?? Enumerable.Empty<BlogComment>();
         }
         catch (Exception ex)
         {
@@ -441,11 +415,11 @@ public class CommentSvc
     /// <param name="pageSize">Rows per page.</param>
     /// <param name="offset">Rows to skip.</param>
     /// <returns>A page of queued comments; empty on error.</returns>
-    public IEnumerable<BlogComment> GetPagedUnapprovedComments(int pageSize, int offset)
+    public async Task<IEnumerable<BlogComment>> GetPagedUnapprovedCommentsAsync(int pageSize, int offset, CancellationToken cancellationToken = default)
     {
         try
         {
-            return commentRepo.GetPagedUnAppComments(pageSize, offset) ?? Enumerable.Empty<BlogComment>();
+            return await commentRepo.GetPagedUnAppCommentsAsync(pageSize, offset, cancellationToken).ConfigureAwait(false) ?? Enumerable.Empty<BlogComment>();
         }
         catch (Exception ex)
         {
@@ -459,11 +433,11 @@ public class CommentSvc
     /// </summary>
     /// <param name="commentId">The comment id.</param>
     /// <returns>The comment, or null.</returns>
-    public BlogComment? GetComment(long commentId)
+    public async Task<BlogComment?> GetCommentAsync(long commentId, CancellationToken cancellationToken = default)
     {
         try
         {
-            return commentRepo.GetSingle(commentId);
+            return await commentRepo.GetSingleAsync(commentId, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -484,7 +458,7 @@ public class CommentSvc
     /// </remarks>
     /// <param name="comment">The comment to add.</param>
     /// <returns>The created comment, or a failure message.</returns>
-    public Result<BlogComment> AddComment(BlogComment comment)
+    public async Task<Result<BlogComment>> AddCommentAsync(BlogComment comment, CancellationToken cancellationToken = default)
     {
         if (comment == null)
             return Result<BlogComment>.Failure("Comment cannot be null");
@@ -498,7 +472,7 @@ public class CommentSvc
         if (string.IsNullOrWhiteSpace(comment.Comment))
             return Result<BlogComment>.Failure("Comment text is required");
 
-        return InsertAdministrativeComment(comment);
+        return await InsertAdministrativeCommentAsync(comment, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -506,7 +480,7 @@ public class CommentSvc
     /// </summary>
     /// <param name="comment">The validated comment.</param>
     /// <returns>The created comment, or a failure message.</returns>
-    private Result<BlogComment> InsertAdministrativeComment(BlogComment comment)
+    private async Task<Result<BlogComment>> InsertAdministrativeCommentAsync(BlogComment comment, CancellationToken cancellationToken)
     {
         try
         {
@@ -515,7 +489,7 @@ public class CommentSvc
             comment.IsEmailVerified = true;
             comment.VerifiedOn = DateTime.UtcNow;
             comment.ModerationStatus = CommentModerationStatus.PendingApproval;
-            comment.CommentID = commentRepo.InsertToGetId(comment);
+            comment.CommentID = await commentRepo.InsertToGetIdAsync(comment, cancellationToken).ConfigureAwait(false);
             logger.LogInformation("Created comment ID {CommentId} for post {PostId} by {GivenBy}",
                 comment.CommentID, comment.PostID, comment.GivenBy);
             return Result<BlogComment>.Success(comment);
@@ -524,42 +498,6 @@ public class CommentSvc
         {
             logger.LogError(ex, "Failed to create comment for post {PostId}", comment.PostID);
             return Result<BlogComment>.Failure(CreateFailureMessage);
-        }
-    }
-
-    /// <summary>
-    /// Approves a comment, making it publicly visible.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Refuses to approve a comment whose address has not been
-    /// confirmed, which is the last line of defence behind the "an unconfirmed comment never
-    /// appears publicly" rule.</para>
-    /// <para><b>Side Effects:</b> Sets the status to Approved and Published to true.</para>
-    /// </remarks>
-    /// <param name="commentId">The comment to approve.</param>
-    /// <returns>Success, or a failure message.</returns>
-    public Result ApproveComment(long commentId)
-    {
-        if (commentId <= 0)
-            return Result.Failure("Invalid comment ID");
-
-        try
-        {
-            var existing = commentRepo.GetSingle(commentId);
-            if (existing == null)
-                return Result.Failure("Comment not found");
-
-            if (!existing.IsEmailVerified)
-                return Result.Failure("This comment's email address has not been confirmed yet.");
-
-            commentRepo.ApproveBlogComment(commentId);
-            logger.LogInformation("Approved comment ID {CommentId}", commentId);
-            return Result.Success();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to approve comment ID {CommentId}", commentId);
-            return Result.Failure(ApproveFailureMessage);
         }
     }
 
@@ -686,43 +624,16 @@ public class CommentSvc
     }
 
     /// <summary>
-    /// Deletes a comment permanently.
-    /// </summary>
-    /// <param name="commentId">The comment to delete.</param>
-    /// <returns>Success, or a failure message.</returns>
-    public Result DeleteComment(long commentId)
-    {
-        if (commentId <= 0)
-            return Result.Failure("Invalid comment ID");
-
-        try
-        {
-            var existing = commentRepo.GetSingle(commentId);
-            if (existing == null)
-                return Result.Failure("Comment not found");
-
-            commentRepo.Delete(commentId);
-            logger.LogInformation("Deleted comment ID {CommentId}", commentId);
-            return Result.Success();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to delete comment ID {CommentId}", commentId);
-            return Result.Failure(DeleteFailureMessage);
-        }
-    }
-
-    /// <summary>
     /// Updates the editable fields of a comment.
     /// </summary>
     /// <remarks>
     /// <para><b>Business Logic:</b> Moderation state is not touched here; use
-    /// <see cref="ApproveComment"/> or <see cref="RejectCommentAsync"/>.</para>
+    /// <see cref="ApproveCommentAsync"/> or <see cref="RejectCommentAsync"/>.</para>
     /// <para><b>Side Effects:</b> Updates one row.</para>
     /// </remarks>
     /// <param name="comment">The comment carrying the new values.</param>
     /// <returns>The updated comment, or a failure message.</returns>
-    public Result<BlogComment> UpdateComment(BlogComment comment)
+    public async Task<Result<BlogComment>> UpdateCommentAsync(BlogComment comment, CancellationToken cancellationToken = default)
     {
         if (comment == null)
             return Result<BlogComment>.Failure("Comment cannot be null");
@@ -732,11 +643,11 @@ public class CommentSvc
 
         try
         {
-            var existing = commentRepo.GetSingle(comment.CommentID);
+            var existing = await commentRepo.GetSingleAsync(comment.CommentID, cancellationToken).ConfigureAwait(false);
             if (existing == null)
                 return Result<BlogComment>.Failure("Comment not found");
 
-            commentRepo.Update(comment);
+            await commentRepo.UpdateAsync(comment, cancellationToken).ConfigureAwait(false);
             logger.LogInformation("Updated comment ID {CommentId}", comment.CommentID);
             return Result<BlogComment>.Success(comment);
         }
@@ -751,11 +662,11 @@ public class CommentSvc
     /// Gets the dashboard counters.
     /// </summary>
     /// <returns>Populated counters; zeroed on error.</returns>
-    public AdminCounts GetAdminCounts()
+    public async Task<AdminCounts> GetAdminCountsAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            return commentRepo.GetAdminCounts();
+            return await commentRepo.GetAdminCountsAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -764,25 +675,8 @@ public class CommentSvc
         }
     }
 
-    /// <summary>
-    /// Gets every comment, newest first.
-    /// </summary>
-    /// <returns>All comments; empty on error.</returns>
-    public IEnumerable<BlogComment> GetAllComments()
-    {
-        try
-        {
-            return commentRepo.GetAll() ?? Enumerable.Empty<BlogComment>();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error getting all comments");
-            return Enumerable.Empty<BlogComment>();
-        }
-    }
-
     // =================================================================================================
-    // Async surface — REQ-NFR-026 stage 3. Preferred over the blocking twins above.
+    // Async surface — REQ-NFR-026 stage 3. The blocking twins that once sat above were deleted.
     //
     // Each twin is written line for line against its synchronous original: the same repository query
     // (so the same Approved / IsEmailVerified filters, which live in the repository SQL), the same
@@ -799,8 +693,7 @@ public class CommentSvc
     /// Gets the approved comment thread for a post, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> The async twin of <see cref="GetCommentsByPostId"/> and
-    /// behaviourally identical to it. The repository filters on the approved status, so nothing
+    /// <para><b>Business Logic:</b> The read of the approved thread. The repository filters on the approved status, so nothing
     /// unconfirmed or unmoderated can leak onto the page.</para>
     /// <para><b>Flow:</b> await the repository → coalesce <c>null</c> to empty → log and degrade to
     /// empty on failure.</para>
@@ -829,7 +722,7 @@ public class CommentSvc
     /// Gets every comment, newest first, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> The async twin of <see cref="GetAllComments"/>. Every row in
+    /// <para><b>Business Logic:</b> Every row in
     /// every state — this is the administrative grid's read, not a public one.</para>
     /// <para><b>Flow:</b> await the repository → coalesce <c>null</c> to empty → log and degrade to
     /// empty on failure.</para>
@@ -856,7 +749,7 @@ public class CommentSvc
     /// Approves a comment, making it publicly visible, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> The async twin of <see cref="ApproveComment"/>. It keeps the
+    /// <para><b>Business Logic:</b> It keeps the
     /// unconfirmed-address refusal, which is the last line of defence behind the "an unconfirmed
     /// comment never appears publicly" rule — dropping that check here would have re-opened the
     /// hole through the async path alone, with the synchronous member still guarding it.</para>
@@ -896,7 +789,7 @@ public class CommentSvc
     /// Deletes a comment permanently, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> The async twin of <see cref="DeleteComment"/>. The existence
+    /// <para><b>Business Logic:</b> The existence
     /// check is kept rather than folded into the delete, because the administration grid
     /// distinguishes "removed" from "was never there" and the synchronous member does too.</para>
     /// <para><b>Flow:</b> guard the id → await the load → await the delete.</para>
@@ -931,11 +824,11 @@ public class CommentSvc
     /// Gets the total number of comments in any state.
     /// </summary>
     /// <returns>The count; 0 on error.</returns>
-    public int GetTotalCount()
+    public async Task<int> GetTotalCountAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            return commentRepo.GetTotalCount();
+            return await commentRepo.GetTotalCountAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -948,11 +841,11 @@ public class CommentSvc
     /// Gets the size of the moderation queue.
     /// </summary>
     /// <returns>The count; 0 on error.</returns>
-    public int GetPendingCount()
+    public async Task<int> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            return commentRepo.GetPendingCount();
+            return await commentRepo.GetPendingCountAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

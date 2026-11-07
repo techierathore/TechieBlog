@@ -45,7 +45,7 @@ public class RateLimitedCaptchaSvcTests
     /// The challenge after the issuance cap is refused with a rate-limit exception carrying a
     /// visitor-safe wait message, and the inner service is never called.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-024 captcha issuance past the cap is refused")]
     public void CaptchaIssuancePastTheCapIsRefused()
     {
         var inner = new RecordingCaptchaService();
@@ -113,7 +113,7 @@ public class RateLimitedCaptchaSvcTests
     /// The wrong answer that reaches the failure cap is answered with the wait message instead,
     /// which is what the visitor sees inline under the control.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-024 captcha failures past the cap return the wait message")]
     public void CaptchaFailurePastTheCapReturnsTheWaitMessage()
     {
         var inner = new RecordingCaptchaService();
@@ -163,7 +163,7 @@ public class RateLimitedCaptchaSvcTests
     /// <summary>
     /// The failure lockout lifts once its window elapses, and the visitor is served again.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-024 the captcha lockout lifts after the failure window")]
     public void CaptchaLockoutLiftsAfterTheFailureWindow()
     {
         var inner = new RecordingCaptchaService();

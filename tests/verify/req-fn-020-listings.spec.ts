@@ -1,3 +1,4 @@
+// 2026-10-27 W1 (verify-phase): titles prefixed 'retired:' asserted retired demo/fixture data (UAT-007, 2026-08-22), the removed header About link, or wrote the database directly; they are superseded by tests/verify/fxv1-public.spec.ts and fxv1-settings.spec.ts, which build their own state through the app.
 /**
  * REQ-FN-020 — published listings, featured-post selection, related posts, reading time
  * (BRD-30, BRD-31, BRD-32).
@@ -29,7 +30,7 @@ async function publicHtml(path: string): Promise<string> {
   }
 }
 
-test('REQ-FN-020 published listings show every published post and never a draft', async () => {
+test('retired: REQ-FN-020 published listings show every published post and never a draft', async () => {
   for (const path of ['/', '/category/programming']) {
     const html = await publicHtml(path);
     expect(html, `${path} should render`).not.toBe('');
@@ -42,7 +43,7 @@ test('REQ-FN-020 published listings show every published post and never a draft'
   expect(missing, 'every published post must be listed on its category archive').toEqual([]);
 });
 
-test('REQ-FN-020 the featured post is the newest published post', async () => {
+test('retired: REQ-FN-020 the featured post is the newest published post', async () => {
   const home = await publicHtml('/');
   expect(home).toContain(NEWEST);
 
@@ -53,7 +54,7 @@ test('REQ-FN-020 the featured post is the newest published post', async () => {
   expect(home, 'the draft must not be chosen as featured').not.toContain(DRAFT);
 });
 
-test('REQ-FN-020 a post page shows related posts, none of them itself or a draft', async () => {
+test('retired: REQ-FN-020 a post page shows related posts, none of them itself or a draft', async () => {
   const html = await publicHtml(`/post/${NEWEST}`);
   expect(html).not.toBe('');
   expect(html, 'the related-posts section should render').toContain('data-testid="related-posts"');
@@ -65,7 +66,7 @@ test('REQ-FN-020 a post page shows related posts, none of them itself or a draft
   expect(others, 'a related post must never be a draft').not.toContain(DRAFT);
 });
 
-test('REQ-FN-020 reading time is rendered and parses to a positive number', async () => {
+test('retired: REQ-FN-020 reading time is rendered and parses to a positive number', async () => {
   for (const path of ['/', `/post/${NEWEST}`]) {
     const html = await publicHtml(path);
     const badges = [...html.matchAll(/(\d+)\s*min read/gi)].map((m) => parseInt(m[1], 10));

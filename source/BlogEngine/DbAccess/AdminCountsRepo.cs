@@ -48,6 +48,12 @@ public class AdminCountsRepo : GenericRepository<AdminCounts>, IAdminCountsRepo
     private const string LivePostPredicate = "(IsDeleted = FALSE OR IsDeleted IS NULL)";
 
     /// <summary>
+    /// Restricts user counts to accounts that have not been soft-deleted, so the Users tile agrees
+    /// with the <c>/users</c> list (REQ-UI-019).
+    /// </summary>
+    private const string LiveUserPredicate = "COALESCE(IsDeleted, FALSE) = FALSE";
+
+    /// <summary>
     /// First instant of the current calendar month, used by the "this month" sub-labels.
     /// </summary>
     private const string StartOfMonthExpression = "DATE_TRUNC('month', CURRENT_TIMESTAMP)";
@@ -69,7 +75,7 @@ public class AdminCountsRepo : GenericRepository<AdminCounts>, IAdminCountsRepo
                 (SELECT COUNT(*)::int FROM BlogPost WHERE Published = FALSE AND {LivePostPredicate}) AS DraftPostCount,
                 (SELECT COUNT(*)::int FROM BlogComment) AS CommentCount,
                 (SELECT COUNT(*)::int FROM BlogComment WHERE Published = FALSE) AS UnAppComments,
-                (SELECT COUNT(*)::int FROM BlogUser) AS UserCount,
+                (SELECT COUNT(*)::int FROM BlogUser WHERE {LiveUserPredicate}) AS UserCount,
                 (SELECT COUNT(*)::int FROM Tag) AS TagCount,
                 (SELECT COUNT(*)::int FROM Category) AS CategoryCount,
                 (SELECT COUNT(*)::int FROM BlogImage) AS ImageCount,
@@ -78,7 +84,7 @@ public class AdminCountsRepo : GenericRepository<AdminCounts>, IAdminCountsRepo
                 (SELECT COUNT(*)::int FROM Newsletter) AS NewsletterCount,
                 (SELECT COUNT(*)::int FROM Newsletter WHERE Status = 'sent') AS SentNewsletterCount,
                 (SELECT COUNT(*)::int FROM PostViews) AS TotalPostViews,
-                (SELECT COUNT(*)::int FROM BlogUser WHERE CreatedOn >= {StartOfMonthExpression}) AS NewUsersThisMonth,
+                (SELECT COUNT(*)::int FROM BlogUser WHERE CreatedOn >= {StartOfMonthExpression} AND {LiveUserPredicate}) AS NewUsersThisMonth,
                 (SELECT COUNT(*)::int FROM Subscriber WHERE SubscribedOn >= {StartOfMonthExpression}) AS NewSubscribersThisMonth";
 
     /// <summary>

@@ -312,7 +312,7 @@ public class EmailVerificationSvc : IEmailVerificationService
 
         if (string.Equals(consumed.Purpose, EmailVerificationPurpose.Subscription, StringComparison.OrdinalIgnoreCase))
         {
-            PromoteSubscriber(targetId);
+            await PromoteSubscriberAsync(targetId).ConfigureAwait(false);
         }
     }
 
@@ -330,11 +330,12 @@ public class EmailVerificationSvc : IEmailVerificationService
     /// <para><b>Side Effects:</b> Sets <c>Subscriber.IsConfirmed</c> to true for one row.</para>
     /// </remarks>
     /// <param name="subscriberId">The pending subscriber row id.</param>
-    private void PromoteSubscriber(long subscriberId)
+    /// <returns>A task that completes when the flip has been applied or its failure logged.</returns>
+    private async Task PromoteSubscriberAsync(long subscriberId)
     {
         try
         {
-            subscriberRepo.UpdateStatus(subscriberId, true);
+            await subscriberRepo.UpdateStatusAsync(subscriberId, true).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

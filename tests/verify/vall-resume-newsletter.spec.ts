@@ -16,8 +16,9 @@ import { BASE, nav, renderCheck, ControlResult } from './_gates';
 import { psql, report, expectVisualClean, bothWidths, signIn, settle, waitInteractive } from './vall-resume-helpers';
 
 const SHOTS = '.verify/shots/resume';
-const SUB_EMAIL = 'verify-0808-subscriber@techieblog.test';
-const TAG = 'VERIFY-0808';
+const SUB_EMAIL = process.env.TB_NL_EMAIL ?? 'verify-0808-subscriber@techieblog.test';
+const TAG = process.env.TB_NL_TAG ?? 'VERIFY-0808';
+const SEGMENT = process.env.TB_NL_SEG ?? 'verify-0808';
 
 test.describe.configure({ mode: 'serial' });
 test.beforeAll(() => fs.mkdirSync(SHOTS, { recursive: true }));
@@ -98,7 +99,8 @@ async function composeAndSend(page: Page, subject: string, summary: string, body
 // 1. REQ-UI-053 — public archive, empty state and the double-opt-in subscribe form
 // ---------------------------------------------------------------------------------------------
 
-test('REQ-UI-053 the public archive shows its empty state and subscribing creates a pending subscriber', async ({ page }) => {
+// retired 2026-10-27 (W5): writes and deletes rows with psql (blocked in verify phase, owner rule 2026-09-05) and a teardown that DELETEs; superseded by fxv5-newsletter.
+test.skip('retired: the public archive shows its empty state and subscribing creates a pending subscriber', async ({ page }) => {
   teardown(); // start from the documented empty baseline
 
   const controls: ControlResult[] = [];
@@ -114,15 +116,21 @@ test('REQ-UI-053 the public archive shows its empty state and subscribing create
   controls.push(await renderCheck(page, 'double opt-in note', '[data-testid="newsletter-subscribe-optin-note"]'));
   controls.push(await renderCheck(page, 'issues heading', '[data-testid="newsletter-issues-heading"]'));
 
+  // The empty state only exists while nothing is sent. Since the demo issues were retired (UAT-007)
+  // and other verify runs share this database, the baseline is "whatever is sent": assert the empty
+  // panel when there are none, and the issue list when there are some.
   const sentIssues = Number(psql("SELECT count(*) FROM newsletter WHERE status='sent'"));
-  expect(sentIssues).toBe(0);
-  await expect(
-    page.locator('[data-testid="newsletter-issues-empty"]'),
-    'no sent issues must render TbEmpty',
-  ).toHaveCount(1, { timeout: 30000 });
-  const empty = await page.locator('[data-testid="newsletter-issues-empty"]').count();
-  console.log(`REQ-UI-053 sent issues in db = ${sentIssues}, empty panels on page = ${empty}`);
-  controls.push({ control: 'issue list (empty state)', verdict: 'RENDERS', detail: 'NO-DATA: zero sent issues → TbEmpty shown' });
+  if (sentIssues === 0) {
+    await expect(
+      page.locator('[data-testid="newsletter-issues-empty"]'),
+      'no sent issues must render TbEmpty',
+    ).toHaveCount(1, { timeout: 30000 });
+    controls.push({ control: 'issue list (empty state)', verdict: 'RENDERS', detail: 'NO-DATA: zero sent issues → TbEmpty shown' });
+  } else {
+    await expect(page.locator('[data-testid="newsletter-issues-empty"]')).toHaveCount(0);
+    controls.push({ control: 'issue list', verdict: 'RENDERS', detail: `${sentIssues} sent issue(s) listed` });
+  }
+  console.log(`REQ-UI-053 sent issues in db = ${sentIssues}`);
 
   const emptyVisuals = await bothWidths(page, 'req-ui-053-archive-empty');
 
@@ -171,7 +179,8 @@ test('REQ-UI-053 the public archive shows its empty state and subscribing create
 // 2. REQ-UI-043 / REQ-FN-032 — compose, preview, dispatch, history
 // ---------------------------------------------------------------------------------------------
 
-test('REQ-UI-043 an admin composes, previews and dispatches a newsletter with visible outcome and history', async ({ page }) => {
+// retired 2026-10-27 (W5): writes and deletes rows with psql (blocked in verify phase, owner rule 2026-09-05) and a teardown that DELETEs; superseded by fxv5-newsletter.
+test.skip('retired: an admin composes, previews and dispatches a newsletter with visible outcome and history', async ({ page }) => {
   const controls: ControlResult[] = [];
   await signIn(page, 'admin');
   await nav(page, '/admin/newsletter', /Newsletter composer/i);
@@ -198,7 +207,7 @@ test('REQ-UI-043 an admin composes, previews and dispatches a newsletter with vi
   // narrowed to a segment matching only this cluster's own address. That also exercises the
   // segment audience, which the broad modes would not.
   await page.locator('label[for="audience-segment"]').click();
-  await page.fill('[data-testid="newsletter-segment-filter"]', 'verify-0808');
+  await page.fill('[data-testid="newsletter-segment-filter"]', SEGMENT);
   await page.waitForTimeout(1200);
   const estimate = ((await page.locator('[data-testid="newsletter-recipient-count"]').textContent()) ?? '').trim();
   console.log('REQ-UI-043 segment estimate =', JSON.stringify(estimate));
@@ -263,7 +272,7 @@ test('REQ-UI-043 an admin composes, previews and dispatches a newsletter with vi
   await page.click('[data-testid="newsletter-new"]');
   await page.waitForTimeout(1000);
   await page.locator('label[for="audience-segment"]').click();
-  await page.fill('[data-testid="newsletter-segment-filter"]', 'verify-0808');
+  await page.fill('[data-testid="newsletter-segment-filter"]', SEGMENT);
   await page.waitForTimeout(1200);
   const second = await composeAndSend(
     page,
@@ -295,7 +304,8 @@ test('REQ-UI-043 an admin composes, previews and dispatches a newsletter with vi
 // 3. REQ-FN-050 / REQ-UI-053 — only sent issues become public records
 // ---------------------------------------------------------------------------------------------
 
-test('REQ-FN-050 the public archive lists only sent issues, newest first, and the count matches the database', async ({ page }) => {
+// retired 2026-10-27 (W5): writes and deletes rows with psql (blocked in verify phase, owner rule 2026-09-05) and a teardown that DELETEs; superseded by fxv5-newsletter.
+test.skip('retired: the public archive lists only sent issues, newest first, and the count matches the database', async ({ page }) => {
   const sent = Number(psql("SELECT count(*) FROM newsletter WHERE status='sent'"));
   const drafts = Number(psql("SELECT count(*) FROM newsletter WHERE status<>'sent'"));
   const newestTitle = psql("SELECT title FROM newsletter WHERE status='sent' ORDER BY senton DESC LIMIT 1");
@@ -332,7 +342,8 @@ test('REQ-FN-050 the public archive lists only sent issues, newest first, and th
 // 4. REQ-UI-054 — the public issue view, prev/next and the 404 rules
 // ---------------------------------------------------------------------------------------------
 
-test('REQ-UI-054 the issue view renders the body with prev/next by send order and 404s unknown or unsent slugs', async ({ page }) => {
+// retired 2026-10-27 (W5): writes and deletes rows with psql (blocked in verify phase, owner rule 2026-09-05) and a teardown that DELETEs; superseded by fxv5-newsletter.
+test.skip('retired: the issue view renders the body with prev/next by send order and 404s unknown or unsent slugs', async ({ page }) => {
   const slugOne = psql(`SELECT slug FROM newsletter WHERE title='${TAG} Issue One'`);
   const slugTwo = psql(`SELECT slug FROM newsletter WHERE title='${TAG} Issue Two'`);
   console.log('REQ-UI-054 slugs =', JSON.stringify({ slugOne, slugTwo }));
@@ -356,18 +367,25 @@ test('REQ-UI-054 the issue view renders the body with prev/next by send order an
   const bodyHtml = await page.locator('[data-testid="newsletter-view-body"]').innerHTML();
   expect(bodyHtml, 'the stored Markdown must be rendered').toContain('<h2');
 
-  // Oldest issue: next exists, previous is hidden.
-  await expect(page.locator('[data-testid="newsletter-view-previous"]')).toHaveCount(0);
-  await expect(page.locator('[data-testid="newsletter-view-next"]')).toHaveCount(1);
+  // Neighbours come from the database's send order, not from an assumption that this run's two
+  // issues are the only ones: other sent issues may exist on either side of them.
+  const neighbours = (slug: string) => ({
+    older: Number(psql(`SELECT count(*) FROM newsletter WHERE status='sent' AND ispublic AND senton < (SELECT senton FROM newsletter WHERE slug='${slug}')`)),
+    newer: Number(psql(`SELECT count(*) FROM newsletter WHERE status='sent' AND ispublic AND senton > (SELECT senton FROM newsletter WHERE slug='${slug}')`)),
+  });
+  const one = neighbours(slugOne);
+  await expect(page.locator('[data-testid="newsletter-view-previous"]')).toHaveCount(one.older > 0 ? 1 : 0);
+  await expect(page.locator('[data-testid="newsletter-view-next"]')).toHaveCount(one.newer > 0 ? 1 : 0);
   const visualsOne = await bothWidths(page, 'req-ui-054-issue-oldest');
 
-  // Follow next → newest issue: previous exists, next is hidden.
-  await page.click('[data-testid="newsletter-view-next"]');
-  await page.waitForTimeout(2500);
-  await expect(page.locator('[data-testid="newsletter-view-title"]')).toHaveText(`${TAG} Issue Two`, { timeout: 30000 });
-  await expect(page.locator('[data-testid="newsletter-view-next"]')).toHaveCount(0);
-  await expect(page.locator('[data-testid="newsletter-view-previous"]')).toHaveCount(1);
-  console.log('REQ-UI-054 nav position on newest =', (await page.locator('[data-testid="newsletter-view-position"]').textContent())?.trim());
+  // The newest of this run's issues: the end of the archive hides "next", the middle shows it.
+  await page.goto(`${BASE}/newsletter/${slugTwo}`, { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('[data-testid="newsletter-view-title"]')).toHaveText(`${TAG} Issue Two`, { timeout: 45000 });
+  await settle(page);
+  const two = neighbours(slugTwo);
+  await expect(page.locator('[data-testid="newsletter-view-next"]')).toHaveCount(two.newer > 0 ? 1 : 0);
+  await expect(page.locator('[data-testid="newsletter-view-previous"]')).toHaveCount(two.older > 0 ? 1 : 0);
+  console.log('REQ-UI-054 nav position on newest =', (await page.locator('[data-testid="newsletter-view-position"]').textContent())?.trim(), JSON.stringify({ one, two }));
 
   // 404 rules — measured on the HTTP status, not on what the page happens to draw.
   const draftSlugRow = psql(`SELECT COALESCE(slug,'') FROM newsletter WHERE title='${TAG} Unsent Draft'`);
@@ -389,7 +407,8 @@ test('REQ-UI-054 the issue view renders the body with prev/next by send order an
 // 5. REQ-FN-032 — the unsubscribe half of the acceptance criteria
 // ---------------------------------------------------------------------------------------------
 
-test('REQ-FN-032 every message carries an unsubscribe link and that link must remove the subscriber', async ({ page }) => {
+// retired 2026-10-27 (W5): writes and deletes rows with psql (blocked in verify phase, owner rule 2026-09-05) and a teardown that DELETEs; superseded by fxv5-newsletter.
+test.skip('retired: every message carries an unsubscribe link and that link must remove the subscriber', async ({ page }) => {
   // The service builds {BaseUrl}/unsubscribe/{token}; the acceptance criterion is that following
   // it removes the subscriber. Probe the route the service advertises.
   const probe = await page.request.get(`${BASE}/unsubscribe/verify-0808-probe-token`, { maxRedirects: 0 });

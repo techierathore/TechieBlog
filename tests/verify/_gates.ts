@@ -14,10 +14,10 @@ import { Page, expect } from '@playwright/test';
 export const BASE = process.env.TB_BASE ?? 'http://localhost:5399';
 
 export const USERS = {
-  admin: { email: 'Ravi@techieblog.com', password: 'admin_password', role: 'Admin' },
-  editor: { email: 'editor@techieblog.test', password: 'Editor#Pass1', role: 'Editor' },
-  author: { email: 'author@techieblog.test', password: 'Author#Pass1', role: 'Author' },
-  contributor: { email: 'contributor@techieblog.test', password: 'Contrib#Pass1', role: 'Contributor' },
+  admin: { email: 'Ravi@techieblog.com', password: process.env.TB_PW_ADMIN ?? 'VerifyAdmin#2026', role: 'Admin' },
+  editor: { email: 'editor@techieblog.test', password: process.env.TB_PW_EDITOR ?? 'TriageYolo2026', role: 'Editor' },
+  author: { email: 'author@techieblog.test', password: process.env.TB_PW_AUTHOR ?? 'TriageYolo2026', role: 'Author' },
+  contributor: { email: 'contributor@techieblog.test', password: process.env.TB_PW_CONTRIBUTOR ?? 'Contrib#Pass1', role: 'Contributor' },
 } as const;
 
 export type RoleKey = keyof typeof USERS;

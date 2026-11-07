@@ -28,7 +28,7 @@ import * as path from 'path';
 
 const BASE = process.env.TB_BASE ?? 'http://172.18.144.1:5394';
 const TAG = process.env.TB_TAG ?? 'after';
-const OUT = path.join(process.cwd(), 'test-results-tr054');
+const OUT = path.join(process.cwd(), 'tests/.artifacts/test-results-tr054');
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
 const ADMIN_EMAIL = 'Ravi@techieblog.com';

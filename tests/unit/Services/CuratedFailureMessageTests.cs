@@ -57,11 +57,11 @@ public class CuratedFailureMessageTests
     /// Driven as one table rather than thirty near-identical tests: the rule is uniform, and a single
     /// case per service member is what makes a newly reintroduced <c>ex.Message</c> impossible to miss.
     /// </remarks>
-    [Fact]
-    public void NoMutationEchoesTheExceptionText()
+    [Fact(DisplayName = "REQ-NFR-031 no service mutation echoes exception text in its failure message")]
+    public async Task NoMutationEchoesTheExceptionText()
     {
         // Arrange & Act
-        var messages = RunEveryFailingMutation();
+        var messages = await RunEveryFailingMutation();
 
         // Assert
         Assert.NotEmpty(messages);
@@ -81,17 +81,17 @@ public class CuratedFailureMessageTests
     /// it.
     /// </summary>
     [Fact]
-    public void EveryCuratedFailureIsLoggedWithItsException()
+    public async Task EveryCuratedFailureIsLoggedWithItsException()
     {
         // Arrange
         var logger = new RecordingLogger<BlogSvc>();
         var repo = Substitute.For<IBlogPostRepo>();
-        repo.GetSingle(5).Returns(LivePost(5));
-        repo.When(r => r.Update(Arg.Any<BlogPost>()))
+        repo.GetSingleAsync(5, Arg.Any<CancellationToken>()).Returns(LivePost(5));
+        repo.When(r => r.UpdateAsync(Arg.Any<BlogPost>(), Arg.Any<CancellationToken>()))
             .Do(_ => throw new InvalidOperationException(LeakyDetail));
 
         // Act
-        var result = new BlogSvc(repo, logger).UpdatePost(LivePost(5));
+        var result = await new BlogSvc(repo, logger).UpdatePostAsync(LivePost(5));
 
         // Assert
         Assert.Equal("Failed to update post. Please try again later.", result.ErrorMessage);
@@ -115,13 +115,13 @@ public class CuratedFailureMessageTests
     /// Either way the service is the same: it knows nothing about the id and simply logs.
     /// </remarks>
     [Fact]
-    public void ExceptionDetailReachesTheLoggerInsideTheCallersCorrelationScope()
+    public async Task ExceptionDetailReachesTheLoggerInsideTheCallersCorrelationScope()
     {
         // Arrange
         const string correlationId = "0HMV9C49I3A0F:00000001";
         var logger = new ScopeCapturingLogger<BlogSvc>();
         var repo = Substitute.For<IBlogPostRepo>();
-        repo.When(r => r.InsertToGetId(Arg.Any<BlogPost>()))
+        repo.When(r => r.InsertToGetIdAsync(Arg.Any<BlogPost>(), Arg.Any<CancellationToken>()))
             .Do(_ => throw new InvalidOperationException(LeakyDetail));
         var service = new BlogSvc(repo, logger);
 
@@ -129,7 +129,7 @@ public class CuratedFailureMessageTests
         string? errorMessage;
         using (logger.BeginScope(new Dictionary<string, object> { [CorrelationProperty] = correlationId }))
         {
-            errorMessage = service.CreatePost(LivePost()).ErrorMessage;
+            errorMessage = (await service.CreatePostAsync(LivePost())).ErrorMessage;
         }
 
         // Assert — the operator gets the detail and the id; the caller gets neither.
@@ -146,7 +146,7 @@ public class CuratedFailureMessageTests
     /// message each one handed back.
     /// </summary>
     /// <returns>Every user-facing failure message produced by a persistence exception.</returns>
-    private static List<string> RunEveryFailingMutation()
+    private static async Task<List<string>> RunEveryFailingMutation()
     {
         var messages = new List<string>();
 
@@ -155,49 +155,49 @@ public class CuratedFailureMessageTests
         live.Published = true;
         var scheduled = LivePost(6);
         scheduled.ScheduledPublishOn = DateTime.UtcNow.AddDays(1);
-        postRepo.GetSingle(5).Returns(live);
-        postRepo.GetSingle(6).Returns(scheduled);
-        postRepo.GetSingle(7).Returns(LivePost(7));
-        postRepo.When(r => r.InsertToGetId(Arg.Any<BlogPost>())).Do(_ => throw Leak());
-        postRepo.When(r => r.Update(Arg.Any<BlogPost>())).Do(_ => throw Leak());
-        postRepo.When(r => r.SoftDelete(Arg.Any<long>())).Do(_ => throw Leak());
+        postRepo.GetSingleAsync(5, Arg.Any<CancellationToken>()).Returns(live);
+        postRepo.GetSingleAsync(6, Arg.Any<CancellationToken>()).Returns(scheduled);
+        postRepo.GetSingleAsync(7, Arg.Any<CancellationToken>()).Returns(LivePost(7));
+        postRepo.When(r => r.InsertToGetIdAsync(Arg.Any<BlogPost>(), Arg.Any<CancellationToken>())).Do(_ => throw Leak());
+        postRepo.When(r => r.UpdateAsync(Arg.Any<BlogPost>(), Arg.Any<CancellationToken>())).Do(_ => throw Leak());
+        postRepo.When(r => r.SoftDeleteAsync(Arg.Any<long>(), Arg.Any<CancellationToken>())).Do(_ => throw Leak());
         var blog = new BlogSvc(postRepo, new RecordingLogger<BlogSvc>());
-        messages.Add(blog.CreatePost(LivePost()).ErrorMessage!);
-        messages.Add(blog.UpdatePost(LivePost(7)).ErrorMessage!);
-        messages.Add(blog.DeletePost(7).ErrorMessage!);
-        messages.Add(blog.UnpublishPost(5).ErrorMessage!);
-        messages.Add(blog.QuickPublish(7).ErrorMessage!);
-        messages.Add(blog.CancelSchedule(6).ErrorMessage!);
+        messages.Add((await blog.CreatePostAsync(LivePost())).ErrorMessage!);
+        messages.Add((await blog.UpdatePostAsync(LivePost(7))).ErrorMessage!);
+        messages.Add((await blog.DeletePostAsync(7)).ErrorMessage!);
+        messages.Add((await blog.UnpublishPostAsync(5)).ErrorMessage!);
+        messages.Add((await blog.QuickPublishAsync(7)).ErrorMessage!);
+        messages.Add((await blog.CancelScheduleAsync(6)).ErrorMessage!);
 
         var categoryRepo = Substitute.For<ICategoryRepo>();
-        categoryRepo.GetSingle(3).Returns(new Category { CategoryId = 3, CategoryName = "Web" });
-        categoryRepo.When(r => r.InsertToGetId(Arg.Any<Category>())).Do(_ => throw Leak());
-        categoryRepo.When(r => r.Update(Arg.Any<Category>())).Do(_ => throw Leak());
-        categoryRepo.When(r => r.Delete(Arg.Any<long>())).Do(_ => throw Leak());
+        categoryRepo.GetSingleAsync(3, Arg.Any<CancellationToken>()).Returns(new Category { CategoryId = 3, CategoryName = "Web" });
+        categoryRepo.When(r => r.InsertToGetIdAsync(Arg.Any<Category>(), Arg.Any<CancellationToken>())).Do(_ => throw Leak());
+        categoryRepo.When(r => r.UpdateAsync(Arg.Any<Category>(), Arg.Any<CancellationToken>())).Do(_ => throw Leak());
+        categoryRepo.When(r => r.DeleteAsync(Arg.Any<long>(), Arg.Any<CancellationToken>())).Do(_ => throw Leak());
         var categories = new CategorySvc(categoryRepo, new RecordingLogger<CategorySvc>());
-        messages.Add(categories.CreateCategory(new Category { CategoryName = "Web" }).ErrorMessage!);
-        messages.Add(categories.UpdateCategory(new Category { CategoryId = 3, CategoryName = "Web" }).ErrorMessage!);
-        messages.Add(categories.DeleteCategory(3).ErrorMessage!);
+        messages.Add((await categories.CreateCategoryAsync(new Category { CategoryName = "Web" })).ErrorMessage!);
+        messages.Add((await categories.UpdateCategoryAsync(new Category { CategoryId = 3, CategoryName = "Web" })).ErrorMessage!);
+        messages.Add((await categories.DeleteCategoryAsync(3)).ErrorMessage!);
 
         var tagRepo = Substitute.For<IBlogTagRepo>();
-        tagRepo.GetSingle(4).Returns(new BlogTag { TagId = 4, TagName = "Blazor" });
-        tagRepo.When(r => r.InsertToGetId(Arg.Any<BlogTag>())).Do(_ => throw Leak());
-        tagRepo.When(r => r.Update(Arg.Any<BlogTag>())).Do(_ => throw Leak());
-        tagRepo.When(r => r.Delete(Arg.Any<long>())).Do(_ => throw Leak());
+        tagRepo.GetSingleAsync(4, Arg.Any<CancellationToken>()).Returns(new BlogTag { TagId = 4, TagName = "Blazor" });
+        tagRepo.When(r => r.InsertToGetIdAsync(Arg.Any<BlogTag>(), Arg.Any<CancellationToken>())).Do(_ => throw Leak());
+        tagRepo.When(r => r.UpdateAsync(Arg.Any<BlogTag>(), Arg.Any<CancellationToken>())).Do(_ => throw Leak());
+        tagRepo.When(r => r.DeleteAsync(Arg.Any<long>(), Arg.Any<CancellationToken>())).Do(_ => throw Leak());
         var tags = new TagSvc(tagRepo, new RecordingLogger<TagSvc>());
-        messages.Add(tags.CreateTag(new BlogTag { TagName = "Blazor" }).ErrorMessage!);
-        messages.Add(tags.UpdateTag(new BlogTag { TagId = 4, TagName = "Blazor" }).ErrorMessage!);
-        messages.Add(tags.DeleteTag(4).ErrorMessage!);
+        messages.Add((await tags.CreateTagAsync(new BlogTag { TagName = "Blazor" })).ErrorMessage!);
+        messages.Add((await tags.UpdateTagAsync(new BlogTag { TagId = 4, TagName = "Blazor" })).ErrorMessage!);
+        messages.Add((await tags.DeleteTagAsync(4)).ErrorMessage!);
 
         var seriesRepo = Substitute.For<IBlogSeriesRepo>();
-        seriesRepo.GetSingle(9).Returns(new BlogSeries { SeriesId = 9, Name = "Alpha" });
-        seriesRepo.When(r => r.InsertToGetId(Arg.Any<BlogSeries>())).Do(_ => throw Leak());
-        seriesRepo.When(r => r.Update(Arg.Any<BlogSeries>())).Do(_ => throw Leak());
-        seriesRepo.When(r => r.Delete(Arg.Any<long>())).Do(_ => throw Leak());
+        seriesRepo.GetSingleAsync(9, Arg.Any<CancellationToken>()).Returns(new BlogSeries { SeriesId = 9, Name = "Alpha" });
+        seriesRepo.When(r => r.InsertToGetIdAsync(Arg.Any<BlogSeries>(), Arg.Any<CancellationToken>())).Do(_ => throw Leak());
+        seriesRepo.When(r => r.UpdateAsync(Arg.Any<BlogSeries>(), Arg.Any<CancellationToken>())).Do(_ => throw Leak());
+        seriesRepo.When(r => r.DeleteAsync(Arg.Any<long>(), Arg.Any<CancellationToken>())).Do(_ => throw Leak());
         var series = new SeriesSvc(seriesRepo, Substitute.For<IBlogPostRepo>(), new RecordingLogger<SeriesSvc>());
-        messages.Add(series.CreateSeries(new BlogSeries { Name = "Alpha" }).ErrorMessage!);
-        messages.Add(series.UpdateSeries(new BlogSeries { SeriesId = 9, Name = "Alpha" }).ErrorMessage!);
-        messages.Add(series.DeleteSeries(9).ErrorMessage!);
+        messages.Add((await series.CreateSeriesAsync(new BlogSeries { Name = "Alpha" })).ErrorMessage!);
+        messages.Add((await series.UpdateSeriesAsync(new BlogSeries { SeriesId = 9, Name = "Alpha" })).ErrorMessage!);
+        messages.Add((await series.DeleteSeriesAsync(9)).ErrorMessage!);
 
         return messages;
     }

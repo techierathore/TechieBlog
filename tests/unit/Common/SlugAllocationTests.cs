@@ -165,7 +165,7 @@ public class SlugAllocationTests
 
     /// <summary>
     /// The insert-time fallback is derived from the title rather than being random, so the same
-    /// unslugabble name always resolves to the same address. <c>TagSvc.GetOrCreateTag</c> depends on
+    /// unslugabble name always resolves to the same address. <c>TagSvc.GetOrCreateTagAsync</c> depends on
     /// this: it matches an existing tag by slug, and a random fallback would mint a duplicate row on
     /// every save.
     /// </summary>

@@ -52,15 +52,15 @@ public class CategorySvcTests
     /// The taxonomy listing is handed back exactly as the repository ordered it.
     /// </summary>
     [Fact]
-    public void GetAllCategoriesForwardsToRepository()
+    public async Task GetAllCategoriesForwardsToRepository()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
         var categories = new[] { ValidCategory(1), ValidCategory(2) };
-        repo.GetAll().Returns(categories);
+        repo.GetAllAsync(Arg.Any<CancellationToken>()).Returns(categories);
 
         // Act
-        var result = BuildService(repo).GetAllCategories();
+        var result = await BuildService(repo).GetAllCategoriesAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Same(categories, result);
@@ -71,14 +71,14 @@ public class CategorySvcTests
     /// with it.
     /// </summary>
     [Fact]
-    public void GetAllCategoriesReturnsEmptyOnRepositoryFailure()
+    public async Task GetAllCategoriesReturnsEmptyOnRepositoryFailure()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
-        repo.When(r => r.GetAll()).Do(_ => throw new InvalidOperationException("boom"));
+        repo.When(r => r.GetAllAsync(Arg.Any<CancellationToken>())).Do(_ => throw new InvalidOperationException("boom"));
 
         // Act
-        var result = BuildService(repo).GetAllCategories();
+        var result = await BuildService(repo).GetAllCategoriesAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(result);
@@ -89,15 +89,15 @@ public class CategorySvcTests
     /// the rows arrive untouched.
     /// </summary>
     [Fact]
-    public void GetAllWithCountsForwardsToRepository()
+    public async Task GetAllWithCountsForwardsToRepository()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
         var categories = new[] { ValidCategory(1) };
-        repo.GetAllWithCounts().Returns(categories);
+        repo.GetAllWithCountsAsync(Arg.Any<CancellationToken>()).Returns(categories);
 
         // Act
-        var result = BuildService(repo).GetAllWithCounts();
+        var result = await BuildService(repo).GetAllWithCountsAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Same(categories, result);
@@ -107,14 +107,14 @@ public class CategorySvcTests
     /// A failed counted listing degrades to an empty sequence.
     /// </summary>
     [Fact]
-    public void GetAllWithCountsReturnsEmptyOnRepositoryFailure()
+    public async Task GetAllWithCountsReturnsEmptyOnRepositoryFailure()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
-        repo.When(r => r.GetAllWithCounts()).Do(_ => throw new InvalidOperationException("boom"));
+        repo.When(r => r.GetAllWithCountsAsync(Arg.Any<CancellationToken>())).Do(_ => throw new InvalidOperationException("boom"));
 
         // Act
-        var result = BuildService(repo).GetAllWithCounts();
+        var result = await BuildService(repo).GetAllWithCountsAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(result);
@@ -124,15 +124,15 @@ public class CategorySvcTests
     /// The id-keyed lookup forwards the identifier unchanged.
     /// </summary>
     [Fact]
-    public void GetCategoryForwardsIdentifier()
+    public async Task GetCategoryForwardsIdentifier()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
         var category = ValidCategory(6);
-        repo.GetSingle(6).Returns(category);
+        repo.GetSingleAsync(6, Arg.Any<CancellationToken>()).Returns(category);
 
         // Act
-        var result = BuildService(repo).GetCategory(6);
+        var result = await BuildService(repo).GetCategoryAsync(6, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Same(category, result);
@@ -142,14 +142,14 @@ public class CategorySvcTests
     /// "No such category" and "the lookup failed" both surface as null, distinguished only in the log.
     /// </summary>
     [Fact]
-    public void GetCategoryReturnsNullOnRepositoryFailure()
+    public async Task GetCategoryReturnsNullOnRepositoryFailure()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
-        repo.When(r => r.GetSingle(6)).Do(_ => throw new InvalidOperationException("boom"));
+        repo.When(r => r.GetSingleAsync(6, Arg.Any<CancellationToken>())).Do(_ => throw new InvalidOperationException("boom"));
 
         // Act
-        var result = BuildService(repo).GetCategory(6);
+        var result = await BuildService(repo).GetCategoryAsync(6, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -162,32 +162,32 @@ public class CategorySvcTests
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    public void GetCategoryBySlugRejectsBlankSlugWithoutQuerying(string slug)
+    public async Task GetCategoryBySlugRejectsBlankSlugWithoutQuerying(string slug)
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
 
         // Act
-        var result = BuildService(repo).GetCategoryBySlug(slug);
+        var result = await BuildService(repo).GetCategoryBySlugAsync(slug, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
-        repo.DidNotReceive().GetBySlug(Arg.Any<string>());
+        await repo.DidNotReceive().GetBySlugAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
     /// A real slug reaches the repository verbatim.
     /// </summary>
     [Fact]
-    public void GetCategoryBySlugForwardsSlug()
+    public async Task GetCategoryBySlugForwardsSlug()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
         var category = ValidCategory(6);
-        repo.GetBySlug("web-development").Returns(category);
+        repo.GetBySlugAsync("web-development", Arg.Any<CancellationToken>()).Returns(category);
 
         // Act
-        var result = BuildService(repo).GetCategoryBySlug("web-development");
+        var result = await BuildService(repo).GetCategoryBySlugAsync("web-development", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Same(category, result);
@@ -197,14 +197,14 @@ public class CategorySvcTests
     /// A failed slug read renders the category page's not-found state rather than throwing.
     /// </summary>
     [Fact]
-    public void GetCategoryBySlugReturnsNullOnRepositoryFailure()
+    public async Task GetCategoryBySlugReturnsNullOnRepositoryFailure()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
-        repo.When(r => r.GetBySlug("web-development")).Do(_ => throw new InvalidOperationException("boom"));
+        repo.When(r => r.GetBySlugAsync("web-development", Arg.Any<CancellationToken>())).Do(_ => throw new InvalidOperationException("boom"));
 
         // Act
-        var result = BuildService(repo).GetCategoryBySlug("web-development");
+        var result = await BuildService(repo).GetCategoryBySlugAsync("web-development", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -218,13 +218,13 @@ public class CategorySvcTests
     /// A null category is refused as a failed result rather than a null-reference exception.
     /// </summary>
     [Fact]
-    public void CreateCategoryRejectsNull()
+    public async Task CreateCategoryRejectsNull()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
 
         // Act
-        var result = BuildService(repo).CreateCategory(null!);
+        var result = await BuildService(repo).CreateCategoryAsync(null!, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
@@ -238,18 +238,18 @@ public class CategorySvcTests
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    public void CreateCategoryRejectsBlankName(string categoryName)
+    public async Task CreateCategoryRejectsBlankName(string categoryName)
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
 
         // Act
-        var result = BuildService(repo).CreateCategory(new Category { CategoryName = categoryName });
+        var result = await BuildService(repo).CreateCategoryAsync(new Category { CategoryName = categoryName }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
         Assert.Equal("Category name is required", result.ErrorMessage);
-        repo.DidNotReceive().InsertToGetId(Arg.Any<Category>());
+        await repo.DidNotReceive().InsertToGetIdAsync(Arg.Any<Category>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -257,14 +257,14 @@ public class CategorySvcTests
     /// URLs.
     /// </summary>
     [Fact]
-    public void CreateCategoryDerivesSlugFromName()
+    public async Task CreateCategoryDerivesSlugFromName()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
         var category = ValidCategory();
 
         // Act
-        var result = BuildService(repo).CreateCategory(category);
+        var result = await BuildService(repo).CreateCategoryAsync(category, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -276,7 +276,7 @@ public class CategorySvcTests
     /// choice is deliberate.
     /// </summary>
     [Fact]
-    public void CreateCategoryKeepsSuppliedSlug()
+    public async Task CreateCategoryKeepsSuppliedSlug()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
@@ -284,7 +284,7 @@ public class CategorySvcTests
         category.Slug = "hand-picked";
 
         // Act
-        BuildService(repo).CreateCategory(category);
+        await BuildService(repo).CreateCategoryAsync(category, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("hand-picked", category.Slug);
@@ -294,15 +294,15 @@ public class CategorySvcTests
     /// A slug already in use gains an ordinal suffix so two categories can never share an address.
     /// </summary>
     [Fact]
-    public void CreateCategorySuffixesDuplicateSlug()
+    public async Task CreateCategorySuffixesDuplicateSlug()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
-        repo.SlugExists("web-development").Returns(true);
+        repo.SlugExistsAsync("web-development", 0, Arg.Any<CancellationToken>()).Returns(true);
         var category = ValidCategory();
 
         // Act
-        BuildService(repo).CreateCategory(category);
+        await BuildService(repo).CreateCategoryAsync(category, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("web-development-2", category.Slug);
@@ -313,16 +313,16 @@ public class CategorySvcTests
     /// slug.
     /// </summary>
     [Fact]
-    public void CreateCategoryRetriesUntilSlugIsFree()
+    public async Task CreateCategoryRetriesUntilSlugIsFree()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
-        repo.SlugExists("web-development").Returns(true);
-        repo.SlugExists("web-development-2").Returns(true);
+        repo.SlugExistsAsync("web-development", 0, Arg.Any<CancellationToken>()).Returns(true);
+        repo.SlugExistsAsync("web-development-2", 0, Arg.Any<CancellationToken>()).Returns(true);
         var category = ValidCategory();
 
         // Act
-        BuildService(repo).CreateCategory(category);
+        await BuildService(repo).CreateCategoryAsync(category, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("web-development-3", category.Slug);
@@ -333,19 +333,19 @@ public class CategorySvcTests
     /// candidate for the database's unique constraint to arbitrate.
     /// </summary>
     [Fact]
-    public void CreateCategoryStopsSuffixingAtTheAttemptCap()
+    public async Task CreateCategoryStopsSuffixingAtTheAttemptCap()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
-        repo.SlugExists(Arg.Any<string>()).Returns(true);
+        repo.SlugExistsAsync(Arg.Any<string>(), 0, Arg.Any<CancellationToken>()).Returns(true);
         var category = ValidCategory();
 
         // Act
-        BuildService(repo).CreateCategory(category);
+        await BuildService(repo).CreateCategoryAsync(category, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("web-development-100", category.Slug);
-        repo.Received(100).SlugExists(Arg.Any<string>());
+        await repo.Received(100).SlugExistsAsync(Arg.Any<string>(), 0, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -353,15 +353,15 @@ public class CategorySvcTests
     /// result.
     /// </summary>
     [Fact]
-    public void CreateCategoryAssignsGeneratedIdentifier()
+    public async Task CreateCategoryAssignsGeneratedIdentifier()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
-        repo.InsertToGetId(Arg.Any<Category>()).Returns(14L);
+        repo.InsertToGetIdAsync(Arg.Any<Category>(), Arg.Any<CancellationToken>()).Returns(14L);
         var category = ValidCategory();
 
         // Act
-        var result = BuildService(repo).CreateCategory(category);
+        var result = await BuildService(repo).CreateCategoryAsync(category, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -378,16 +378,16 @@ public class CategorySvcTests
     /// silently.
     /// </summary>
     [Fact]
-    public void CreateCategoryReportsPersistenceFailure()
+    public async Task CreateCategoryReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
         var logger = new RecordingLogger<CategorySvc>();
-        repo.When(r => r.InsertToGetId(Arg.Any<Category>()))
+        repo.When(r => r.InsertToGetIdAsync(Arg.Any<Category>(), Arg.Any<CancellationToken>()))
             .Do(_ => throw new InvalidOperationException("duplicate key"));
 
         // Act
-        var result = BuildService(repo, logger).CreateCategory(ValidCategory());
+        var result = await BuildService(repo, logger).CreateCategoryAsync(ValidCategory(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
@@ -404,13 +404,13 @@ public class CategorySvcTests
     /// A null category is refused before anything is read or written.
     /// </summary>
     [Fact]
-    public void UpdateCategoryRejectsNull()
+    public async Task UpdateCategoryRejectsNull()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
 
         // Act
-        var result = BuildService(repo).UpdateCategory(null!);
+        var result = await BuildService(repo).UpdateCategoryAsync(null!, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
@@ -424,25 +424,25 @@ public class CategorySvcTests
     [Theory]
     [InlineData(0)]
     [InlineData(-9)]
-    public void UpdateCategoryRejectsNonPositiveIdentifier(long categoryId)
+    public async Task UpdateCategoryRejectsNonPositiveIdentifier(long categoryId)
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
 
         // Act
-        var result = BuildService(repo).UpdateCategory(ValidCategory(categoryId));
+        var result = await BuildService(repo).UpdateCategoryAsync(ValidCategory(categoryId), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
         Assert.Equal("Invalid category ID", result.ErrorMessage);
-        repo.DidNotReceive().Update(Arg.Any<Category>());
+        await repo.DidNotReceive().UpdateAsync(Arg.Any<Category>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
     /// The name rule applies to an edit exactly as it does to a creation.
     /// </summary>
     [Fact]
-    public void UpdateCategoryRejectsBlankName()
+    public async Task UpdateCategoryRejectsBlankName()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
@@ -450,7 +450,7 @@ public class CategorySvcTests
         category.CategoryName = " ";
 
         // Act
-        var result = BuildService(repo).UpdateCategory(category);
+        var result = await BuildService(repo).UpdateCategoryAsync(category, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
@@ -462,19 +462,19 @@ public class CategorySvcTests
     /// updated nothing.
     /// </summary>
     [Fact]
-    public void UpdateCategoryRejectsMissingRow()
+    public async Task UpdateCategoryRejectsMissingRow()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
-        repo.GetSingle(6).Returns((Category?)null);
+        repo.GetSingleAsync(6, Arg.Any<CancellationToken>()).Returns((Category?)null);
 
         // Act
-        var result = BuildService(repo).UpdateCategory(ValidCategory(6));
+        var result = await BuildService(repo).UpdateCategoryAsync(ValidCategory(6), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
         Assert.Equal("Category not found", result.ErrorMessage);
-        repo.DidNotReceive().Update(Arg.Any<Category>());
+        await repo.DidNotReceive().UpdateAsync(Arg.Any<Category>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -482,38 +482,38 @@ public class CategorySvcTests
     /// its slug — and therefore its public URL.
     /// </summary>
     [Fact]
-    public void UpdateCategoryExcludesItselfFromSlugCheck()
+    public async Task UpdateCategoryExcludesItselfFromSlugCheck()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
-        repo.GetSingle(6).Returns(ValidCategory(6));
+        repo.GetSingleAsync(6, Arg.Any<CancellationToken>()).Returns(ValidCategory(6));
         var category = ValidCategory(6);
         category.Slug = "web-development";
 
         // Act
-        var result = BuildService(repo).UpdateCategory(category);
+        var result = await BuildService(repo).UpdateCategoryAsync(category, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal("web-development", category.Slug);
-        repo.Received(1).SlugExists("web-development", 6);
-        repo.Received(1).Update(category);
+        await repo.Received(1).SlugExistsAsync("web-development", 6, Arg.Any<CancellationToken>());
+        await repo.Received(1).UpdateAsync(category, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
     /// A blank slug on an edit is regenerated from the current name.
     /// </summary>
     [Fact]
-    public void UpdateCategoryDerivesSlugFromNameWhenBlank()
+    public async Task UpdateCategoryDerivesSlugFromNameWhenBlank()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
-        repo.GetSingle(6).Returns(ValidCategory(6));
+        repo.GetSingleAsync(6, Arg.Any<CancellationToken>()).Returns(ValidCategory(6));
         var category = ValidCategory(6);
         category.CategoryName = "Cloud Native";
 
         // Act
-        BuildService(repo).UpdateCategory(category);
+        await BuildService(repo).UpdateCategoryAsync(category, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("cloud-native", category.Slug);
@@ -523,16 +523,16 @@ public class CategorySvcTests
     /// A slug that genuinely belongs to another category is suffixed, exactly as on creation.
     /// </summary>
     [Fact]
-    public void UpdateCategorySuffixesCollidingSlug()
+    public async Task UpdateCategorySuffixesCollidingSlug()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
-        repo.GetSingle(6).Returns(ValidCategory(6));
-        repo.SlugExists("web-development", 6).Returns(true);
+        repo.GetSingleAsync(6, Arg.Any<CancellationToken>()).Returns(ValidCategory(6));
+        repo.SlugExistsAsync("web-development", 6, Arg.Any<CancellationToken>()).Returns(true);
         var category = ValidCategory(6);
 
         // Act
-        BuildService(repo).UpdateCategory(category);
+        await BuildService(repo).UpdateCategoryAsync(category, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("web-development-2", category.Slug);
@@ -543,17 +543,17 @@ public class CategorySvcTests
     /// exclusion of the edited row applies to every attempt rather than only the first.
     /// </summary>
     [Fact]
-    public void UpdateCategoryRetriesUntilSlugIsFree()
+    public async Task UpdateCategoryRetriesUntilSlugIsFree()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
-        repo.GetSingle(6).Returns(ValidCategory(6));
-        repo.SlugExists("web-development", 6).Returns(true);
-        repo.SlugExists("web-development-2", 6).Returns(true);
+        repo.GetSingleAsync(6, Arg.Any<CancellationToken>()).Returns(ValidCategory(6));
+        repo.SlugExistsAsync("web-development", 6, Arg.Any<CancellationToken>()).Returns(true);
+        repo.SlugExistsAsync("web-development-2", 6, Arg.Any<CancellationToken>()).Returns(true);
         var category = ValidCategory(6);
 
         // Act
-        BuildService(repo).UpdateCategory(category);
+        await BuildService(repo).UpdateCategoryAsync(category, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("web-development-3", category.Slug);
@@ -567,16 +567,16 @@ public class CategorySvcTests
     /// silently.
     /// </summary>
     [Fact]
-    public void UpdateCategoryReportsPersistenceFailure()
+    public async Task UpdateCategoryReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
         var logger = new RecordingLogger<CategorySvc>();
-        repo.GetSingle(6).Returns(ValidCategory(6));
-        repo.When(r => r.Update(Arg.Any<Category>())).Do(_ => throw new InvalidOperationException("deadlock"));
+        repo.GetSingleAsync(6, Arg.Any<CancellationToken>()).Returns(ValidCategory(6));
+        repo.When(r => r.UpdateAsync(Arg.Any<Category>(), Arg.Any<CancellationToken>())).Do(_ => throw new InvalidOperationException("deadlock"));
 
         // Act
-        var result = BuildService(repo, logger).UpdateCategory(ValidCategory(6));
+        var result = await BuildService(repo, logger).UpdateCategoryAsync(ValidCategory(6), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
@@ -589,13 +589,13 @@ public class CategorySvcTests
     /// The save entry point refuses a null category before deciding between insert and update.
     /// </summary>
     [Fact]
-    public void SaveCategoryRejectsNull()
+    public async Task SaveCategoryRejectsNull()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
 
         // Act
-        var result = BuildService(repo).SaveCategory(null!);
+        var result = await BuildService(repo).SaveCategoryAsync(null!, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
@@ -607,38 +607,38 @@ public class CategorySvcTests
     /// while a real one updates.
     /// </summary>
     [Fact]
-    public void SaveCategoryRoutesOnIdentifier()
+    public async Task SaveCategoryRoutesOnIdentifier()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
-        repo.GetSingle(6).Returns(ValidCategory(6));
+        repo.GetSingleAsync(6, Arg.Any<CancellationToken>()).Returns(ValidCategory(6));
         var service = BuildService(repo);
 
         // Act
-        service.SaveCategory(ValidCategory());
-        service.SaveCategory(ValidCategory(6));
+        await service.SaveCategoryAsync(ValidCategory(), TestContext.Current.CancellationToken);
+        await service.SaveCategoryAsync(ValidCategory(6), TestContext.Current.CancellationToken);
 
         // Assert
-        repo.Received(1).InsertToGetId(Arg.Any<Category>());
-        repo.Received(1).Update(Arg.Any<Category>());
+        await repo.Received(1).InsertToGetIdAsync(Arg.Any<Category>(), Arg.Any<CancellationToken>());
+        await repo.Received(1).UpdateAsync(Arg.Any<Category>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
     /// A non-positive identifier cannot name a row and is refused before any read.
     /// </summary>
     [Fact]
-    public void DeleteCategoryRejectsNonPositiveIdentifier()
+    public async Task DeleteCategoryRejectsNonPositiveIdentifier()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
 
         // Act
-        var result = BuildService(repo).DeleteCategory(0);
+        var result = await BuildService(repo).DeleteCategoryAsync(0, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
         Assert.Equal("Invalid category ID", result.ErrorMessage);
-        repo.DidNotReceive().GetSingle(Arg.Any<long>());
+        await repo.DidNotReceive().GetSingleAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -646,19 +646,19 @@ public class CategorySvcTests
     /// nothing.
     /// </summary>
     [Fact]
-    public void DeleteCategoryRejectsMissingRow()
+    public async Task DeleteCategoryRejectsMissingRow()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
-        repo.GetSingle(6).Returns((Category?)null);
+        repo.GetSingleAsync(6, Arg.Any<CancellationToken>()).Returns((Category?)null);
 
         // Act
-        var result = BuildService(repo).DeleteCategory(6);
+        var result = await BuildService(repo).DeleteCategoryAsync(6, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
         Assert.Equal("Category not found", result.ErrorMessage);
-        repo.DidNotReceive().Delete(Arg.Any<long>());
+        await repo.DidNotReceive().DeleteAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -666,20 +666,20 @@ public class CategorySvcTests
     /// the service makes no attempt to reassign the posts filed under it first.
     /// </summary>
     [Fact]
-    public void DeleteCategoryHardDeletesTheRow()
+    public async Task DeleteCategoryHardDeletesTheRow()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
         var existing = ValidCategory(6);
         existing.PostCount = 4;
-        repo.GetSingle(6).Returns(existing);
+        repo.GetSingleAsync(6, Arg.Any<CancellationToken>()).Returns(existing);
 
         // Act
-        var result = BuildService(repo).DeleteCategory(6);
+        var result = await BuildService(repo).DeleteCategoryAsync(6, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
-        repo.Received(1).Delete(6);
+        await repo.Received(1).DeleteAsync(6, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -691,16 +691,16 @@ public class CategorySvcTests
     /// silently.
     /// </summary>
     [Fact]
-    public void DeleteCategoryReportsPersistenceFailure()
+    public async Task DeleteCategoryReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<ICategoryRepo>();
         var logger = new RecordingLogger<CategorySvc>();
-        repo.GetSingle(6).Returns(ValidCategory(6));
-        repo.When(r => r.Delete(6)).Do(_ => throw new InvalidOperationException("foreign key"));
+        repo.GetSingleAsync(6, Arg.Any<CancellationToken>()).Returns(ValidCategory(6));
+        repo.When(r => r.DeleteAsync(6, Arg.Any<CancellationToken>())).Do(_ => throw new InvalidOperationException("foreign key"));
 
         // Act
-        var result = BuildService(repo, logger).DeleteCategory(6);
+        var result = await BuildService(repo, logger).DeleteCategoryAsync(6, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);

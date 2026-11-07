@@ -1,0 +1,1223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TechieBlog — Developer Guide</title>
+<script>
+/* Resolve the theme BEFORE first paint (no flash). Saved choice wins; otherwise
+   pick by time of day — light 07:00–19:00 local, softened dark at night. */
+(function(){
+  try{
+    var t = localStorage.getItem('tf-theme');
+    if(t!=='light' && t!=='dark'){ var h = new Date().getHours(); t = (h>=7 && h<19) ? 'light' : 'dark'; }
+    document.documentElement.setAttribute('data-theme', t);
+  }catch(e){ document.documentElement.setAttribute('data-theme','light'); }
+})();
+</script>
+<style>
+/* LIGHT is the default theme — a warm off-white, easy on the eyes (never bright white). */
+:root{
+  --bg:#f4f1e9; --panel:#efe9db; --panel2:#e7e0cd; --line:#d8cfb6;
+  --ink:#2e2a22; --muted:#6f6857; --accent:#2f6f9f; --accent2:#3f7d54;
+  --warn:#9a6b15; --danger:#b03a52; --ok:#3f7d54;
+  --code-bg:#ece5d3; --code-ink:#332f26; --row-alt:#eae2cf;
+  --h3:#3a352b; --h4:#2f6f9f; --quote:#4a4537; --cta-bg:#e6eef5;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+/* DARK — softened near-black (warmer / less harsh than pure #0f1115). */
+html[data-theme="dark"]{
+  --bg:#11141a; --panel:#171b23; --panel2:#1e2430; --line:#2b3240;
+  --ink:#dfe3ea; --muted:#99a2b1; --accent:#7cc4ff; --accent2:#a6e3a1;
+  --warn:#f9c74f; --danger:#f38ba8; --ok:#a6e3a1;
+  --code-bg:#0c1016; --code-ink:#d8dde8; --row-alt:#141821;
+  --h3:#cfd5e3; --h4:#7cc4ff; --quote:#cfd5e3; --cta-bg:#0d2030;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;font-size:15px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:var(--mono);font-size:13px;background:var(--code-bg);color:var(--code-ink);padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+pre{font-family:var(--mono);font-size:12.5px;background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto;color:var(--code-ink);position:relative}
+pre code{background:none;border:none;padding:0}
+.copy{position:absolute;top:8px;right:8px;background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:11px;font-family:var(--sans);cursor:pointer}
+.copy:hover{color:var(--accent);border-color:var(--accent)}
+/* floating light/dark toggle (top-right) */
+.theme-toggle{position:fixed;top:12px;right:14px;z-index:10000;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12.5px;font-family:var(--sans);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.theme-toggle:hover{color:var(--accent);border-color:var(--accent)}
+
+.layout{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+.layout.no-toc{grid-template-columns:1fr}
+nav.side{position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--line);background:var(--panel);padding:18px 14px}
+nav.side h1{font-size:14px;margin:0 0 4px;letter-spacing:.5px;color:var(--ink)}
+nav.side .sub{font-size:11.5px;color:var(--muted);margin-bottom:14px}
+nav.side ol,nav.side ul{list-style:none;padding:0;margin:0}
+nav.side li{font-size:13px;margin:2px 0}
+nav.side li a{display:block;padding:5px 8px;color:var(--ink);border-radius:6px}
+nav.side li a:hover{background:var(--panel2);text-decoration:none}
+nav.side li.h3 a{padding-left:22px;font-size:12.5px;color:var(--h3)}
+nav.side .group{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin:14px 8px 4px}
+
+main{padding:28px 40px 80px;max-width:1100px}
+.layout.no-toc main{margin:0 auto}
+
+h1{font-size:28px;margin:0 0 6px}
+h2{font-size:22px;margin:32px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);scroll-margin-top:16px}
+h3{font-size:17px;margin:22px 0 6px;color:var(--h3);scroll-margin-top:16px}
+h4{font-size:14px;margin:14px 0 4px;color:var(--h4);scroll-margin-top:16px}
+.subtitle{color:var(--muted);font-size:14px;margin-top:-4px;margin-bottom:18px}
+p{margin:6px 0 10px}
+blockquote{border-left:3px solid var(--accent);background:var(--panel);margin:8px 0;padding:8px 14px;color:var(--quote)}
+ul,ol{padding-left:22px}
+li{margin:2px 0}
+
+table{border-collapse:collapse;width:100%;font-size:13.5px;margin:8px 0}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--panel2);color:var(--h3);font-weight:600}
+tr:nth-child(even) td{background:var(--row-alt)}
+
+hr{border:none;border-top:1px solid var(--line);margin:24px 0}
+.anchor-link{color:var(--muted);font-weight:400;font-size:0.85em;margin-left:8px;opacity:0;transition:opacity .15s;text-decoration:none}
+h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
+
+/* inline TOC at top of main content */
+.toc-inline{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 16px;margin:14px 0 24px}
+.toc-inline > div{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.toc-inline ol,.toc-inline ul{margin:4px 0;padding-left:18px}
+.toc-inline li{font-size:13px;margin:1px 0}
+.toc-inline a{color:var(--h3)}
+
+/* mermaid diagram wrapper + toolbar */
+.diagram{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--code-bg);margin:14px 0;overflow:hidden}
+.diagram .mermaid{padding:14px;margin:0;background:transparent;border:none;overflow:auto}
+.diagram .dt{display:flex;gap:6px;justify-content:flex-end;padding:6px 8px;background:var(--row-alt);border-bottom:1px solid var(--line)}
+.diagram .dt button{background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 10px;font-size:12px;font-family:var(--sans);cursor:pointer;min-width:30px}
+.diagram .dt button:hover{color:var(--accent);border-color:var(--accent)}
+.diagram .dt .zlabel{padding:3px 6px;font-size:11px;color:var(--muted);font-family:var(--mono);align-self:center}
+.diagram.fs{position:fixed;inset:0;z-index:9999;border-radius:0;border:none}
+.diagram.fs .mermaid{height:calc(100vh - 40px);display:flex;align-items:center;justify-content:center}
+
+@media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{position:static;height:auto}}
+</style>
+</head>
+<body>
+<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">&#9790; Dark</button>
+<div class="layout no-toc">
+  <main>
+    <h1>TechieBlog — Developer Guide</h1>
+    <div class="subtitle">Rendered 2026-11-05 &middot; source <code>TechieBlog-DevGuide.md</code></div>
+
+    <div class="toc-inline">
+      <div>Contents</div>
+      <ol>
+        <li><a href="#architecture-cheat-sheet">Architecture cheat-sheet</a></li>
+        <li><a href="#roles-and-menu-map">Roles and menu map</a></li>
+        <li class="h3"><a href="#public-site-menu">Public site menu</a></li>
+        <li class="h3"><a href="#admin-menu">Admin menu</a></li>
+        <li><a href="#screen-by-screen-code-map">Screen-by-screen code map</a></li>
+        <li class="h3"><a href="#home">Home (/)</a></li>
+        <li class="h3"><a href="#post-view-post-slug-alias-post-slug-pagenumber">Post view (/post/{slug}, alias /post/{slug}/{pageNumber})</a></li>
+        <li class="h3"><a href="#category-archive-category-slug-aliases-categories-categories-slug">Category archive (/category/{slug}, aliases /categories, /categories/{slug})</a></li>
+        <li class="h3"><a href="#tag-archive-tag-slug-aliases-tags-tags-slug">Tag archive (/tag/{slug}, aliases /tags, /tags/{slug})</a></li>
+        <li class="h3"><a href="#series-list-and-series-view-series-series-slug">Series list and series view (/series, /series/{slug})</a></li>
+        <li class="h3"><a href="#search-results-search">Search results (/search)</a></li>
+        <li class="h3"><a href="#about-about">About (/about)</a></li>
+        <li class="h3"><a href="#not-found-404">Not found (/404)</a></li>
+        <li class="h3"><a href="#resume-resume">Resume (/resume)</a></li>
+        <li class="h3"><a href="#speaker-profile-speaker-profile">Speaker profile (/speaker-profile)</a></li>
+        <li class="h3"><a href="#newsletter-archive-newsletters">Newsletter archive (/newsletters)</a></li>
+        <li class="h3"><a href="#newsletter-issue-newsletter-slug">Newsletter issue (/newsletter/{slug})</a></li>
+        <li class="h3"><a href="#email-confirmation-verify-token">Email confirmation (/verify/{token})</a></li>
+        <li class="h3"><a href="#unsubscribe-unsubscribe-token">Unsubscribe (/unsubscribe/{token})</a></li>
+        <li class="h3"><a href="#rss-feed-page-rss">RSS feed page (/rss)</a></li>
+        <li class="h3"><a href="#sign-in-login-aliases-loginpage-loginpage-pagecode">Sign in (/login, aliases /LoginPage, /LoginPage/{PageCode})</a></li>
+        <li class="h3"><a href="#forgot-password-forgot-password">Forgot password (/forgot-password)</a></li>
+        <li class="h3"><a href="#reset-password-reset-password-reset-password-token">Reset password (/reset-password, /reset-password/{Token})</a></li>
+        <li class="h3"><a href="#change-password-change-password">Change password (/change-password)</a></li>
+        <li class="h3"><a href="#access-denied-access-denied">Access denied (/access-denied)</a></li>
+        <li class="h3"><a href="#post-editor-managepost-aliases-managepost-pageid">Post editor (/ManagePost, aliases /ManagePost/{PageId})</a></li>
+        <li class="h3"><a href="#posts-list-blogslist">Posts list (/BlogsList)</a></li>
+        <li class="h3"><a href="#draft-preview-admin-preview-postid">Draft preview (/admin/preview/{PostId})</a></li>
+        <li class="h3"><a href="#series-admin-admin-series-aliases-serieslist-editor-at-admin-series-new-and-admin-series-pageid">Series admin (/admin/series, aliases /SeriesList; editor at /admin/series/new and /admin/series/{PageId})</a></li>
+        <li class="h3"><a href="#media-library-admin-images-and-imagepicker-component">Media library (/admin/images) and ImagePicker component</a></li>
+        <li class="h3"><a href="#admin-dashboard-admin-aliases-admindashboard">Admin dashboard (/admin, aliases /AdminDashboard)</a></li>
+        <li class="h3"><a href="#user-management-users">User management (/users)</a></li>
+        <li class="h3"><a href="#add-user-adduser">Add user (/AddUser)</a></li>
+        <li class="h3"><a href="#comment-moderation-commentslist-alias-comments">Comment moderation (/CommentsList, alias /comments)</a></li>
+        <li class="h3"><a href="#category-management-admin-categories-alias-categorieslist-edit-admin-category-admin-category-pageid">Category management (/admin/categories, alias /CategoriesList; edit /admin/category, /admin/category/{PageId})</a></li>
+        <li class="h3"><a href="#tag-management-admin-tags-alias-tagslist-edit-managetag-managetag-pageid">Tag management (/admin/tags, alias /TagsList; edit /ManageTag, /ManageTag/{PageId})</a></li>
+        <li class="h3"><a href="#subscribers-admin-subscribers">Subscribers (/admin/subscribers)</a></li>
+        <li class="h3"><a href="#site-settings-settings">Site settings (/settings)</a></li>
+        <li class="h3"><a href="#newsletter-composer-admin-newsletter">Newsletter composer (/admin/newsletter)</a></li>
+        <li class="h3"><a href="#analytics-dashboard-admin-analytics">Analytics dashboard (/admin/analytics)</a></li>
+        <li class="h3"><a href="#manage-profile-admin-profile">Manage profile (/admin/profile)</a></li>
+        <li class="h3"><a href="#manage-experience-admin-experience-alias-admin-experience-eventid">Manage experience (/admin/experience, alias /admin/experience/{EventId})</a></li>
+        <li class="h3"><a href="#manage-skills-admin-skills">Manage skills (/admin/skills)</a></li>
+        <li class="h3"><a href="#manage-awards-admin-awards">Manage awards (/admin/awards)</a></li>
+        <li class="h3"><a href="#manage-speaking-admin-speaking">Manage speaking (/admin/speaking)</a></li>
+        <li class="h3"><a href="#manage-stats-admin-stats">Manage stats (/admin/stats)</a></li>
+        <li class="h3"><a href="#blogapp-connection-setup-blogapp-connection-alias-blogapp-connection-settings">BlogApp connection setup (/blogapp/connection, alias /blogapp/connection/settings)</a></li>
+        <li class="h3"><a href="#blogapp-start-blogapp-start">BlogApp start (/blogapp/start)</a></li>
+        <li><a href="#cross-cutting-flows">Cross-cutting flows</a></li>
+        <li class="h3"><a href="#sign-in">Sign-in</a></li>
+        <li class="h3"><a href="#scheduled-publishing">Scheduled publishing</a></li>
+        <li class="h3"><a href="#configuration-logging-errors">Configuration, logging, errors</a></li>
+        <li><a href="#known-issues">Known issues</a></li>
+      </ol>
+    </div>
+<table>
+<thead><tr><th></th><th></th></tr></thead>
+<tbody>
+<tr><td>App</td><td>TechieBlog</td></tr>
+<tr><td>Kind</td><td>app</td></tr>
+<tr><td>Size</td><td>Large</td></tr>
+<tr><td>Phase</td><td>1 of 1</td></tr>
+<tr><td>Verified on</td><td>2026-11-02</td></tr>
+<tr><td>Date</td><td>2026-11-02</td></tr>
+</tbody>
+</table>
+<p>Runtime-verified on 2026-11-02: the web host (published copy, WSL side) signed in as all four test users plus anonymous, and the BlogApp desktop head over its WebView2 DevTools port. Screenshots: <code>docs/screenshots/TechieBlog/</code>. Line numbers are as of that date; search for the function name when a line has moved.</p>
+<h2 id="architecture-cheat-sheet">Architecture cheat-sheet<a class="anchor-link" href="#architecture-cheat-sheet">#</a></h2>
+<div class="diagram">
+  <div class="dt">
+    <button data-zout title="Zoom out">&minus;</button>
+    <span class="zlabel">100%</span>
+    <button data-zin title="Zoom in">+</button>
+    <button data-fit title="Fit to width">Fit</button>
+    <button data-one title="Actual size">1:1</button>
+    <button data-fs title="Fullscreen">&#9166;</button>
+    <button data-pop title="Open in new tab">&#8599;</button>
+  </div>
+  <pre class="mermaid">flowchart LR
+    Web["TechieBlog host&lt;br/&gt;(ASP.NET Core, Program.cs)"] --&gt; UI["BlogUI RCL&lt;br/&gt;(Pages, Components, Layouts)"]
+    Web --&gt; Engine["BlogEngine&lt;br/&gt;(Services, DbAccess, DaCore)"]
+    UI --&gt; Engine
+    Engine --&gt; Model["BlogModel&lt;br/&gt;(Models, Interfaces, Common)"]
+    Engine --&gt; Db[("BlogDb&lt;br/&gt;PostgresScripts, DbUp")]
+    App["BlogApp MAUI desktop head&lt;br/&gt;(Components/Pages, Services)"] --&gt; UI
+    App --&gt; Engine</pre>
+</div>
+<table>
+<thead><tr><th>Layer</th><th>Project or folder</th><th>What lives here</th></tr></thead>
+<tbody>
+<tr><td>Host</td><td><code>source/TechieBlog</code> (<code>Program.cs</code>, <code>Middleware/</code>, <code>Observability/</code>, <code>Configuration/</code>)</td><td>startup, DI, DbUp call, Serilog, pipeline, health checks</td></tr>
+<tr><td>BlogUI</td><td><code>source/BlogUI</code> (<code>Pages/AdminPages/</code>, <code>Pages/BlogPages/</code>, <code>Components/</code>, <code>Layouts/</code>)</td><td>Razor pages and layouts (<code>MainLayout</code>, <code>AdminLayout</code>)</td></tr>
+<tr><td>BlogEngine</td><td><code>source/BlogEngine</code> (<code>Services/</code>, <code>DbAccess/</code>, <code>DaCore/</code>, <code>Common/</code>, <code>Storage/</code>)</td><td>services (<code>BlogSvc</code>, <code>UserStatsSvc</code>, <code>AuthSvc</code>), Dapper repos, cache</td></tr>
+<tr><td>BlogModel</td><td><code>source/BlogModel</code> (<code>Models/</code>, <code>Interfaces/</code>, <code>Common/</code>)</td><td>entities (assembly <code>BlogModels</code>), repo interfaces, <code>AppSecrets</code></td></tr>
+<tr><td>BlogDb</td><td><code>source/BlogDb</code> (<code>BlogDbSvc.cs</code>, <code>MigrationRunner.cs</code>, <code>PostgresScripts/</code>)</td><td>DbUp migration engine and SQL scripts</td></tr>
+<tr><td>BlogApp</td><td><code>source/BlogApp</code> (<code>Components/Pages/</code>, <code>Services/</code>, <code>MauiProgram.cs</code>, <code>Platforms/</code>)</td><td>MAUI Blazor Hybrid head, <code>ConnectionStore</code>, probes</td></tr>
+</tbody>
+</table>
+<h2 id="roles-and-menu-map">Roles and menu map<a class="anchor-link" href="#roles-and-menu-map">#</a></h2>
+<table>
+<thead><tr><th>Role</th><th>Test user</th><th>Lands on</th><th>Menu</th></tr></thead>
+<tbody>
+<tr><td>Guest</td><td>6 (anonymous)</td><td><code>/</code></td><td>public site menu below</td></tr>
+<tr><td>Contributor</td><td>4 <code>contributor@techieblog.test</code></td><td><code>/</code></td><td>public menu only; <code>/admin</code> → <code>/access-denied</code></td></tr>
+<tr><td>Author</td><td>3 <code>author@techieblog.test</code></td><td><code>/BlogsList</code></td><td>admin menu items marked <code>AuthorOrAbove</code></td></tr>
+<tr><td>Editor</td><td>2 <code>editor@techieblog.test</code></td><td><code>/admin</code></td><td><code>AuthorOrAbove</code> + <code>EditorOrAbove</code> items</td></tr>
+<tr><td>Admin</td><td>1 <code>Ravi@techieblog.com</code></td><td><code>/admin</code></td><td>every item</td></tr>
+</tbody>
+</table>
+<p>Landing routes observed at sign-in on 2026-11-02.</p>
+<h3 id="public-site-menu">Public site menu<a class="anchor-link" href="#public-site-menu">#</a></h3>
+<p>Public layout: <code>source/BlogUI/Layouts/MainLayout.razor</code> renders <code>&lt;Header /&gt;</code> (<code>:18</code>) and <code>&lt;Footer /&gt;</code> (<code>:30</code>).</p>
+<p>Header (<code>source/BlogUI/Components/Header.razor:217-222</code>, <code>NavLinks</code>):</p>
+<table>
+<thead><tr><th>Label</th><th>Route</th><th>Line</th></tr></thead>
+<tbody>
+<tr><td>Home</td><td><code>/</code></td><td>217</td></tr>
+<tr><td>Categories</td><td><code>/categories</code></td><td>218</td></tr>
+<tr><td>Series</td><td><code>/series</code></td><td>219</td></tr>
+<tr><td>Newsletter</td><td><code>/newsletters</code></td><td>220</td></tr>
+<tr><td>Resume</td><td><code>/resume</code></td><td>221</td></tr>
+<tr><td>Speaking</td><td><code>/speaker-profile</code></td><td>222</td></tr>
+</tbody>
+</table>
+<p>Other header links: brand <code>/</code> (<code>Header.razor:43</code>), search <code>/search</code> (<code>:242</code>). About is deliberately left out of the header (comment at <code>Header.razor:223-225</code>).</p>
+<p>Footer (<code>source/BlogUI/Components/Footer.razor:26-30</code>): About <code>/about</code> (:26), Resume <code>/resume</code> (:27), Categories <code>/categories</code> (:28), Series <code>/series</code> (:29), RSS <code>/rss</code> (:30).</p>
+<h3 id="admin-menu">Admin menu<a class="anchor-link" href="#admin-menu">#</a></h3>
+<p>Source: <code>source/BlogUI/Layouts/AdminLayout.razor.cs</code>, <code>NavGroups</code> (lines 95-132). The Dashboard entry sits in markup at <code>source/BlogUI/Layouts/AdminLayout.razor:67-70</code>, and each group is filtered by <code>BuildVisibleGroups</code> (line 277) with <code>AppPolicies.IsSatisfiedBy</code>. Policy constants: <code>source/BlogModel/Common/AppRoles.cs:117-127</code>.</p>
+<ul>
+<li><strong>Dashboard</strong> (no group). <code>/admin</code>. <code>EditorOrAbove</code>. Markup at <code>AdminLayout.razor:67-70</code>.
+</li>
+<li><strong>Content</strong>
+<ul>
+<li>Posts: <code>/BlogsList</code>. <code>AuthorOrAbove</code>. <code>AdminLayout.razor.cs:99</code>.
+</li>
+<li>Series: <code>/admin/series</code>. <code>AuthorOrAbove</code>. <code>AdminLayout.razor.cs:100</code>.
+</li>
+<li>Comments: <code>/CommentsList</code>. <code>EditorOrAbove</code>. <code>AdminLayout.razor.cs:101</code>.
+</li>
+</ul>
+</li>
+<li><strong>Taxonomy</strong>
+<ul>
+<li>Categories: <code>/admin/categories</code>. <code>AdminOnly</code>. <code>AdminLayout.razor.cs:105</code>.
+</li>
+<li>Tags: <code>/admin/tags</code>. <code>AdminOnly</code>. <code>AdminLayout.razor.cs:106</code>.
+</li>
+</ul>
+</li>
+<li><strong>Media</strong>
+<ul>
+<li>Images: <code>/admin/images</code>. <code>AdminOnly</code>. <code>AdminLayout.razor.cs:110</code>.
+</li>
+</ul>
+</li>
+<li><strong>Resume</strong>
+<ul>
+<li>My Profile: <code>/admin/profile</code>. <code>AuthorOrAbove</code>. <code>AdminLayout.razor.cs:114</code>.
+</li>
+<li>Experience: <code>/admin/experience</code>. <code>AuthorOrAbove</code>. <code>AdminLayout.razor.cs:115</code>.
+</li>
+<li>Skills: <code>/admin/skills</code>. <code>AuthorOrAbove</code>. <code>AdminLayout.razor.cs:116</code>.
+</li>
+<li>Awards: <code>/admin/awards</code>. <code>AuthorOrAbove</code>. <code>AdminLayout.razor.cs:117</code>.
+</li>
+<li>Statistics: <code>/admin/stats</code>. <code>AuthorOrAbove</code>. <code>AdminLayout.razor.cs:118</code>.
+</li>
+<li>Speaking: <code>/admin/speaking</code>. <code>EditorOrAbove</code>. <code>AdminLayout.razor.cs:119</code>.
+</li>
+</ul>
+</li>
+<li><strong>Audience</strong>
+<ul>
+<li>Users: <code>/users</code>. <code>AdminOnly</code>. <code>AdminLayout.razor.cs:123</code>.
+</li>
+<li>Subscribers: <code>/admin/subscribers</code>. <code>AdminOnly</code>. <code>AdminLayout.razor.cs:124</code>.
+</li>
+<li>Newsletter: <code>/admin/newsletter</code>. <code>AdminOnly</code>. <code>AdminLayout.razor.cs:125</code>.
+</li>
+<li>Analytics: <code>/admin/analytics</code>. <code>EditorOrAbove</code>. <code>AdminLayout.razor.cs:126</code>.
+</li>
+</ul>
+</li>
+<li><strong>System</strong>
+<ul>
+<li>Settings: <code>/settings</code>. <code>AdminOnly</code>. <code>AdminLayout.razor.cs:130</code>.
+</li>
+</ul>
+</li>
+</ul>
+<p>Checked against the page attributes: every nav entry's policy matches its page's <code>@attribute [Authorize]</code> (for example <code>BlogsList.razor:14</code>, <code>SeriesList.razor:12</code>, <code>ManageSpeaking.razor:15</code> = <code>EditorOrAbove</code>, <code>ManageImages.razor:11</code> = <code>AdminOnly</code>). The Dashboard entry's policy matches <code>AdminDashboard.razor:13</code>. The layout's comment (<code>AdminLayout.razor.cs:90-93</code>) records the Categories, Tags and Images moves to <code>AdminOnly</code>.</p>
+<h2 id="screen-by-screen-code-map">Screen-by-screen code map<a class="anchor-link" href="#screen-by-screen-code-map">#</a></h2>
+<p>All public screens are anonymous; no public page carries <code>@attribute [Authorize]</code>.</p>
+<h3 id="home"><a id="home-"></a>Home (<code>/</code>)<a class="anchor-link" href="#home">#</a></h3>
+<p><img src="screenshots/TechieBlog/guest-home.png" alt="Home" style="max-width:100%">
+<img src="screenshots/TechieBlog/guest-home-mobile.png" alt="Home, 390 px" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, anonymous: owner hero, featured card, latest posts. At 390 px wide: no horizontal overflow.</p>
+<p><strong>Roles:</strong> public</p>
+<p><strong>Call chain:</strong> <code>Home.razor.cs:OnInitializedAsync</code> → <code>BlogSvc.GetPublishedPostsAsync</code> → <code>BlogPostRepo.GetPublishedPostsAsync</code> → <code>SelectPublishedSql</code> (<code>BlogPost</code> JOIN <code>BlogUser</code>); featured block: <code>BlogSvc.GetFeaturedPostAsync</code> → <code>BlogPostRepo.GetFeaturedPostAsync</code> → <code>SelectFeaturedSql</code> (<code>BlogPost</code>, <code>LIMIT 1</code>); owner: <code>BlogUserRepo.GetSiteOwnerAsync</code> → <code>SelectSiteOwnerSql</code> (<code>BlogUser</code>)</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/BlogPages/Home.razor.cs:149</code></td><td><code>LoadLatestPostsAsync</code></td><td><code>latestPosts</code></td><td>up to 3 published posts, newest first</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/Home.razor.cs:173</code></td><td><code>LoadFeaturedPostAsync</code></td><td><code>featuredPost</code></td><td>newest published, non-deleted post (<code>COALESCE(PublishedOn, CreatedOn) DESC</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/Home.razor.cs:124</code></td><td><code>LoadStatsAsync</code></td><td><code>ownerStats</code></td><td>owner's <code>userstats</code> rows, first 4 by <code>DisplayOrder</code></td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/Home.razor:81</code></td><td>markup</td><td><code>featuredPost.Slug</code></td><td>link to <code>/post/{slug}</code></td></tr>
+<tr><td><code>source/BlogEngine/DbAccess/BlogPostRepo.cs:243</code></td><td><code>SelectFeaturedSql</code></td><td><code>PublishedOn</code></td><td>selected, so the card date is the publish date</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> <code>FeaturedExcerpt</code> (<code>Home.razor.cs:188</code>) uses <code>Abstract</code>, else strips <code># * _ </code><code> from </code>PostContent<code> and truncates to 220 characters; </code>ReadingTimeCalculator.Calculate` for the read time.</p>
+<h3 id="post-view-post-slug-alias-post-slug-pagenumber"><a id="post-view-postslug-alias-postslugpagenumber"></a>Post view (<code>/post/{slug}</code>, alias <code>/post/{slug}/{pageNumber}</code>)<a class="anchor-link" href="#post-view-post-slug-alias-post-slug-pagenumber">#</a></h3>
+<p><img src="screenshots/TechieBlog/guest-post-view.png" alt="Post view" style="max-width:100%">
+<img src="screenshots/TechieBlog/guest-post-view-mobile.png" alt="Post view, 390 px" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, anonymous: Markdown heading, list, code block and table; byline with category, read time, view count. At 390 px: no horizontal overflow.</p>
+<p><strong>Roles:</strong> public</p>
+<p><strong>Call chain:</strong> <code>PostView.razor:LoadPost</code> → <code>BlogSvc.GetPostBySlugAsync</code> → <code>BlogPostRepo.GetBySlugAsync</code> → <code>SelectBySlugSql</code> (<code>BlogPost</code> LEFT JOIN <code>BlogUser</code>, LEFT JOIN <code>BlogSeries</code>); comments: <code>CommentSvc.GetCommentsByPostIdAsync</code> → <code>BlogCommentRepo.GetAllByIdAsync</code> → <code>blogcomment</code> (approved only); byline: <code>AnalyticsSvc.GetPostViewCountsAsync</code> → <code>PostViewRepo</code> → <code>PostViewCount</code></p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/BlogPages/PostView.razor:450</code></td><td><code>LoadPost</code></td><td><code>blogPost</code></td><td>the post by slug; <code>notFound</code> when missing or unpublished</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/PostView.razor:597</code></td><td><code>LoadCommentsAsync</code></td><td><code>comments</code></td><td>approved parent comments with their approved replies</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/PostView.razor:570</code></td><td><code>TrackVisitAndReadCountsAsync</code></td><td><code>viewCounts.TotalViews</code></td><td>rollup count; a new visit is queued, not written inline</td></tr>
+<tr><td><code>source/BlogUI/Components/CommentForm.razor:213</code></td><td><code>OnSubmitAsync</code> → <code>CommentSvc.SubmitCommentAsync</code> (<code>CommentSvc.cs:146</code>)</td><td><code>result</code></td><td>captcha and spam gate pass, email verification issued, row inserted as <code>PendingVerification</code>; not shown until confirmed and approved</td></tr>
+<tr><td><code>source/BlogUI/Components/PostRatingPanel.razor:226</code></td><td><code>OnSubmitAsync</code> → <code>RatingSvc.SubmitRatingAsync</code> (<code>RatingSvc.cs:156</code>)</td><td><code>result</code></td><td>captcha passes, <code>PostRating</code> upserted by email (<code>PostRatingRepo.cs:243</code>), verification issued if unverified</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> reading time via <code>ReadingTimeCalculator</code>; pagination splits <code>PostContent</code> at <code>paginationWordCount</code> (<code>PostView.razor:642</code>); <code>GetCommentTotal</code> counts comments plus replies.</p>
+<h3 id="category-archive-category-slug-aliases-categories-categories-slug"><a id="category-archive-categoryslug-aliases-categories-categoriesslug"></a>Category archive (<code>/category/{slug}</code>, aliases <code>/categories</code>, <code>/categories/{slug}</code>)<a class="anchor-link" href="#category-archive-category-slug-aliases-categories-categories-slug">#</a></h3>
+<p><img src="screenshots/TechieBlog/guest-category-archive.png" alt="Category archive" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, anonymous, <code>/category/web-development</code>.</p>
+<p><strong>Roles:</strong> public</p>
+<p><strong>Call chain:</strong> <code>CategoryArchive.razor:LoadCategory</code> → <code>CategorySvc.GetCategoryBySlugAsync</code> (<code>CategorySvc.cs:200</code>) → <code>CategoryRepo</code> → <code>Category</code>; posts: <code>BlogSvc.GetPostsByCategoryAsync</code> → <code>BlogPostRepo.GetPostsByCategoryAsync</code> → <code>SelectByCategorySql</code>; count: <code>BlogPostRepo.GetPostCountByCategoryAsync</code> → <code>CountByCategorySql</code></p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/BlogPages/CategoryArchive.razor:198</code></td><td><code>LoadCategory</code></td><td><code>category</code></td><td>category by slug; <code>notFound</code> when null</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/CategoryArchive.razor:213</code></td><td><code>LoadCategory</code></td><td><code>totalPosts</code></td><td>published post count for the category</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/CategoryArchive.razor:217</code></td><td><code>LoadCategory</code></td><td><code>posts</code></td><td>one page, <code>PostsPerPage</code> (from <code>SiteSettingsService</code>, line 179), newest first</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/CategoryArchive.razor:187</code></td><td><code>LoadCategory</code> (no slug)</td><td><code>allCategories</code></td><td><code>CategorySvc.GetAllWithCountsAsync</code> (<code>CategoryRepo</code> LEFT JOIN <code>BlogPost</code>)</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> <code>totalPages = ceil(totalPosts / PageSize)</code> (<code>CategoryArchive.razor:214</code>); excerpt is <code>Abstract</code> or the first 150 characters of <code>PostContent</code>.</p>
+<h3 id="tag-archive-tag-slug-aliases-tags-tags-slug"><a id="tag-archive-tagslug-aliases-tags-tagsslug"></a>Tag archive (<code>/tag/{slug}</code>, aliases <code>/tags</code>, <code>/tags/{slug}</code>)<a class="anchor-link" href="#tag-archive-tag-slug-aliases-tags-tags-slug">#</a></h3>
+<p><img src="screenshots/TechieBlog/guest-tag-archive.png" alt="Tag archive" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, anonymous, <code>/tag/blazor</code>.</p>
+<p><strong>Roles:</strong> public</p>
+<p><strong>Call chain:</strong> <code>TagArchive.razor:LoadTag</code> → <code>TagSvc.GetTagBySlugAsync</code> (<code>TagSvc.cs:226</code>) → <code>BlogTagRepo.GetBySlugAsync</code> → <code>Tag</code>; posts: <code>TagSvc.GetPostsByTagAsync</code> → <code>BlogTagRepo</code> → <code>PostTag</code> JOIN <code>BlogPost</code>; cloud: <code>TagSvc.GetAllWithCountsAsync</code> → <code>BlogTagRepo.GetAllWithCountsAsync</code> (<code>BlogTagRepo.cs:40</code>)</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/BlogPages/TagArchive.razor:197</code></td><td><code>LoadTag</code></td><td><code>tagInfo</code></td><td>tag by slug; <code>notFound</code> when null</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/TagArchive.razor:212</code></td><td><code>LoadTag</code></td><td><code>totalPosts</code></td><td>published posts carrying the tag</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/TagArchive.razor:216</code></td><td><code>LoadTag</code></td><td><code>posts</code></td><td>one page of published posts with the tag</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/TagArchive.razor:186</code></td><td><code>LoadTag</code> (no slug)</td><td><code>allTags</code></td><td>every tag with its <code>PostCount</code>; font size from <code>GetTagSizeClass</code> (line 285)</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> <code>GetTagSizeClass</code> buckets <code>count</code> into <code>text-sm</code> to <code>text-xl</code> by ratio to min and max <code>PostCount</code>; <code>totalPages</code> as on the category archive.</p>
+<h3 id="series-list-and-series-view-series-series-slug"><a id="series-list-and-series-view-series-seriesslug"></a>Series list and series view (<code>/series</code>, <code>/series/{slug}</code>)<a class="anchor-link" href="#series-list-and-series-view-series-series-slug">#</a></h3>
+<p><img src="screenshots/TechieBlog/guest-series-list.png" alt="Series list" style="max-width:100%">
+<img src="screenshots/TechieBlog/guest-series-view.png" alt="Series view" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders empty. Seen 2026-11-02: this database has 0 series; <code>/series/{slug}</code> for an unknown slug shows the not-found page.</p>
+<p><strong>Roles:</strong> public (content managers Admin, Editor, Author also see draft parts, <code>SeriesView.razor:280</code>)</p>
+<p><strong>Call chain:</strong> <code>SeriesView.razor:OnParametersSetAsync</code> → <code>IsContentManagerAsync</code> → <code>LoadDataAsync</code> → <code>SeriesSvc.GetAllWithCountsAsync</code> (list); <code>SeriesSvc.GetSeriesBySlugAsync(slug, includeDrafts)</code> (<code>SeriesSvc.cs:270</code>) → <code>BlogPostRepo.GetPublishedPostsBySeriesAsync</code> → <code>SelectPublishedBySeriesSql</code> (anonymous) or <code>BlogPostRepo.GetPostsBySeriesAsync</code> → <code>SelectBySeriesSql</code> (content manager)</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/BlogPages/SeriesView.razor:309</code></td><td><code>LoadDataAsync</code></td><td><code>allSeries</code></td><td>every series with its <code>PostCount</code> (<code>{unresolved — count basis not traced}</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/SeriesView.razor:315</code></td><td><code>LoadDataAsync</code></td><td><code>series</code></td><td>series by slug; <code>SeriesId == 0</code> shows "Series not found"</td></tr>
+<tr><td><code>source/BlogEngine/Services/SeriesSvc.cs:284</code></td><td><code>GetSeriesBySlugAsync</code></td><td><code>parts</code></td><td>draft parts only when <code>includeDrafts</code> is true</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/SeriesView.razor:322</code></td><td><code>LoadDataAsync</code></td><td><code>otherSeries</code></td><td>up to 3 other series</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/SeriesView.razor:141</code></td><td>markup</td><td><code>isLatest</code></td><td>the newest published part is marked "Latest"</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> <code>isLatest</code> = newest <code>PublishedOn</code> among published parts; <code>Started</code> is <code>series.CreatedOn</code> in <code>MMM yyyy</code>.</p>
+<h3 id="search-results-search">Search results (<code>/search</code>)<a class="anchor-link" href="#search-results-search">#</a></h3>
+<p><img src="screenshots/TechieBlog/guest-search.png" alt="Search" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, anonymous, <code>/search?q=fxv0</code>.</p>
+<p><strong>Roles:</strong> public</p>
+<p><strong>Call chain:</strong> <code>SearchResults.razor:OnInitializedAsync</code> → <code>CategorySvc.GetAllCategoriesAsync</code> (filter list); <code>PerformSearchAsync</code> → <code>BlogSvc.GetSearchResultCountAsync</code> → <code>BlogPostRepo.GetSearchResultCountAsync</code> → <code>SearchCountSql</code>; <code>BlogSvc.SearchPostsAsync</code> (<code>BlogSvc.cs:975</code>) → <code>BlogPostRepo.SearchPostsAsync</code> → <code>SearchSql</code> (<code>BlogPost</code> ILIKE on Title, Abstract, PostContent, Tags, PostTag/Tag names)</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/BlogPages/SearchResults.razor:268</code></td><td><code>PerformSearchAsync</code></td><td><code>totalResults</code></td><td>published matches for <code>%query%</code></td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/SearchResults.razor:272</code></td><td><code>PerformSearchAsync</code></td><td><code>posts</code></td><td>one page, newest first (<code>COALESCE(PublishedOn, CreatedOn) DESC</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/SearchResults.razor:289</code></td><td><code>PerformSearchAsync</code></td><td><code>Rating</code></td><td>intended: the post's star rating</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/SearchResults.razor:43</code></td><td>markup</td><td><code>categoryFilter</code></td><td>intended: narrows results by category</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> <code>HighlightSearchTerms</code> wraps matching words in <code>&lt;mark&gt;</code> after HTML-encoding (<code>SearchResults.razor:335</code>); excerpt capped at 200 characters, title at 160; <code>EstimateReadTime</code> via <code>ReadingTimeCalculator</code>.</p>
+<h3 id="about-about">About (<code>/about</code>)<a class="anchor-link" href="#about-about">#</a></h3>
+<p><img src="screenshots/TechieBlog/guest-about.png" alt="About" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, anonymous.</p>
+<p><strong>Roles:</strong> public</p>
+<p><strong>Call chain:</strong> none (static markup; <code>StackChips</code> is a constant array, <code>About.razor:117</code>)</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/BlogPages/About.razor:117</code></td><td><code>StackChips</code></td><td><code>StackChips.Length</code></td><td>7 technology badges</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/About.razor:81</code></td><td>markup</td><td><code>about-github</code> link</td><td>points to <code>https://github.com</code> (generic, not the owner's profile)</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/About.razor:102</code></td><td>markup</td><td><code>about-resume</code> link</td><td><code>/resume</code></td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> none</p>
+<h3 id="not-found-404">Not found (<code>/404</code>)<a class="anchor-link" href="#not-found-404">#</a></h3>
+<p><img src="screenshots/TechieBlog/guest-404.png" alt="Not found" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, anonymous: "This page wandered off".</p>
+<p><strong>Roles:</strong> public</p>
+<p><strong>Call chain:</strong> none (static markup). Reached for any unmatched URL by <code>UseStatusCodePagesWithReExecute(NotFoundPage.Path)</code> (<code>source/TechieBlog/Program.cs:620</code>), which keeps HTTP 404.</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/404Page.razor:46</code></td><td><code>@page "/404"</code></td><td>route</td><td>the only route for this page; renaming it breaks the re-execution</td></tr>
+<tr><td><code>source/TechieBlog/Program.cs:620</code></td><td><code>UseStatusCodePagesWithReExecute</code></td><td>status</td><td>HTTP 404 with this page rendered</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> none</p>
+<h3 id="resume-resume">Resume (<code>/resume</code>)<a class="anchor-link" href="#resume-resume">#</a></h3>
+<p><img src="screenshots/TechieBlog/guest-resume.png" alt="Resume" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, anonymous: site owner hero and sections.</p>
+<p><strong>Roles:</strong> public</p>
+<p><strong>Call chain:</strong> <code>ResumePage.razor.cs:OnInitializedAsync</code> → <code>LoadSiteOwner</code> → <code>BlogUserRepo.GetSiteOwnerAsync</code> (<code>BlogUserRepo.cs:383</code>) → <code>SelectSiteOwnerSql</code> (<code>BlogUser</code>); child sections (<code>ResumeExperience</code>, <code>ResumeSkills</code>, <code>ResumeAwards</code>, <code>ResumeStats</code>) <code>{unresolved — not traced in this pass}</code></p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/ResumePage.razor.cs:47</code></td><td><code>LoadSiteOwner</code></td><td><code>siteOwner</code></td><td>the <code>IsSiteOwner</code> user; null renders "Resume not available"</td></tr>
+<tr><td><code>source/BlogUI/Pages/ResumePage.razor:41</code></td><td>markup</td><td><code>siteOwner.ResumeEnabled</code></td><td>false renders "Resume not published"</td></tr>
+<tr><td><code>source/BlogUI/Components/Resume/ResumeHero.razor:81</code></td><td>markup</td><td><code>User.CVFilePath</code></td><td>non-blank shows "Download CV" with <code>href</code> = stored path</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> none</p>
+<h3 id="speaker-profile-speaker-profile">Speaker profile (<code>/speaker-profile</code>)<a class="anchor-link" href="#speaker-profile-speaker-profile">#</a></h3>
+<p><img src="screenshots/TechieBlog/guest-speaker-profile.png" alt="Speaker profile" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, anonymous.</p>
+<p><strong>Roles:</strong> public</p>
+<p><strong>Call chain:</strong> <code>SpeakerProfile.razor:OnInitializedAsync</code> → <code>LoadSessionsAsync</code> → <code>BlogUserRepo.GetSiteOwnerAsync</code> → <code>SelectSiteOwnerSql</code> (<code>BlogUser</code>); <code>UserEventRepo.GetByUserAndTypeAsync</code> (<code>UserEventRepo.cs:159</code>) → <code>userevents</code> filtered by type <code>Speaking</code></p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/BlogPages/SpeakerProfile.razor:238</code></td><td><code>LoadSessionsAsync</code></td><td><code>sessions</code></td><td>owner's <code>Speaking</code> rows</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/SpeakerProfile.razor:241</code></td><td><code>LoadSessionsAsync</code></td><td><code>upcomingSessions</code></td><td><code>IsUpcoming</code> rows (<code>UserEvent.cs:133</code>), soonest first</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/SpeakerProfile.razor:246</code></td><td><code>LoadSessionsAsync</code></td><td><code>pastSessions</code></td><td>the rest, newest first</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/SpeakerProfile.razor:84</code></td><td>markup</td><td><code>upcomingSessions.Count</code></td><td>section omitted when zero</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> <code>IsUpcoming</code> is <code>EventDate.Date &gt;= DateTime.Today</code> (not a stored flag); <code>FormatDate</code> shows "dd MMM yyyy".</p>
+<h3 id="newsletter-archive-newsletters">Newsletter archive (<code>/newsletters</code>)<a class="anchor-link" href="#newsletter-archive-newsletters">#</a></h3>
+<p><img src="screenshots/TechieBlog/guest-newsletters.png" alt="Newsletter archive" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, anonymous: archive of sent issues.</p>
+<p><strong>Roles:</strong> public</p>
+<p><strong>Call chain:</strong> <code>Newsletters.razor.cs:OnInitializedAsync</code> → <code>SubscriberRepo.GetActiveSubscribersAsync</code> → <code>Subscriber</code>; <code>LoadPageAsync</code> → <code>NewsletterSvc.GetPublishedIssuesAsync</code> (<code>NewsletterSvc.cs:392</code>) → <code>{unresolved — NewsletterRepo SQL not read}</code></p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/BlogPages/Newsletters.razor.cs:124</code></td><td><code>LoadSubscriberCountAsync</code></td><td><code>confirmedSubscriberCount</code></td><td>count of active subscribers; 0 on failure</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/Newsletters.razor.cs:98</code></td><td><code>LoadPageAsync</code></td><td><code>archivePage.Items</code></td><td>sent, public, slugged issues, newest first</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/Newsletters.razor.cs:157</code></td><td><code>BuildIssueNumbers</code></td><td><code>numbers[...]</code></td><td><code>TotalCount - firstIndex - offset</code> (oldest is 1)</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> issue number is the send-order rank (<code>BuildIssueNumbers</code>, line 150); excerpt is <code>Summary</code> or the first 200 characters of stripped <code>Content</code> (<code>GetExcerpt</code>, line 195).</p>
+<h3 id="newsletter-issue-newsletter-slug"><a id="newsletter-issue-newsletterslug"></a>Newsletter issue (<code>/newsletter/{slug}</code>)<a class="anchor-link" href="#newsletter-issue-newsletter-slug">#</a></h3>
+<p><img src="screenshots/TechieBlog/guest-newsletter-issue.png" alt="Newsletter issue" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, anonymous, <code>/newsletter/fxv0-newsletter-issue-1</code>.</p>
+<p><strong>Roles:</strong> public</p>
+<p><strong>Call chain:</strong> <code>NewsletterView.razor.cs:OnParametersSetAsync</code> → <code>LoadIssueAsync</code> → <code>NewsletterSvc.GetPublishedBySlugAsync</code> (<code>NewsletterSvc.cs:428</code>) → <code>{unresolved — NewsletterRepo SQL not read}</code>; prev/next: <code>NewsletterSvc.GetNavigationAsync</code>; rank: <code>ResolveIssueNumberAsync</code> (<code>NewsletterView.razor.cs:138</code>) pages <code>GetPublishedIssuesAsync</code></p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/BlogPages/NewsletterView.razor.cs:105</code></td><td><code>LoadIssueAsync</code></td><td><code>resolved</code></td><td>sent, public issue; failure calls <code>Navigation.NotFound()</code> (line 109)</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/NewsletterView.razor.cs:114</code></td><td><code>LoadIssueAsync</code></td><td><code>renderedBody</code></td><td><code>MarkdownRenderer.ToHtml(issue.Content)</code></td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/NewsletterView.razor.cs:115</code></td><td><code>LoadIssueAsync</code></td><td><code>navigation</code></td><td>previous and next issues by send time</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/NewsletterView.razor.cs:161</code></td><td><code>ResolveIssueNumberAsync</code></td><td><code>issueNumber</code></td><td>rank by send order; <code>totalIssues</code> if scan bound is hit</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> <code>issueNumber</code> rank (line 161); previous/next labels are <code>issueNumber ∓ 1</code>.</p>
+<h3 id="email-confirmation-verify-token"><a id="email-confirmation-verifytoken"></a>Email confirmation (<code>/verify/{token}</code>)<a class="anchor-link" href="#email-confirmation-verify-token">#</a></h3>
+<p><img src="screenshots/TechieBlog/guest-verify-email.png" alt="Verify email" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders the invalid-link state. Seen 2026-11-02, with a deliberately invalid token (a real one would confirm a subscription).</p>
+<p><strong>Roles:</strong> public</p>
+<p><strong>Call chain:</strong> <code>VerifyEmail.razor.cs:OnAfterRenderAsync</code> (first interactive render) → <code>CheckTokenAsync</code> → <code>EmailVerificationTokenRepo.GetByTokenAsync</code> (<code>EmailVerificationToken</code>); valid row: <code>IEmailVerificationService.ConsumeAsync</code> (<code>EmailVerificationSvc.cs:162</code>) → <code>ConsumeEmailVerificationToken(@pToken)</code> (<code>EmailVerificationTokenRepo.cs:60</code>) → promotes comment, rating or <code>Subscriber</code> target</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/BlogPages/VerifyEmail.razor.cs:236</code></td><td><code>CheckTokenAsync</code></td><td><code>row</code></td><td>token row read without redeeming it</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/VerifyEmail.razor.cs:247</code></td><td><code>CheckTokenAsync</code></td><td><code>row.IsUsed</code></td><td>used tokens show "Already confirmed" and are never consumed</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/VerifyEmail.razor.cs:254</code></td><td><code>CheckTokenAsync</code></td><td><code>row.ExpiresOn</code></td><td>past 24 hours shows "no longer valid" with resend</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/VerifyEmail.razor.cs:285</code></td><td><code>ConsumeTokenAsync</code></td><td><code>result</code></td><td>success yields <code>Confirmed</code> or <code>SubscriptionConfirmed</code></td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> expiry check <code>ExpiresOn &lt;= UtcNow</code>; <code>ConfirmationSummary</code> wording by purpose.</p>
+<h3 id="unsubscribe-unsubscribe-token"><a id="unsubscribe-unsubscribetoken"></a>Unsubscribe (<code>/unsubscribe/{token}</code>)<a class="anchor-link" href="#unsubscribe-unsubscribe-token">#</a></h3>
+<p><img src="screenshots/TechieBlog/guest-unsubscribe.png" alt="Unsubscribe" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders the invalid-link state. Seen 2026-11-02, with a deliberately invalid token.</p>
+<p><strong>Roles:</strong> public, anonymous by design (<code>Unsubscribe.razor:9</code>). The route carries a token, so bare <code>/unsubscribe</code> is not routed.</p>
+<p><strong>Call chain:</strong> <code>Unsubscribe.razor.cs:OnAfterRenderAsync</code> → <code>ApplyTokenAsync</code> → <code>SubscriberSvc.UnsubscribeByTokenAsync</code> (<code>SubscriberSvc.cs:478</code>) → <code>SubscriberRepo</code> → <code>UnsubscribeToken</code> (read at line 189; <code>UPDATE UnsubscribeToken SET UsedOn</code> line 209) and <code>UPDATE Subscriber</code> (line 213)</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/BlogPages/Unsubscribe.razor.cs:178</code></td><td><code>ApplyTokenAsync</code></td><td><code>result</code></td><td>failure shows the service's vague message</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/Unsubscribe.razor.cs:188</code></td><td><code>ApplyTokenAsync</code></td><td><code>State</code></td><td><code>AlreadyUnsubscribed</code> if the outcome says so, else <code>Unsubscribed</code></td></tr>
+<tr><td><code>source/BlogEngine/DbAccess/SubscriberRepo.cs:209</code></td><td>consume SQL</td><td><code>UsedOn</code></td><td>set on first use; a replay changes nothing</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> none</p>
+<h3 id="rss-feed-page-rss">RSS feed page (<code>/rss</code>)<a class="anchor-link" href="#rss-feed-page-rss">#</a></h3>
+<p><img src="screenshots/TechieBlog/guest-rss.png" alt="RSS feed" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, anonymous.</p>
+<p><strong>Roles:</strong> public</p>
+<p><strong>Call chain:</strong> <code>RssFeed.razor:OnInitializedAsync</code> → <code>BlogSvc.GetPublishedPostsAsync(5, 0)</code> → <code>BlogPostRepo.GetPublishedPostsAsync</code> → <code>SelectPublishedSql</code>; the machine feed is a separate endpoint: <code>source/TechieBlog/Program.cs:775</code> (<code>RssFeedSvc.FeedPath = "/feed.xml"</code>, <code>RssFeedSvc.cs:91</code>) and <code>Program.cs:776</code> (<code>/rss.xml</code>), both to <code>RssFeedSvc.GenerateFeedAsync</code>. <code>/rss</code> itself is HTML.</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/BlogPages/RssFeed.razor:148</code></td><td><code>OnInitializedAsync</code></td><td><code>rssUrl</code></td><td><code>{BaseUri}feed.xml</code></td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/RssFeed.razor:156</code></td><td><code>LoadRecentPostsAsync</code></td><td><code>recentPosts</code></td><td>5 newest published posts</td></tr>
+<tr><td><code>source/TechieBlog/Program.cs:747</code></td><td><code>/sitemap.xml</code> endpoint</td><td>response</td><td><code>SitemapSvc.GenerateSitemapAsync</code>, <code>application/xml</code></td></tr>
+<tr><td><code>source/TechieBlog/Program.cs:779</code></td><td><code>/robots.txt</code> endpoint</td><td>response</td><td><code>Allow: /</code> and <code>Sitemap: {SiteSettings:BaseUrl}/sitemap.xml</code> (lines 780-786)</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> dates use <code>PublishedOn ?? CreatedOn</code> (<code>RssFeed.razor:113</code>).</p>
+<h3 id="sign-in-login-aliases-loginpage-loginpage-pagecode"><a id="sign-in-login-aliases-loginpage-loginpagepagecode"></a>Sign in (<code>/login</code>, aliases <code>/LoginPage</code>, <code>/LoginPage/{PageCode}</code>)<a class="anchor-link" href="#sign-in-login-aliases-loginpage-loginpage-pagecode">#</a></h3>
+<p><img src="screenshots/TechieBlog/guest-login.png" alt="Sign in" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02. All four test users signed in; landings: Admin and Editor <code>/admin</code>, Author <code>/BlogsList</code>, Contributor <code>/</code>.</p>
+<p><strong>Roles:</strong> public (no <code>[Authorize]</code>); a signed-in visitor is redirected away in <code>OnInitializedAsync</code> (<code>source/BlogUI/Pages/AdminPages/LoginPage.razor.cs:73-82</code>)</p>
+<p><strong>Call chain:</strong> <code>LoginPage.razor.cs:ValidateUser</code> → <code>TechieBlog/Services/AuthService.cs:LoginAsync</code> (host <code>IAuthService</code>) → <code>AuthSvc.AppLoginAsync</code> → <code>UserCredentialRepo.GetByEmailAsync</code> → <code>GetUserCredentialByEmail()</code> on <code>BlogUser</code> (<code>source/BlogEngine/DbAccess/UserCredentialRepo.cs:34,71</code>) → on success <code>loginlog</code> (<code>LoginLogRepo.cs:86</code>) and <code>userlogins</code> (<code>UserLoginRepo.cs:52</code>)</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/LoginPage.razor.cs:136</code></td><td><code>ValidateUser</code></td><td><code>validatedUser</code></td><td>AppUser on valid credentials; null sets "Invalid email or password." (<code>:156</code>)</td></tr>
+<tr><td><code>source/TechieBlog/Services/AuthService.cs:91</code></td><td><code>LoginAsync</code></td><td><code>user.LoginPass</code></td><td>encrypted before <code>AppLoginAsync</code> (<code>:95</code>); plaintext stays in the host adapter</td></tr>
+<tr><td><code>source/BlogEngine/Services/AuthSvc.cs:161</code></td><td><code>AppLoginAsync</code></td><td><code>loginThrottle.IsBlocked</code></td><td>locked account returns null and writes one LoginLog row (<code>:166</code>)</td></tr>
+<tr><td><code>source/BlogModel/Common/PasswordHasher.cs:163</code></td><td><code>Verify</code></td><td><code>outcome</code></td><td><code>Failed</code> refuses (<code>AuthSvc.cs:280</code>); <code>SuccessNeedsRehash</code> upgrades the hash (<code>:284</code>)</td></tr>
+<tr><td><code>source/BlogEngine/Services/AuthSvc.cs:302</code></td><td><code>AuthenticateAsync</code></td><td><code>user.MustChangePassword</code></td><td>copied from the credential row; <code>LoginPage.razor.cs:190</code> then routes to <code>/change-password</code></td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> PBKDF2-HMAC-SHA256 with 210,000 iterations (<code>PasswordHasher.cs:61</code>); access token exp 60 min and refresh window 14 days (<code>SessionPolicy.cs:54,73</code>).</p>
+<h3 id="forgot-password-forgot-password">Forgot password (<code>/forgot-password</code>)<a class="anchor-link" href="#forgot-password-forgot-password">#</a></h3>
+<p><img src="screenshots/TechieBlog/guest-forgot-password.png" alt="Forgot password" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, anonymous.</p>
+<p><strong>Roles:</strong> public (no <code>[Authorize]</code>)</p>
+<p><strong>Call chain:</strong> <code>ForgotPasswordPage.razor:HandleSubmit</code> → <code>AuthSvc.RequestPasswordResetAsync</code> (<code>source/BlogEngine/Services/AuthSvc.cs:847</code>) → <code>BlogUserRepo.GetUserByEmailAsync</code> (<code>source/BlogEngine/DbAccess/BlogUserRepo.cs:299</code>, <code>GetUserByEmail()</code>) → <code>PasswordResetTokenRepo.InsertAsync</code> (<code>PasswordResetTokenRepo.cs:148</code>, <code>InsertPasswordResetToken()</code>) → <code>PasswordResetToken</code>; mail via <code>IEmailService</code></p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ForgotPasswordPage.razor:91</code></td><td><code>HandleSubmit</code></td><td><code>message</code></td><td>same text whether or not the address exists (<code>:107</code>)</td></tr>
+<tr><td><code>source/BlogEngine/Services/AuthSvc.cs:859</code></td><td><code>RequestPasswordResetAsync</code></td><td><code>result</code></td><td>unknown address returns success with an empty token (<code>:864</code>)</td></tr>
+<tr><td><code>source/BlogEngine/Services/AuthSvc.cs:897</code></td><td><code>PersistResetTokenAsync</code></td><td><code>ExpiresAt</code></td><td>UTC now + 24 h (<code>:905</code>)</td></tr>
+<tr><td><code>source/BlogEngine/Services/AuthSvc.cs:869</code></td><td><code>RequestPasswordResetAsync</code></td><td><code>BuildResetUrl(...)</code></td><td><code>{baseUrl}/reset-password/{token}</code></td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> token is 32 random bytes, base64url without padding (<code>AuthSvc.cs:1008-1014</code>).</p>
+<h3 id="reset-password-reset-password-reset-password-token"><a id="reset-password-reset-password-reset-passwordtoken"></a>Reset password (<code>/reset-password</code>, <code>/reset-password/{Token}</code>)<a class="anchor-link" href="#reset-password-reset-password-reset-password-token">#</a></h3>
+<p><img src="screenshots/TechieBlog/guest-reset-password.png" alt="Reset password" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders the invalid-link state. Seen 2026-11-02, with a deliberately invalid token.</p>
+<p><strong>Roles:</strong> public (no <code>[Authorize]</code>); the token is the credential</p>
+<p><strong>Call chain:</strong> <code>ResetPasswordPage.razor:OnInitializedAsync</code> → <code>AuthSvc.ValidateResetTokenAsync</code> (<code>source/BlogEngine/Services/AuthSvc.cs:985</code>) → <code>PasswordResetTokenRepo.GetByTokenAsync</code> (<code>PasswordResetTokenRepo.cs:86</code>) → <code>PasswordResetToken</code>; submit: <code>ResetPasswordPage.razor:HandleSubmit</code> → <code>AuthSvc.ResetPasswordAsync</code> (<code>AuthSvc.cs:939</code>) → <code>UserCredentialRepo.UpdatePasswordHashAsync</code> (<code>UserCredentialRepo.cs:121</code>, <code>UpdateUserPassword()</code>) → <code>PasswordResetTokenRepo.MarkUsedAsync</code> (<code>PasswordResetTokenRepo.cs:111</code>, <code>MarkPasswordResetTokenUsed()</code>)</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ResetPasswordPage.razor:136</code></td><td><code>OnInitializedAsync</code></td><td><code>tokenInvalid</code></td><td>true for an empty token or a failed <code>ValidateResetTokenAsync</code> (unknown, expired, used)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ResetPasswordPage.razor:165</code></td><td><code>HandleSubmit</code></td><td><code>model.Password</code> vs <code>ConfirmPassword</code></td><td>mismatch shows "Passwords do not match." and stops</td></tr>
+<tr><td><code>source/BlogEngine/Services/AuthSvc.cs:950</code></td><td><code>ResetPasswordAsync</code></td><td><code>PasswordValidator.Validate</code></td><td>rejects weak passwords before any write</td></tr>
+<tr><td><code>source/BlogEngine/Services/AuthSvc.cs:958</code></td><td><code>ResetPasswordAsync</code></td><td><code>mustChangePassword</code> argument</td><td><code>false</code>: the user has chosen a password</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ResetPasswordPage.razor:190</code></td><td><code>HandleSubmit</code></td><td>navigation URL</td><td><code>/login?message=password-reset</code> (nothing on <code>/login</code> reads it; see Defects)</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> password policy from <code>PasswordValidator</code> (min 8, upper, lower, digit); a token is single use (<code>MarkUsedAsync</code>).</p>
+<h3 id="change-password-change-password">Change password (<code>/change-password</code>)<a class="anchor-link" href="#change-password-change-password">#</a></h3>
+<p><img src="screenshots/TechieBlog/author-change-password.png" alt="Change password" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, as user 3 (Author); reached directly because the account is not flagged MustChangePassword on this database.</p>
+<p><strong>Roles:</strong> any signed-in role (<code>@attribute [Authorize]</code>, <code>source/BlogUI/Pages/AdminPages/ChangePasswordPage.razor:22</code>)</p>
+<p><strong>Forced-change wall:</strong> <code>source/BlogUI/Components/ForcePasswordChangeGuard.razor:89</code> <code>EnforceAsync</code> sends a flagged user to <code>/change-password</code> (navigate at <code>:114</code>). It is mounted once in <code>source/BlogUI/Routes.razor:17</code> and re-checks on <code>OnAfterRenderAsync</code> (<code>:36</code>), <code>OnLocationChanged</code> (<code>:54</code>) and <code>OnAuthenticationStateChanged</code> (<code>:67</code>). Login-time gate: <code>LoginPage.razor.cs:190</code>.</p>
+<p><strong>Call chain:</strong> <code>ChangePasswordPage.razor:HandleSubmit</code> → <code>AuthSvc.ChangePasswordAsync</code> (<code>source/BlogEngine/Services/AuthSvc.cs:1137</code>) → <code>UserCredentialRepo.GetByUserIdAsync</code> (<code>UserCredentialRepo.cs:96</code>, <code>GetUserCredentialById()</code>) → <code>UpdatePasswordHashAsync</code> (<code>UserCredentialRepo.cs:121</code>) → <code>BlogUser</code> (<code>UpdateUserPassword()</code>); then <code>CustomAuthStateProvider.RefreshAuthenticationStateAsync</code> (<code>source/BlogUI/Common/CustomAuthStateProvider.cs:347</code>)</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ChangePasswordPage.razor:131</code></td><td><code>OnInitializedAsync</code></td><td><code>isForced</code></td><td>true when the <code>MustChangePassword</code> claim equals "true" (<code>:136-139</code>)</td></tr>
+<tr><td><code>source/BlogEngine/Services/AuthSvc.cs:1152</code></td><td><code>ChangePasswordAsync</code></td><td><code>PasswordHasher.Verify(currentPassword)</code></td><td><code>Failed</code> returns "Current password is incorrect"</td></tr>
+<tr><td><code>source/BlogEngine/Services/AuthSvc.cs:1155</code></td><td><code>ChangePasswordAsync</code></td><td><code>PasswordValidator.Validate</code></td><td>strength rule; the only place it is enforced for this screen</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ChangePasswordPage.razor:198</code></td><td><code>HandleSubmit</code></td><td><code>RefreshAuthenticationStateAsync</code></td><td>rebuilds the principal so the cleared flag reaches the guard</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ChangePasswordPage.razor:202</code></td><td><code>HandleSubmit</code></td><td><code>NavigateTo</code></td><td><code>RoleLandingRoutes.ResolveFor(signedInRole)</code> after 1.2 s</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> none beyond the confirmation match (<code>ChangePasswordPage.razor:167</code>).</p>
+<h3 id="access-denied-access-denied">Access denied (<code>/access-denied</code>)<a class="anchor-link" href="#access-denied-access-denied">#</a></h3>
+<p><img src="screenshots/TechieBlog/contributor-access-denied.png" alt="Access denied" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02: user 4 (Contributor) asking for <code>/admin</code> lands on <code>/access-denied</code>.</p>
+<p><strong>Roles:</strong> public route (no <code>[Authorize]</code>). Reached by the <code>NotAuthorized</code> fragment in <code>source/BlogUI/Routes.razor:51-60</code>, then moved to the real route by <code>OnAfterRender</code>.</p>
+<p><strong>Call chain:</strong> <code>AccessDenied.razor:OnInitializedAsync</code> → <code>RoleLandingRoutes.ResolveFor(role claim)</code> (<code>source/BlogModel/Common/RoleLandingRoutes.cs</code>) → <code>AccessDenied.razor:OnAfterRender</code> → <code>NavigationManager.NavigateTo("/access-denied")</code>; no data access</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AccessDenied.razor:99</code></td><td><code>OnInitializedAsync</code></td><td><code>LandingRoute</code></td><td>the role's landing route, <code>/</code> when the role has none</td></tr>
+<tr><td><code>source/BlogUI/Pages/AccessDenied.razor:93</code></td><td><code>HasStaffLanding</code></td><td>bool</td><td>true shows "Go to Dashboard"</td></tr>
+<tr><td><code>source/BlogUI/Pages/AccessDenied.razor:130</code></td><td><code>OnAfterRender</code></td><td><code>RendererInfo.IsInteractive</code></td><td>navigates only on the first interactive render, from the NotAuthorized fragment</td></tr>
+<tr><td><code>source/BlogUI/Pages/AccessDenied.razor:147</code></td><td><code>IsOnOwnRoute</code></td><td>path</td><td>path-only compare, so no redirect loop</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> none.</p>
+<h3 id="post-editor-managepost-aliases-managepost-pageid"><a id="post-editor-managepost-aliases-managepostpageid"></a>Post editor (<code>/ManagePost</code>, aliases <code>/ManagePost/{PageId}</code>)<a class="anchor-link" href="#post-editor-managepost-aliases-managepost-pageid">#</a></h3>
+<p><img src="screenshots/TechieBlog/author-post-editor.png" alt="Post editor" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, as user 3 (Author), new post. Also seen: the author opened <code>/ManagePost/521</code>, a post owned by user 1, as a fully editable "Edit Post" form (Known issues, D3).</p>
+<p><strong>Roles:</strong> <code>AuthorOrAbove</code> (<code>source/BlogUI/Pages/AdminPages/ManagePost.razor:14</code>). The page does not check ownership of the loaded post (see Defects).</p>
+<p><strong>Call chain:</strong> <code>ManagePost.razor.cs:OnParametersSetAsync</code> → <code>LoadExistingPostAsync</code> → <code>BlogSvc.GetSinglePostAsync</code> (<code>source/BlogEngine/Services/BlogSvc.cs:213</code>) → <code>BlogPostRepo.GetSingleAsync</code> (<code>SelectByIdSql</code>, <code>BlogPost</code>); save: <code>ManagePost.razor.cs:SaveWithPublishState</code> → <code>BlogSvc.PublishPostAsync</code> or <code>SaveDraftAsync</code> → <code>SavePostAsync</code> (<code>BlogSvc.cs:632</code>) → <code>UpdatePostAsync</code> (<code>:571</code>) or <code>CreatePostAsync</code> → <code>BlogPostRepo</code> (<code>BlogPost</code> UPDATE at <code>BlogPostRepo.cs:218-232</code>, INSERT at <code>:210</code>); tags: <code>TagSvc.SetTagsForPostAsync</code> (<code>TagSvc.cs:559</code>) → <code>BlogTagRepo.SetTagsForPostAsync</code> (<code>BlogTagRepo.cs:436</code>, <code>DELETE</code>/<code>INSERT</code> on <code>PostTag</code>)</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManagePost.razor.cs:257</code></td><td><code>OnParametersSetAsync</code></td><td><code>PageObj</code></td><td>the routed post; <code>PageId &lt;= 0</code> gives a new BlogPost with <code>Published = false</code> (<code>:279-282</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManagePost.razor.cs:633</code></td><td><code>SaveWithPublishState</code></td><td><code>result.IsSuccess</code></td><td>post saved, tags re-synced; publish navigates to <code>/BlogsList</code> after 500 ms (<code>:726-727</code>)</td></tr>
+<tr><td><code>source/BlogEngine/Services/BlogSvc.cs:694</code></td><td><code>SaveDraftAsync</code></td><td><code>post.ScheduledPublishOn</code></td><td>expected cleared on a draft save; it is not cleared (see Defects)</td></tr>
+<tr><td><code>source/BlogEngine/Services/BlogSvc.cs:599</code></td><td><code>UpdatePostAsync</code></td><td><code>post.Slug</code></td><td><code>EnsureSlug</code> then <code>ResolveUniqueSlugAsync</code> (<code>:599-602</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManagePost.razor.cs:518</code></td><td><code>AddNewTagAsync</code></td><td><code>tag</code></td><td><code>TagSvc.GetOrCreateTagAsync</code> (<code>TagSvc.cs:308</code>) returns an existing or new tag</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> <code>TitleCharCountLabel</code> and <code>AbstractCharCountLabel</code> (<code>ManagePost.razor.cs:87-124</code>, limits from <code>BlogPost.TitleMaxLength</code> / <code>AbstractMaxLength</code>); slug from <code>SlugGenerator.GenerateSlug</code> (<code>source/BlogEngine/Common/SlugGenerator.cs:76</code>) at <code>ManagePost.razor.cs:425,477,677,834</code>; scheduled time is local, converted to UTC at <code>:838</code>.</p>
+<h3 id="posts-list-blogslist">Posts list (<code>/BlogsList</code>)<a class="anchor-link" href="#posts-list-blogslist">#</a></h3>
+<p><img src="screenshots/TechieBlog/author-posts-list.png" alt="Posts list" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders empty. Seen 2026-11-02, as user 3 (Author): the author owns no live post on this database. As user 1 (Admin) it lists 3 posts, and typing in the search box crashes the page (Known issues, TR-077).</p>
+<p><strong>Roles:</strong> <code>AuthorOrAbove</code> (<code>source/BlogUI/Pages/AdminPages/BlogsList.razor:14</code>). Admin or Editor see every post; other roles see their own.</p>
+<p><strong>Call chain:</strong> <code>BlogsList.razor.cs:OnInitializedAsync</code> (<code>:112</code>) → <code>LoadPostsAsync</code> (<code>:133</code>) → <code>BlogSvc.GetAllPostsAsync</code> (<code>source/BlogEngine/Services/BlogSvc.cs:186</code>) → <code>BlogPostRepo.GetAllAsync</code> (<code>SelectAllSql</code>, <code>BlogPostRepo.cs:112</code>, <code>FROM BlogPost</code>) or <code>GetAllByIdAsync</code> (<code>SelectAllByUserSql</code>, <code>:127</code>, <code>WHERE p.UserID = @UserID</code>)</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/BlogsList.razor.cs:112</code></td><td><code>OnInitializedAsync</code></td><td><code>isAdminOrEditor</code></td><td>true when the principal is in <code>Admin</code> or <code>Editor</code></td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/BlogsList.razor.cs:135</code></td><td><code>LoadPostsAsync</code></td><td><code>posts</code></td><td>every post for Admin or Editor; the caller's own posts otherwise</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/BlogsList.razor.cs:154</code></td><td><code>ApplyFilter</code></td><td><code>filtered</code></td><td>status tab: published, scheduled (<code>IsScheduled</code>), draft; then search over Title, Slug, BlogWriter</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/BlogsList.razor.cs:217</code></td><td><code>NavigateToPreviewAsync</code></td><td><code>post.Published</code></td><td>published posts open <code>/post/{slug}</code> externally; drafts go to <code>/admin/preview/{id}</code></td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/BlogsList.razor.cs:320</code></td><td><code>CancelScheduleAsync</code></td><td><code>BlogService.CancelScheduleAsync</code></td><td><code>BlogSvc.cs:929</code> clears the schedule and keeps the post a draft</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> status and search filters in <code>ApplyFilter</code>; the tab counts are derived from the same list.</p>
+<h3 id="draft-preview-admin-preview-postid"><a id="draft-preview-adminpreviewpostid"></a>Draft preview (<code>/admin/preview/{PostId}</code>)<a class="anchor-link" href="#draft-preview-admin-preview-postid">#</a></h3>
+<p><img src="screenshots/TechieBlog/author-preview.png" alt="Draft preview" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, as user 3 (Author), <code>/admin/preview/521</code>, a post owned by user 1.</p>
+<p><strong>Roles:</strong> <code>AuthorOrAbove</code> (<code>source/BlogUI/Pages/AdminPages/PreviewPost.razor:11</code>). No ownership check on the post.</p>
+<p><strong>Call chain:</strong> <code>PreviewPost.razor:OnInitializedAsync</code> (<code>:212</code>) → <code>LoadPost</code> (<code>:218</code>) → <code>BlogSvc.GetSinglePostAsync</code> (<code>BlogSvc.cs:213</code>) → <code>BlogPostRepo.GetSingleAsync</code> (<code>BlogPost</code>); tags: <code>TagSvc.GetTagsForPostAsync</code> (<code>TagSvc.cs:524</code>) → <code>PostTag</code>; publish: <code>HandlePublish</code> (<code>:243</code>) → <code>BlogSvc.QuickPublishAsync</code> (<code>BlogSvc.cs:798</code>) → <code>BlogPostRepo.UpdateAsync</code></p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/PreviewPost.razor:223</code></td><td><code>LoadPost</code></td><td><code>blogPost</code></td><td>the post; a thrown exception sets null (<code>:235-238</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/PreviewPost.razor:228</code></td><td><code>LoadPost</code></td><td><code>postTags</code></td><td>tag names from the <code>PostTag</code> junction, not the legacy Tags text</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/PreviewPost.razor:252</code></td><td><code>HandlePublish</code></td><td><code>result.IsSuccess</code></td><td><code>QuickPublishAsync</code> sets Published and clears the schedule (<code>BlogSvc.cs:816</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/PreviewPost.razor:259</code></td><td><code>HandlePublish</code></td><td><code>Navigation.NavigateTo</code></td><td><code>/post/{slug}</code> after a 1 s delay (<code>:258</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/PreviewPost.razor:307</code></td><td><code>RenderContent</code></td><td>html</td><td><code>MarkdownRenderer.ToHtml</code>; empty body shows "No content available."</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> <code>GetReadingTime</code> via <code>ReadingTimeCalculator.Calculate</code> (<code>PreviewPost.razor:301-304</code>).</p>
+<h3 id="series-admin-admin-series-aliases-serieslist-editor-at-admin-series-new-and-admin-series-pageid"><a id="series-admin-adminseries-aliases-serieslist-editor-at-adminseriesnew-and-adminseriespageid"></a>Series admin (<code>/admin/series</code>, aliases <code>/SeriesList</code>; editor at <code>/admin/series/new</code> and <code>/admin/series/{PageId}</code>)<a class="anchor-link" href="#series-admin-admin-series-aliases-serieslist-editor-at-admin-series-new-and-admin-series-pageid">#</a></h3>
+<p><img src="screenshots/TechieBlog/admin-series-admin.png" alt="Series admin" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders empty. Seen 2026-11-02, as user 1 (Admin): 0 series on this database.</p>
+<p><strong>Roles:</strong> <code>AuthorOrAbove</code> on both <code>source/BlogUI/Pages/AdminPages/SeriesList.razor:12</code> and <code>ManageSeries.razor:12</code>. No owner scoping (see Defects).</p>
+<p><strong>Call chain:</strong> <code>SeriesList.razor:OnInitializedAsync</code> (<code>:238</code>) → <code>LoadSeriesAsync</code> (<code>:254</code>) → <code>SeriesSvc.GetAllWithCountsAsync</code> (<code>source/BlogEngine/Services/SeriesSvc.cs:161</code>) → <code>BlogSeriesRepo.GetAllWithCountsAsync</code> (<code>BlogSeriesRepo.cs:174</code>, <code>FROM BlogSeries s</code>); delete: <code>SeriesList.razor:DeleteSeriesAsync</code> (<code>:324</code>) → <code>SeriesSvc.DeleteSeriesAsync</code> (<code>:575</code>) → <code>BlogPostRepo.ClearSeriesFromPostsAsync</code> → <code>BlogSeriesRepo.DeleteAsync</code>; editor: <code>ManageSeries.razor.cs:OnParametersSetAsync</code> (<code>:46</code>) → <code>SeriesSvc.GetSeriesAsync</code> (<code>SeriesSvc.cs:193</code>)</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/SeriesList.razor:258</code></td><td><code>LoadSeriesAsync</code></td><td><code>ObjectList</code></td><td>every series with its post count (<code>PostCount</code> is a LEFT JOIN on published, non-deleted posts, <code>BlogSeriesRepo.cs:42</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/SeriesList.razor:276</code></td><td><code>ApplyFilter</code></td><td><code>FilteredList</code></td><td>status (<code>inprogress</code>, <code>complete</code>) then search over Name, Slug, AuthorName</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/SeriesList.razor:324</code></td><td><code>DeleteSeriesAsync</code></td><td><code>result.IsSuccess</code></td><td>series removed; its posts stay, with the series link cleared</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageSeries.razor.cs:46</code></td><td><code>OnParametersSetAsync</code></td><td><code>PageObj</code></td><td>existing series for <code>PageId &gt; 0</code>; <code>PageId == 0</code> gives a new series with <code>AuthorId</code> set to the caller (<code>:71-80</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageSeries.razor.cs:100</code></td><td><code>SaveDataAsync</code></td><td><code>result.IsSuccess</code></td><td><code>SaveSeriesAsync</code> (<code>:111</code>), then <code>ReorderPartsAsync</code> (<code>SeriesSvc.cs:342</code>) when editing a series with more than one part; success goes to <code>/admin/series</code></td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> <code>InProgressCount</code> and <code>CompleteCount</code> (<code>SeriesList.razor:227-228</code>); <code>Slug</code> via <code>SlugGenerator.EnsureSlug</code> (<code>SeriesSvc.cs:482-531</code>).</p>
+<h3 id="media-library-admin-images-and-imagepicker-component"><a id="media-library-adminimages-and-imagepicker-component"></a>Media library (<code>/admin/images</code>) and ImagePicker component<a class="anchor-link" href="#media-library-admin-images-and-imagepicker-component">#</a></h3>
+<p><img src="screenshots/TechieBlog/admin-media-library.png" alt="Media library" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, as user 1 (Admin).</p>
+<p><strong>Roles:</strong> <code>AdminOnly</code> (<code>source/BlogUI/Pages/AdminPages/ManageImages.razor:11</code>). <code>ImagePicker</code> has no attribute and inherits its host page's policy.</p>
+<p><strong>Call chain:</strong> <code>ManageImages.razor.cs:UploadFile</code> (<code>:342</code>) → <code>BlogImageService.UploadImageAsync</code> (<code>source/BlogEngine/Services/BlogImageService.cs:162</code>) → <code>ValidateImageAsync</code> (<code>:144</code>) → <code>StoreAsync</code> (<code>:309</code>) → <code>WriteBytesAsync</code> (<code>:367</code>) → <code>IFileStorage.SaveAsync</code> (<code>source/BlogEngine/Storage/FileSystemStorage.cs:92</code>) → <code>PersistMetadata</code> (<code>:473</code>) → <code>BlogImageRepo.InsertToGetId</code> → <code>BlogImage</code>. Delete: <code>ConfirmDelete</code> (<code>ManageImages.razor.cs:499</code>) → <code>DeleteImageAsync</code> (<code>BlogImageService.cs:184</code>) → <code>RemoveStoredFileAsync</code> (<code>:561</code>) → <code>DELETE FROM BlogImage</code> (<code>:585</code>)</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageImages.razor.cs:163</code></td><td><code>LoadImages</code></td><td><code>AllImages</code></td><td><code>GetImagesByCategoryAsync</code> (<code>BlogImageService.cs:213</code>), filtered by category and optional user</td></tr>
+<tr><td><code>source/BlogModel/Common/ImageCategoryRules.cs:193</code></td><td><code>For</code> (rule table)</td><td><code>MaxSizeBytes</code></td><td>profiles 2 MB, logos and awards 500 KB, icons 200 KB, blog and general 5 MB, cv 10 MB</td></tr>
+<tr><td><code>source/BlogEngine/Services/BlogImageService.cs:621</code></td><td><code>ValidateAgainstConstraints</code></td><td><code>file.Size</code></td><td>over <code>MaxSizeBytes</code> is refused; the same value caps <code>OpenReadStream</code> (<code>:413</code>)</td></tr>
+<tr><td><code>source/BlogEngine/Services/BlogImageService.cs:176</code></td><td><code>UploadImageAsync</code></td><td><code>relativePath</code></td><td><code>uploads/{category}/{category}-{userId}-{yyyyMMddHHmmss}-{8 hex}.{ext}</code> (<code>:641-649</code>) under the storage root (<code>source/BlogEngine/Storage/UploadsLocation.cs:82,130</code>; host default <code>wwwroot</code>)</td></tr>
+<tr><td><code>source/BlogEngine/Services/BlogImageService.cs:196</code></td><td><code>DeleteImageAsync</code></td><td><code>image.UserID</code></td><td>the owner id must equal the caller id; the page passes the owner id (<code>ManageImages.razor.cs:509</code>)</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> 12 per page, <code>TotalPages = ceil(TotalImages / PageSize)</code> (<code>ManageImages.razor.cs:95-96</code>). <code>ImagePicker</code>: <code>OpenGallery</code> (<code>ImagePicker.razor.cs:86</code>) lists the caller's own uploads (<code>GetImagesByCategoryAsync(Category, UserId)</code> at <code>:94</code>); <code>SelectImage</code> (<code>:142</code>) writes <code>PageObj.FeaturedImage</code> (<code>ManagePost.razor:330</code>).</p>
+<h3 id="admin-dashboard-admin-aliases-admindashboard">Admin dashboard (<code>/admin</code>, aliases <code>/AdminDashboard</code>)<a class="anchor-link" href="#admin-dashboard-admin-aliases-admindashboard">#</a></h3>
+<p><img src="screenshots/TechieBlog/admin-dashboard.png" alt="Admin dashboard" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, as user 1 (Admin): live tiles (3 posts, 4 users, 0 comments, 70 subscribers).</p>
+<p><strong>Roles:</strong> <code>EditorOrAbove</code> (<code>source/BlogUI/Pages/AdminPages/AdminDashboard.razor:13</code>); the "Pending comments" and admin-only tiles sit inside <code>AuthorizeView Policy="AdminOnly"</code> (<code>AdminDashboard.razor:107</code>).</p>
+<p><strong>Call chain:</strong> <code>AdminDashboard.razor.cs:OnInitializedAsync</code> → <code>DashboardSvc.GetAdminCountsAsync</code> (<code>source/BlogEngine/Services/DashboardSvc.cs:52</code>) → <code>AdminCountsRepo.GetAdminCountsAsync</code> (<code>source/BlogEngine/DbAccess/AdminCountsRepo.cs:119</code>) → one scalar SELECT over <code>BlogPost</code>, <code>BlogComment</code>, <code>BlogUser</code>, <code>Subscriber</code>, <code>Newsletter</code>, <code>PostViews</code>, <code>Tag</code>, <code>Category</code>, <code>BlogImage</code> (<code>SelectCountsSql</code>, lines 72-88)</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/AdminDashboard.razor.cs:117</code></td><td><code>OnInitializedAsync</code></td><td><code>counts</code></td><td>aggregate tiles populated in one read</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/AdminDashboard.razor.cs:152-161</code></td><td><code>ApplyCounts</code></td><td><code>PendingComments</code></td><td><code>= counts.UnAppComments</code> (see Defects)</td></tr>
+<tr><td><code>source/BlogEngine/DbAccess/AdminCountsRepo.cs:77</code></td><td><code>SelectCountsSql</code></td><td><code>UnAppComments</code></td><td><code>COUNT(*) WHERE Published = FALSE</code></td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/AdminDashboard.razor.cs:176-187</code></td><td><code>LoadPostBreakdownAsync</code></td><td><code>DraftPosts</code>, <code>ScheduledPosts</code>, <code>PostsThisMonth</code></td><td>drafts = <code>!Published &amp;&amp; !IsScheduled</code>; scheduled = <code>IsScheduled</code>; created since UTC month start</td></tr>
+<tr><td><code>source/BlogEngine/Services/AnalyticsSvc.cs:53</code></td><td><code>GetPopularPostsAsync</code></td><td><code>PopularPosts</code></td><td>top posts by view count in the popular window (<code>AnalyticsRepo.cs:187</code>)</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> <code>LoadPostBreakdownAsync</code> partitions the post list into draft, scheduled and this-month counts. <code>ApplyCounts</code> is a straight copy. No other arithmetic.</p>
+<h3 id="user-management-users">User management (<code>/users</code>)<a class="anchor-link" href="#user-management-users">#</a></h3>
+<p><img src="screenshots/TechieBlog/admin-users.png" alt="User management" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, as user 1 (Admin).</p>
+<p><strong>Roles:</strong> <code>AdminOnly</code> (<code>source/BlogUI/Pages/AdminPages/UsersList.razor:11</code>).</p>
+<p><strong>Call chain:</strong> <code>UsersList.razor.cs:LoadUsers</code> → <code>BlogUserRepo.GetAllAsync</code> (<code>source/BlogEngine/DbAccess/BlogUserRepo.cs:151</code>) → <code>BlogUser</code> (<code>SelectAllSql</code>, line 62; <code>NotDeleted</code> filter, line 818). Delete: <code>ConfirmDelete</code> → <code>BlogUserRepo.SoftDeleteUserAsync</code> (line 549) → <code>SoftDeleteBlogUser()</code> (<code>source/BlogDb/PostgresScripts/030-UserAdminEditDelete.sql:174</code>) → <code>BlogUser</code>.</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/UsersList.razor.cs:167-171</code></td><td><code>LoadUsers</code></td><td><code>ObjectList</code></td><td>every non-deleted account, ordered by <code>UserId</code></td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/UsersList.razor.cs:390-413</code></td><td><code>SaveUserChanges</code></td><td><code>UserToEdit</code></td><td><code>BlogUserRepo.UpdateAsync</code> writes name, email and role</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/UsersList.razor.cs:524</code></td><td><code>ConfirmDelete</code></td><td><code>deleted</code></td><td>soft delete: <code>IsDeleted = TRUE</code>, <code>IsConfirmed = FALSE</code>; row kept</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/UsersList.razor.cs:577</code></td><td><code>ToggleUserStatus</code></td><td><code>updated</code></td><td><code>SetBlogUserActive</code> (<code>030-UserAdminEditDelete.sql:85</code>) flips <code>IsConfirmed</code> on live rows only</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/UsersList.razor.cs:305-314</code></td><td><code>DeleteBlockReason</code></td><td><code>reason</code></td><td>non-null for the site owner, so the delete is refused</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> role tab counts (<code>AdminCount</code>, <code>EditorCount</code>, <code>ReaderCount</code>) are in-page tallies of <code>ObjectList</code>. No other arithmetic.</p>
+<h3 id="add-user-adduser">Add user (<code>/AddUser</code>)<a class="anchor-link" href="#add-user-adduser">#</a></h3>
+<p><img src="screenshots/TechieBlog/admin-add-user.png" alt="Add user" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, as user 1 (Admin).</p>
+<p><strong>Roles:</strong> <code>AdminOnly</code> (<code>source/BlogUI/Pages/AdminPages/AddUser.razor:18</code>).</p>
+<p><strong>Call chain:</strong> <code>AddUser.razor:HandleSubmit</code> (line 197) → <code>AuthSvc.CreateStaffAccountAsync</code> (<code>source/BlogEngine/Services/AuthSvc.cs:735</code>) → <code>BlogUserRepo.InsertToGetIdAsync</code> (<code>InsertBlogUser</code>, <code>BlogUserRepo.cs:69</code>) → <code>UpdatePasswordHashAsync</code> (<code>AuthSvc.cs:755</code>) → <code>{unresolved — credential table name not read}</code></p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/AddUser.razor:199</code></td><td><code>HandleSubmit</code></td><td><code>Password</code> vs <code>ConfirmPassword</code></td><td>mismatch rejected before the service call</td></tr>
+<tr><td><code>source/BlogEngine/Services/AuthSvc.cs:744-747</code></td><td><code>CreateStaffAccountAsync</code></td><td><code>validation</code></td><td>required fields, <code>PasswordValidator</code>, email uniqueness</td></tr>
+<tr><td><code>source/BlogEngine/Services/AuthSvc.cs:750</code></td><td><code>CreateStaffAccountAsync</code></td><td><code>userId</code></td><td>new <code>BlogUser</code> id; <code>&lt;= 0</code> is a failure</td></tr>
+<tr><td><code>source/BlogEngine/Services/AuthSvc.cs:755</code></td><td><code>CreateStaffAccountAsync</code></td><td><code>MustChangePassword</code> flag</td><td>set <code>true</code> on the new credential</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/AddUser.razor:174</code></td><td>field init</td><td><code>NewUser.UserRole</code></td><td>default <code>"Reader"</code></td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> none. Password hashing is <code>PasswordHasher.HashPassword</code>, called from <code>AuthSvc</code>.</p>
+<h3 id="comment-moderation-commentslist-alias-comments">Comment moderation (<code>/CommentsList</code>, alias <code>/comments</code>)<a class="anchor-link" href="#comment-moderation-commentslist-alias-comments">#</a></h3>
+<p><img src="screenshots/TechieBlog/editor-comments.png" alt="Comment moderation" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders empty. Seen 2026-11-02, as user 2 (Editor): 0 comments waiting.</p>
+<p><strong>Roles:</strong> <code>EditorOrAbove</code> (<code>source/BlogUI/Pages/AdminPages/CommentsList.razor:12</code>).</p>
+<p><strong>Call chain:</strong> <code>CommentsList.razor:LoadCommentsAsync</code> (line 371) → <code>CommentSvc.GetAllCommentsAsync</code> (<code>source/BlogEngine/Services/CommentSvc.cs:733</code>) → <code>BlogCommentRepo.GetAllAsync</code> (<code>source/BlogEngine/DbAccess/BlogCommentRepo.cs</code>, <code>SelectAllSql</code> line 42) → <code>blogcomment</code></p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/CommentsList.razor:378</code></td><td><code>LoadCommentsAsync</code></td><td><code>comments</code></td><td>all comments, newest first</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/CommentsList.razor:547</code></td><td><code>ApproveCommentAsync</code></td><td><code>result</code></td><td><code>CommentSvc.ApproveCommentAsync</code> (<code>CommentSvc.cs:763</code>) refuses unverified email, then <code>ApproveBlogCommentAsync</code> (<code>BlogCommentRepo.cs:508</code>) sets <code>Approved</code>, <code>published = TRUE</code></td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/CommentsList.razor:484</code></td><td>bulk apply</td><td><code>selectedIds</code></td><td><code>ApproveCommentsAsync</code> → <code>SetModerationStatusBulkAsync</code> (<code>BlogCommentRepo.cs:564</code>) adds <code>AND isemailverified = TRUE</code></td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/CommentsList.razor:568</code></td><td>reject</td><td><code>status</code></td><td><code>RejectCommentAsync</code> (<code>CommentSvc.cs:515</code>) → <code>Spam</code>, <code>published = FALSE</code></td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/CommentsList.razor:616</code></td><td><code>DeleteCommentAsync</code></td><td>row</td><td><code>CommentSvc.DeleteCommentAsync</code> (<code>CommentSvc.cs:801</code>) → <code>DELETE FROM blogcomment</code> (<code>BlogCommentRepo.cs:669</code>)</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> <code>ApprovedCount</code> (line 312) counts <code>Status == "Approved"</code>. Status mapping (lines 364-366) maps the stored moderation status to a label.</p>
+<h3 id="category-management-admin-categories-alias-categorieslist-edit-admin-category-admin-category-pageid"><a id="category-management-admincategories-alias-categorieslist-edit-admincategory-admincategorypageid"></a>Category management (<code>/admin/categories</code>, alias <code>/CategoriesList</code>; edit <code>/admin/category</code>, <code>/admin/category/{PageId}</code>)<a class="anchor-link" href="#category-management-admin-categories-alias-categorieslist-edit-admin-category-admin-category-pageid">#</a></h3>
+<p><img src="screenshots/TechieBlog/admin-categories.png" alt="Category management" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, as user 1 (Admin).</p>
+<p><strong>Roles:</strong> <code>AdminOnly</code> on both the list (<code>source/BlogUI/Pages/AdminPages/CategoriesList.razor:12</code>) and the edit page (<code>ManageCategory.razor:12</code>).</p>
+<p><strong>Call chain:</strong> <code>CategoriesList.razor:LoadCategoriesAsync</code> (line 220) → <code>CategorySvc.GetAllWithCountsAsync</code> (<code>source/BlogEngine/Services/CategorySvc.cs:146</code>, cached) → <code>CategoryRepo.GetAllWithCountsAsync</code> (<code>source/BlogEngine/DbAccess/CategoryRepo.cs:130</code>) → <code>Category</code> LEFT JOIN <code>BlogPost</code>. Delete: <code>DeleteCategory</code> (line 276) → <code>CategorySvc.DeleteCategoryAsync</code> (<code>CategorySvc.cs:345</code>) → <code>CategoryRepo.DeleteAsync</code> (line 320; <code>DELETE FROM Category</code>, line 90).</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/CategoriesList.razor:224</code></td><td><code>LoadCategoriesAsync</code></td><td><code>ObjectList</code></td><td>categories with <code>PostCount</code> of published, non-deleted posts</td></tr>
+<tr><td><code>source/BlogEngine/DbAccess/CategoryRepo.cs:45-50</code></td><td><code>SelectAllWithCountsSql</code></td><td><code>PostCount</code></td><td><code>COUNT(p.PostID)</code> with <code>Published = TRUE</code> and not deleted</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/CategoriesList.razor:280</code></td><td><code>DeleteCategory</code></td><td><code>result</code></td><td>hard delete; list reloads</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageCategory.razor.cs:40</code></td><td><code>OnParametersSetAsync</code></td><td><code>PageObj</code></td><td><code>GetCategoryAsync</code> loads the row for edit</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageCategory.razor.cs:77</code></td><td><code>SaveDataAsync</code></td><td><code>result</code></td><td><code>CategorySvc.SaveCategoryAsync</code> (<code>CategorySvc.cs:323</code>) inserts or updates <code>Category</code></td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> <code>PostCount</code> (SQL, above). The delete dialog warns that <code>PostCount</code> posts become uncategorized, which matches <code>ON DELETE SET NULL</code> on <code>blogpost_categoryid_fkey</code> (<code>source/BlogDb/PostgresScripts/023-CategoryAssignmentAndImageMetadata.sql:23</code>).</p>
+<h3 id="tag-management-admin-tags-alias-tagslist-edit-managetag-managetag-pageid"><a id="tag-management-admintags-alias-tagslist-edit-managetag-managetagpageid"></a>Tag management (<code>/admin/tags</code>, alias <code>/TagsList</code>; edit <code>/ManageTag</code>, <code>/ManageTag/{PageId}</code>)<a class="anchor-link" href="#tag-management-admin-tags-alias-tagslist-edit-managetag-managetag-pageid">#</a></h3>
+<p><img src="screenshots/TechieBlog/admin-tags.png" alt="Tag management" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, as user 1 (Admin).</p>
+<p><strong>Roles:</strong> <code>AdminOnly</code> on both <code>TagsList.razor:12</code> and <code>ManageTag.razor:12</code>.</p>
+<p><strong>Call chain:</strong> <code>TagsList.razor:LoadTagsAsync</code> (line 198) → <code>TagSvc.GetAllWithCountsAsync</code> (<code>source/BlogEngine/Services/TagSvc.cs:165</code>, cached) → <code>BlogTagRepo.GetAllWithCountsAsync</code> (<code>source/BlogEngine/DbAccess/BlogTagRepo.cs:187</code>) → <code>Tag</code> with <code>PostTag</code> count. Delete: <code>TagsList.razor:253</code> → <code>TagSvc.DeleteTagAsync</code> (<code>TagSvc.cs:487</code>) → <code>BlogTagRepo.DeleteAsync</code> (<code>BlogTagRepo.cs:389</code>; <code>DELETE FROM Tag</code>, line 90) → <code>Tag</code>; <code>PostTag</code> rows cascade (<code>source/BlogDb/PostgresScripts/007-FixBlogSeriesAndPostTag.sql:75</code>).</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/TagsList.razor:202</code></td><td><code>LoadTagsAsync</code></td><td><code>TagList</code></td><td>tags with <code>PostCount</code></td></tr>
+<tr><td><code>source/BlogEngine/DbAccess/BlogTagRepo.cs:39</code></td><td><code>SelectAllWithCountsSql</code></td><td><code>PostCount</code></td><td><code>COUNT(p.PostId)</code> per tag</td></tr>
+<tr><td><code>source/BlogEngine/Services/TagSvc.cs:487-505</code></td><td><code>DeleteTagAsync</code></td><td><code>existing</code></td><td>existence check, hard delete, taxonomy cache invalidated</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageTag.razor:134</code></td><td><code>LoadTagAsync</code></td><td><code>pageObj</code></td><td><code>TagSvc.GetSingleTagAsync</code></td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageTag.razor:170</code></td><td><code>SaveDataAsync</code></td><td><code>result</code></td><td><code>TagSvc.SaveTagAsync</code> (<code>TagSvc.cs:458</code>)</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> <code>PostCount</code> only, computed in SQL.</p>
+<h3 id="subscribers-admin-subscribers"><a id="subscribers-adminsubscribers"></a>Subscribers (<code>/admin/subscribers</code>)<a class="anchor-link" href="#subscribers-admin-subscribers">#</a></h3>
+<p><img src="screenshots/TechieBlog/admin-subscribers.png" alt="Subscribers" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, as user 1 (Admin): 70 subscribers listed.</p>
+<p><strong>Roles:</strong> <code>AdminOnly</code> (<code>source/BlogUI/Pages/AdminPages/SubscribersList.razor:11</code>).</p>
+<p><strong>Call chain:</strong> <code>SubscribersList.razor:LoadSubscribersAsync</code> (line 259) → <code>SubscriberSvc.GetAllSubscribersAsync</code> (<code>source/BlogEngine/Services/SubscriberSvc.cs:789</code>) → <code>SubscriberRepo.GetAllAsync</code> (<code>source/BlogEngine/DbAccess/SubscriberRepo.cs:264</code>) → <code>Subscriber</code>. Deactivate: <code>ToggleStatusAsync</code> (line 316) → <code>SubscriberSvc.UpdateSubscriberStatusAsync</code> (<code>SubscriberSvc.cs:892</code>) → <code>SubscriberRepo.UpdateStatusAsync</code> (<code>SubscriberRepo.cs:556</code>) → <code>UPDATE Subscriber SET IsConfirmed = @IsActive</code> (line 236).</p>
+<p>BRD-57 check: the admin path issues an UPDATE, never a DELETE. <code>SubscriberRepo.cs</code> has no <code>DELETE</code> statement, and no <code>DELETE FROM Subscriber</code> exists under <code>source/BlogEngine</code> or <code>source/BlogDb</code>. [Certain]</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/SubscribersList.razor:316-331</code></td><td><code>ToggleStatusAsync</code></td><td><code>IsActive</code></td><td>flips the row; the row stays in the grid</td></tr>
+<tr><td><code>source/BlogEngine/Services/SubscriberSvc.cs:892-907</code></td><td><code>UpdateSubscriberStatusAsync</code></td><td><code>subscriber</code></td><td>existence check, then <code>UpdateStatusAsync</code>; no delete</td></tr>
+<tr><td><code>source/BlogEngine/DbAccess/SubscriberRepo.cs:235-237</code></td><td><code>UpdateStatusSql</code></td><td><code>IsConfirmed</code></td><td>the only write on this screen</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/SubscribersList.razor:333-347</code></td><td><code>ExportToCsv</code></td><td><code>csv</code></td><td>exports <code>FilteredList</code> (current tab plus search) as <code>Email,Name,SubscribedOn,Status</code> via <code>SubscriberCsv.Build</code> (<code>source/BlogEngine/Common/SubscriberCsv.cs:44</code>)</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> <code>IsActive</code> is <code>COALESCE(IsConfirmed, TRUE)</code> (<code>SubscriberRepo.cs:59</code>). <code>SubscriberCsv.Quote</code> (line 62) prefixes <code>=+-@</code> with <code>'</code>.</p>
+<h3 id="site-settings-settings">Site settings (<code>/settings</code>)<a class="anchor-link" href="#site-settings-settings">#</a></h3>
+<p><img src="screenshots/TechieBlog/admin-settings.png" alt="Site settings" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, as user 1 (Admin).</p>
+<p><strong>Roles:</strong> <code>AdminOnly</code> (<code>source/BlogUI/Pages/AdminPages/Settings.razor:15</code>).</p>
+<p><strong>Call chain:</strong> <code>Settings.razor:SaveSettings</code> (line 641) → <code>SiteSettingsService.SaveSettingsAsync</code> (<code>source/BlogEngine/Services/SiteSettingsService.cs:260</code>) → <code>ISiteSettingRepo.UpsertManyAsync</code> (<code>source/BlogEngine/DbAccess/SiteSettingRepo.cs:285</code>) → site settings rows → <code>PublishChangeAsync</code> (<code>SiteSettingsService.cs:514</code>) → <code>InvalidateCache</code> → <code>GetSettingsAsync</code> (line 196, cache key <code>ServiceCache.SettingsEffectiveKey</code>, tag <code>Settings</code>).</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/Settings.razor:178-179</code></td><td>markup binding</td><td><code>settings.PostsPerPage</code></td><td>edits the page-local copy only</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/Settings.razor:624-635</code></td><td><code>OnThemeSelected</code></td><td><code>theme</code></td><td><code>ThemeService.PreviewTheme</code> (<code>source/BlogUI/Common/ThemeService.cs:246</code>); preview only, not saved</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/Settings.razor:656-666</code></td><td><code>SaveSettings</code></td><td><code>result</code></td><td>persisted; then <code>NotifySiteCacheRefreshAsync</code> (the <code>CacheNotifier.RefreshAsync</code> call at line 754)</td></tr>
+<tr><td><code>source/BlogEngine/Common/SiteSettingsMapper.cs:259</code></td><td>row mapping</td><td><code>PostsPerPage</code></td><td>written as one setting row</td></tr>
+<tr><td><code>source/BlogUI/Pages/BlogPages/CategoryArchive.razor:179</code></td><td>page-size read</td><td><code>PageSize</code></td><td><code>GetSettingsAsync().PostsPerPage</code>; same read in <code>TagArchive.razor:171</code>, <code>SearchResults.razor:265</code>, <code>Newsletters.razor.cs:97</code></td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> none. Public cache: <code>Settings.razor:711-713</code> evicts the <code>Content</code>, <code>Taxonomy</code> and <code>Settings</code> tags on "clear cache". The website's <code>ISiteCacheNotifier</code> is <code>NullSiteCacheNotifier</code> (<code>source/BlogEngine/Services/NullSiteCacheNotifier.cs:27</code>), so the post-save "live site" refresh reports NotApplicable. The home page does not read <code>PostsPerPage</code>: <code>Home.razor.cs:34</code> fixes <code>LatestArticleCount = 3</code>.</p>
+<h3 id="newsletter-composer-admin-newsletter"><a id="newsletter-composer-adminnewsletter"></a>Newsletter composer (<code>/admin/newsletter</code>)<a class="anchor-link" href="#newsletter-composer-admin-newsletter">#</a></h3>
+<p><img src="screenshots/TechieBlog/admin-newsletter.png" alt="Newsletter composer" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, as user 1 (Admin).</p>
+<p><strong>Roles:</strong> <code>AdminOnly</code> (<code>source/BlogUI/Pages/AdminPages/NewsletterComposer.razor:20</code>).</p>
+<p><strong>Call chain:</strong> Save: <code>NewsletterComposer.razor.cs:SaveDraftAsync</code> (line 267) → <code>NewsletterSvc.SaveDraftAsync</code> (<code>source/BlogEngine/Services/NewsletterSvc.cs:173</code>) → <code>{unresolved — newsletter save SQL not read}</code>. Send: <code>ConfirmSendAsync</code> (line 367) → <code>NewsletterSvc.SendAsync</code> (<code>NewsletterSvc.cs:267</code>) → <code>DispatchAsync</code> (line 591) → <code>NewsletterRepo.GetRecipientsAsync</code> (<code>source/BlogEngine/DbAccess/NewsletterRepo.cs:422</code>; <code>SelectRecipientsSql</code>, line 109) → <code>Subscriber</code>; then per recipient <code>emailService.SendAsync</code> (line 655) and a send-history row.</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/NewsletterComposer.razor.cs:381</code></td><td><code>ConfirmSendAsync</code></td><td><code>dispatch</code></td><td><code>NewsletterService.SendAsync(NewsletterId, BuildAudience())</code>; page polls history for progress</td></tr>
+<tr><td><code>source/BlogEngine/Services/NewsletterSvc.cs:273-274</code></td><td><code>SendAsync</code></td><td><code>Status</code></td><td>refuses a newsletter already <code>sent</code></td></tr>
+<tr><td><code>source/BlogEngine/DbAccess/NewsletterRepo.cs:111</code></td><td><code>SelectRecipientsSql</code></td><td>recipients</td><td><code>COALESCE(IsConfirmed, FALSE) = TRUE</code> unless <code>IncludeInactive</code>; capped by <code>MaxRecipients</code> (<code>NewsletterRepo.cs:112</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/NewsletterComposer.razor.cs:420-434</code></td><td><code>RefreshAudienceEstimate</code></td><td><code>EstimatedRecipients</code></td><td>counts <code>subscribers</code> (from <code>GetAllSubscribersAsync</code>, line 560); advisory only</td></tr>
+<tr><td><code>source/BlogEngine/Services/NewsletterSvc.cs:591-618</code></td><td><code>DispatchAsync</code></td><td><code>report.SentCount</code>, <code>FailedCount</code></td><td>one send per recipient; <code>TargetedCount</code> = recipients fetched</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> <code>SendProgressPercent</code> (line 209) = <code>SentSoFar * 100 / EstimatedRecipients</code>, capped at 100. <code>EstimatedRecipients</code> is the client-side count described above.</p>
+<h3 id="analytics-dashboard-admin-analytics"><a id="analytics-dashboard-adminanalytics"></a>Analytics dashboard (<code>/admin/analytics</code>)<a class="anchor-link" href="#analytics-dashboard-admin-analytics">#</a></h3>
+<p><img src="screenshots/TechieBlog/admin-analytics.png" alt="Analytics dashboard" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, as user 1 (Admin).</p>
+<p><strong>Roles:</strong> <code>EditorOrAbove</code> (<code>source/BlogUI/Pages/AdminPages/AnalyticsDashboard.razor:21</code>).</p>
+<p><strong>Call chain:</strong> <code>AnalyticsDashboard.razor.cs:LoadAsync</code> (line 276) → <code>AnalyticsSvc.GetSummaryAsync</code> (<code>source/BlogEngine/Services/AnalyticsSvc.cs:190</code>) → <code>AnalyticsRepo.GetSummaryAsync</code> (<code>source/BlogEngine/DbAccess/AnalyticsRepo.cs:334</code>; <code>SelectSummarySql</code>, line 147) → <code>PostViews</code>, <code>BlogPost</code>, <code>BlogComment</code>, <code>PostRating</code>. Trend, popular and category calls follow the same shape (<code>AnalyticsSvc.cs:149</code>, <code>:128</code>, <code>:169</code>).</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/AnalyticsDashboard.razor.cs:290</code></td><td><code>LoadAsync</code></td><td><code>summary</code></td><td>totals for the applied range</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/AnalyticsDashboard.razor.cs:291</code></td><td><code>LoadAsync</code></td><td><code>trendPoints</code></td><td>one point per day, quiet days filled with zero</td></tr>
+<tr><td><code>source/BlogEngine/Services/AnalyticsSvc.cs:221-226</code></td><td><code>OrderRange</code></td><td><code>(RangeStart, RangeEnd)</code></td><td>end date made inclusive (<code>end.Date.AddDays(1)</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/AnalyticsDashboard.razor.cs:220-226</code></td><td><code>ApplyPresetAsync</code></td><td><code>appliedFrom</code>, <code>appliedTo</code></td><td>UTC today back <code>days - 1</code></td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/AnalyticsDashboard.razor.cs:293-295</code></td><td><code>LoadAsync</code></td><td><code>popularPosts</code>, <code>categoryEngagements</code></td><td>ranked lists, capped by <code>PopularPostLimit</code> and <code>CategoryLimit</code></td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> <code>CategorySharePercent</code> (<code>AnalyticsDashboard.razor.cs:240</code>) = <code>TotalViews * 100 / leader</code>, rounded to one decimal, 0 when there is no leader. <code>FormatRating</code> shows <code>—</code> for zero ratings.</p>
+<h3 id="manage-profile-admin-profile"><a id="manage-profile-adminprofile"></a>Manage profile (<code>/admin/profile</code>)<a class="anchor-link" href="#manage-profile-admin-profile">#</a></h3>
+<p><img src="screenshots/TechieBlog/author-profile.png" alt="Manage profile" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, as user 3 (Author).</p>
+<p><strong>Roles:</strong> <code>Policy = "AuthorOrAbove"</code> (<code>source/BlogUI/Pages/AdminPages/ManageProfile.razor:11</code>). Binds to the caller's own row via the <code>PrimarySid</code> claim. No admin user selector exists on this page (see note below the table).</p>
+<p><strong>Call chain:</strong> <code>ManageProfile.razor.cs:SaveProfile</code> → <code>IBlogUserRepo.UpdateAsync</code> / <code>UpdateUsernameAsync</code> / <code>UpdateResumeFieldsAsync</code> → <code>BlogUserRepo</code> → <code>BlogUser</code></p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageProfile.razor.cs:122</code></td><td><code>LoadProfile</code></td><td><code>CurrentUser</code></td><td>the signed-in user's <code>BlogUser</code> row (<code>SelectBlogUserById</code>, <code>BlogUserRepo.cs:203</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageProfile.razor.cs:256</code></td><td><code>SaveProfile</code></td><td><code>UserRepo.UpdateAsync(CurrentUser)</code></td><td>names, avatar, bio, Twitter/LinkedIn/GitHub/Instagram written to <code>BlogUser</code> (<code>BlogUserRepo.cs:260</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageProfile.razor.cs:262</code></td><td><code>SaveProfile</code></td><td><code>UpdateUsernameAsync</code></td><td>username written only when changed; <code>UPDATE BlogUser SET Username</code> (<code>BlogUserRepo.cs:98</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageProfile.razor.cs:277</code></td><td><code>SaveProfile</code></td><td><code>resumeData.CVFilePath</code></td><td>CV path (picked via <code>ImagePicker Category="cv"</code>, <code>ManageProfile.razor:281</code>) written by <code>UpdateResumeFieldsSql</code> (<code>BlogUserRepo.cs:500</code>)</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> username check (<code>ManageProfile.razor.cs:182-219</code>): regex <code>^[a-zA-Z0-9-]+$</code>, length 3-50, and availability via <code>IsUsernameAvailableAsync</code> only when changed from the original.</p>
+<p>Note: the brief names an "admin user selector" for this screen. <code>ManageProfile.razor</code> and <code>.razor.cs</code> contain no <code>AllUsers</code>, <code>IsAdmin</code> or <code>Select</code>. Only the Experience, Skills, Awards and Stats pages have one. [Certain]</p>
+<h3 id="manage-experience-admin-experience-alias-admin-experience-eventid"><a id="manage-experience-adminexperience-alias-adminexperienceeventid"></a>Manage experience (<code>/admin/experience</code>, alias <code>/admin/experience/{EventId}</code>)<a class="anchor-link" href="#manage-experience-admin-experience-alias-admin-experience-eventid">#</a></h3>
+<p><img src="screenshots/TechieBlog/author-experience.png" alt="Manage experience" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, as user 3 (Author).</p>
+<p><strong>Roles:</strong> <code>Policy = "AuthorOrAbove"</code> (<code>source/BlogUI/Pages/AdminPages/ManageExperience.razor:12</code>). Admins get a user picker (<code>ManageExperience.razor:40-64</code>, handler <code>OnSelectedUserChanged</code> at <code>ManageExperience.razor.cs:283</code>).</p>
+<p><strong>Call chain:</strong> <code>ManageExperience.razor.cs:LoadData</code> → <code>IUserEventRepo.GetByUserAndTypeAsync</code> → <code>UserEventRepo</code> → <code>userevents</code></p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageExperience.razor.cs:219</code></td><td><code>LoadData</code></td><td><code>ExperienceList</code></td><td>the <code>Experience</code>-typed rows for <code>EffectiveUserId</code> (<code>UserEventRepo.cs:159</code>; ordering comes from its SQL, not verified here)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageExperience.razor.cs:425</code></td><td><code>SaveExperience</code></td><td><code>EventRepo.UpdateAsync(CurrentEvent)</code></td><td>existing row updated (<code>UserEventRepo.cs:268</code>, <code>UPDATE userevents</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageExperience.razor.cs:431</code></td><td><code>SaveExperience</code></td><td><code>EventRepo.InsertToGetIdAsync</code></td><td>new row inserted (<code>UserEventRepo.cs:250</code>, <code>INSERT INTO userevents</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageExperience.razor.cs:494</code></td><td><code>DeleteExperience</code></td><td><code>EventRepo.DeleteAsync(EventID)</code></td><td>row removed (<code>UserEventRepo.cs:285</code>, <code>DELETE FROM userevents</code>)</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> new-entry <code>DisplayOrder</code> = count + 1 (<code>ManageExperience.razor.cs:300</code>). <code>EndDate</code> is set to today when <code>IsCurrent</code> (<code>:419</code>). "Reorder" is a free-typed number (<code>ManageExperience.razor:266-276</code>, <code>DisplayOrderText</code> at <code>.razor.cs:148</code>). There are no move-up/move-down controls on this screen.</p>
+<h3 id="manage-skills-admin-skills"><a id="manage-skills-adminskills"></a>Manage skills (<code>/admin/skills</code>)<a class="anchor-link" href="#manage-skills-admin-skills">#</a></h3>
+<p><img src="screenshots/TechieBlog/author-skills.png" alt="Manage skills" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, as user 3 (Author).</p>
+<p><strong>Roles:</strong> <code>Policy = "AuthorOrAbove"</code> (<code>source/BlogUI/Pages/AdminPages/ManageSkills.razor:11</code>). Admin user picker at <code>ManageSkills.razor:36-56</code>.</p>
+<p><strong>Call chain:</strong> <code>ManageSkills.razor.cs:LoadSkills</code> → <code>IUserSkillsRepo.GetByUserIdAsync</code> → <code>UserSkillsRepo</code> → <code>userskills</code></p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageSkills.razor.cs:148</code></td><td><code>LoadSkills</code></td><td><code>AllSkills</code></td><td>the user's skills, grouped by category (<code>UserSkillsRepo.cs:140</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageSkills.razor.cs:295</code></td><td><code>SaveNewSkill</code></td><td><code>SkillsRepo.CreateAsync(newSkill)</code></td><td><code>INSERT INTO userskills</code>, <code>DisplayOrder = max + 1</code> (<code>UserSkillsRepo.cs:68</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageSkills.razor.cs:630-660</code></td><td><code>ApplyOrder</code></td><td><code>skill.DisplayOrder</code></td><td>category block renumbered 1..n, only changed rows written via <code>SkillsRepo.UpdateAsync</code> (<code>UserSkillsRepo.cs:320</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageSkills.razor.cs:418-424</code></td><td><code>DeleteSkill</code></td><td><code>SkillsRepo.DeleteAsync(SkillId)</code></td><td>row removed (<code>UserSkillsRepo.cs:337</code>, <code>DELETE FROM userskills</code>)</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> category order is the minimum <code>DisplayOrder</code> of each group (<code>ManageSkills.razor.cs:475</code>). Category move calls <code>SwapCategoryOrder</code> (<code>:527</code>), then <code>ApplyOrder</code>.</p>
+<h3 id="manage-awards-admin-awards"><a id="manage-awards-adminawards"></a>Manage awards (<code>/admin/awards</code>)<a class="anchor-link" href="#manage-awards-admin-awards">#</a></h3>
+<p><img src="screenshots/TechieBlog/author-awards.png" alt="Manage awards" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, as user 3 (Author).</p>
+<p><strong>Roles:</strong> <code>Policy = "AuthorOrAbove"</code> (<code>source/BlogUI/Pages/AdminPages/ManageAwards.razor:11</code>). Admin user picker at <code>ManageAwards.razor:40-45</code>.</p>
+<p><strong>Call chain:</strong> <code>ManageAwards.razor.cs:LoadAwards</code> → <code>IUserAwardsRepo.GetByUserIdAsync</code> → <code>UserAwardsRepo</code> → <code>userawards</code></p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageAwards.razor.cs:144</code></td><td><code>LoadAwards</code></td><td><code>AllAwards</code></td><td>the user's awards (<code>UserAwardsRepo.cs:134</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageAwards.razor.cs:317</code></td><td><code>SaveAward</code></td><td><code>AwardsRepo.CreateAsync(newAward)</code></td><td><code>INSERT INTO userawards</code>, <code>DisplayOrder = max + 1</code> (<code>UserAwardsRepo.cs:60</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageAwards.razor.cs:434-437</code></td><td><code>SwapAwardOrder</code></td><td><code>award.DisplayOrder</code></td><td>two rows swapped, both written by <code>AwardsRepo.UpdateAsync</code> (<code>UserAwardsRepo.cs:274</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageAwards.razor.cs:371</code></td><td><code>DeleteAward</code></td><td><code>AwardsRepo.DeleteAsync(AwardId)</code></td><td>row removed (<code>UserAwardsRepo.cs:291</code>, <code>DELETE FROM userawards</code>)</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> <code>YearRange</code> is <code>start-end</code>, joined in <code>SaveAward</code> (<code>ManageAwards.razor.cs:267-271</code>). The badge image comes from <code>ImagePicker Category="awards"</code> (<code>ManageAwards.razor:213</code>).</p>
+<h3 id="manage-speaking-admin-speaking"><a id="manage-speaking-adminspeaking"></a>Manage speaking (<code>/admin/speaking</code>)<a class="anchor-link" href="#manage-speaking-admin-speaking">#</a></h3>
+<p><img src="screenshots/TechieBlog/admin-speaking.png" alt="Manage speaking" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, as user 1 (Admin).</p>
+<p><strong>Roles:</strong> <code>Policy = "EditorOrAbove"</code> (<code>source/BlogUI/Pages/AdminPages/ManageSpeaking.razor:15</code>). Rows belong to the site owner, not the signed-in user.</p>
+<p><strong>Call chain:</strong> <code>ManageSpeaking.razor.cs:LoadEngagementsAsync</code> → <code>IBlogUserRepo.GetSiteOwnerAsync</code> → <code>BlogUserRepo</code> → <code>BlogUser</code>, then <code>IUserEventRepo.GetByUserAndTypeAsync</code> → <code>userevents</code></p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageSpeaking.razor.cs:134</code></td><td><code>LoadEngagementsAsync</code></td><td><code>siteOwner</code></td><td>the one <code>BlogUser</code> with <code>IsSiteOwner = TRUE</code> (<code>BlogUserRepo.cs:383</code>, <code>SelectSiteOwnerSql</code> at <code>:88</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageSpeaking.razor.cs:144-146</code></td><td><code>LoadEngagementsAsync</code></td><td><code>engagements</code></td><td><code>EventType = Speaking</code> rows, newest <code>EventDate</code> first (<code>UserEventRepo.cs:159</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageSpeaking.razor.cs:260</code></td><td><code>SaveEngagement</code></td><td><code>EventRepo.InsertAsync(row)</code></td><td>new <code>userevents</code> row, <code>UserID</code> = owner (<code>UserEventRepo.cs:250</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageSpeaking.razor.cs:369</code></td><td><code>ConfirmDelete</code></td><td><code>EventRepo.DeleteAsync(EventID)</code></td><td>row removed (<code>UserEventRepo.cs:285</code>)</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> <code>StartDate</code> and <code>IsCurrent</code> are forced to null and false (<code>ManageSpeaking.razor.cs:255-256</code>). <code>RegistrationUrl</code> is kept only for upcoming rows (<code>:249-251</code>).</p>
+<h3 id="manage-stats-admin-stats"><a id="manage-stats-adminstats"></a>Manage stats (<code>/admin/stats</code>)<a class="anchor-link" href="#manage-stats-admin-stats">#</a></h3>
+<p><img src="screenshots/TechieBlog/admin-stats.png" alt="Manage stats" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, as user 1 (Admin).</p>
+<p><strong>Roles:</strong> <code>Policy = "AuthorOrAbove"</code> (<code>source/BlogUI/Pages/AdminPages/ManageStats.razor:14</code>). Admin user picker at <code>ManageStats.razor:49-54</code> (<code>ValueChanged</code> → <code>OnSelectedUserChangedAsync</code>, <code>ManageStats.razor.cs:227</code>).</p>
+<p><strong>Call chain:</strong> <code>ManageStats.razor.cs:LoadStatsAsync</code> → <code>UserStatsSvc.GetStatsForUserAsync</code> → <code>IUserStatsRepo.GetByUserIdAsync</code> → <code>UserStatsRepo</code> → <code>userstats</code></p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageStats.razor.cs:216</code></td><td><code>LoadStatsAsync</code></td><td><code>AllStats</code></td><td>the selected user's stats (<code>UserStatsSvc.cs:116</code>, <code>UserStatsRepo.cs:132</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageStats.razor.cs:305</code></td><td><code>SaveStatAsync</code></td><td><code>result</code></td><td><code>UserStatsSvc.SaveStatAsync</code> → <code>CreateAsync</code> (<code>UserStatsSvc.cs:232</code>, INSERT at <code>UserStatsRepo.cs:60</code>) or <code>UpdateAsync</code> (<code>UserStatsRepo.cs:295</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageStats.razor.cs:441</code></td><td><code>MoveStatAsync</code></td><td><code>ReorderStatsAsync</code></td><td>renumbered 0..n (<code>UserStatsSvc.cs:384</code>)</td></tr>
+<tr><td><code>source/BlogUI/Pages/AdminPages/ManageStats.razor.cs:374</code></td><td><code>DeleteStatAsync</code></td><td><code>DeleteStatAsync(StatId)</code></td><td>row removed (<code>UserStatsSvc.cs:334</code>, <code>UserStatsRepo.cs:313</code>, <code>DELETE FROM userstats</code>)</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> new <code>DisplayOrder</code> = max + 1 (<code>ManageStats.razor.cs:463</code>). Move up/down swaps positions in the ordered list (<code>:438-439</code>) and reorders through the service.</p>
+<h3 id="blogapp-connection-setup-blogapp-connection-alias-blogapp-connection-settings"><a id="blogapp-connection-setup-blogappconnection-alias-blogappconnectionsettings"></a>BlogApp connection setup (<code>/blogapp/connection</code>, alias <code>/blogapp/connection/settings</code>)<a class="anchor-link" href="#blogapp-connection-setup-blogapp-connection-alias-blogapp-connection-settings">#</a></h3>
+<p><img src="screenshots/TechieBlog/blogapp-connection.png" alt="BlogApp connection" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> renders. Seen 2026-11-02, BlogApp desktop head driven over its own WebView2 DevTools port: "Connection settings".</p>
+<p><strong>Roles:</strong> public within BlogApp. No <code>[Authorize]</code> attribute (<code>source/BlogApp/Components/Pages/ConnectionSetup.razor:17-18</code>).</p>
+<p><strong>Call chain:</strong> <code>ConnectionSetup.razor.cs:SaveAndContinue</code> → <code>ConnectionProbe.TestAsync</code> → Npgsql open, then <code>IConnectionStore.SaveAsync</code> → <code>ConnectionStore</code> → SecureStorage, DPAPI file fallback (no SQL table)</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogApp/Components/Pages/ConnectionSetup.razor.cs:288</code></td><td><code>TestMediaLocation</code></td><td><code>MediaLocationProbe.TestAsync(Settings)</code></td><td>Sftp → <code>TestSftpAsync</code>, Folder → <code>TestFolderAsync</code>, None → "nothing to test" (<code>source/BlogApp/Services/MediaLocationProbe.cs:127-147</code>)</td></tr>
+<tr><td><code>source/BlogApp/Components/Pages/ConnectionSetup.razor.cs:329</code></td><td><code>TestConnection</code></td><td><code>probeResult</code></td><td>read-only probe; success message verbatim (<code>source/BlogApp/Services/ConnectionProbe.cs:91</code>)</td></tr>
+<tr><td><code>source/BlogApp/Components/Pages/ConnectionSetup.razor.cs:385</code></td><td><code>SaveAndContinue</code></td><td><code>Settings.HasUsableSecrets()</code></td><td>JWT key ≥ <code>AppSecrets.MinimumJwtSigningKeyLength</code>, encryption key ≥ <code>MinimumEncryptionKeyLength</code> (<code>source/BlogApp/Services/ConnectionSettings.cs:459-464</code>)</td></tr>
+<tr><td><code>source/BlogApp/Components/Pages/ConnectionSetup.razor.cs:402</code></td><td><code>SaveAndContinue</code></td><td><code>ConnectionStore.SaveAsync(Settings)</code></td><td>written encrypted (<code>source/BlogApp/Services/ConnectionStore.cs:175-179</code>, <code>DataProtectionScope.CurrentUser</code>)</td></tr>
+<tr><td><code>source/BlogApp/Components/Pages/ConnectionSetup.razor.cs:443</code></td><td><code>ForgetConnection</code></td><td><code>ConnectionStore.ClearAsync()</code></td><td>stored credential removed, app restarts to setup</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> <code>SftpPort</code> defaults when blank (<code>ConnectionSetup.razor.cs:260</code>). A non-numeric port becomes 0 (<code>:195</code>). <code>IsBusy</code> blocks all actions.</p>
+<h3 id="blogapp-start-blogapp-start"><a id="blogapp-start-blogappstart"></a>BlogApp start (<code>/blogapp/start</code>)<a class="anchor-link" href="#blogapp-start-blogapp-start">#</a></h3>
+<p><img src="screenshots/TechieBlog/blogapp-start.png" alt="BlogApp start" style="max-width:100%"></p>
+<p><strong>Runtime:</strong> redirects. Seen 2026-11-02, BlogApp desktop head, signed out: lands on <code>/login</code> as designed (screenshot is the destination).</p>
+<p><strong>Roles:</strong> none. Any state is accepted. Anonymous goes to <code>/login</code>, signed-in goes to the role landing route (<code>source/BlogApp/Components/Pages/DesktopStart.razor:22</code>).</p>
+<p><strong>Call chain:</strong> <code>DesktopStart.razor:OnAfterRenderAsync</code> → <code>ResolveDestinationAsync</code> → <code>AuthenticationStateProvider</code> → <code>RoleLandingRoutes.ResolveFor</code> (no data access, no SQL)</p>
+<table>
+<thead><tr><th>File and line</th><th>Function</th><th>Watch</th><th>Expected value</th></tr></thead>
+<tbody>
+<tr><td><code>source/BlogApp/Components/Pages/DesktopStart.razor:79</code></td><td><code>OnAfterRenderAsync</code></td><td><code>hasNavigated</code></td><td>guard so the redirect runs once, on first render only</td></tr>
+<tr><td><code>source/BlogApp/Components/Pages/DesktopStart.razor:113-116</code></td><td><code>ResolveDestinationAsync</code></td><td><code>state.User.Identity.IsAuthenticated</code></td><td>false → <code>AnonymousDestination</code> (<code>/login</code>, <code>:57</code>)</td></tr>
+<tr><td><code>source/BlogApp/Components/Pages/DesktopStart.razor:121-122</code></td><td><code>ResolveDestinationAsync</code></td><td><code>role</code></td><td><code>RoleLandingRoutes.ResolveFor(role)</code>; a blank role maps to the public home</td></tr>
+<tr><td><code>source/BlogApp/Components/Pages/DesktopStart.razor:88</code></td><td><code>OnAfterRenderAsync</code></td><td><code>NavigationManager.NavigateTo(destination, replace: true)</code></td><td>replaces the history entry, so Back does not return here</td></tr>
+</tbody>
+</table>
+<p><strong>Calculations on this screen:</strong> role to route mapping only (<code>RoleLandingRoutes.ResolveFor</code>). Any exception falls back to <code>/login</code> (<code>DesktopStart.razor:124-127</code>).</p>
+<hr>
+<h2 id="cross-cutting-flows">Cross-cutting flows<a class="anchor-link" href="#cross-cutting-flows">#</a></h2>
+<h3 id="sign-in">Sign-in<a class="anchor-link" href="#sign-in">#</a></h3>
+<p><strong>Call chain:</strong> <code>LoginPage.razor:26</code> EditForm → <code>LoginPage.razor.cs:ValidateUser</code> (<code>:136</code>) → <code>TechieBlog/Services/AuthService.cs:LoginAsync</code> (<code>:89</code>, encrypt <code>:91-92</code>) → <code>AuthSvc.AppLoginAsync</code> (<code>BlogEngine/Services/AuthSvc.cs:153</code>) → <code>AuthenticateAsync</code> (<code>:270</code>) → <code>PasswordHasher.Verify</code> (<code>BlogModel/Common/PasswordHasher.cs:163</code>) → <code>AuthSvc.IssueSessionAsync</code> (<code>AuthSvc.cs:383</code>) → <code>GenerateJWToken</code> (<code>:687</code>) → <code>userlogins</code> insert (<code>UserLoginRepo.cs:52</code>) → decrypt <code>TechieBlog/Services/AuthService.cs:99</code> → <code>LoginPage.razor.cs:161</code> <code>CustomAuthStateProvider.MarkUserAsAuthenticated</code> (<code>source/BlogUI/Common/CustomAuthStateProvider.cs:324</code>) → local storage <code>AppConstants.AccessKey</code> / <code>RefreshKey</code> (<code>source/BlogModel/Common/AppConstants.cs:89</code>, <code>CustomAuthStateProvider.cs:326-327</code>) → session cookie (<code>:328</code>) → <code>NotifyAuthenticationStateChanged</code> (<code>:331</code>) → <code>LoginPage.razor.cs:162</code> <code>ResolveDestination</code> (<code>:188</code>)</p>
+<table>
+<thead><tr><th>Break point (file and line)</th><th>What breaks</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td><code>AuthService.cs:91-92</code> encrypt, <code>AuthSvc.cs:157-158</code> decrypt</td><td>key mismatch between host and engine</td><td><code>AppLoginAsync</code> gets null credentials and refuses; visitor sees "Invalid email or password."</td></tr>
+<tr><td><code>AuthSvc.cs:161</code> throttle</td><td>account locked</td><td>refused before the password check; the attempt is still audited (<code>:166</code>)</td></tr>
+<tr><td><code>AuthSvc.cs:280</code> and <code>:286-300</code></td><td>wrong password, unknown address, deactivated (<code>IsConfirmed</code> false)</td><td>all return the same null; an unconfirmed account is only refused after the password check</td></tr>
+<tr><td><code>IssueSessionAsync</code> <code>AuthSvc.cs:387</code></td><td><code>userlogins</code> insert fails</td><td>exception; <code>ValidateUser</code> catch shows "An error occurred during login." (<code>LoginPage.razor.cs:166</code>)</td></tr>
+<tr><td><code>CustomAuthStateProvider.cs:206</code> read on later circuits</td><td>JS interop unavailable (static prerender)</td><td><code>ReadPrerenderIdentity</code> (<code>:229</code>, <code>:434</code>) uses the server cookie identity</td></tr>
+<tr><td><code>CustomAuthStateProvider.cs:263</code> <code>ResolveSessionUserAsync</code></td><td>access token expired</td><td><code>AuthSvc.RefreshTokenAsync</code> (<code>:293</code>) reissues from the <code>UserLogin</code> row; if that fails the session ends</td></tr>
+</tbody>
+</table>
+<p><strong>Signature warning [Certain]:</strong> <code>AuthSvc.cs:49-52</code> and <code>:428-436</code> state the JWT signature is never verified on the way in. Session validity is the exact-token lookup in <code>UserLogin</code> (<code>GetUserByTokenAsync</code>, <code>AuthSvc.cs:441-476</code>). A claim read from the token must never be trusted.</p>
+<h3 id="scheduled-publishing">Scheduled publishing<a class="anchor-link" href="#scheduled-publishing">#</a></h3>
+<p><strong>Schedule write:</strong> <code>ManagePost.razor.cs:HandleSchedule</code> (<code>:772</code>, future check <code>:784</code>, UTC <code>:838</code>) → <code>BlogSvc.SchedulePostAsync</code> (<code>source/BlogEngine/Services/BlogSvc.cs:900</code>, sets <code>ScheduledPublishOn</code>, forces <code>Published = false</code>, <code>:908-909</code>) → <code>SavePostAsync</code> → <code>BlogPostRepo.UpdateAsync</code> (<code>BlogPostRepo.cs:218-232</code>).</p>
+<p><strong>Hosted service:</strong> <code>source/BlogEngine/Services/ScheduledPostPublisher.cs:64</code> (<code>BackgroundService</code>), registered at <code>source/BlogEngine/BlogSvcInitializer.cs:201</code> with <code>AddHostedService</code>. <code>checkInterval</code> = 1 min (<code>:68</code>); <code>ExecuteAsync</code> at <code>:105</code>; 10 s startup delay (<code>:110</code>); loop and <code>Task.Delay(checkInterval)</code> at <code>:112-123</code>.</p>
+<p><strong>Tick:</strong> <code>PublishDuePosts</code> (<code>:151</code>) opens a scope (<code>:155</code>) → <code>BlogSvc.GetDueScheduledPostsAsync</code> (<code>BlogSvc.cs:871</code>, <code>DateTime.UtcNow</code>) → <code>BlogPostRepo.GetDueScheduledPostsAsync</code> (<code>BlogPostRepo.cs:794</code>) → <code>SelectDueScheduledSql</code> (<code>:306-316</code>: <code>Published = FALSE AND ScheduledPublishOn &lt;= @Now</code>) → per post <code>:172-177</code>: <code>Published = true</code>, <code>PublishedOn = ScheduledPublishOn</code>, <code>ScheduledPublishOn = null</code>, <code>blogSvc.UpdatePostAsync(post)</code> (<code>BlogSvc.cs:571</code>).</p>
+<table>
+<thead><tr><th>Break point (file and line)</th><th>What breaks</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td><code>ScheduledPostPublisher.cs:118-121</code></td><td>an exception escapes a tick</td><td>logged; loop continues (<code>:123</code>)</td></tr>
+<tr><td><code>ScheduledPostPublisher.cs:192-197</code></td><td>one post fails to save</td><td>logged; the rest of the batch still publishes</td></tr>
+<tr><td><code>ScheduledPostPublisher.cs:200-203</code></td><td>the due-list read fails</td><td>logged; <code>BlogSvc.GetDueScheduledPostsAsync</code> returns empty (<code>BlogSvc.cs:877-880</code>)</td></tr>
+<tr><td><code>ScheduledPostPublisher.cs:31-39</code></td><td>two host instances</td><td>no cross-process lock; both tick; second finds nothing due, but a row can be double-written</td></tr>
+<tr><td><code>BlogPostRepo.cs:307-309</code> projection</td><td>scheduled part of a series</td><td><code>SeriesId</code> and <code>SeriesPartNumber</code> are not selected, then written back as NULL (see Defects, D1)</td></tr>
+</tbody>
+</table>
+<h3 id="configuration-logging-errors">Configuration, logging, errors<a class="anchor-link" href="#configuration-logging-errors">#</a></h3>
+<ul>
+<li>AppDbConString read: <code>source/TechieBlog/Program.cs:287</code> (falls back to <code>ConnectionStrings:Default</code>, <code>:288</code>; throws <code>:290</code> if both missing). BlogApp: <code>source/BlogApp/MauiProgram.cs:60</code>.
+</li>
+<li>DbUp migration at startup: <code>source/TechieBlog/Program.cs:547-561</code> (<code>new BlogDbSvc().UpgradeDatabase</code>, <code>:552</code>); engine <code>source/BlogDb/BlogDbSvc.cs:52</code> (<code>DeployChanges.To</code>). Scripts in <code>source/BlogDb/PostgresScripts/</code>. A failed migration logs an error but the host still starts (<code>:555-558</code>).
+</li>
+<li>Required secrets check: <code>source/TechieBlog/Program.cs:235</code> <code>AppSecrets.Initialise(builder.Configuration)</code>; implementation <code>source/BlogModel/Common/AppSecrets.cs:180</code>. Missing value throws, host exits 1 (<code>source/TechieBlog/Program.cs:833-838</code>). BlogApp equivalent: <code>ConnectionSettings.cs:459-464</code>.
+</li>
+<li>Serilog: bootstrap logger <code>source/TechieBlog/Program.cs:49</code>; <code>Log.Logger</code> built <code>:141</code>; <code>builder.Host.UseSerilog()</code> <code>:253</code>; request logging <code>:665</code>. File sink <code>:126</code>. Unobserved task exceptions: <code>source/TechieBlog/Observability/GlobalExceptionLogging.cs:115</code>. BlogApp: <code>source/BlogApp/MauiProgram.cs:173-179</code>.
+</li>
+<li>Global error handling: <code>source/TechieBlog/Program.cs:578</code> <code>UseExceptionHandler("/Error")</code> (non-Development); <code>:620</code> status-code re-execute to <code>NotFoundPage</code>. Blazor error boundary: <code>source/BlogUI/Routes.razor:19</code>; BlogApp: <code>source/BlogApp/Components/Routes.razor:21</code>.
+</li>
+<li>Content cache: <code>source/BlogEngine/Services/MemoryCacheService.cs:96</code> default lifetime 10 minutes (absolute, <code>:168</code>), tag-invalidated in-process only. Public reads tagged <code>CacheTags.Content</code> in <code>source/BlogEngine/Services/BlogSvc.cs:44-47</code>. Output cache <code>PublicListing</code> expires 5 minutes (<code>source/TechieBlog/Program.cs:373</code>). The website's cross-process notifier is a no-op (<code>source/TechieBlog/Program.cs:534</code>). Net effect: a row written directly in psql stays hidden from cached listings until the 10-minute entry expires or the host restarts. [Likely]
+</li>
+<li>DI registration of main services: <code>source/BlogEngine/BlogSvcInitializer.cs:94-205</code> (repos transient with <code>dbConnectionString</code>; <code>AuthSvc</code> <code>:139</code>, <code>BlogSvc</code> <code>:143</code>, <code>UserStatsSvc</code> <code>:180</code>, <code>ICacheService</code> singleton <code>:112</code>, <code>IBlogImageService</code> scoped <code>:186</code>). Called from <code>source/TechieBlog/Program.cs:295</code>. Host-only registrations: <code>source/TechieBlog/Program.cs:301</code> (cache decorator), <code>:346</code> (output cache), <code>:522</code> (<code>IAuthService</code>), <code>:534</code> (<code>ISiteCacheNotifier</code>).
+</li>
+</ul>
+<h2 id="known-issues">Known issues<a class="anchor-link" href="#known-issues">#</a></h2>
+<p>Found while mapping on 2026-11-02. "By reading" means read in the code, not reproduced; each needs <code>*triage-issues</code> before a fix.</p>
+<ul>
+<li><strong>Posts-list search and row Delete crash the page for an Admin (reproduced 5 of 5).</strong> User 1 → <code>/BlogsList</code> → type in <code>posts-search</code>, or click a row's Delete → "Something went wrong". <code>RuntimeBinderException</code> in TrBlazeUI 2.2.1 <code>SelectValue.GetSelectedText</code>, from the bulk-action Select (<code>BlogsList.razor:265</code>). TR-077. REQ-UI-017 (now Needs re-verify).
+</li>
+<li><strong>D3 — an Author could open and edit any post — FIXED 2026-11-05.</strong> <code>ManagePost.razor.cs</code> and <code>PreviewPost.razor</code> loaded by id with no owner check, and saving handed the post to whoever saved it. Both now apply <code>PostAccess.CanEdit</code> (BlogModels): an Admin or Editor edits any post, anyone else only their own, and an existing post keeps its owner. Proof: <code>tests/verify/triage-20261105-post-ownership.spec.ts</code>, <code>tests/unit/Security/PostAccessTests.cs</code>. REQ-UI-016.
+</li>
+<li><strong>The same <code>Select</code> crash once in the post editor</strong>, 8 s after a publish. Not reproduced there. TR-077. REQ-UI-016.
+</li>
+<li><strong>D1 — scheduled publish drops series membership</strong> (by reading). <code>BlogPostRepo.cs:307-309</code> omits <code>SeriesId</code>/<code>SeriesPartNumber</code>; written back as NULL at <code>:229-230</code>. REQ-FN-016.
+</li>
+<li><strong>D2 — Save Draft keeps the schedule</strong> (likely). <code>ManagePost.razor.cs:688</code>, <code>BlogSvc.cs:694-702</code>. REQ-FN-016.
+</li>
+<li><strong>D6 — the title overwrites a hand-typed slug on a new post</strong> (by reading). <code>ManagePost.razor.cs:475-478</code>. REQ-UI-016.
+</li>
+<li><strong>Search filters do nothing</strong> (by reading). Category, date and sort are bound but not applied (<code>SearchResults.razor:43-77</code>, <code>:261-291</code>); rating hard-coded 0 (<code>:289</code>). REQ-UI-011.
+</li>
+<li><strong>Post-page tag links can miss the archive</strong> (by reading). <code>PostView.razor:304</code> builds the slug with <code>GetSlug</code> (<code>:749-757</code>), not <code>SlugGenerator.GenerateSlug</code>; "ASP.NET" → <code>/tag/asp.net</code>, stored as <code>aspnet</code>. REQ-UI-007.
+</li>
+<li><strong>RSS page Copy button never copies</strong> (by reading), yet shows "copied". <code>RssFeed.razor:164-174</code>. REQ-UI-046.
+</li>
+<li><strong>D7 — "Remember me" is never read</strong> (by reading). <code>LoginPage.razor:65</code>, <code>:96</code>. REQ-UI-001.
+</li>
+<li><strong>D8 — the reset-success message is never shown</strong> (by reading). <code>ResetPasswordPage.razor:190</code> sends <code>?message=</code>; nothing reads it. REQ-UI-003.
+</li>
+<li><strong>Dashboard "Pending Comments" counts rejected and spam</strong> (by reading). <code>AdminCountsRepo.cs:77</code> counts <code>Published = FALSE</code>. REQ-FN-036.
+</li>
+<li><strong>D4, D5 — series admin is not owner-scoped; a stale series URL creates a new series</strong> (likely). <code>SeriesList.razor:258</code>, <code>SeriesSvc.cs:482-600</code>; <code>ManageSeries.razor.cs:51-56</code>. REQ-UI-024.
+</li>
+<li><strong>Award up/down does nothing when two awards share an order number</strong> (likely). <code>ManageAwards.razor.cs:432-434</code>. REQ-UI-039.
+</li>
+<li>Minor, by reading: Publish Now leaves <code>ScheduledPublishOn</code> set (<code>BlogSvc.cs:719-737</code>); Add user writes the user and its password in two calls with no transaction (<code>AuthSvc.cs:750</code>, <code>:755</code>); the comment queue loads each comment's post one by one (<code>CommentsList.razor:384</code>); a NULL <code>Subscriber.IsConfirmed</code> shows Active but is excluded from counts and sends (<code>SubscriberRepo.cs:59</code> vs <code>AdminCountsRepo.cs:83</code>).
+</li>
+<li><code>About.razor:81-98</code> links GitHub, Twitter and LinkedIn to the sites' home pages, not the owner's profiles.
+</li>
+<li>Open checklist rows: REQ-UI-025, REQ-FN-031, REQ-UI-047 are <code>Needs re-verify</code>.
+</li>
+</ul>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+<script>
+// Light/dark toggle. The initial theme was already applied flash-free by the
+// <head> script (saved choice, else time-of-day). Clicking flips it, saves the
+// choice, and reloads so Mermaid re-renders in the matching theme.
+(function(){
+  var btn = document.getElementById('themeToggle');
+  if(!btn) return;
+  var relabel = function(){
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    btn.textContent = dark ? '☀ Light' : '☾ Dark';
+  };
+  relabel();
+  btn.addEventListener('click', function(){
+    var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    try{ localStorage.setItem('tf-theme', next); }catch(e){}
+    location.reload();
+  });
+})();
+
+// Copy buttons on every code <pre> — but NEVER on a `pre.mermaid`:
+// mermaid reads the <pre>'s textContent as the diagram source, so a button
+// appended here glues "copy" onto the last line and breaks the parse
+// (flowcharts → "Syntax error"; sequence diagrams silently absorb it).
+// Mermaid blocks get copy/export from their own .diagram toolbar instead.
+document.querySelectorAll('pre:not(.mermaid)').forEach(pre => {
+  const btn = document.createElement('button');
+  btn.className = 'copy';
+  btn.textContent = 'copy';
+  btn.addEventListener('click', () => {
+    const text = pre.querySelector('code') ? pre.querySelector('code').innerText : pre.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'copied';
+      setTimeout(() => { btn.textContent = 'copy'; }, 1200);
+    });
+  });
+  pre.appendChild(btn);
+});
+
+// Mermaid init — theme follows the resolved light/dark theme
+if (window.mermaid) {
+  var mermaidTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
+  mermaid.initialize({ startOnLoad: true, theme: mermaidTheme, securityLevel: 'loose' });
+}
+
+// Mermaid toolbar wiring — run after mermaid renders
+function wireMermaidToolbars() {
+  document.querySelectorAll('.diagram').forEach(dia => {
+    if (dia.dataset.wired) return;
+    const merm = dia.querySelector('.mermaid');
+    const svg = merm && merm.querySelector('svg');
+    if (!svg) return;
+    dia.dataset.wired = '1';
+    let scale = 1;
+    const label = dia.querySelector('.zlabel');
+    const apply = () => {
+      svg.style.transform = `scale(${scale})`;
+      svg.style.transformOrigin = 'top left';
+      if (label) label.textContent = Math.round(scale * 100) + '%';
+    };
+    const setScale = (s) => { scale = Math.max(0.25, Math.min(4, s)); apply(); };
+    dia.querySelector('[data-zin]').onclick = () => setScale(scale * 1.2);
+    dia.querySelector('[data-zout]').onclick = () => setScale(scale / 1.2);
+    dia.querySelector('[data-fit]').onclick = () => {
+      svg.style.transform = '';
+      svg.removeAttribute('width');
+      svg.style.maxWidth = '100%';
+      svg.style.height = 'auto';
+      scale = 1;
+      if (label) label.textContent = 'Fit';
+    };
+    dia.querySelector('[data-one]').onclick = () => {
+      svg.style.transform = '';
+      svg.style.maxWidth = 'none';
+      svg.style.width = '';
+      svg.style.height = '';
+      scale = 1;
+      if (label) label.textContent = '100%';
+    };
+    dia.querySelector('[data-fs]').onclick = () => {
+      dia.classList.toggle('fs');
+      if (dia.classList.contains('fs')) {
+        document.addEventListener('keydown', escFs);
+      } else {
+        document.removeEventListener('keydown', escFs);
+      }
+    };
+    function escFs(e) { if (e.key === 'Escape') { dia.classList.remove('fs'); document.removeEventListener('keydown', escFs); } }
+    dia.querySelector('[data-pop]').onclick = () => openInNewTab(svg);
+    // Ctrl+wheel zoom
+    merm.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setScale(scale * (e.deltaY < 0 ? 1.1 : 1/1.1));
+    }, { passive: false });
+  });
+}
+
+function openInNewTab(svg) {
+  const svgSource = new XMLSerializer().serializeToString(svg);
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Diagram</title>
+<style>
+  html,body{margin:0;height:100%;background:#0f1115;color:#e6e8ee;font-family:system-ui,sans-serif}
+  .bar{position:fixed;top:0;left:0;right:0;padding:8px 12px;background:#161a22;border-bottom:1px solid #2a3142;display:flex;gap:8px;z-index:10}
+  .bar button{background:#1c2230;color:#9aa3b2;border:1px solid #2a3142;border-radius:6px;padding:5px 12px;font-size:13px;cursor:pointer}
+  .bar button:hover{color:#7cc4ff;border-color:#7cc4ff}
+  .bar .hint{margin-left:auto;color:#9aa3b2;font-size:11.5px;align-self:center}
+  #stage{position:absolute;top:42px;bottom:0;left:0;right:0;overflow:hidden}
+  #stage svg{width:100%;height:100%}
+</style>
+</head><body>
+<div class="bar">
+  <button onclick="zpz.zoomIn()">+</button>
+  <button onclick="zpz.zoomOut()">−</button>
+  <button onclick="zpz.fit();zpz.center()">Fit</button>
+  <button onclick="zpz.resetZoom();zpz.center()">1:1</button>
+  <button onclick="window.print()">Print</button>
+  <button onclick="dlPng()">PNG</button>
+  <button onclick="dlSvg()">SVG</button>
+  <span class="hint">Drag to pan · Ctrl+wheel to zoom · + / − keys</span>
+</div>
+<div id="stage">${svgSource}</div>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"><\/script>
+<script>
+  const el = document.querySelector('#stage svg');
+  const zpz = svgPanZoom(el, { zoomScaleSensitivity: .3, minZoom: .2, maxZoom: 10, controlIconsEnabled: false, fit: true, center: true });
+  document.addEventListener('keydown', e => {
+    if (e.key === '+' || e.key === '=') zpz.zoomIn();
+    if (e.key === '-' || e.key === '_') zpz.zoomOut();
+    if (e.key === '0') { zpz.resetZoom(); zpz.center(); }
+  });
+  function dlSvg() {
+    const blob = new Blob([new XMLSerializer().serializeToString(el)], { type: 'image/svg+xml' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'diagram.svg'; a.click();
+  }
+  function dlPng() {
+    const src = new XMLSerializer().serializeToString(el);
+    const img = new Image();
+    const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(src)));
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = el.clientWidth * 2; c.height = el.clientHeight * 2;
+      const ctx = c.getContext('2d'); ctx.scale(2,2); ctx.drawImage(img, 0, 0);
+      c.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'diagram.png'; a.click(); });
+    };
+    img.src = url;
+  }
+<\/script>
+</body></html>`;
+  const w = window.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+// Run wiring after mermaid finishes (it renders async)
+if (window.mermaid) {
+  setTimeout(wireMermaidToolbars, 400);
+  setTimeout(wireMermaidToolbars, 1200);  // safety re-run for slow renders
+}
+</script>
+</body>
+</html>

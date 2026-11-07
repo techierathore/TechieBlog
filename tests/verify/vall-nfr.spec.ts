@@ -11,7 +11,7 @@
  * Everything is READ-ONLY against the already-running host — no data is created or mutated,
  * because seven sibling verifiers share this instance and its database.
  *
- * Screenshots go to `.verify/shots/nfr/` — Playwright wipes `test-results/` at the start of every
+ * Screenshots go to `.verify/shots/nfr/` — Playwright wipes `tests/.artifacts/test-results/` at the start of every
  * run and the siblings run concurrently, so anything saved there is destroyed.
  */
 import { test, expect } from '@playwright/test';

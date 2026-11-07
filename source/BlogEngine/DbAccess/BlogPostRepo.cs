@@ -268,6 +268,24 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
             ORDER BY COALESCE(p.PublishedOn, p.CreatedOn) DESC, p.PostID DESC
             LIMIT @PageSize OFFSET @Offset";
 
+    private const string SelectRelatedSql = @"
+            SELECT p.PostID, p.Title, p.Slug, p.Abstract, p.PostContent, p.CreatedOn, p.UpdatedOn,
+                   p.UserID, p.Tags, p.CategoryId, p.FeaturedImage, p.Published, p.PublishedOn,
+                   CONCAT(u.FirstName, ' ', u.LastName) as BlogWriter
+            FROM BlogPost p
+            LEFT JOIN BlogUser u ON p.UserID = u.UserId
+            LEFT JOIN LATERAL (
+                SELECT COUNT(*) AS SharedTags
+                FROM PostTag mine
+                INNER JOIN PostTag theirs ON theirs.TagId = mine.TagId AND theirs.PostId = p.PostID
+                WHERE mine.PostId = @PostId) shared ON TRUE
+            WHERE p.PostID <> @PostId
+                AND p.Published = TRUE
+                AND (p.IsDeleted = FALSE OR p.IsDeleted IS NULL)
+                AND ((@CategoryId IS NOT NULL AND p.CategoryId = @CategoryId) OR shared.SharedTags > 0)
+            ORDER BY shared.SharedTags DESC, COALESCE(p.PublishedOn, p.CreatedOn) DESC, p.PostID DESC
+            LIMIT @Take";
+
     private const string CountByCategorySql = @"
             SELECT COUNT(*) FROM BlogPost
             WHERE CategoryId = @CategoryId
@@ -338,6 +356,12 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
             WHERE SeriesId = @SeriesId
                 AND (IsDeleted = FALSE OR IsDeleted IS NULL)";
 
+    private const string SetPartNumberSql = @"
+            UPDATE BlogPost SET
+                SeriesPartNumber = @Part,
+                UpdatedOn = @UpdatedOn
+            WHERE PostID = @PostId AND SeriesId = @SeriesId";
+
     private const string ClearSeriesSql = @"
             UPDATE BlogPost SET
                 SeriesId = NULL,
@@ -360,7 +384,9 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
                 AND (p.Title ILIKE @Query
                     OR p.Abstract ILIKE @Query
                     OR p.PostContent ILIKE @Query
-                    OR p.Tags ILIKE @Query)
+                    OR p.Tags ILIKE @Query
+                    OR EXISTS (SELECT 1 FROM PostTag pt INNER JOIN Tag t ON t.TagId = pt.TagId
+                               WHERE pt.PostId = p.PostID AND t.TagName ILIKE @Query))
             ORDER BY COALESCE(p.PublishedOn, p.CreatedOn) DESC, p.PostID DESC
             LIMIT @PageSize OFFSET @Offset";
 
@@ -371,7 +397,9 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
                 AND (Title ILIKE @Query
                     OR Abstract ILIKE @Query
                     OR PostContent ILIKE @Query
-                    OR Tags ILIKE @Query)";
+                    OR Tags ILIKE @Query
+                    OR EXISTS (SELECT 1 FROM PostTag pt INNER JOIN Tag t ON t.TagId = pt.TagId
+                               WHERE pt.PostId = BlogPost.PostID AND t.TagName ILIKE @Query))";
 
     /// <summary>
     /// Initialises the repository with the application connection string.
@@ -690,6 +718,29 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
     }
 
     /// <summary>
+    /// Gets the published posts related to one post, without blocking the calling thread (REQ-FN-020).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Related means published, not deleted, not the subject itself, and
+    /// sharing the subject's category or at least one tag through <c>PostTag</c>. More shared tags rank
+    /// first, then newest first, so the strongest relation leads the "More Posts" strip.</para>
+    /// <para><b>Flow:</b> helper opens the connection asynchronously → one ranked LIMIT query → materialised list.</para>
+    /// <para><b>Side Effects:</b> None — read-only query.</para>
+    /// </remarks>
+    /// <param name="postId">The subject post, which is excluded from the result.</param>
+    /// <param name="categoryId">The subject's category, or <c>null</c> when it has none.</param>
+    /// <param name="take">Maximum number of related posts to return.</param>
+    /// <param name="cancellationToken">Cancels the query.</param>
+    /// <returns>Related published posts, best match first.</returns>
+    public async Task<IEnumerable<BlogPost>> GetRelatedPostsAsync(long postId, long? categoryId, int take, CancellationToken cancellationToken = default)
+    {
+        return await QueryAsync<BlogPost>(
+            SelectRelatedSql,
+            new { PostId = postId, CategoryId = categoryId, Take = take },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Gets the number of published posts in one category, without blocking the calling thread.
     /// </summary>
     /// <remarks>
@@ -844,6 +895,27 @@ public class BlogPostRepo : GenericRepository<BlogPost>, IBlogPostRepo
             ClearSeriesSql,
             new { SeriesId = seriesId, UpdatedOn = DbTimestamp.AsTimestamp(DateTime.UtcNow) },
             cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Rewrites the part numbers of posts inside one series.
+    /// </summary>
+    /// <param name="seriesId">The series whose parts are renumbered.</param>
+    /// <param name="partNumbers">Post id and its new part number.</param>
+    /// <param name="cancellationToken">Cancels the statements.</param>
+    /// <returns>A task that completes when the rows have been written.</returns>
+    public async Task SetSeriesPartNumbersAsync(
+        long seriesId,
+        IReadOnlyList<KeyValuePair<long, int>> partNumbers,
+        CancellationToken cancellationToken = default)
+    {
+        foreach (var entry in partNumbers)
+        {
+            await ExecuteAsync(
+                SetPartNumberSql,
+                new { PostId = entry.Key, Part = entry.Value, SeriesId = seriesId, UpdatedOn = DbTimestamp.AsTimestamp(DateTime.UtcNow) },
+                cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>

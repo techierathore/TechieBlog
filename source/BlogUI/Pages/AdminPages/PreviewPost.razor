@@ -12,7 +12,11 @@
 @layout BlogUI.Layouts.AdminLayout
 @inject BlogEngine.Services.BlogSvc BlogService
 @inject BlogEngine.Common.MarkdownRenderer MarkdownRenderer
+@inject BlogEngine.Services.TagSvc TagService
+@inject BlogEngine.Services.CategorySvc CategoryService
 @inject NavigationManager Navigation
+@* [REQ-UI-016] 2026-11-05: the preview applies the posts list's ownership rule (PostAccess). *@
+@inject AuthenticationStateProvider AuthStateProvider
 @* UAT-024: opens a published post's public URL outside this admin window. *@
 @inject IExternalLinkOpener LinkOpener
 
@@ -26,6 +30,22 @@
         <Spinner />
         <span class="text-muted-foreground">Loading preview...</span>
     </div>
+}
+else if (isForbidden)
+{
+    @* [REQ-UI-016] 2026-11-05: another author's post is never shown here; only Admins and Editors
+       may preview every post, an Author only their own (the same rule as the posts list). *@
+    <Empty Title="Not your post"
+           Description="This post belongs to another author. You can preview only your own posts."
+           data-testid="preview-forbidden">
+        <Icon><LucideIcon Name="lock" Size="48" /></Icon>
+        <ChildContent>
+            <Button Href="/BlogsList" data-testid="preview-forbidden-back-to-posts">
+                <LucideIcon Name="arrow-left" Size="16" />
+                Back to Posts
+            </Button>
+        </ChildContent>
+    </Empty>
 }
 else if (blogPost == null)
 {
@@ -104,10 +124,10 @@ else
     @* Article Preview *@
     <Card data-testid="preview-article">
         <CardHeader Class="border-b border-border">
-            @if (!string.IsNullOrWhiteSpace(blogPost.Tags))
+            @if (!string.IsNullOrWhiteSpace(categoryName))
             {
                 <span class="text-xs font-semibold tracking-wider text-primary" data-testid="preview-category">
-                    @GetCategory(blogPost.Tags)
+                    @categoryName
                 </span>
             }
             <CardTitle Class="text-3xl leading-tight" data-testid="preview-title">@blogPost.Title</CardTitle>
@@ -155,12 +175,12 @@ else
             </div>
 
             @* Tags *@
-            @if (!string.IsNullOrWhiteSpace(blogPost.Tags))
+            @if (postTags.Count > 0)
             {
                 <div class="mt-6 border-t border-border pt-4" data-testid="preview-tags">
                     <strong>Tags:</strong>
                     <div class="mt-2 flex flex-wrap gap-2">
-                        @foreach (var tag in GetTags(blogPost.Tags))
+                        @foreach (var tag in postTags)
                         {
                             <Badge Variant="BadgeVariant.Secondary" data-testid="preview-tag">@tag</Badge>
                         }
@@ -185,7 +205,7 @@ else
                         <Badge Variant="BadgeVariant.Secondary" data-testid="preview-status">Draft</Badge>
                     }
                 </div>
-                <div><strong>Updated:</strong> <span data-testid="preview-updated">@blogPost.UpdatedOn.ToString("MMM dd, yyyy h:mm tt")</span></div>
+                <div><strong>Updated:</strong> <span data-testid="preview-updated">@((blogPost.UpdatedOn > default(DateTime) ? blogPost.UpdatedOn : blogPost.CreatedOn).ToString("MMM dd, yyyy h:mm tt"))</span></div>
             </div>
         </CardFooter>
     </Card>
@@ -199,7 +219,11 @@ else
     public long PostId { get; set; }
 
     private BlogModels.BlogPost blogPost;
+    private List<string> postTags = new();
+    private string categoryName = string.Empty;
     private bool isLoading = true;
+    /// <summary>True when the post exists but the signed-in user may not see it (REQ-UI-016).</summary>
+    private bool isForbidden;
     private bool isPublishing;
     private string statusMessage = string.Empty;
     private bool isError;
@@ -217,6 +241,27 @@ else
         try
         {
             blogPost = await BlogService.GetSinglePostAsync(PostId);
+            if (blogPost != null)
+            {
+                // [REQ-UI-016] 2026-11-05: an Author previews only their own posts; the post is
+                // dropped before any of its content reaches the page.
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                isForbidden = !PostAccess.CanEdit(authState.User, blogPost);
+                if (isForbidden)
+                {
+                    blogPost = null;
+                    isLoading = false;
+                    return;
+                }
+
+                // REQ-UI-018: tags come from the PostTag junction and the category from CategoryId,
+                // exactly as the published page reads them - never from the legacy Tags text.
+                postTags = (await TagService.GetTagsForPostAsync(blogPost.PostID)).Select(t => t.TagName).ToList();
+                var category = blogPost.CategoryId > 0
+                    ? await CategoryService.GetCategoryAsync(blogPost.CategoryId)
+                    : null;
+                categoryName = category?.CategoryName ?? string.Empty;
+            }
         }
         catch
         {
@@ -281,28 +326,6 @@ else
         }
 
         await LinkOpener.OpenAsync($"/post/{blogPost.Slug}");
-    }
-
-    /// <summary>Gets the first tag, used as the display category.</summary>
-    private string GetCategory(string tags)
-    {
-        if (string.IsNullOrWhiteSpace(tags))
-            return "General";
-
-        var firstTag = tags.Split(',').FirstOrDefault()?.Trim();
-        return string.IsNullOrEmpty(firstTag) ? "General" : firstTag;
-    }
-
-    /// <summary>Splits the comma-separated tag string into individual tag names.</summary>
-    private List<string> GetTags(string tags)
-    {
-        if (string.IsNullOrWhiteSpace(tags))
-            return new List<string>();
-
-        return tags.Split(',')
-            .Select(t => t.Trim())
-            .Where(t => !string.IsNullOrEmpty(t))
-            .ToList();
     }
 
     /// <summary>Calculates the estimated reading time for the post body.</summary>

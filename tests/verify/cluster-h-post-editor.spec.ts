@@ -21,20 +21,32 @@
  *      row diff is taken outside this file, straight out of psql (harness/db-snapshot.sh +
  *      harness/db-diff.py): post 7 must differ in exactly the columns changed, post 5 in ZERO.
  *
- * Run with TB_BASE=http://<wsl-gateway>:5424 (cluster H's own port).
+ * Run with TB_BASE (default http://localhost:5450).
+ *
+ * 2026-10-28 (T2 triage): the original read posts 5 and 7 plus a psql-truth file the cluster agent
+ * produced; neither exists on the empty dev DB. The two posts are now created through the admin UI
+ * (`fxv8 Editor Alpha` / `fxv8 Editor Bravo`, both published so the editor shows `save-post`),
+ * their stored values are read back with psql SELECTs, and both are deleted through /BlogsList in
+ * afterAll. Proof 3 now also asserts the row diff the old header said was "taken outside this file".
  */
 import { test, expect, Page } from '@playwright/test';
 import { login, nav, visualCheck } from './_gates';
+import { createPost, deletePostByTitle, idOf, loginHard, sqlOne } from './fxv1-fixtures';
 import * as fs from 'fs';
 
-const SHOTS = 'tests/.artifacts/cluster-h';
-const TRUTH = 'tests/.artifacts/cluster-h/db-before-rows.json';
+const SHOTS = 'tests/.artifacts/verify/T2/cluster-h';
+fs.mkdirSync(SHOTS, { recursive: true });
 
-/** Post opened first — the post whose values must not survive the switch. */
-const POST_A = 5;
+const TITLE_A = 'fxv8 Editor Alpha';
+const TITLE_B = 'fxv8 Editor Bravo';
+const BODY_A = 'fxv8 alpha body, first post.';
+const BODY_B = 'fxv8 bravo body, second post.';
 
-/** Post navigated to — every field must be its own afterwards. */
-const POST_B = 7;
+/** Post opened first — the post whose values must not survive the switch (resolved in beforeAll). */
+let POST_A = 0;
+
+/** Post navigated to — every field must be its own afterwards (resolved in beforeAll). */
+let POST_B = 0;
 
 /** The 2026-08-09 verifier's exact repro string. 15 characters. */
 const FIDELITY_TEXT = '## Live heading';
@@ -52,11 +64,10 @@ interface PostRow {
   postcontent: string;
 }
 
+/** What the database stored for a post, read with psql SELECTs (newlines in the body are returned as `<NL>` so a multi-line body is one row). */
 function truthFor(postId: number): PostRow {
-  const rows = JSON.parse(fs.readFileSync(TRUTH, 'utf8')) as PostRow[];
-  const row = rows.find((r) => r.postid === postId);
-  if (!row) throw new Error(`no psql truth captured for post ${postId}`);
-  return row;
+  const col = (c: string) => sqlOne(`SELECT ${c} FROM blogpost WHERE postid = ${postId}`);
+  return { postid: postId, title: col('title'), slug: col('slug'), abstract: col('abstract'), postcontent: col("replace(postcontent, chr(10), '<NL>')") };
 }
 
 interface EditorState {
@@ -91,6 +102,35 @@ async function openPostAndSettle(page: Page, postId: number): Promise<EditorStat
 }
 
 test.describe('REQ-UI-016 — the markdown editor after the 2.0.2 upgrade', () => {
+  test.describe.configure({ mode: 'serial' });
+
+  test.beforeAll(async ({ browser }) => {
+    test.setTimeout(900000);
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const admin = await ctx.newPage();
+    try {
+      await loginHard(admin, 'admin');
+      if (!idOf(TITLE_A)) await createPost(admin, { title: TITLE_A, body: BODY_A, abstract: 'fxv8 alpha abstract', mode: 'publish' });
+      if (!idOf(TITLE_B)) await createPost(admin, { title: TITLE_B, body: BODY_B, abstract: 'fxv8 bravo abstract', mode: 'publish' });
+      POST_A = Number(idOf(TITLE_A));
+      POST_B = Number(idOf(TITLE_B));
+    } finally {
+      await ctx.close();
+    }
+  });
+
+  test.afterAll(async ({ browser }) => {
+    test.setTimeout(600000);
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const admin = await ctx.newPage();
+    try {
+      await loginHard(admin, 'admin');
+      for (const t of [TITLE_A, TITLE_B, `${TITLE_B}${SAVE_MARKER_SUFFIX}`]) await deletePostByTitle(admin, t);
+    } finally {
+      await ctx.close();
+    }
+  });
+
   test('proof 1 — typing 15 characters keeps every keystroke, in order', async ({ page }) => {
     test.setTimeout(300000);
     await page.setViewportSize({ width: 1280, height: 900 });
@@ -205,20 +245,20 @@ test.describe('REQ-UI-016 — the markdown editor after the 2.0.2 upgrade', () =
     const stateA = await openPostAndSettle(page, POST_A);
     expect(stateA.title).toBe(a.title);
     expect(stateA.slug).toBe(a.slug);
-    expect(stateA.body).toBe(a.postcontent);
+    expect(stateA.body).toBe(a.postcontent.replace(/<NL>/g, '\n'));
 
     const stateB = await openPostAndSettle(page, POST_B);
     expect(page.url()).toContain(`/ManagePost/${POST_B}`);
     expect(stateB.title).toBe(b.title);
     expect(stateB.slug).toBe(b.slug);
-    expect(stateB.body).toBe(b.postcontent);
+    expect(stateB.body).toBe(b.postcontent.replace(/<NL>/g, '\n'));
     expect(stateB.title).not.toBe(a.title);
-    expect(stateB.body).not.toBe(a.postcontent);
+    expect(stateB.body).not.toBe(a.postcontent.replace(/<NL>/g, '\n'));
 
     const backToA = await openPostAndSettle(page, POST_A);
     expect(backToA.title).toBe(a.title);
     expect(backToA.slug).toBe(a.slug);
-    expect(backToA.body).toBe(a.postcontent);
+    expect(backToA.body).toBe(a.postcontent.replace(/<NL>/g, '\n'));
 
     fs.writeFileSync(`${SHOTS}/reload-observed.json`, JSON.stringify({ stateA, stateB, backToA }, null, 2));
   });
@@ -241,6 +281,7 @@ test.describe('REQ-UI-016 — the markdown editor after the 2.0.2 upgrade', () =
     await login(page, 'admin');
 
     const b = truthFor(POST_B);
+    const aBefore = truthFor(POST_A);
     await openPostAndSettle(page, POST_A);
     const stateB = await openPostAndSettle(page, POST_B);
     expect(stateB.title).toBe(b.title);
@@ -260,6 +301,13 @@ test.describe('REQ-UI-016 — the markdown editor after the 2.0.2 upgrade', () =
     await page.click('[data-testid="save-post"]');
     await page.waitForURL((u) => u.pathname.toLowerCase().includes('blogslist'), { timeout: 60000 });
     await page.waitForTimeout(2000);
+
+    // Row diff, read straight from the database: post B carries the edits, post A is untouched.
+    const bAfter = truthFor(POST_B);
+    expect(bAfter.title, 'the save wrote the new title to post B').toBe(marker);
+    expect(bAfter.postcontent, 'the save wrote the edited body to post B').toContain('Edited by the cluster-h smoke.');
+    expect(bAfter.slug, 'post B keeps its own slug').toBe(b.slug);
+    expect(truthFor(POST_A), 'post A differs in zero columns').toEqual(aBefore);
   });
 
   test('the editor is visually clean at 1280 and 390 after a switch', async ({ page }) => {

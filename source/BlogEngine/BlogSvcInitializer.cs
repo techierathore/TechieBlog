@@ -55,9 +55,9 @@ namespace BlogEngine;
 /// holds a connection string and nothing else — and it is what lets the settings service keep its
 /// in-process snapshot. Do not copy the pattern for a repository that ever gains per-request state.</para>
 ///
-/// <para><b>Not registered here:</b> <c>SvcTokenRepo</c>. It was deleted from the codebase under
-/// REQ-FN-052 and had never been registered in this container — nothing resolved it, which is how
-/// it could be removed without a single call site changing.</para>
+/// <para><b>No separate service-token repository exists</b> (REQ-FN-052): the orphaned repository for a table
+/// no migration ever created was deleted. It had never been registered in this container — nothing resolved it,
+/// which is how it could be removed without a single call site changing.</para>
 ///
 /// <para><b>Usage:</b> Call once from the host's service configuration, before
 /// <c>builder.Build()</c>. Calling it twice would double every registration; the container tolerates

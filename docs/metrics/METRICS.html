@@ -103,115 +103,235 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 </head>
 <body>
 <button id="themeToggle" class="theme-toggle" title="Toggle light / dark">&#9790; Dark</button>
-<div class="layout no-toc">
+<div class="layout">
+  <nav class="side">
+    <h1>TechieBlog — Development Metrics</h1>
+    <div class="sub">Last rendered: 2026-11-05</div>
+    <div class="group">Contents</div>
+    <ol>
+        <li><a href="#first-pass-rate">1. First-pass rate</a></li>
+        <li><a href="#gate-catch-distribution">2. Gate catch distribution</a></li>
+        <li class="h3"><a href="#live-app-147-failures">Live · app — 147 failures</a></li>
+        <li><a href="#escape-rate">3. Escape rate</a></li>
+        <li><a href="#throughput-and-rework-poolable">4. Throughput and rework — poolable</a></li>
+        <li><a href="#misses-what-was-missed-who-missed-it-what-the-fix-cost">5. Misses — what was missed, who missed it, what the fix cost</a></li>
+        <li class="h3"><a href="#a-attribution-linked-records-only">5a. Attribution — linked records only</a></li>
+        <li class="h3"><a href="#b-rework-cost-measured-and-apportioned-never-combine">5b. Rework cost — measured and apportioned never combine</a></li>
+        <li><a href="#effort-per-phase-time-tokens-model-fan-out">6. Effort per phase — time, tokens, model, fan-out</a></li>
+        <li class="h3"><a href="#a-which-model-did-the-work">6a. Which model did the work</a></li>
+        <li class="h3"><a href="#b-subagent-fan-out-measured-on-its-own-denominator">6b. Subagent fan-out — measured, on its own denominator</a></li>
+        <li><a href="#what-is-missing">7. What is missing</a></li>
+    </ol>
+  </nav>
   <main>
     <h1>TechieBlog — Development Metrics</h1>
-    <div class="subtitle">Rendered 2026-10-21 &middot; source <code>METRICS.md</code></div>
+    <div class="subtitle">Rendered 2026-11-05 &middot; source <code>METRICS.md</code></div>
 
     <div class="toc-inline">
       <div>Contents</div>
       <ol>
-        <li><a href="#quality-live-records-projecttype-app-only">1. Quality — live records, project_type app only</a></li>
-        <li class="h3"><a href="#gate-catch-distribution-130-failures">Gate catch distribution (130 failures)</a></li>
-        <li><a href="#throughput-and-effort-poolable">2. Throughput and effort (poolable)</a></li>
-        <li class="h3"><a href="#effort-per-phase">Effort per phase</a></li>
-        <li><a href="#misses">3. Misses</a></li>
-        <li class="h3"><a href="#attribution-linked-records-only-34-of-92-58-excluded-as-inferred-unknown">Attribution — linked records only (34 of 92; 58 excluded as inferred/unknown)</a></li>
-        <li class="h3"><a href="#rework-cost">Rework cost</a></li>
-        <li><a href="#what-is-missing">4. What is missing</a></li>
+        <li><a href="#first-pass-rate">1. First-pass rate</a></li>
+        <li><a href="#gate-catch-distribution">2. Gate catch distribution</a></li>
+        <li class="h3"><a href="#live-app-147-failures">Live · app — 147 failures</a></li>
+        <li><a href="#escape-rate">3. Escape rate</a></li>
+        <li><a href="#throughput-and-rework-poolable">4. Throughput and rework — poolable</a></li>
+        <li><a href="#misses-what-was-missed-who-missed-it-what-the-fix-cost">5. Misses — what was missed, who missed it, what the fix cost</a></li>
+        <li class="h3"><a href="#a-attribution-linked-records-only">5a. Attribution — linked records only</a></li>
+        <li class="h3"><a href="#b-rework-cost-measured-and-apportioned-never-combine">5b. Rework cost — measured and apportioned never combine</a></li>
+        <li><a href="#effort-per-phase-time-tokens-model-fan-out">6. Effort per phase — time, tokens, model, fan-out</a></li>
+        <li class="h3"><a href="#a-which-model-did-the-work">6a. Which model did the work</a></li>
+        <li class="h3"><a href="#b-subagent-fan-out-measured-on-its-own-denominator">6b. Subagent fan-out — measured, on its own denominator</a></li>
+        <li><a href="#what-is-missing">7. What is missing</a></li>
       </ol>
     </div>
-<p><strong>Snapshot as of 2026-10-21</strong> · project_type <code>app</code> · schema v1 · every figure from <code>tf-metrics.sh --report</code></p>
+<p><strong>Snapshot as of 2026-11-05</strong> · project_type <code>app</code> · schema v1 · every figure from <code>tf-metrics.sh --report</code> and <code>--phases</code>; nothing recomputed by hand</p>
 <table>
-<thead><tr><th>Stream</th><th>Records</th></tr></thead>
+<thead><tr><th>Stream</th><th>Records</th><th>Span</th></tr></thead>
 <tbody>
-<tr><td><code>runs.jsonl</code></td><td>50</td></tr>
-<tr><td><code>gates.jsonl</code></td><td>328 (0 backfilled)</td></tr>
-<tr><td><code>sessions.jsonl</code></td><td>26</td></tr>
-<tr><td><code>commits.jsonl</code></td><td>102</td></tr>
-<tr><td><code>misses.jsonl</code></td><td>92</td></tr>
+<tr><td><code>runs.jsonl</code></td><td>69</td><td>2026-08-08 → 2026-11-05</td></tr>
+<tr><td><code>gates.jsonl</code></td><td>512 (0 backfilled, 0 malformed)</td><td>2026-08-08 → 2026-11-05</td></tr>
+<tr><td><code>sessions.jsonl</code></td><td>30 (1 duplicate collapsed)</td><td>2026-08-08 → 2026-11-05</td></tr>
+<tr><td><code>commits.jsonl</code></td><td>105</td><td>2026-08-08 → 2026-11-02</td></tr>
+<tr><td><code>misses.jsonl</code></td><td>110 miss + 184 miss-fix</td><td>2026-08-09 → 2026-11-05</td></tr>
 </tbody>
 </table>
-<h2 id="quality-live-records-projecttype-app-only"><a id="1-quality--live-records-project_type-app-only"></a>1. Quality — live records, project_type <code>app</code> only<a class="anchor-link" href="#quality-live-records-projecttype-app-only">#</a></h2>
-<p>All gate records are live; no backfilled column exists.</p>
+<p>Written by <code>*triage-and-fix TechieBlog</code> on 2026-11-05 (the TrBlazeUI 2.2.2 upgrade for TR-077). Every record is live; this project has no backfilled data, so there is no backfilled column anywhere on this page.</p>
+<hr>
+<h2 id="first-pass-rate"><a id="1-first-pass-rate"></a>1. First-pass rate<a class="anchor-link" href="#first-pass-rate">#</a></h2>
+<p><em>What fraction of REQs reach <code>Verified</code> on attempt 1.</em></p>
 <table>
-<thead><tr><th>Figure</th><th>Value</th></tr></thead>
+<thead><tr><th>Provenance</th><th>project_type</th><th>REQs scored</th><th>First-pass</th><th>Rate</th></tr></thead>
 <tbody>
-<tr><td>REQs scored</td><td>155</td></tr>
-<tr><td>First-pass rate</td><td>81%</td></tr>
-<tr><td>Escape rate (no gate caught it)</td><td>4%</td></tr>
+<tr><td><strong>Live</strong></td><td>app</td><td>159</td><td>129</td><td>81%</td></tr>
 </tbody>
 </table>
-<h3 id="gate-catch-distribution-130-failures">Gate catch distribution (130 failures)<a class="anchor-link" href="#gate-catch-distribution-130-failures">#</a></h3>
+<p>No REQ is excluded for backfilled history (0 tainted rows).</p>
+<hr>
+<h2 id="gate-catch-distribution"><a id="2-gate-catch-distribution"></a>2. Gate catch distribution<a class="anchor-link" href="#gate-catch-distribution">#</a></h2>
+<p><em>Of all failures, which gate caught them.</em></p>
+<h3 id="live-app-147-failures"><a id="live--app--147-failures"></a>Live · <code>app</code> — 147 failures<a class="anchor-link" href="#live-app-147-failures">#</a></h3>
 <table>
-<thead><tr><th>Gate</th><th>Failures</th><th>Share</th></tr></thead>
+<thead><tr><th>Gate</th><th>Caught</th><th>Share</th></tr></thead>
 <tbody>
-<tr><td>acceptance</td><td>107</td><td>82%</td></tr>
-<tr><td>render</td><td>7</td><td>5%</td></tr>
-<tr><td>visual</td><td>5</td><td>4%</td></tr>
 <tr><td>build</td><td>4</td><td>3%</td></tr>
-<tr><td>escaped</td><td>4</td><td>3%</td></tr>
-<tr><td>mockup-parity</td><td>2</td><td>2%</td></tr>
+<tr><td>acceptance</td><td>110</td><td>75%</td></tr>
+<tr><td>render (data shows)</td><td>7</td><td>5%</td></tr>
+<tr><td>visual (nothing overlaps or clips)</td><td>13</td><td>9%</td></tr>
+<tr><td>mockup-parity</td><td>6</td><td>4%</td></tr>
 <tr><td>standards</td><td>1</td><td>1%</td></tr>
+<tr><td><strong>escaped</strong> — no gate caught it</td><td>6</td><td>4%</td></tr>
 </tbody>
 </table>
-<p>Per-gate catch rates (not the share above): mockup-parity caught 2 of 7 records it ran on (29%); assets 0 of 8 (0%); perf insufficient data (n=1).</p>
-<h2 id="throughput-and-effort-poolable"><a id="2-throughput-and-effort-poolable"></a>2. Throughput and effort (poolable)<a class="anchor-link" href="#throughput-and-effort-poolable">#</a></h2>
-<ul>
-<li>Runs: 50 — build-phase 7, fix-issues 22, verify-phase 15, triage-and-fix 2, triage-issues 2, handoff-phase 1, refresh-status 1.
-</li>
-<li>Rework ratio: 414% (fix-mode runs / build-phase runs). Median batch 4 REQs per build-phase run; 4.47 REQs/hour.
-</li>
-<li>Sessions: 26, 9,100,457 tokens in total. List price $578.42 over 20 priced runs — the published rate applied to measured tokens; a price, not a bill. Claude Code records carry no billed dollars.
-</li>
-<li>Commit cadence: 1.17 commits per active day (102 commits over 87 days).
-</li>
-</ul>
-<h3 id="effort-per-phase">Effort per phase<a class="anchor-link" href="#effort-per-phase">#</a></h3>
-<p>Token figures cover only runs with a measured window. Fan-out was not observed on any run (no <code>tree</code>-scope windows in these phases), so a 0 there means <em>not looked</em>, not <em>none ran</em>. Phase costs reflect what each phase is, not how well it ran.</p>
+<p>Gates added after the first records ran on fewer rows than the others: <code>assets</code> ran 17 times and caught 0; <code>mockup-parity</code> ran 12 times and caught 6; <code>perf</code> ran once and caught 0; <code>test-users</code> (added 2026-11-01) has not run yet. A gate that was not there cannot have caught anything, so these shares undercount the late gates.</p>
+<p><strong>Most common failure classes:</strong> <code>assert-fail</code> ×102 (the acceptance test failed), <code>other</code> ×17, <code>overlap</code> ×10, <code>mockup-drift</code> ×6.</p>
+<p>Two of the six escapes are this run's: the posts-list crash on TrBlazeUI 2.2.1 (TR-077) and the editor opening any post for any Author, both found by reading and running the app, not by a gate.</p>
+<hr>
+<h2 id="escape-rate"><a id="3-escape-rate"></a>3. Escape rate<a class="anchor-link" href="#escape-rate">#</a></h2>
+<p><em>What fraction of defective REQs reached UAT/production instead of a gate.</em></p>
 <table>
-<thead><tr><th>Phase</th><th>Runs</th><th>Wall clock</th><th>Tokens out</th><th>Out share</th><th>Time share</th></tr></thead>
+<thead><tr><th>Provenance</th><th>project_type</th><th>REQs with any failure</th><th>Escaped to UAT/prod</th><th>Rate</th></tr></thead>
 <tbody>
-<tr><td>build-phase</td><td>7</td><td>32h38m</td><td>not measured (0 of 7)</td><td>—</td><td>44%</td></tr>
-<tr><td>verify-phase</td><td>15</td><td>31h28m</td><td>783.5k</td><td>27%</td><td>43%</td></tr>
-<tr><td>fix-issues</td><td>22</td><td>7h55m</td><td>1.8M (9 of 22 measured)</td><td>61%</td><td>11%</td></tr>
-<tr><td>triage-and-fix</td><td>2</td><td>45m09s</td><td>217.8k</td><td>8%</td><td>1%</td></tr>
-<tr><td>triage-issues</td><td>2</td><td>39m14s</td><td>109.7k</td><td>4%</td><td>1%</td></tr>
-<tr><td>handoff-phase</td><td>1</td><td>25m30s</td><td>not measured</td><td>—</td><td>1%</td></tr>
+<tr><td><strong>Live</strong></td><td>app</td><td>147 failures over the scored rows</td><td>6</td><td>6%</td></tr>
 </tbody>
 </table>
-<h2 id="misses"><a id="3-misses"></a>3. Misses<a class="anchor-link" href="#misses">#</a></h2>
-<ul>
-<li>Logged: 92 (2 open, 3 resolved, 87 wont-fix); 90 fix records.
-</li>
-<li>Found by: gate 89, production 3 (3% found by a human — reported beside the escape rate, never merged with it).
-</li>
-<li>Classes: regression 90, other 1, partial-implementation 1. Design-miss share 0%.
-</li>
-<li>Why missed (4 of 92 assessed): insufficient-verify-method 3, instruction-ignored 1. Whose gap (3 of 4 sorted): weak-check 3.
-</li>
-<li><strong>This run (2026-10-21 production report):</strong> 3 misses on REQ-FN-040 (post pagination ignored the saved word count), REQ-NFR-018 (the live site was not told to refresh after BlogApp saves), REQ-FN-062 (BlogApp crashed in WebView2's file dialog). All three were fixed and re-verified <code>Verified</code>.
-</li>
-</ul>
-<h3 id="attribution-linked-records-only-34-of-92-58-excluded-as-inferred-unknown"><a id="attribution--linked-records-only-34-of-92-58-excluded-as-inferredunknown"></a>Attribution — linked records only (34 of 92; 58 excluded as inferred/unknown)<a class="anchor-link" href="#attribution-linked-records-only-34-of-92-58-excluded-as-inferred-unknown">#</a></h3>
-<p>By origin phase: build-phase 29, fix-issues 5. By agent: general-purpose 29, flow-master 3, trblazeui 2. By model: unknown 31, claude-opus-5 3. A per-model rate is observational, not causal: harder work is not assigned at random.</p>
-<h3 id="rework-cost">Rework cost<a class="anchor-link" href="#rework-cost">#</a></h3>
+<p>Escapes are the <code>gate:"escaped"</code> records written by triage. Of the two from 2026-11-05, REQ-UI-016 had <code>prior_verdict: Verified</code> (from 2026-10-28), the strongest signal on this page: a passing verify never asked who may open which post. REQ-UI-017 was already <code>Needs re-verify</code> when it escaped, because the DevGuide run of 2026-11-02 had flagged the crash by hand before any triage logged it.</p>
+<hr>
+<h2 id="throughput-and-rework-poolable"><a id="4-throughput-and-rework--poolable"></a>4. Throughput and rework — poolable<a class="anchor-link" href="#throughput-and-rework-poolable">#</a></h2>
 <table>
-<thead><tr><th>Basis</th><th>Records</th><th>Tokens out per miss</th></tr></thead>
+<thead><tr><th>Metric</th><th>Value</th></tr></thead>
 <tbody>
-<tr><td>sole (measured)</td><td>0</td><td>insufficient data (n=0)</td></tr>
-<tr><td>shared (apportioned, equal division — not a measurement)</td><td>3</td><td>72,605.7</td></tr>
-<tr><td>unattributable (no token window)</td><td>87</td><td>—</td></tr>
+<tr><td>Runs total</td><td>69 (verify-phase=20, fix-issues=22, build-phase=13, triage-and-fix=4, amend-docs=3, handoff-phase=2, triage-issues=2, devguide=1, metrics-report=1, refresh-status=1)</td></tr>
+<tr><td>Rework ratio (fix-mode ÷ build-phase runs)</td><td>285%</td></tr>
+<tr><td>Batch size — median REQs per <code>build-phase</code> run</td><td>4</td></tr>
+<tr><td>REQ throughput — median REQs/hour</td><td>5.42</td></tr>
+<tr><td>Sessions / total tokens</td><td>30 / 10 743 074</td></tr>
+<tr><td>Tokens per <code>Verified</code> REQ</td><td>29 433</td></tr>
+<tr><td>Commit cadence</td><td>1.17 commits/active day over 90 days</td></tr>
 </tbody>
 </table>
-<p>No measured dollars: Claude Code records carry <code>cost_usd: null</code>, and no rate card is applied.</p>
-<h2 id="what-is-missing"><a id="4-what-is-missing"></a>4. What is missing<a class="anchor-link" href="#what-is-missing">#</a></h2>
+<p><strong>Cost in USD is not reported as a measurement.</strong> Every run here is Claude Code on a subscription: <code>cost_usd</code> is null on all of them. The list-price figure the tool prints (787.53 USD over 39 records, 2.16 USD per Verified REQ) is a rate-card product, not money paid, and is shown only so the reader knows it exists.</p>
+<p>The rework ratio counts fix-issues and triage-and-fix runs against build-phase runs; the 2026-11-05 run was a fix (a package upgrade), which is why it moved from 269% to 285% since the last report.</p>
+<hr>
+<h2 id="misses-what-was-missed-who-missed-it-what-the-fix-cost"><a id="5-misses--what-was-missed-who-missed-it-what-the-fix-cost"></a>5. Misses — what was missed, who missed it, what the fix cost<a class="anchor-link" href="#misses-what-was-missed-who-missed-it-what-the-fix-cost">#</a></h2>
+<table>
+<thead><tr><th>Metric</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Misses logged</td><td>110 (2 open, 96 resolved, 12 wont-fix)</td></tr>
+<tr><td>Design-miss share (<code>unspecified-gap</code>)</td><td>1%</td></tr>
+<tr><td>Found by a human (<code>owner</code> / <code>production</code>)</td><td>5% (2 owner, 3 production)</td></tr>
+</tbody>
+</table>
+<p><em>Reported beside the escape rate in §3, never merged with it: different records, different definition.</em></p>
+<p><em><code>wont-fix</code> is a decision, not a backlog item, so it is not counted as open. The duplicate check still treats it as a live defect, which is why the editor-ownership defect found on 2026-11-05 got no miss record of its own (TechieFlow feedback TF-003).</em></p>
+<p><strong>Miss classes</strong> — <em>what</em> was missed</p>
+<table>
+<thead><tr><th>Class</th><th>n</th><th>Share</th></tr></thead>
+<tbody>
+<tr><td>regression</td><td>91</td><td>83%</td></tr>
+<tr><td>partial-implementation</td><td>14</td><td>13%</td></tr>
+<tr><td>other</td><td>1</td><td>1%</td></tr>
+<tr><td>spec-contradiction</td><td>1</td><td>1%</td></tr>
+<tr><td>standards-violation</td><td>1</td><td>1%</td></tr>
+<tr><td>unspecified-gap</td><td>1</td><td>1%</td></tr>
+<tr><td>wrong-behaviour</td><td>1</td><td>1%</td></tr>
+</tbody>
+</table>
+<p><strong>Why it was missed</strong> — <em>which practice failed</em> (6 of 110 misses assessed)</p>
+<table>
+<thead><tr><th>Practice</th><th>n</th><th>Share of assessed</th></tr></thead>
+<tbody>
+<tr><td>insufficient-verify-method</td><td>4</td><td>67%</td></tr>
+<tr><td>instruction-ignored</td><td>2</td><td>33%</td></tr>
+</tbody>
+</table>
+<p>0 misses predate the field. 0 escapes lack it. The other 104 misses were found by a gate, where the field is optional and was not assessed.</p>
+<p><strong>Whose gap it was</strong> (<code>sort</code>, 7 of 22 eligible misses carry it; 88 predate the field)</p>
+<table>
+<thead><tr><th>Sort</th><th>n</th></tr></thead>
+<tbody>
+<tr><td>weak-check (a check existed and let it through)</td><td>5</td></tr>
+<tr><td>spec (the specification never said it)</td><td>2</td></tr>
+</tbody>
+</table>
+<p>Both readings point at verification, not specification: the checks that exist are too narrow for the defects that occur (the 2.2.1 upgrade check drove two components, not the posts-list search).</p>
+<h3 id="a-attribution-linked-records-only"><a id="5a-attribution--linked-records-only"></a>5a. Attribution — <code>linked</code> records only<a class="anchor-link" href="#a-attribution-linked-records-only">#</a></h3>
+<p><strong>40 of 110 misses are attributed; 70 are excluded</strong> because they name a phase no <code>runs.jsonl</code> record backs, so the model that produced them is unknown.</p>
+<table>
+<thead><tr><th>By</th><th>Counts</th></tr></thead>
+<tbody>
+<tr><td>Origin phase</td><td>build-phase=35, fix-issues=5</td></tr>
+<tr><td>Origin agent</td><td>general-purpose=31, flow-master=6, trblazeui=3</td></tr>
+<tr><td>Origin model</td><td>unknown=33, claude-opus-5=3, claude-opus-5-5=3, claude-sonnet-5-5=1</td></tr>
+</tbody>
+</table>
+<p><strong>These are observational, not causal.</strong> Which model gets the hard work is not random; a model at the top may be doing the hardest building rather than the worst. Read it as a question, never as a ranking to route on. 33 of the 40 attributed misses have no model recorded at all, so the per-model line rests on 7 records: insufficient data for any conclusion.</p>
+<h3 id="b-rework-cost-measured-and-apportioned-never-combine"><a id="5b-rework-cost--measured-and-apportioned-never-combine"></a>5b. Rework cost — measured and apportioned never combine<a class="anchor-link" href="#b-rework-cost-measured-and-apportioned-never-combine">#</a></h3>
+<table>
+<thead><tr><th></th><th>Fix records</th><th>Tokens out per miss</th></tr></thead>
+<tbody>
+<tr><td><strong>Measured</strong> (<code>sole</code> — the run fixed only this REQ)</td><td>0</td><td>insufficient data (n=0)</td></tr>
+<tr><td>Apportioned (<code>shared:n</code> — divided equally, <strong>not a measurement</strong>)</td><td>10</td><td>88 537</td></tr>
+<tr><td>Unattributable (<code>none</code> — no usable token window)</td><td>174</td><td>—</td></tr>
+</tbody>
+</table>
+<p><strong>Dollars.</strong> No measured dollars: every record is Claude Code with <code>cost_usd: null</code>, and pricing tokens from a rate card would be an estimate presented as a measurement. Tokens are the honest figure.</p>
+<p>174 of 184 fix records carry no token window at all, so the apportioned figure stands on 10 records, 4 of them from the 2026-11-05 run (one window shared over four rows). A miss fixed inline inside a longer run cannot be costed, which is why the unattributable row is printed rather than dropped.</p>
+<hr>
+<h2 id="effort-per-phase-time-tokens-model-fan-out"><a id="6-effort-per-phase--time-tokens-model-fan-out"></a>6. Effort per phase — time, tokens, model, fan-out<a class="anchor-link" href="#effort-per-phase-time-tokens-model-fan-out">#</a></h2>
+<p>Aggregated over <strong>69 live run records</strong>. Token-window coverage: <code>tree 16</code> · <code>main 21</code> · <code>none/absent 30</code>. Duration: 54 of 67 earlier records usable, 13 discarded (start after end), 4 taken from the timestamps where the stored figure disagreed. The two newest records (2026-11-05) were written after the <code>--phases</code> table below was computed and are not in it.</p>
+<table>
+<thead><tr><th>Phase (<code>cmd</code>)</th><th>Runs</th><th>Wall clock (total / median)</th><th>Tokens out</th><th>% of all output</th><th>Tokens measured on</th></tr></thead>
+<tbody>
+<tr><td><code>verify-phase</code></td><td>20</td><td>45h12m / —</td><td>3.3M</td><td>41%</td><td>14 of 20 runs</td></tr>
+<tr><td><code>build-phase</code></td><td>13</td><td>40h05m / —</td><td>1.8M</td><td>22%</td><td>6 of 13 runs</td></tr>
+<tr><td><code>fix-issues</code></td><td>22</td><td>7h55m / —</td><td>1.8M</td><td>22%</td><td>9 of 22 runs</td></tr>
+<tr><td><code>devguide</code></td><td>1</td><td>17m02s / 17m02s</td><td>572.9k</td><td>7%</td><td>1 of 1 run</td></tr>
+<tr><td><code>triage-and-fix</code></td><td>2</td><td>45m09s / —</td><td>217.8k</td><td>3%</td><td>1 of 2 runs</td></tr>
+<tr><td><code>amend-docs</code></td><td>3</td><td>43m43s / 6m38s</td><td>178.2k</td><td>2%</td><td>3 of 3 runs</td></tr>
+<tr><td><code>handoff-phase</code></td><td>2</td><td>36m25s / —</td><td>145.4k</td><td>2%</td><td>1 of 2 runs</td></tr>
+<tr><td><code>triage-issues</code></td><td>2</td><td>39m14s / —</td><td>109.7k</td><td>1%</td><td>1 of 2 runs</td></tr>
+<tr><td><code>metrics-report</code></td><td>1</td><td>1m32s / 1m32s</td><td>7.3k</td><td>0%</td><td>1 of 1 run</td></tr>
+<tr><td><code>refresh-status</code></td><td>1</td><td>—</td><td>0</td><td>0%</td><td>0 of 1 run</td></tr>
+</tbody>
+</table>
+<p>Runs whose token window could not be computed are excluded from the token columns, never averaged in as zero; the last column says how many that is per phase. A median is printed only where the tool printed one.</p>
+<p><code>verify-phase</code> costing more than <code>build-phase</code> is a fact about what those phases are (twenty verify runs over 159 rows, each booting the app and driving every screen), not a finding about either.</p>
+<h3 id="a-which-model-did-the-work"><a id="6a-which-model-did-the-work"></a>6a. Which model did the work<a class="anchor-link" href="#a-which-model-did-the-work">#</a></h3>
+<table>
+<thead><tr><th>Phase</th><th>Model</th><th>Output tokens</th><th>Share of the phase</th><th>Runs</th></tr></thead>
+<tbody>
+<tr><td><code>amend-docs</code></td><td><code>claude-opus-5-5</code></td><td>178.2k</td><td>100%</td><td>3</td></tr>
+</tbody>
+</table>
+<p>The per-model split is printed by <code>tf-metrics.sh --phases</code> only for phases whose every measured run names a model; for the other phases the tool prints no split, and none is invented here. <strong>This ranking is observational, not causal.</strong></p>
+<h3 id="b-subagent-fan-out-measured-on-its-own-denominator"><a id="6b-subagent-fan-out--measured-on-its-own-denominator"></a>6b. Subagent fan-out — measured, on its own denominator<a class="anchor-link" href="#b-subagent-fan-out-measured-on-its-own-denominator">#</a></h3>
+<table>
+<thead><tr><th>Phase</th><th>Runs observed</th><th>Spawns (total / median / max)</th><th>Runs that fanned out</th><th>Output tokens in subagents</th><th>Subagent share</th></tr></thead>
+<tbody>
+<tr><td><code>verify-phase</code></td><td>4 of 20</td><td>19 / 0 / 19</td><td>1</td><td>2.1M</td><td>84%</td></tr>
+<tr><td><code>build-phase</code></td><td>6 of 13</td><td>10 / 0 / 8</td><td>2</td><td>1.2M</td><td>68%</td></tr>
+<tr><td><code>devguide</code></td><td>1 of 1</td><td>4 / 4 / 4</td><td>1</td><td>461.7k</td><td>81%</td></tr>
+<tr><td><code>handoff-phase</code></td><td>1 of 2</td><td>0 / 0 / 0</td><td>0</td><td>0</td><td>0%</td></tr>
+<tr><td><code>fix-issues</code></td><td>0 of 22</td><td>not observed</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td><code>triage-and-fix</code></td><td>0 of 2</td><td>not observed</td><td>—</td><td>—</td><td>—</td></tr>
+</tbody>
+</table>
+<p><strong>Read the <code>observed</code> column before anything else.</strong> Fan-out is visible only on a <code>tokens_scope: "tree"</code> record; a <code>main</code>-scope window never read the subagent transcripts, so 0 on such a run means <em>not looked</em>, not <em>none ran</em>. Excluded: <code>fix-issues</code> 18 runs not tree scope and 4 written before <code>subagent_runs</code> existed (2026-08-31); <code>triage-and-fix</code> 2, <code>triage-issues</code> 2, <code>amend-docs</code> 3, <code>metrics-report</code> 1, <code>refresh-status</code> 1, all not tree scope.</p>
+<p><strong>Declared vs measured.</strong> The 2026-11-05 triage-and-fix run declared no subagents and its window is <code>main</code> scope, so its fan-out is unobserved, not zero; it did in fact spawn none.</p>
+<hr>
+<h2 id="what-is-missing"><a id="7-what-is-missing"></a>7. What is missing<a class="anchor-link" href="#what-is-missing">#</a></h2>
 <ul>
-<li>Token windows on build-phase and handoff-phase runs were never measured.
+<li><strong>Dollars.</strong> No run on this project carries a measured cost; the harness does not report one. The list-price line in §4 is a rate card, not a bill.
 </li>
-<li>88 misses predate the <code>sort</code> field and are unsorted.
+<li><strong>Fan-out on most runs.</strong> 53 of 69 runs have no <code>tree</code> window, so §6b sees 12 runs. The framework's own session hook decides the scope; nothing here can widen it after the fact.
 </li>
-<li>No run had a <code>tree</code>-scope window, so subagent fan-out is unobserved everywhere.
+<li><strong><code>sort</code> and <code>why_missed</code> on old records.</strong> 88 of 110 misses predate the <code>sort</code> field and 104 were found by a gate, where <code>why_missed</code> is optional. The practice table in §5 therefore rests on 6 records.
+</li>
+<li><strong>Per-model attribution.</strong> 33 of 40 attributed misses carry no origin model. Nothing on this page can say which model misses more.
+</li>
+<li><strong>Commit telemetry.</strong> The pre-commit hook is installed (<code>commit_hook: true</code>); the stream ends at the owner's last commit on 2026-11-02 and lags reality by one commit by design.
+</li>
+<li><strong>Cycle time per feature</strong> is not reported and never will be: the unit of work in this framework is the run, not the ticket.
 </li>
 </ul>
   </main>

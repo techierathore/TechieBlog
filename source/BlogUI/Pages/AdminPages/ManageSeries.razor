@@ -102,10 +102,12 @@
                                     <CardTitle Class="text-base">Posts in this Series (@SeriesPosts.Count)</CardTitle>
                                 </CardHeader>
                                 <CardContent Class="flex flex-col gap-1">
-                                    @foreach (var post in SeriesPosts.OrderBy(p => p.SeriesPartNumber))
+                                    @for (var index = 0; index < SeriesPosts.Count; index++)
                                     {
+                                        var post = SeriesPosts[index];
+                                        var position = index;
                                         <div class="flex items-center gap-2 py-1" data-testid="series-post-row">
-                                            <span class="font-medium">Part @post.SeriesPartNumber:</span>
+                                            <span class="font-medium" data-testid="series-post-part">Part @(index + 1):</span>
                                             <Button Href="@($"/ManagePost/{post.PostID}")"
                                                     Variant="ButtonVariant.Link"
                                                     Class="flex-1 justify-start px-1"
@@ -120,6 +122,24 @@
                                             {
                                                 <Badge Variant="BadgeVariant.Secondary" Class="text-xs" data-testid="series-post-status">Draft</Badge>
                                             }
+                                            <Button Type="ButtonType.Button"
+                                                    Size="ButtonSize.IconSmall"
+                                                    Variant="ButtonVariant.Ghost"
+                                                    Disabled="@(position == 0)"
+                                                    OnClick="@(() => MovePart(position, -1))"
+                                                    AriaLabel="Move part up"
+                                                    data-testid="series-post-up">
+                                                <LucideIcon Name="arrow-up" Size="16" />
+                                            </Button>
+                                            <Button Type="ButtonType.Button"
+                                                    Size="ButtonSize.IconSmall"
+                                                    Variant="ButtonVariant.Ghost"
+                                                    Disabled="@(position == SeriesPosts.Count - 1)"
+                                                    OnClick="@(() => MovePart(position, 1))"
+                                                    AriaLabel="Move part down"
+                                                    data-testid="series-post-down">
+                                                <LucideIcon Name="arrow-down" Size="16" />
+                                            </Button>
                                         </div>
                                     }
                                 </CardContent>

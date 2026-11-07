@@ -307,6 +307,23 @@ public interface IBlogPostRepo : IGenericRepository<BlogPost>
     Task<IEnumerable<BlogPost>> GetPostsByCategoryAsync(long categoryId, int pageSize, int offset, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets the published posts related to one post, without blocking the calling thread (REQ-FN-020).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> A post is related when it is published, not deleted, is not the
+    /// subject post itself, and shares the subject's category or at least one of its tags through
+    /// the <c>PostTag</c> junction. Posts sharing more tags rank first, then newest first.</para>
+    /// <para><b>Flow:</b> open the connection asynchronously → filtered, ranked LIMIT query → materialise.</para>
+    /// <para><b>Side Effects:</b> None — read-only query.</para>
+    /// </remarks>
+    /// <param name="postId">The subject post, which is excluded from the result.</param>
+    /// <param name="categoryId">The subject's category, or <c>null</c> when it has none.</param>
+    /// <param name="take">Maximum number of related posts to return.</param>
+    /// <param name="cancellationToken">Cancels the query.</param>
+    /// <returns>Related published posts, best match first.</returns>
+    Task<IEnumerable<BlogPost>> GetRelatedPostsAsync(long postId, long? categoryId, int take, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets the count of published posts in a category, without blocking the calling thread.
     /// </summary>
     /// <remarks>
@@ -425,6 +442,24 @@ public interface IBlogPostRepo : IGenericRepository<BlogPost>
     /// <param name="cancellationToken">Cancels the statement.</param>
     /// <returns>A task that completes when the rows have been written.</returns>
     Task ClearSeriesFromPostsAsync(long seriesId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Rewrites the part numbers of posts inside one series (REQ-UI-024 reorder).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Only rows that already belong to <paramref name="seriesId"/> are
+    /// touched, so an id that was smuggled in from another series cannot be renumbered.</para>
+    /// <para><b>Side Effects:</b> Updates SeriesPartNumber on each listed post.</para>
+    /// </remarks>
+    /// <param name="seriesId">The series whose parts are renumbered.</param>
+    /// <param name="partNumbers">Post id and its new part number, one entry per post.</param>
+    /// <param name="cancellationToken">Cancels the statement.</param>
+    /// <returns>A task that completes when the rows have been written.</returns>
+    Task SetSeriesPartNumbersAsync(
+        long seriesId,
+        IReadOnlyList<KeyValuePair<long, int>> partNumbers,
+        CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("This repository does not support renumbering series parts.");
 
     /// <summary>
     /// Searches posts by title, abstract, content and tags, without blocking the calling thread.

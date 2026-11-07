@@ -52,8 +52,8 @@
   </PropertyGroup>
 
   <ItemGroup Condition="'$(BlogAppMauiHost)' == 'true'">
-    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
-    <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#0F4DBC" />
+    <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#0F4DBC" BaseSize="128,128" />
     <MauiFont Include="Resources\Fonts\*" />
     <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
 
@@ -95,8 +95,8 @@
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
 
     <!-- The shared component library the BlogUI pages are written against. -->
-    <PackageReference Include="TrBlazeUI.Components" Version="2.0.3" />
-    <PackageReference Include="TrBlazeUI.Icons.Lucide" Version="2.0.3" />
+    <PackageReference Include="TrBlazeUI.Components" Version="2.2.2" />
+    <PackageReference Include="TrBlazeUI.Icons.Lucide" Version="2.2.2" />
   </ItemGroup>
 
   <!-- ===================== Linux no-op fallback ===================== -->

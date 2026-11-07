@@ -54,7 +54,7 @@ async function saveTheme(page: import('@playwright/test').Page, theme: string) {
   await page.click('[data-testid="save-settings"]');
 }
 
-test('a Save that follows an abandoned unsaved edit still reaches visitors', async ({ browser }) => {
+test('REQ-FN-061 a Save that follows an abandoned unsaved edit still reaches visitors', async ({ browser }) => {
   test.setTimeout(5 * 60 * 1000);
 
   const settled = await anonymousTheme();

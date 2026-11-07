@@ -136,7 +136,8 @@ async function visualGate(page: Page, testIds: string[], label: string) {
 const T0 = { t: 0 };
 const mark = (label: string) => console.log(`[t+${((Date.now() - T0.t) / 1000).toFixed(1)}s] ${label}`);
 
-test.describe('REQ-UI-057 accessible alternative captcha challenge', () => {
+// retired 2026-10-27 (W5): opens the demo post getting-started-with-blazor-server (retired 2026-08-22, UAT-007); superseded by fxv5-captcha-views REQ-UI-057.
+test.describe.skip('retired: accessible alternative captcha challenge', () => {
 
   test('comment form: the alternative is reachable by keyboard alone and announced', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 1000 });
@@ -470,8 +471,8 @@ test.describe('REQ-UI-057 accessible alternative captcha challenge', () => {
       ], `question mode @${width}`);
 
       await page.locator('[data-testid="captcha-widget"]').first()
-        .screenshot({ path: `test-results/req-ui-057-question-${width}.png` });
-      await page.screenshot({ path: `test-results/req-ui-057-page-${width}.png`, fullPage: false });
+        .screenshot({ path: `tests/.artifacts/test-results/req-ui-057-question-${width}.png` });
+      await page.screenshot({ path: `tests/.artifacts/test-results/req-ui-057-page-${width}.png`, fullPage: false });
       console.log(`[visual] question mode clean at ${width}px`);
 
       // And back to the image, so the toggle really is a two-way control.
@@ -479,7 +480,7 @@ test.describe('REQ-UI-057 accessible alternative captcha challenge', () => {
       await page.waitForTimeout(2000);
       expect(await page.locator('[data-testid="captcha-image"]').count()).toBeGreaterThan(0);
       await page.locator('[data-testid="captcha-widget"]').first()
-        .screenshot({ path: `test-results/req-ui-057-image-${width}.png` });
+        .screenshot({ path: `tests/.artifacts/test-results/req-ui-057-image-${width}.png` });
       console.log(`[visual] image mode restored at ${width}px`);
     }
   });

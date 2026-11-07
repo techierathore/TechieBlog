@@ -10,7 +10,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const BASE = process.env.TB_BASE ?? 'https://localhost:7373';
-const OUT = 'test-results/cluster-c';
+const OUT = 'tests/.artifacts/test-results/cluster-c';
 const THEMES = ['trblaze-modern', 'developer', 'minimal'] as const;
 
 test.use({ ignoreHTTPSErrors: true, viewport: { width: 1280, height: 900 } });

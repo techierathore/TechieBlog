@@ -77,7 +77,7 @@ public class UserLogin
 /// </summary>
 /// <remarks>
 /// <para><b>Purpose:</b> Names the values stored in the <c>tokenstatus</c> column of
-/// <c>userlogins</c> and <c>svctoken</c>.</para>
+/// <c>userlogins</c>.</para>
 ///
 /// <para><b>Code Flow:</b> Persisted by name, not by ordinal — <c>AuthSvc</c> writes
 /// <c>TokenStatus.ValidToken.ToString()</c>. Reordering the members is therefore harmless, but

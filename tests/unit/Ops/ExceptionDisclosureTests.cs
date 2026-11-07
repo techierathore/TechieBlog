@@ -53,7 +53,7 @@ public class ExceptionDisclosureTests
     /// pattern REQ-NFR-031 established and REQ-NFR-033 widened from four named services to the whole
     /// tree.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-031 no failure Result carries raw exception text")]
     public void NoResultFailureCarriesExceptionText()
     {
         AssertNoMatches(ResultFailureSink);
@@ -63,10 +63,35 @@ public class ExceptionDisclosureTests
     /// No file under <c>source/</c> assigns exception text to a message a page renders — the page
     /// level of the same rule, which is where the residual disclosures lived after REQ-NFR-031.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-033 no user-facing message carries raw exception text in any service")]
     public void NoRenderedMessageCarriesExceptionText()
     {
         AssertNoMatches(MessageAssignmentSink);
+    }
+
+    /// <summary>
+    /// Positive control for <see cref="ResultFailureSink"/> (REQ-NFR-033): the pattern must match a
+    /// synthetic violation, otherwise a zero from the scan would be a pattern that cannot match
+    /// rather than a clean tree — the failure mode that went unnoticed three times before.
+    /// </summary>
+    [Theory(DisplayName = "REQ-NFR-033 the Result-failure scan matches a synthetic violation")]
+    [InlineData("return Result.Failure($\"Save failed: {ex.Message}\");")]
+    [InlineData("return Result<int>.Failure(\"Could not save: \" + ex.Message);")]
+    public void ResultFailurePatternMatchesSyntheticViolation(string synthetic)
+    {
+        Assert.Matches(ResultFailureSink, synthetic);
+    }
+
+    /// <summary>
+    /// Positive control for <see cref="MessageAssignmentSink"/> (REQ-NFR-033), the page-level twin
+    /// of <see cref="ResultFailurePatternMatchesSyntheticViolation"/>.
+    /// </summary>
+    [Theory(DisplayName = "REQ-NFR-033 the message-assignment scan matches a synthetic violation")]
+    [InlineData("StatusMessage = $\"Upload failed: {ex.Message}\";")]
+    [InlineData("errorMessage = ex.Message;")]
+    public void MessageAssignmentPatternMatchesSyntheticViolation(string synthetic)
+    {
+        Assert.Matches(MessageAssignmentSink, synthetic);
     }
 
     /// <summary>

@@ -1,5 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 
+import { createPost, deletePostByTitle, idOf, slugOf, loginHard, sqlOne, goTo, openPostById } from './fxv1-fixtures';
+
 /**
  * REQ-NFR-008 (documentation pass, BlogEngine/DbAccess partition) — projection defect smoke.
  *
@@ -34,18 +36,25 @@ import { test, expect, Page } from '@playwright/test';
  *    from the database. An empty or "Draft" render is a FAILURE, not a pass.
  *  - VISUAL-TRUTH: 1280 and 390. No horizontal page scroll at either width.
  *
- * Credentials are the documented seeded Admin from docs/TechieBlog-UsageGuide.md. No account is
- * invented and no password is altered. The `MustChangePassword` flag is cleared to reach the admin
- * surface and RE-ARMED by the caller afterwards.
+ * 2026-10-28 (T2 triage): the original hard-coded https://localhost:7373, the retired admin password,
+ * post id 17 and a schedule date the caller injected. It now runs against TB_BASE with the current admin
+ * account, schedules a fixture post for tomorrow THROUGH THE EDITOR (`fxv8 Projection Scheduled`), reads
+ * the stored ScheduledPublishOn back with a psql SELECT as the "live database reading", and publishes a
+ * second fixture (`fxv8 Projection Public`) for the public-page check. Both are deleted through
+ * /BlogsList in afterAll. No account is invented and no password is altered.
  */
 
-const BASE = process.env.SMOKE_BASE ?? 'https://localhost:7373';
+const BASE = process.env.TB_BASE ?? 'http://localhost:5450';
 
-const ADMIN = { email: 'Ravi@techieblog.com', password: 'admin_password' };
+const ADMIN = { email: 'Ravi@techieblog.com', password: 'VerifyAdmin#2026' };
 
-/** The seeded scheduled post, and the schedule date read live from PostgreSQL by the caller. */
-const SCHEDULED_POST_ID = process.env.SMOKE_SCHEDULED_POST_ID ?? '17';
-const SCHEDULED_ON_UTC = process.env.SMOKE_SCHEDULED_ON_UTC ?? '2026-08-21 06:18:31';
+const SCHED_TITLE = 'fxv8 Projection Scheduled';
+const PUBLIC_TITLE = 'fxv8 Projection Public';
+
+/** Resolved in beforeAll: the fixture's post id and the schedule date the database stored for it. */
+let SCHEDULED_POST_ID = '';
+let SCHEDULED_ON_UTC = '';
+let PUBLIC_SLUG = '';
 
 /** Text Blazor's default ErrorBoundary renders when a component throws. */
 const ERROR_BOUNDARY_TEXT = 'An unhandled error has occurred';
@@ -107,13 +116,33 @@ async function captureAt(page: Page, scrollY: number, path: string) {
   await page.screenshot({ path });
 }
 
+/** Schedules the draft `id` for tomorrow through the editor's own date and time pickers. */
+async function scheduleTomorrow(admin: Page, id: string) {
+  await openPostById(admin, id);
+  await expect(admin.locator('[data-testid="schedule-section"]')).toBeVisible({ timeout: 30000 });
+  const t = new Date(Date.now() + 24 * 3600 * 1000);
+  const stamp = `${t.getFullYear()}${String(t.getMonth() + 1).padStart(2, '0')}${String(t.getDate()).padStart(2, '0')}`;
+  await admin.click('[data-testid="publish-date-picker"]');
+  const dayCell = admin.locator(`button[id$="-day-${stamp}"]:not([disabled])`).first();
+  await expect(dayCell, 'tomorrow is selectable in the date picker').toBeVisible({ timeout: 30000 });
+  await dayCell.click();
+  await admin.waitForTimeout(1000);
+  await admin.keyboard.press('Escape');
+  await admin.click('[data-testid="publish-time-picker"]');
+  await admin.getByRole('button', { name: 'Now' }).click();
+  await admin.waitForTimeout(1000);
+  await admin.keyboard.press('Escape');
+  await expect(admin.locator('[data-testid="scheduled-summary"]')).toBeVisible({ timeout: 15000 });
+  await admin.click('[data-testid="schedule-post"]');
+  const end = Date.now() + 45000;
+  while (Date.now() < end && sqlOne(`SELECT (scheduledpublishon IS NOT NULL)::text FROM blogpost WHERE postid = ${id}`) !== 'true') {
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  expect(sqlOne(`SELECT (scheduledpublishon IS NOT NULL)::text FROM blogpost WHERE postid = ${id}`), 'schedule saved').toBe('true');
+}
+
 async function signInAsAdmin(page: Page) {
-  await gotoInteractive(page, `${BASE}/login`);
-  await page.waitForSelector('[data-testid="login-email"]', { timeout: 30000 });
-  await page.fill('[data-testid="login-email"]', ADMIN.email);
-  await page.fill('[data-testid="login-password"]', ADMIN.password);
-  await page.click('[data-testid="login-submit"]');
-  await page.waitForTimeout(4500);
+  await loginHard(page, 'admin');
 
   const landed = new URL(page.url()).pathname;
   expect(landed, 'the admin sign in did not take').not.toContain('/login');
@@ -122,6 +151,37 @@ async function signInAsAdmin(page: Page) {
 test.use({ ignoreHTTPSErrors: true });
 
 test.describe('REQ-NFR-008 BlogPostRepo by-id projection', () => {
+  test.describe.configure({ mode: 'serial' });
+
+  test.beforeAll(async ({ browser }) => {
+    test.setTimeout(900000);
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const admin = await ctx.newPage();
+    try {
+      await loginHard(admin, 'admin');
+      if (!idOf(SCHED_TITLE)) await createPost(admin, { title: SCHED_TITLE, body: 'fxv8 projection body, scheduled.', abstract: 'fxv8 scheduled', mode: 'draft' });
+      if (!idOf(PUBLIC_TITLE)) await createPost(admin, { title: PUBLIC_TITLE, body: 'fxv8 projection body, public.\n\n'.repeat(20), abstract: 'fxv8 public', mode: 'publish' });
+      SCHEDULED_POST_ID = idOf(SCHED_TITLE);
+      PUBLIC_SLUG = slugOf(PUBLIC_TITLE);
+      if (sqlOne(`SELECT (scheduledpublishon IS NOT NULL)::text FROM blogpost WHERE postid = ${SCHEDULED_POST_ID}`) !== 'true') await scheduleTomorrow(admin, SCHEDULED_POST_ID);
+      SCHEDULED_ON_UTC = sqlOne(`SELECT to_char(scheduledpublishon, 'YYYY-MM-DD HH24:MI:SS') FROM blogpost WHERE postid = ${SCHEDULED_POST_ID}`);
+    } finally {
+      await ctx.close();
+    }
+  });
+
+  test.afterAll(async ({ browser }) => {
+    test.setTimeout(600000);
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const admin = await ctx.newPage();
+    try {
+      await loginHard(admin, 'admin');
+      for (const t of [SCHED_TITLE, PUBLIC_TITLE]) await deletePostByTitle(admin, t);
+    } finally {
+      await ctx.close();
+    }
+  });
+
   test('the editor loads a scheduled post as Scheduled, with the date read from the database', async ({ page }) => {
     const pageErrors: string[] = [];
     page.on('pageerror', e => pageErrors.push(String(e)));
@@ -177,17 +237,17 @@ test.describe('REQ-NFR-008 BlogPostRepo by-id projection', () => {
       .toHaveText(new RegExp(`${year}`), { timeout: 15000 });
 
     await expectNoHorizontalPageScroll(page, 'editor @1280');
-    await captureAt(page, 0, 'test-results/cluster-dbaccess/editor-1280-top.png');
+    await captureAt(page, 0, 'tests/.artifacts/verify/T2/cluster-dbaccess/editor-1280-top.png');
     const scheduleY = await page.evaluate(() => {
       const el = document.querySelector('[data-testid="schedule-section"]');
       return el ? Math.max(0, el.getBoundingClientRect().top + window.scrollY - 200) : 0;
     });
-    await captureAt(page, scheduleY, 'test-results/cluster-dbaccess/editor-1280-schedule.png');
+    await captureAt(page, scheduleY, 'tests/.artifacts/verify/T2/cluster-dbaccess/editor-1280-schedule.png');
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(1200);
     await expectNoHorizontalPageScroll(page, 'editor @390');
-    await captureAt(page, 0, 'test-results/cluster-dbaccess/editor-390-top.png');
+    await captureAt(page, 0, 'tests/.artifacts/verify/T2/cluster-dbaccess/editor-390-top.png');
 
     expect(pageErrors, `the editor raised script errors: ${pageErrors.join(' | ')}`)
       .toHaveLength(0);
@@ -208,23 +268,24 @@ test.describe('REQ-NFR-008 BlogPostRepo by-id projection', () => {
       null,
       { timeout: 30000 });
 
-    const firstPost = page.locator('a[href^="/post/"]').first();
-    const href = await firstPost.getAttribute('href');
-    expect(href, 'the home page listed no article to open').toBeTruthy();
+    // the home page lists articles (the fxv8 fixture is published, so at least one exists)
+    expect(await page.locator('a[href^="/post/"]').count(), 'the home page listed no article to open').toBeGreaterThan(0);
 
-    await spaNavigate(page, href!);
+    // open the fixture article itself, so the by-slug read is the one under test
+    await spaNavigate(page, `/post/${PUBLIC_SLUG}`);
+    expect(new URL(page.url()).pathname, 'the fixture article opened').toBe(`/post/${PUBLIC_SLUG}`);
 
     const bodyText = await page.evaluate(() => document.body.innerText);
     expect(bodyText, 'the article page hit the ErrorBoundary').not.toContain(ERROR_BOUNDARY_TEXT);
     expect(bodyText.trim().length, 'the article page rendered an empty body').toBeGreaterThan(400);
 
     await expectNoHorizontalPageScroll(page, 'article @1280');
-    await captureAt(page, 0, 'test-results/cluster-dbaccess/article-1280-top.png');
+    await captureAt(page, 0, 'tests/.artifacts/verify/T2/cluster-dbaccess/article-1280-top.png');
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(1200);
     await expectNoHorizontalPageScroll(page, 'article @390');
-    await captureAt(page, 0, 'test-results/cluster-dbaccess/article-390-top.png');
+    await captureAt(page, 0, 'tests/.artifacts/verify/T2/cluster-dbaccess/article-390-top.png');
 
     expect(pageErrors, `the article page raised script errors: ${pageErrors.join(' | ')}`)
       .toHaveLength(0);

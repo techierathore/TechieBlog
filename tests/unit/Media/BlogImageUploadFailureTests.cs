@@ -36,7 +36,7 @@ public class BlogImageUploadFailureTests
     /// entry, and that entry names the storage-relative target path and carries the underlying
     /// exception — the two facts an operator grepping the container log found nothing of before.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-040 an access-denied upload save logs an error naming the path")]
     public async Task PermissionsRefusalLogsErrorNamingPathAndException()
     {
         var thrown = new UnauthorizedAccessException("Access to the path '/app/uploads/blog' is denied.");
@@ -57,7 +57,7 @@ public class BlogImageUploadFailureTests
     /// there and says a retry will not help, so the operator is sent to the hosting problem rather
     /// than into a retry loop against a directory that will never become writable.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-040 an access-denied upload save returns a friendly failure")]
     public async Task PermissionsRefusalTellsAdministratorTheServerCannotWrite()
     {
         var service = BuildService(

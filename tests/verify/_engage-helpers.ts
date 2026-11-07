@@ -14,10 +14,12 @@ import { Locator, Page, expect } from '@playwright/test';
 export const SHOTS = '.verify/shots/engage';
 
 /** Marker every row this cluster writes carries, so the owner can find and drop them. */
-export const MARK = 'VERIFY-0808';
+export const MARK = process.env.TB_MARK ?? 'VERIFY-0808';
 
 /** Email prefix reserved for this cluster. */
-export const mail = (tag: string) => `verify0808+${tag}@techieblog.test`;
+export const MAIL_PREFIX = process.env.TB_MAIL_PREFIX ?? 'verify0808+';
+export const MAIL_DOMAIN = process.env.TB_MAIL_DOMAIN ?? 'techieblog.test';
+export const mail = (tag: string) => `${MAIL_PREFIX}${tag}@${MAIL_DOMAIN}`;
 
 /** Runs a read-only (or evidence-gathering) statement inside the shared WinPostgre container. */
 export function psql(sql: string): string {

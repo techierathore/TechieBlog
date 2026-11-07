@@ -67,7 +67,7 @@ public class DeploymentConfigurationTests
     /// <summary>
     /// The exact value that shipped in appsettings.json is recognised as a development default.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-030 the shipped localhost BaseUrl is rejected")]
     public void InspectRejectsTheShippedLocalhostBaseUrl()
     {
         var problems = DeploymentConfiguration.Inspect(
@@ -106,7 +106,7 @@ public class DeploymentConfigurationTests
     /// <summary>
     /// Pasting the built-in development salt into configuration is refused, not accepted as "set".
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-030 the built-in VisitorSalt is rejected")]
     public void InspectRejectsTheBuiltInVisitorSalt()
     {
         var problems = DeploymentConfiguration.Inspect(
@@ -140,7 +140,7 @@ public class DeploymentConfigurationTests
     /// <summary>
     /// Outside Development an unusable setting stops the host, and the message carries the fix.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-030 a misconfigured deployment aborts startup outside Development")]
     public void EnforceThrowsOutsideDevelopment()
     {
         var configuration = BuildConfiguration(null, null);

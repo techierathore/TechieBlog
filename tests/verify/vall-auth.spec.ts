@@ -13,6 +13,7 @@ import { test, expect, Page } from '@playwright/test';
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import { BASE, USERS, nav, renderCheck, visualCheck, RoleKey, ControlResult } from './_gates';
+import { pickSelect } from './vall-authoring-helpers';
 
 const SHOTS = '.verify/shots/auth';
 fs.mkdirSync(SHOTS, { recursive: true });
@@ -187,6 +188,47 @@ async function useSession(page: Page, role: RoleKey) {
   return page.url();
 }
 
+
+// ---------------------------------------------------------------------------------------------
+// fxv8 fixture accounts (T2 triage 2026-10-28): the seeded accounts are never modified, so the
+// tests that need a changeable account create one through /AddUser and delete it through /users.
+// ---------------------------------------------------------------------------------------------
+const RUN8 = Date.now().toString(36);
+const FXV8_PW = 'Fxv8#Start2026';
+
+/** Creates an `fxv8-` account through the admin form (page must be signed in as admin). */
+async function createFxv8User(page: Page, tag: string, role: 'Author' | 'Contributor'): Promise<string> {
+  const email = `fxv8-${tag}-${RUN8}@example.com`;
+  await nav(page, '/AddUser');
+  await page.waitForSelector('[data-testid="add-user-form"]', { timeout: 30000 });
+  await page.waitForTimeout(1500);
+  await fillStable(page, '[data-testid="user-first-name"]', 'Fxv8');
+  await fillStable(page, '[data-testid="user-last-name"]', 'Fixture');
+  await fillStable(page, '[data-testid="user-email"]', email);
+  await fillStable(page, '[data-testid="user-password"]', FXV8_PW);
+  await fillStable(page, '[data-testid="user-confirm-password"]', FXV8_PW);
+  await pickSelect(page, 'user-role', new RegExp(`^${role}$`));
+  await page.click('[data-testid="add-user-submit"]');
+  // the app either shows the success message or redirects to /users straight away; the row is the proof
+  await expect.poll(() => db(`SELECT COUNT(*) FROM bloguser WHERE emailid = '${email}'`), { timeout: 60000 }).toBe('1');
+  return email;
+}
+
+/** Deletes an `fxv8-` account through the /users grid (page must be signed in as admin). */
+async function deleteFxv8User(page: Page, email: string) {
+  await nav(page, '/users');
+  await page.waitForSelector('[data-testid="users-grid"]', { timeout: 30000 });
+  await page.waitForTimeout(1500);
+  await fillStable(page, '[data-testid="users-search"]', email);
+  await page.locator('[data-testid="users-search"]').dispatchEvent('change');
+  await page.waitForTimeout(2000);
+  const row = page.locator('tbody tr').filter({ hasText: email });
+  await row.locator('[data-testid="user-delete"]').click();
+  await page.click('[data-testid="user-delete-confirm"]');
+  await page.waitForTimeout(4000);
+  expect(db(`SELECT isdeleted FROM bloguser WHERE emailid = '${email}'`), 'fixture removed through the UI').toBe('t');
+}
+
 /** Fills and submits the sign-in form on an already-loaded /login page. */
 async function submitLogin(page: Page, email: string, password: string) {
   await page.waitForSelector('[data-testid="login-email"]', { timeout: 30000 });
@@ -264,12 +306,14 @@ test('REQ-UI-001 open-redirect guard rejects an absolute returnUrl but honours a
   await page.waitForURL((u) => !u.pathname.toLowerCase().includes('login'), { timeout: 90000 });
   await page.waitForTimeout(1500);
   console.log(`[REQ-UI-001] absolute returnUrl landed on ${page.url()}`);
-  expect(page.url()).toContain('localhost:5399');
+  expect(page.url()).toContain(new URL(BASE).host);
   expect(page.url()).not.toContain('evil.example.com');
   expect(new URL(page.url()).pathname.toLowerCase()).toBe('/admin');
 
   // 2. protocol-relative //evil must also be discarded
   await page.evaluate(() => localStorage.clear());
+  await page.context().clearCookies(); // the session cookie would otherwise bounce /login away
+  await page.goto('about:blank'); // settle any in-flight post-login navigation before the next /login load
   expect(await gotoThrottled(page, `/login?returnUrl=${encodeURIComponent('//evil.example.com/steal')}`, '[data-testid="login-email"]'), '/login reachable').toBe(true);
   await submitLogin(page, USERS.admin.email, USERS.admin.password);
   await page.waitForURL((u) => !u.pathname.toLowerCase().includes('login'), { timeout: 90000 });
@@ -280,6 +324,8 @@ test('REQ-UI-001 open-redirect guard rejects an absolute returnUrl but honours a
 
   // 3. a genuine site-relative returnUrl is honoured
   await page.evaluate(() => localStorage.clear());
+  await page.context().clearCookies(); // the session cookie would otherwise bounce /login away
+  await page.goto('about:blank'); // settle any in-flight post-login navigation before the next /login load
   expect(await gotoThrottled(page, `/login?returnUrl=${encodeURIComponent('/BlogsList')}`, '[data-testid="login-email"]'), '/login reachable').toBe(true);
   await submitLogin(page, USERS.admin.email, USERS.admin.password);
   await page.waitForURL((u) => !u.pathname.toLowerCase().includes('login'), { timeout: 90000 });
@@ -433,7 +479,7 @@ test('REQ-UI-003 an unknown reset token shows the invalid-token card, never the 
   expect(v.narrow.hScroll).toBe(0);
 });
 
-test('REQ-FN-007 REQ-NFR-019 a reset token is persisted as a DB row and redeems end to end', async ({ page }) => {
+test.skip('superseded by w2-accounts (rotates the seeded contributor hash via psql) REQ-NFR-019 a reset token is persisted as a DB row and redeems end to end', async ({ page }) => {
   const target = USERS.contributor;
   const seededHash = db("SELECT loginpass FROM bloguser WHERE userid = 4");
   console.log(`[REQ-FN-007] contributor seeded hash before = ${seededHash}`);
@@ -521,11 +567,17 @@ test('REQ-FN-007 REQ-NFR-019 a reset token is persisted as a DB row and redeems 
 /** Navigates and reports whether the destination rendered or the user was denied. */
 async function probeRoute(page: Page, route: string): Promise<'ALLOWED' | 'DENIED'> {
   await page.evaluate((p) => (window as any).Blazor.navigateTo(p), route);
-  await page.waitForTimeout(2500);
-  const denied =
-    (await page.locator('[data-testid="access-denied"]').count()) > 0 ||
-    page.url().toLowerCase().includes('access-denied');
-  return denied ? 'DENIED' : 'ALLOWED';
+  // Authorisation resolves asynchronously and a busy shared host can take well over the old fixed
+  // 2.5 s; reading the verdict that early reported "ALLOWED" for a route that was about to deny.
+  // Poll for the denial for up to 15 s before concluding the route opened.
+  for (let i = 0; i < 15; i++) {
+    await page.waitForTimeout(1000);
+    const denied =
+      (await page.locator('[data-testid="access-denied"]').count()) > 0 ||
+      page.url().toLowerCase().includes('access-denied');
+    if (denied) return 'DENIED';
+  }
+  return 'ALLOWED';
 }
 
 test('REQ-UI-004 an under-privileged user lands on the access-denied page with a role-aware dashboard link', async ({ page }) => {
@@ -709,7 +761,7 @@ test('REQ-FN-010 admin user management lists, searches, views and changes a role
   await page.waitForSelector('[data-testid="users-grid"]', { timeout: 30000 });
   await page.waitForTimeout(1500);
 
-  const dbCount = Number(db('SELECT COUNT(*) FROM bloguser'));
+  const dbCount = Number(db('SELECT COUNT(*) FROM bloguser WHERE COALESCE(isdeleted,false) = false'));
   const rowCount = await page.locator('[data-testid="user-row-name"]').count();
   console.log(`[REQ-FN-010] grid rows = ${rowCount}, bloguser rows = ${dbCount}`);
   expect(rowCount, 'the grid lists the accounts in the database').toBe(dbCount);
@@ -739,36 +791,45 @@ test('REQ-FN-010 admin user management lists, searches, views and changes a role
   await fillStable(page, '[data-testid="users-search"]', '');
   await page.waitForTimeout(1200);
 
-  // change role round-trip on user 4 only (restored immediately)
-  const roleBefore = db('SELECT userrole FROM bloguser WHERE userid = 4');
-  await fillStable(page, '[data-testid="users-search"]', 'contributor');
-  await page.waitForTimeout(1500);
-  await page.locator('[data-testid="user-change-role"]').first().click();
-  await expect(page.locator('[data-testid="user-role-dialog"]')).toBeVisible({ timeout: 15000 });
-  const target = (await page.locator('[data-testid="user-role-target"]').textContent())?.trim();
-  console.log(`[REQ-FN-010] role dialog target = "${target}"`);
-  expect(target && target.length > 0).toBe(true);
-  await page.screenshot({ path: `${SHOTS}/users-role-dialog-1280.png` });
+  // change role round-trip on an fxv8 fixture account (created and deleted through the UI)
+  const email = await createFxv8User(page, 'role', 'Contributor');
+  try {
+    const roleBefore = db(`SELECT userrole FROM bloguser WHERE emailid = '${email}'`);
+    expect(roleBefore).toBe('Contributor');
+    await nav(page, '/users');
+    await page.waitForSelector('[data-testid="users-grid"]', { timeout: 30000 });
+    await page.waitForTimeout(1500);
+    await fillStable(page, '[data-testid="users-search"]', email);
+    await page.locator('[data-testid="users-search"]').dispatchEvent('change');
+    await page.waitForTimeout(2000);
+    await page.locator('tbody tr').filter({ hasText: email }).locator('[data-testid="user-edit"]').click();
+    // the owner replaced the role-only dialog with the Edit User dialog (name, email, role)
+    await expect(page.locator('[data-testid="user-edit-dialog"]')).toBeVisible({ timeout: 15000 });
+    const target = await page.locator('[data-testid="user-edit-email"]').inputValue();
+    console.log(`[REQ-FN-010] edit dialog target = "${target}"`);
+    expect(target, 'the edit dialog is bound to the clicked row').toBe(email);
+    await page.screenshot({ path: `${SHOTS}/users-role-dialog-1280.png` });
 
-  await page.locator('[data-testid="user-role-select"]').click();
-  await page.waitForTimeout(600);
-  // The Select's options render in a portal OUTSIDE the dialog element, so scope the search to
-  // the page and take the visible one.
-  await page.locator('[role="option"], [data-slot="select-item"]')
-    .filter({ hasText: /^Author$/ })
-    .first()
-    .click({ timeout: 15000 })
-    .catch(async () => {
-      await page.getByText('Author', { exact: true }).last().click({ timeout: 15000 });
-    });
-  await page.waitForTimeout(400);
-  await page.locator('[data-testid="user-role-save"]').click();
-  await page.waitForTimeout(2500);
-  const roleAfter = db('SELECT userrole FROM bloguser WHERE userid = 4');
-  console.log(`[REQ-FN-010] role ${roleBefore} -> ${roleAfter}`);
-  db(`UPDATE bloguser SET userrole = '${roleBefore}' WHERE userid = 4`);
-  console.log(`[REQ-FN-010] role restored to ${db('SELECT userrole FROM bloguser WHERE userid = 4')}`);
-  expect(roleAfter, 'the change-role backend persisted the new role').toBe('Author');
+    await page.locator('[data-testid="user-role-select"]').click();
+    await page.waitForTimeout(600);
+    // The Select's options render in a portal OUTSIDE the dialog element, so scope the search to
+    // the page and take the visible one.
+    await page.locator('[role="option"], [data-slot="select-item"]')
+      .filter({ hasText: /^Author$/ })
+      .first()
+      .click({ timeout: 15000 })
+      .catch(async () => {
+        await page.getByText('Author', { exact: true }).last().click({ timeout: 15000 });
+      });
+    await page.waitForTimeout(400);
+    await page.locator('[data-testid="user-edit-save"]').click();
+    await page.waitForTimeout(2500);
+    const roleAfter = db(`SELECT userrole FROM bloguser WHERE emailid = '${email}'`);
+    console.log(`[REQ-FN-010] role ${roleBefore} -> ${roleAfter}`);
+    expect(roleAfter, 'the change-role backend persisted the new role').toBe('Author');
+  } finally {
+    await deleteFxv8User(page, email);
+  }
 });
 
 test('REQ-FN-006 the admin account-creation form refuses a weak password and creates nothing', async ({ page }) => {
@@ -811,9 +872,10 @@ test('REQ-FN-006 the admin account-creation form refuses a weak password and cre
 // REQ-UI-055 + REQ-FN-048 — double opt-in email verification
 // ---------------------------------------------------------------------------------------------
 
-const FIXTURE_EMAIL = 'vall-auth-optin@techieblog.test';
+const FIXTURE_EMAIL = process.env.TB_FIXTURE_EMAIL ?? 'vall-auth-optin@techieblog.test';
 
-test('REQ-UI-055 REQ-FN-048 the verify landing page confirms once, replays as already-confirmed, and refuses expired/unknown tokens', async ({ page }) => {
+// retired 2026-10-27 (W5): inserts and updates subscriber/token rows with psql (blocked in verify phase); superseded by fxv5-comments REQ-UI-055 REQ-FN-048 and fxv5-rating-subscribe REQ-UI-030 REQ-UI-055. The expired-token clause cannot be created through the app.
+test.skip('retired: the verify landing page confirms once, replays as already-confirmed, and refuses expired/unknown tokens', async ({ page }) => {
   // --- fixtures: a pending subscriber plus three tokens (valid, expired, and one already used)
   db(`DELETE FROM emailverificationtoken WHERE email = '${FIXTURE_EMAIL}'`);
   db(`DELETE FROM subscriber WHERE email = '${FIXTURE_EMAIL}'`);
@@ -917,19 +979,28 @@ test('REQ-UI-055 REQ-FN-048 the verify landing page confirms once, replays as al
 // REQ-NFR-023 — seeded credential hashed + forced first-login change (user 4 ONLY)
 // ---------------------------------------------------------------------------------------------
 
-test('REQ-NFR-023 a seeded account flagged MustChangePassword is forced to the change screen', async ({ page }) => {
+test('REQ-NFR-023 a seeded account flagged MustChangePassword is forced to the change screen', async ({ page: adminPage, browser }) => {
   // half 1: the seeded credential is a hash, not plaintext (site owner)
   const ownerHash = db("SELECT loginpass FROM bloguser WHERE issiteowner = true");
   console.log(`[REQ-NFR-023] site-owner stored credential = ${ownerHash}`);
   expect(ownerHash).toMatch(/^PBKDF2-SHA256\$\d+\$/);
   expect(ownerHash).not.toContain('admin_password');
 
-  // half 2: the forced change actually gates — exercised on user 4 only
-  db('UPDATE bloguser SET mustchangepassword = true WHERE userid = 4');
+  // half 2: the forced change actually gates — exercised on a fresh fxv8 account (an account an
+  // admin creates carries the "still uses the password it was created with" flag)
+  await useSession(adminPage, 'admin');
+  const email = await createFxv8User(adminPage, 'forced', 'Author');
+  // the flagged account signs in from its own browser context so the admin session stays intact
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await ctx.newPage();
   try {
-    expect(db('SELECT mustchangepassword FROM bloguser WHERE userid = 4')).toBe('t');
-    const landed = await signIn(page, 'contributor');
-    console.log(`[REQ-NFR-023] flagged contributor landed on ${landed}`);
+    expect(db(`SELECT mustchangepassword FROM bloguser WHERE emailid = '${email}'`), 'a newly created account is flagged').toBe('t');
+    expect(await gotoThrottled(page, '/login', '[data-testid="login-email"]'), '/login reachable').toBe(true);
+    await submitLogin(page, email, FXV8_PW);
+    await page.waitForURL((u) => !u.pathname.toLowerCase().includes('login'), { timeout: 60000 });
+    await page.waitForTimeout(2000);
+    const landed = page.url();
+    console.log(`[REQ-NFR-023] flagged account landed on ${landed}`);
     expect(new URL(landed).pathname.toLowerCase()).toBe('/change-password');
     await expect(page.locator('[data-testid="change-password-card"]')).toBeVisible({ timeout: 20000 });
     await expect(page.locator('[data-testid="change-password-forced"]')).toBeVisible({ timeout: 20000 });
@@ -955,8 +1026,8 @@ test('REQ-NFR-023 a seeded account flagged MustChangePassword is forced to the c
       expect(new URL(page.url()).pathname.toLowerCase()).toBe('/change-password');
     }
   } finally {
-    db('UPDATE bloguser SET mustchangepassword = false WHERE userid = 4');
-    console.log(`[REQ-NFR-023] user 4 flag restored to ${db('SELECT mustchangepassword FROM bloguser WHERE userid = 4')}`);
+    await ctx.close();
+    await deleteFxv8User(adminPage, email);
   }
 });
 

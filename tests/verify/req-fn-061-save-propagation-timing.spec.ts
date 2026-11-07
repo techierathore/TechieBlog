@@ -47,7 +47,7 @@ async function msUntilThemeIs(want: string, budgetMs: number): Promise<number> {
   }
 }
 
-test('a saved theme reaches anonymous visitors, and we measure how long it takes', async ({ page }) => {
+test('REQ-FN-061 a saved theme reaches anonymous visitors, and we measure how long it takes', async ({ page }) => {
   test.setTimeout(15 * 60 * 1000);
 
   const evidence: Record<string, unknown> = {};

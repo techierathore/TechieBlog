@@ -58,13 +58,13 @@ public class SitemapSvcTests
     /// a crawler can parse it rather than treating the response as broken.
     /// </summary>
     [Fact]
-    public void SitemapIsAWellFormedUrlsetDocument()
+    public async Task SitemapIsAWellFormedUrlsetDocument()
     {
         // Arrange
         var service = CreateService();
 
         // Act
-        var xml = service.GenerateSitemap();
+        var xml = await service.GenerateSitemapAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.StartsWith("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", xml, StringComparison.Ordinal);
@@ -78,13 +78,13 @@ public class SitemapSvcTests
     /// <c>lastmod</c> of today because the home page reflects whatever was published most recently.
     /// </summary>
     [Fact]
-    public void SitemapLeadsWithTheSiteRootAtTopPriority()
+    public async Task SitemapLeadsWithTheSiteRootAtTopPriority()
     {
         // Arrange
         var service = CreateService();
 
         // Act
-        var urls = ParseUrls(service.GenerateSitemap());
+        var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
 
         // Assert
         var root = urls[0];
@@ -99,13 +99,13 @@ public class SitemapSvcTests
     /// root — rather than an empty or absent body.
     /// </summary>
     [Fact]
-    public void SitemapContainsOnlyTheRootWhenTheSiteIsEmpty()
+    public async Task SitemapContainsOnlyTheRootWhenTheSiteIsEmpty()
     {
         // Arrange
         var service = CreateService();
 
         // Act
-        var urls = ParseUrls(service.GenerateSitemap());
+        var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
 
         // Assert
         var only = Assert.Single(urls);
@@ -117,7 +117,7 @@ public class SitemapSvcTests
     /// frequency that matches how often that surface actually changes.
     /// </summary>
     [Fact]
-    public void SitemapEmitsPostsThenCategoriesThenTagsWithTheirOwnPriorities()
+    public async Task SitemapEmitsPostsThenCategoriesThenTagsWithTheirOwnPriorities()
     {
         // Arrange
         ArrangePosts(new BlogPost { Slug = "async-all-the-way", PublishedOn = new DateTime(2026, 3, 4) });
@@ -126,7 +126,7 @@ public class SitemapSvcTests
         var service = CreateService();
 
         // Act
-        var urls = ParseUrls(service.GenerateSitemap());
+        var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
 
         // Assert
         Assert.Equal(
@@ -151,7 +151,7 @@ public class SitemapSvcTests
     /// not handed duplicates that waste its crawl budget.
     /// </summary>
     [Fact]
-    public void SitemapEmitsOneEntryPerRow()
+    public async Task SitemapEmitsOneEntryPerRow()
     {
         // Arrange
         ArrangePosts(
@@ -163,7 +163,7 @@ public class SitemapSvcTests
         var service = CreateService();
 
         // Act
-        var urls = ParseUrls(service.GenerateSitemap());
+        var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
 
         // Assert
         Assert.Equal(7, urls.Count);
@@ -179,14 +179,14 @@ public class SitemapSvcTests
     /// construction, so no entry can come out with a doubled slash.
     /// </summary>
     [Fact]
-    public void SitemapTrimsTheTrailingSlashFromTheConfiguredBaseUrl()
+    public async Task SitemapTrimsTheTrailingSlashFromTheConfiguredBaseUrl()
     {
         // Arrange
         ArrangePosts(new BlogPost { Slug = "trailing" });
         var service = CreateService("https://blog.example.com/");
 
         // Act
-        var urls = ParseUrls(service.GenerateSitemap());
+        var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
 
         // Assert
         Assert.Equal("https://blog.example.com/", urls[0].Loc);
@@ -200,13 +200,13 @@ public class SitemapSvcTests
     /// silently useless in production, which is exactly why the fallback is pinned here.
     /// </summary>
     [Fact]
-    public void SitemapFallsBackToLocalhostWhenTheBaseUrlIsNotConfigured()
+    public async Task SitemapFallsBackToLocalhostWhenTheBaseUrlIsNotConfigured()
     {
         // Arrange
         var service = CreateService(baseUrl: null);
 
         // Act
-        var urls = ParseUrls(service.GenerateSitemap());
+        var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
 
         // Assert
         Assert.Equal("https://localhost/", urls[0].Loc);
@@ -222,18 +222,18 @@ public class SitemapSvcTests
     /// invitation for a crawler to fetch and surface embargoed content.
     /// </summary>
     [Fact]
-    public void SitemapReadsPostsThroughThePublishedOnlyListing()
+    public async Task SitemapReadsPostsThroughThePublishedOnlyListing()
     {
         // Arrange
         var service = CreateService();
 
         // Act
-        service.GenerateSitemap();
+        await service.GenerateSitemapAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        postRepo.Received(1).GetPublishedPosts(10000, 0);
-        postRepo.DidNotReceive().GetAll();
-        postRepo.DidNotReceive().GetPagedData(Arg.Any<int>(), Arg.Any<int>());
+        await postRepo.Received(1).GetPublishedPostsAsync(10000, 0, Arg.Any<CancellationToken>());
+        await postRepo.DidNotReceive().GetAllAsync(Arg.Any<CancellationToken>());
+        await postRepo.DidNotReceive().GetPagedDataAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -241,7 +241,7 @@ public class SitemapSvcTests
     /// root and the three public content surfaces.
     /// </summary>
     [Fact]
-    public void SitemapNeverAdvertisesAuthenticatedOrNewsletterRoutes()
+    public async Task SitemapNeverAdvertisesAuthenticatedOrNewsletterRoutes()
     {
         // Arrange
         ArrangePosts(new BlogPost { Slug = "public-post" });
@@ -250,7 +250,7 @@ public class SitemapSvcTests
         var service = CreateService();
 
         // Act
-        var urls = ParseUrls(service.GenerateSitemap());
+        var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
 
         // Assert
         Assert.All(urls, url => Assert.True(
@@ -270,7 +270,7 @@ public class SitemapSvcTests
     /// whether re-fetching is worthwhile.
     /// </summary>
     [Fact]
-    public void PostLastModPrefersThePublicationDate()
+    public async Task PostLastModPrefersThePublicationDate()
     {
         // Arrange
         ArrangePosts(new BlogPost
@@ -282,7 +282,7 @@ public class SitemapSvcTests
         var service = CreateService();
 
         // Act
-        var urls = ParseUrls(service.GenerateSitemap());
+        var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
 
         // Assert
         Assert.Equal("2026-05-06", urls[1].LastMod);
@@ -293,7 +293,7 @@ public class SitemapSvcTests
     /// <c>lastmod</c>, falling back to its creation date rather than omitting the element.
     /// </summary>
     [Fact]
-    public void PostLastModFallsBackToTheCreationDate()
+    public async Task PostLastModFallsBackToTheCreationDate()
     {
         // Arrange
         ArrangePosts(new BlogPost
@@ -305,7 +305,7 @@ public class SitemapSvcTests
         var service = CreateService();
 
         // Act
-        var urls = ParseUrls(service.GenerateSitemap());
+        var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
 
         // Assert
         Assert.Equal("2025-11-30", urls[1].LastMod);
@@ -317,7 +317,7 @@ public class SitemapSvcTests
     /// but a wrong date as truth.
     /// </summary>
     [Fact]
-    public void CategoryAndTagEntriesOmitLastMod()
+    public async Task CategoryAndTagEntriesOmitLastMod()
     {
         // Arrange
         ArrangeCategories(new Category { Slug = "dotnet" });
@@ -325,7 +325,7 @@ public class SitemapSvcTests
         var service = CreateService();
 
         // Act
-        var urls = ParseUrls(service.GenerateSitemap());
+        var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
 
         // Assert
         Assert.Null(urls[1].LastMod);
@@ -337,7 +337,7 @@ public class SitemapSvcTests
     /// a non-Gregorian calendar cannot emit a <c>lastmod</c> no crawler can parse.
     /// </summary>
     [Fact]
-    public void LastModIsGregorianWhateverTheServerCultureIs()
+    public async Task LastModIsGregorianWhateverTheServerCultureIs()
     {
         // Arrange
         ArrangePosts(new BlogPost { Slug = "cultured", PublishedOn = new DateTime(2026, 5, 6) });
@@ -349,7 +349,7 @@ public class SitemapSvcTests
             CultureInfo.CurrentCulture = new CultureInfo("ar-SA");
 
             // Act
-            var urls = ParseUrls(service.GenerateSitemap());
+            var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
 
             // Assert
             Assert.Equal("2026-05-06", urls[1].LastMod);
@@ -370,17 +370,17 @@ public class SitemapSvcTests
     /// off.
     /// </summary>
     [Fact]
-    public void SitemapSkipsThePostSectionWhenThePostReadFails()
+    public async Task SitemapSkipsThePostSectionWhenThePostReadFails()
     {
         // Arrange
-        postRepo.GetPublishedPosts(Arg.Any<int>(), Arg.Any<int>())
-            .Throws(new InvalidOperationException("post read exploded"));
+        postRepo.GetPublishedPostsAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("post read exploded"));
         ArrangeCategories(new Category { Slug = "dotnet" });
         ArrangeTags(new BlogTag { Slug = "blazor" });
         var service = CreateService();
 
         // Act
-        var urls = ParseUrls(service.GenerateSitemap());
+        var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
 
         // Assert
         Assert.Equal(
@@ -393,16 +393,16 @@ public class SitemapSvcTests
     /// A failing category read is logged and its section skipped; posts and tags still ship.
     /// </summary>
     [Fact]
-    public void SitemapSkipsTheCategorySectionWhenTheCategoryReadFails()
+    public async Task SitemapSkipsTheCategorySectionWhenTheCategoryReadFails()
     {
         // Arrange
         ArrangePosts(new BlogPost { Slug = "still-here" });
-        categoryRepo.GetAll().Throws(new InvalidOperationException("category read exploded"));
+        categoryRepo.GetAllAsync(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("category read exploded"));
         ArrangeTags(new BlogTag { Slug = "blazor" });
         var service = CreateService();
 
         // Act
-        var urls = ParseUrls(service.GenerateSitemap());
+        var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
 
         // Assert
         Assert.Equal(
@@ -416,16 +416,16 @@ public class SitemapSvcTests
     /// the endpoint returns valid XML rather than a truncated body.
     /// </summary>
     [Fact]
-    public void SitemapSkipsTheTagSectionWhenTheTagReadFails()
+    public async Task SitemapSkipsTheTagSectionWhenTheTagReadFails()
     {
         // Arrange
         ArrangePosts(new BlogPost { Slug = "still-here" });
         ArrangeCategories(new Category { Slug = "dotnet" });
-        tagRepo.GetAll().Throws(new InvalidOperationException("tag read exploded"));
+        tagRepo.GetAllAsync(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("tag read exploded"));
         var service = CreateService();
 
         // Act
-        var xml = service.GenerateSitemap();
+        var xml = await service.GenerateSitemapAsync(TestContext.Current.CancellationToken);
 
         // Assert
         var urls = ParseUrls(xml);
@@ -440,16 +440,16 @@ public class SitemapSvcTests
     /// document, which a crawler treats as "nothing to add today" rather than as a broken site.
     /// </summary>
     [Fact]
-    public void SitemapStillShipsWhenEverySectionFails()
+    public async Task SitemapStillShipsWhenEverySectionFails()
     {
         // Arrange
-        postRepo.GetPublishedPosts(Arg.Any<int>(), Arg.Any<int>()).Throws(new InvalidOperationException("posts"));
-        categoryRepo.GetAll().Throws(new InvalidOperationException("categories"));
-        tagRepo.GetAll().Throws(new InvalidOperationException("tags"));
+        postRepo.GetPublishedPostsAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("posts"));
+        categoryRepo.GetAllAsync(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("categories"));
+        tagRepo.GetAllAsync(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("tags"));
         var service = CreateService();
 
         // Act
-        var urls = ParseUrls(service.GenerateSitemap());
+        var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
 
         // Assert
         Assert.Single(urls);
@@ -459,29 +459,6 @@ public class SitemapSvcTests
     // -------------------------------------------------------------------------------------------
     // Async twin
     // -------------------------------------------------------------------------------------------
-
-    /// <summary>
-    /// The async twin produces a byte-identical document to the synchronous one given the same data,
-    /// which is what stops the two surfaces drifting while both exist.
-    /// </summary>
-    [Fact]
-    public async Task AsyncSitemapIsIdenticalToTheSynchronousDocument()
-    {
-        // Arrange
-        ArrangePosts(
-            new BlogPost { Slug = "one", PublishedOn = new DateTime(2026, 2, 3) },
-            new BlogPost { Slug = "two", CreatedOn = new DateTime(2026, 1, 1) });
-        ArrangeCategories(new Category { Slug = "dotnet" }, new Category { Slug = "web" });
-        ArrangeTags(new BlogTag { Slug = "blazor" });
-        var service = CreateService();
-
-        // Act
-        var synchronous = service.GenerateSitemap();
-        var asynchronous = await service.GenerateSitemapAsync(TestContext.Current.CancellationToken);
-
-        // Assert
-        Assert.Equal(synchronous, asynchronous);
-    }
 
     /// <summary>
     /// The async twin routes all three reads through the repositories' async members with the
@@ -501,100 +478,6 @@ public class SitemapSvcTests
         await postRepo.Received(1).GetPublishedPostsAsync(10000, 0, cancellation.Token);
         await categoryRepo.Received(1).GetAllAsync(cancellation.Token);
         await tagRepo.Received(1).GetAllAsync(cancellation.Token);
-        postRepo.DidNotReceive().GetPublishedPosts(Arg.Any<int>(), Arg.Any<int>());
-    }
-
-    /// <summary>
-    /// The async twin applies the same per-section guard: a failing read — a cancellation included —
-    /// is logged and skipped while the rest of the document still ships.
-    /// </summary>
-    [Fact]
-    public async Task AsyncSitemapSkipsASectionWhoseReadFails()
-    {
-        // Arrange
-        postRepo.GetPublishedPostsAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .ThrowsAsync(new InvalidOperationException("async post read exploded"));
-        ArrangeCategories(new Category { Slug = "dotnet" });
-        var service = CreateService();
-
-        // Act
-        var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
-
-        // Assert
-        Assert.Equal(new[] { $"{BaseUrl}/", $"{BaseUrl}/category/dotnet" }, urls.Select(url => url.Loc));
-        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error);
-    }
-
-    /// <summary>
-    /// A failing async category read is logged and skipped on its own; the post and tag sections
-    /// still ship, so one broken taxonomy query cannot cost the whole sitemap.
-    /// </summary>
-    [Fact]
-    public async Task AsyncSitemapSkipsTheCategorySectionWhenTheCategoryReadFails()
-    {
-        // Arrange
-        ArrangePosts(new BlogPost { Slug = "still-here" });
-        categoryRepo.GetAllAsync(Arg.Any<CancellationToken>())
-            .ThrowsAsync(new InvalidOperationException("async category read exploded"));
-        ArrangeTags(new BlogTag { Slug = "blazor" });
-        var service = CreateService();
-
-        // Act
-        var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
-
-        // Assert
-        Assert.Equal(
-            new[] { $"{BaseUrl}/", $"{BaseUrl}/post/still-here", $"{BaseUrl}/tag/blazor" },
-            urls.Select(url => url.Loc));
-        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error);
-    }
-
-    /// <summary>
-    /// A failing async tag read is logged and skipped, and the document still closes cleanly so the
-    /// endpoint returns parsable XML rather than a truncated body.
-    /// </summary>
-    [Fact]
-    public async Task AsyncSitemapSkipsTheTagSectionWhenTheTagReadFails()
-    {
-        // Arrange
-        ArrangePosts(new BlogPost { Slug = "still-here" });
-        ArrangeCategories(new Category { Slug = "dotnet" });
-        tagRepo.GetAllAsync(Arg.Any<CancellationToken>())
-            .ThrowsAsync(new InvalidOperationException("async tag read exploded"));
-        var service = CreateService();
-
-        // Act
-        var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
-
-        // Assert
-        Assert.Equal(
-            new[] { $"{BaseUrl}/", $"{BaseUrl}/post/still-here", $"{BaseUrl}/category/dotnet" },
-            urls.Select(url => url.Loc));
-        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error);
-    }
-
-    /// <summary>
-    /// The async twin emits the same priorities and change frequencies per section as the synchronous
-    /// one, which is the part of the contract a crawler actually acts on.
-    /// </summary>
-    [Fact]
-    public async Task AsyncSitemapEmitsTheSamePrioritiesPerSection()
-    {
-        // Arrange
-        ArrangePosts(new BlogPost { Slug = "async-post", PublishedOn = new DateTime(2026, 7, 8) });
-        ArrangeCategories(new Category { Slug = "dotnet" });
-        ArrangeTags(new BlogTag { Slug = "blazor" });
-        var service = CreateService();
-
-        // Act
-        var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
-
-        // Assert
-        Assert.Equal("1.0", urls[0].Priority);
-        Assert.Equal("0.8", urls[1].Priority);
-        Assert.Equal("2026-07-08", urls[1].LastMod);
-        Assert.Equal("0.6", urls[2].Priority);
-        Assert.Equal("0.5", urls[3].Priority);
     }
 
     // -------------------------------------------------------------------------------------------
@@ -613,34 +496,30 @@ public class SitemapSvcTests
     }
 
     /// <summary>
-    /// Arranges both the synchronous and the async published-post reads with the same rows, so a test
-    /// exercises whichever surface the service reaches for.
+    /// Arranges the async published-post read with the given rows.
     /// </summary>
     /// <param name="posts">The published posts the repository should return.</param>
     private void ArrangePosts(params BlogPost[] posts)
     {
-        postRepo.GetPublishedPosts(Arg.Any<int>(), Arg.Any<int>()).Returns(posts);
         postRepo.GetPublishedPostsAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(posts.AsEnumerable());
     }
 
     /// <summary>
-    /// Arranges both the synchronous and the async category reads with the same rows.
+    /// Arranges the async category read with the given rows.
     /// </summary>
     /// <param name="categories">The categories the repository should return.</param>
     private void ArrangeCategories(params Category[] categories)
     {
-        categoryRepo.GetAll().Returns(categories);
         categoryRepo.GetAllAsync(Arg.Any<CancellationToken>()).Returns(categories.AsEnumerable());
     }
 
     /// <summary>
-    /// Arranges both the synchronous and the async tag reads with the same rows.
+    /// Arranges the async tag read with the given rows.
     /// </summary>
     /// <param name="tags">The tags the repository should return.</param>
     private void ArrangeTags(params BlogTag[] tags)
     {
-        tagRepo.GetAll().Returns(tags);
         tagRepo.GetAllAsync(Arg.Any<CancellationToken>()).Returns(tags.AsEnumerable());
     }
 

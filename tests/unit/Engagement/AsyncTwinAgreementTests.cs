@@ -125,13 +125,11 @@ public class AsyncTwinAgreementTests
     {
         var service = BuildCommentSvc(out var repo);
         var rows = new List<BlogComment> { BuildComment(1), BuildComment(2) };
-        repo.GetAllById(7).Returns(rows);
         repo.GetAllByIdAsync(7, Arg.Any<CancellationToken>()).Returns(Task.FromResult<IEnumerable<BlogComment>>(rows));
 
-        var fromSync = service.GetCommentsByPostId(7).ToList();
         var fromAsync = (await service.GetCommentsByPostIdAsync(7)).ToList();
 
-        Assert.Equal(fromSync.Select(c => c.CommentID), fromAsync.Select(c => c.CommentID));
+        Assert.Equal(rows.Select(c => c.CommentID), fromAsync.Select(c => c.CommentID));
         await repo.Received(1).GetAllByIdAsync(7, Arg.Any<CancellationToken>());
         await repo.DidNotReceive().GetAllAsync(Arg.Any<CancellationToken>());
     }
@@ -144,11 +142,9 @@ public class AsyncTwinAgreementTests
     public async Task CommentThreadTwinsBothCoalesceNullToEmpty()
     {
         var service = BuildCommentSvc(out var repo);
-        repo.GetAllById(7).Returns((IEnumerable<BlogComment>?)null);
         repo.GetAllByIdAsync(7, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IEnumerable<BlogComment>>(null!));
 
-        Assert.Empty(service.GetCommentsByPostId(7));
         Assert.Empty(await service.GetCommentsByPostIdAsync(7));
     }
 
@@ -160,11 +156,9 @@ public class AsyncTwinAgreementTests
     public async Task CommentThreadTwinsBothSwallowRepositoryFailure()
     {
         var service = BuildCommentSvc(out var repo);
-        repo.GetAllById(7).Throws(new InvalidOperationException("database unavailable"));
         repo.GetAllByIdAsync(7, Arg.Any<CancellationToken>())
             .Returns<Task<IEnumerable<BlogComment>>>(_ => throw new InvalidOperationException("database unavailable"));
 
-        Assert.Empty(service.GetCommentsByPostId(7));
         Assert.Empty(await service.GetCommentsByPostIdAsync(7));
     }
 
@@ -180,13 +174,11 @@ public class AsyncTwinAgreementTests
     {
         var service = BuildCommentSvc(out var repo);
         var rows = new List<BlogComment> { BuildComment(1), BuildComment(2), BuildComment(3) };
-        repo.GetAll().Returns(rows);
         repo.GetAllAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult<IEnumerable<BlogComment>>(rows));
 
-        var fromSync = service.GetAllComments().ToList();
         var fromAsync = (await service.GetAllCommentsAsync()).ToList();
 
-        Assert.Equal(fromSync.Select(c => c.CommentID), fromAsync.Select(c => c.CommentID));
+        Assert.Equal(rows.Select(c => c.CommentID), fromAsync.Select(c => c.CommentID));
         await repo.Received(1).GetAllAsync(Arg.Any<CancellationToken>());
     }
 
@@ -197,11 +189,9 @@ public class AsyncTwinAgreementTests
     public async Task AllCommentsTwinsBothSwallowRepositoryFailure()
     {
         var service = BuildCommentSvc(out var repo);
-        repo.GetAll().Throws(new InvalidOperationException("database unavailable"));
         repo.GetAllAsync(Arg.Any<CancellationToken>())
             .Returns<Task<IEnumerable<BlogComment>>>(_ => throw new InvalidOperationException("database unavailable"));
 
-        Assert.Empty(service.GetAllComments());
         Assert.Empty(await service.GetAllCommentsAsync());
     }
 
@@ -221,15 +211,12 @@ public class AsyncTwinAgreementTests
         var service = BuildCommentSvc(out var repo);
         var unconfirmed = BuildComment(5);
         unconfirmed.IsEmailVerified = false;
-        repo.GetSingle(5).Returns(unconfirmed);
         repo.GetSingleAsync(5, Arg.Any<CancellationToken>()).Returns(Task.FromResult<BlogComment?>(unconfirmed));
 
-        var fromSync = service.ApproveComment(5);
         var fromAsync = await service.ApproveCommentAsync(5);
 
-        Assert.True(fromSync.IsFailure);
         Assert.True(fromAsync.IsFailure);
-        Assert.Equal(fromSync.ErrorMessage, fromAsync.ErrorMessage);
+        Assert.Equal("This comment's email address has not been confirmed yet.", fromAsync.ErrorMessage);
         await repo.DidNotReceive().ApproveBlogCommentAsync(5, Arg.Any<CancellationToken>());
     }
 
@@ -241,11 +228,10 @@ public class AsyncTwinAgreementTests
     public async Task ApprovalTwinsShareTheirGuardMessages()
     {
         var service = BuildCommentSvc(out var repo);
-        repo.GetSingle(404).Returns((BlogComment?)null);
         repo.GetSingleAsync(404, Arg.Any<CancellationToken>()).Returns(Task.FromResult<BlogComment?>(null));
 
-        Assert.Equal(service.ApproveComment(0).ErrorMessage, (await service.ApproveCommentAsync(0)).ErrorMessage);
-        Assert.Equal(service.ApproveComment(404).ErrorMessage, (await service.ApproveCommentAsync(404)).ErrorMessage);
+        Assert.Equal("Invalid comment ID", (await service.ApproveCommentAsync(0)).ErrorMessage);
+        Assert.Equal("Comment not found", (await service.ApproveCommentAsync(404)).ErrorMessage);
     }
 
     /// <summary>
@@ -276,11 +262,10 @@ public class AsyncTwinAgreementTests
     public async Task DeleteTwinsShareTheirGuardMessages()
     {
         var service = BuildCommentSvc(out var repo);
-        repo.GetSingle(404).Returns((BlogComment?)null);
         repo.GetSingleAsync(404, Arg.Any<CancellationToken>()).Returns(Task.FromResult<BlogComment?>(null));
 
-        Assert.Equal(service.DeleteComment(0).ErrorMessage, (await service.DeleteCommentAsync(0)).ErrorMessage);
-        Assert.Equal(service.DeleteComment(404).ErrorMessage, (await service.DeleteCommentAsync(404)).ErrorMessage);
+        Assert.Equal("Invalid comment ID", (await service.DeleteCommentAsync(0)).ErrorMessage);
+        Assert.Equal("Comment not found", (await service.DeleteCommentAsync(404)).ErrorMessage);
         await repo.DidNotReceive().DeleteAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
@@ -312,18 +297,15 @@ public class AsyncTwinAgreementTests
     public async Task RatingTwinsReturnTheSameFiguresAsTheirOriginals()
     {
         var service = BuildRatingSvc(out var repo);
-        repo.GetAverageByPost(3).Returns(4.5);
-        repo.GetCountByPost(3).Returns(12);
-        repo.GetStatsByPost(3).Returns(new PostRatingStats { AverageRating = 4.5, RatingCount = 12 });
         repo.GetAverageByPostAsync(3, Arg.Any<CancellationToken>()).Returns(Task.FromResult(4.5));
         repo.GetCountByPostAsync(3, Arg.Any<CancellationToken>()).Returns(Task.FromResult(12));
         repo.GetStatsByPostAsync(3, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(new PostRatingStats { AverageRating = 4.5, RatingCount = 12 }));
 
-        Assert.Equal(service.GetAverageRating(3), await service.GetAverageRatingAsync(3));
-        Assert.Equal(service.GetRatingCount(3), await service.GetRatingCountAsync(3));
-        Assert.Equal(service.GetPostRatingStats(3).AverageRating, (await service.GetPostRatingStatsAsync(3)).AverageRating);
-        Assert.Equal(service.GetPostRatingStats(3).RatingCount, (await service.GetPostRatingStatsAsync(3)).RatingCount);
+        Assert.Equal(4.5, await service.GetAverageRatingAsync(3));
+        Assert.Equal(12, await service.GetRatingCountAsync(3));
+        Assert.Equal(4.5, (await service.GetPostRatingStatsAsync(3)).AverageRating);
+        Assert.Equal(12, (await service.GetPostRatingStatsAsync(3)).RatingCount);
     }
 
     /// <summary>
@@ -334,9 +316,6 @@ public class AsyncTwinAgreementTests
     public async Task RatingTwinsBothDegradeToZeroOnFailure()
     {
         var service = BuildRatingSvc(out var repo);
-        repo.GetAverageByPost(3).Throws(new InvalidOperationException("database unavailable"));
-        repo.GetCountByPost(3).Throws(new InvalidOperationException("database unavailable"));
-        repo.GetStatsByPost(3).Throws(new InvalidOperationException("database unavailable"));
         repo.GetAverageByPostAsync(3, Arg.Any<CancellationToken>())
             .Returns<Task<double>>(_ => throw new InvalidOperationException("database unavailable"));
         repo.GetCountByPostAsync(3, Arg.Any<CancellationToken>())
@@ -344,8 +323,8 @@ public class AsyncTwinAgreementTests
         repo.GetStatsByPostAsync(3, Arg.Any<CancellationToken>())
             .Returns<Task<PostRatingStats>>(_ => throw new InvalidOperationException("database unavailable"));
 
-        Assert.Equal(service.GetAverageRating(3), await service.GetAverageRatingAsync(3));
-        Assert.Equal(service.GetRatingCount(3), await service.GetRatingCountAsync(3));
+        Assert.Equal(0, await service.GetAverageRatingAsync(3));
+        Assert.Equal(0, await service.GetRatingCountAsync(3));
         Assert.Equal(0, (await service.GetPostRatingStatsAsync(3)).RatingCount);
     }
 
@@ -457,28 +436,6 @@ public class AsyncTwinAgreementTests
 
         await repo.Received(2).GetAverageByPostAsync(3, Arg.Any<CancellationToken>());
         await repo.Received(1).GetAverageByPostAsync(4, Arg.Any<CancellationToken>());
-    }
-
-    /// <summary>
-    /// Alternating between a twin and its original does not turn the cache into a permanent miss.
-    /// One stores a value and the other a task, so a shared key would be a type mismatch —
-    /// <see cref="ICacheService.GetOrCreate{T}"/> reads that as a miss and overwrites, so each call
-    /// would re-query while the cache looked perfectly healthy. The adjacent keys are what stop it.
-    /// </summary>
-    [Fact]
-    public async Task TwinAndOriginalDoNotEvictEachOther()
-    {
-        var service = BuildRatingSvc(out var repo, BuildCache());
-        repo.GetAverageByPost(3).Returns(4.5);
-        repo.GetAverageByPostAsync(3, Arg.Any<CancellationToken>()).Returns(Task.FromResult(4.5));
-
-        service.GetAverageRating(3);
-        await service.GetAverageRatingAsync(3);
-        service.GetAverageRating(3);
-        await service.GetAverageRatingAsync(3);
-
-        repo.Received(1).GetAverageByPost(3);
-        await repo.Received(1).GetAverageByPostAsync(3, Arg.Any<CancellationToken>());
     }
 
     /// <summary>

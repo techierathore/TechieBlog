@@ -54,11 +54,19 @@
             }
             else
             {
-                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                    <LucideIcon Name="code" Size="16" />
-                </span>
+                @* [REQ-UI-065 / BRD-102] No site logo configured: the approved horizontal lockup
+                   (glyph + wordmark, byte for byte from the owner's brand set) stands in for the
+                   glyph-plus-title pair. The lockup already carries the wordmark, so no second
+                   title is rendered; the alt text still names the site for assistive tech. *@
+                <img src="_content/BlogUI/images/brand/TechieBlog-horizontal.svg"
+                     alt="@identity.SiteTitle"
+                     class="tb-brand-lockup block h-8 w-auto max-w-full shrink"
+                     data-testid="brand-lockup" />
             }
-            <span class="truncate text-base">@identity.SiteTitle</span>
+            @if (!string.IsNullOrEmpty(identity.SiteLogoPath))
+            {
+                <span class="truncate text-base">@identity.SiteTitle</span>
+            }
         </a>
 
         @* Desktop navigation — TrBlazeUI's own NavigationMenu.

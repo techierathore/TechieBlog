@@ -52,15 +52,15 @@ public class TagSvcTests
     /// and deleted.
     /// </summary>
     [Fact]
-    public void GetAllTagsForwardsToRepository()
+    public async Task GetAllTagsForwardsToRepository()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
         var tags = new[] { ValidTag(1), ValidTag(2) };
-        repo.GetAll().Returns(tags);
+        repo.GetAllAsync(Arg.Any<CancellationToken>()).Returns(tags);
 
         // Act
-        var result = BuildService(repo).GetAllTags();
+        var result = await BuildService(repo).GetAllTagsAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Same(tags, result);
@@ -70,14 +70,14 @@ public class TagSvcTests
     /// A taxonomy read failure degrades a sidebar rather than breaking the page it sits on.
     /// </summary>
     [Fact]
-    public void GetAllTagsReturnsEmptyOnRepositoryFailure()
+    public async Task GetAllTagsReturnsEmptyOnRepositoryFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.When(r => r.GetAll()).Do(_ => throw new InvalidOperationException("boom"));
+        repo.When(r => r.GetAllAsync(Arg.Any<CancellationToken>())).Do(_ => throw new InvalidOperationException("boom"));
 
         // Act
-        var result = BuildService(repo).GetAllTags();
+        var result = await BuildService(repo).GetAllTagsAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(result);
@@ -88,15 +88,15 @@ public class TagSvcTests
     /// render; the rows come back untouched.
     /// </summary>
     [Fact]
-    public void GetAllWithCountsForwardsToRepository()
+    public async Task GetAllWithCountsForwardsToRepository()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
         var tags = new[] { ValidTag(1) };
-        repo.GetAllWithCounts().Returns(tags);
+        repo.GetAllWithCountsAsync(Arg.Any<CancellationToken>()).Returns(tags);
 
         // Act
-        var result = BuildService(repo).GetAllWithCounts();
+        var result = await BuildService(repo).GetAllWithCountsAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Same(tags, result);
@@ -106,14 +106,14 @@ public class TagSvcTests
     /// A failed counted listing degrades to an empty sequence.
     /// </summary>
     [Fact]
-    public void GetAllWithCountsReturnsEmptyOnRepositoryFailure()
+    public async Task GetAllWithCountsReturnsEmptyOnRepositoryFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.When(r => r.GetAllWithCounts()).Do(_ => throw new InvalidOperationException("boom"));
+        repo.When(r => r.GetAllWithCountsAsync(Arg.Any<CancellationToken>())).Do(_ => throw new InvalidOperationException("boom"));
 
         // Act
-        var result = BuildService(repo).GetAllWithCounts();
+        var result = await BuildService(repo).GetAllWithCountsAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(result);
@@ -123,15 +123,15 @@ public class TagSvcTests
     /// The id-keyed lookup is the admin one and forwards the identifier unchanged.
     /// </summary>
     [Fact]
-    public void GetSingleTagForwardsIdentifier()
+    public async Task GetSingleTagForwardsIdentifier()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
         var tag = ValidTag(4);
-        repo.GetSingle(4).Returns(tag);
+        repo.GetSingleAsync(4, Arg.Any<CancellationToken>()).Returns(tag);
 
         // Act
-        var result = BuildService(repo).GetSingleTag(4);
+        var result = await BuildService(repo).GetSingleTagAsync(4, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Same(tag, result);
@@ -141,14 +141,14 @@ public class TagSvcTests
     /// "No such tag" and "the read failed" both surface as null, distinguished only in the log.
     /// </summary>
     [Fact]
-    public void GetSingleTagReturnsNullOnRepositoryFailure()
+    public async Task GetSingleTagReturnsNullOnRepositoryFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.When(r => r.GetSingle(4)).Do(_ => throw new InvalidOperationException("boom"));
+        repo.When(r => r.GetSingleAsync(4, Arg.Any<CancellationToken>())).Do(_ => throw new InvalidOperationException("boom"));
 
         // Act
-        var result = BuildService(repo).GetSingleTag(4);
+        var result = await BuildService(repo).GetSingleTagAsync(4, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -161,17 +161,17 @@ public class TagSvcTests
     [Theory]
     [InlineData("")]
     [InlineData("  ")]
-    public void GetTagBySlugRejectsBlankSlugWithoutQuerying(string slug)
+    public async Task GetTagBySlugRejectsBlankSlugWithoutQuerying(string slug)
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
 
         // Act
-        var result = BuildService(repo).GetTagBySlug(slug);
+        var result = await BuildService(repo).GetTagBySlugAsync(slug, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
-        repo.DidNotReceive().GetBySlug(Arg.Any<string>());
+        await repo.DidNotReceive().GetBySlugAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -179,15 +179,15 @@ public class TagSvcTests
     /// in.
     /// </summary>
     [Fact]
-    public void GetTagBySlugForwardsSlug()
+    public async Task GetTagBySlugForwardsSlug()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
         var tag = ValidTag(4);
-        repo.GetBySlug("blazor-server").Returns(tag);
+        repo.GetBySlugAsync("blazor-server", Arg.Any<CancellationToken>()).Returns(tag);
 
         // Act
-        var result = BuildService(repo).GetTagBySlug("blazor-server");
+        var result = await BuildService(repo).GetTagBySlugAsync("blazor-server", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Same(tag, result);
@@ -197,14 +197,14 @@ public class TagSvcTests
     /// A failed slug read renders the tag page's not-found state rather than throwing.
     /// </summary>
     [Fact]
-    public void GetTagBySlugReturnsNullOnRepositoryFailure()
+    public async Task GetTagBySlugReturnsNullOnRepositoryFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.When(r => r.GetBySlug("blazor-server")).Do(_ => throw new InvalidOperationException("boom"));
+        repo.When(r => r.GetBySlugAsync("blazor-server", Arg.Any<CancellationToken>())).Do(_ => throw new InvalidOperationException("boom"));
 
         // Act
-        var result = BuildService(repo).GetTagBySlug("blazor-server");
+        var result = await BuildService(repo).GetTagBySlugAsync("blazor-server", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -215,52 +215,52 @@ public class TagSvcTests
     /// nothing, which is how authors are steered towards reusing a tag rather than inventing one.
     /// </summary>
     [Fact]
-    public void SearchTagsOffersASampleForABlankQuery()
+    public async Task SearchTagsOffersASampleForABlankQuery()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
         var all = Enumerable.Range(1, 25).Select(i => ValidTag(i)).ToArray();
-        repo.GetAll().Returns(all);
+        repo.GetAllAsync(Arg.Any<CancellationToken>()).Returns(all);
 
         // Act
-        var result = BuildService(repo).SearchTags("   ");
+        var result = await BuildService(repo).SearchTagsAsync("   ", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(10, result.Count());
-        repo.DidNotReceive().SearchTags(Arg.Any<string>());
+        await repo.DidNotReceive().SearchTagsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
     /// A real fragment goes to the repository's search rather than to the full listing.
     /// </summary>
     [Fact]
-    public void SearchTagsForwardsRealQuery()
+    public async Task SearchTagsForwardsRealQuery()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
         var hits = new[] { ValidTag(1) };
-        repo.SearchTags("bla").Returns(hits);
+        repo.SearchTagsAsync("bla", Arg.Any<CancellationToken>()).Returns(hits);
 
         // Act
-        var result = BuildService(repo).SearchTags("bla");
+        var result = await BuildService(repo).SearchTagsAsync("bla", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Same(hits, result);
-        repo.DidNotReceive().GetAll();
+        await repo.DidNotReceive().GetAllAsync(Arg.Any<CancellationToken>());
     }
 
     /// <summary>
     /// A failed autocomplete read degrades to an empty sequence rather than breaking the editor.
     /// </summary>
     [Fact]
-    public void SearchTagsReturnsEmptyOnRepositoryFailure()
+    public async Task SearchTagsReturnsEmptyOnRepositoryFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.When(r => r.SearchTags("bla")).Do(_ => throw new InvalidOperationException("boom"));
+        repo.When(r => r.SearchTagsAsync("bla", Arg.Any<CancellationToken>())).Do(_ => throw new InvalidOperationException("boom"));
 
         // Act
-        var result = BuildService(repo).SearchTags("bla");
+        var result = await BuildService(repo).SearchTagsAsync("bla", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(result);
@@ -270,15 +270,15 @@ public class TagSvcTests
     /// The post's tag chips are whatever the repository reports for that post.
     /// </summary>
     [Fact]
-    public void GetTagsForPostForwardsIdentifier()
+    public async Task GetTagsForPostForwardsIdentifier()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
         var tags = new[] { ValidTag(1) };
-        repo.GetTagsForPost(9).Returns(tags);
+        repo.GetTagsForPostAsync(9, Arg.Any<CancellationToken>()).Returns(tags);
 
         // Act
-        var result = BuildService(repo).GetTagsForPost(9);
+        var result = await BuildService(repo).GetTagsForPostAsync(9, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Same(tags, result);
@@ -288,14 +288,14 @@ public class TagSvcTests
     /// A failed per-post tag read degrades to an empty sequence.
     /// </summary>
     [Fact]
-    public void GetTagsForPostReturnsEmptyOnRepositoryFailure()
+    public async Task GetTagsForPostReturnsEmptyOnRepositoryFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.When(r => r.GetTagsForPost(9)).Do(_ => throw new InvalidOperationException("boom"));
+        repo.When(r => r.GetTagsForPostAsync(9, Arg.Any<CancellationToken>())).Do(_ => throw new InvalidOperationException("boom"));
 
         // Act
-        var result = BuildService(repo).GetTagsForPost(9);
+        var result = await BuildService(repo).GetTagsForPostAsync(9, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(result);
@@ -305,33 +305,33 @@ public class TagSvcTests
     /// The tag-filtered listing passes its filter and both paging arguments through unclamped.
     /// </summary>
     [Fact]
-    public void GetPostsByTagForwardsArguments()
+    public async Task GetPostsByTagForwardsArguments()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
         var page = new[] { new BlogPost { PostID = 1 } };
-        repo.GetPostsByTag(3, 20, 40).Returns(page);
+        repo.GetPostsByTagAsync(3, 20, 40, Arg.Any<CancellationToken>()).Returns(page);
 
         // Act
-        var result = BuildService(repo).GetPostsByTag(3, 20, 40);
+        var result = await BuildService(repo).GetPostsByTagAsync(3, 20, 40, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Same(page, result);
-        repo.Received(1).GetPostsByTag(3, 20, 40);
+        await repo.Received(1).GetPostsByTagAsync(3, 20, 40, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
     /// A failed tag listing degrades to an empty page.
     /// </summary>
     [Fact]
-    public void GetPostsByTagReturnsEmptyOnRepositoryFailure()
+    public async Task GetPostsByTagReturnsEmptyOnRepositoryFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.When(r => r.GetPostsByTag(3, 20, 40)).Do(_ => throw new InvalidOperationException("boom"));
+        repo.When(r => r.GetPostsByTagAsync(3, 20, 40, Arg.Any<CancellationToken>())).Do(_ => throw new InvalidOperationException("boom"));
 
         // Act
-        var result = BuildService(repo).GetPostsByTag(3, 20, 40);
+        var result = await BuildService(repo).GetPostsByTagAsync(3, 20, 40, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(result);
@@ -342,14 +342,14 @@ public class TagSvcTests
     /// empty.
     /// </summary>
     [Fact]
-    public void GetPostCountByTagForwardsToRepository()
+    public async Task GetPostCountByTagForwardsToRepository()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.GetPostCountByTag(3).Returns(42);
+        repo.GetPostCountByTagAsync(3, Arg.Any<CancellationToken>()).Returns(42);
 
         // Act
-        var result = BuildService(repo).GetPostCountByTag(3);
+        var result = await BuildService(repo).GetPostCountByTagAsync(3, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(42, result);
@@ -359,14 +359,14 @@ public class TagSvcTests
     /// A failed count collapses the pager to zero rather than throwing on a public page.
     /// </summary>
     [Fact]
-    public void GetPostCountByTagReturnsZeroOnRepositoryFailure()
+    public async Task GetPostCountByTagReturnsZeroOnRepositoryFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.When(r => r.GetPostCountByTag(3)).Do(_ => throw new InvalidOperationException("boom"));
+        repo.When(r => r.GetPostCountByTagAsync(3, Arg.Any<CancellationToken>())).Do(_ => throw new InvalidOperationException("boom"));
 
         // Act
-        var result = BuildService(repo).GetPostCountByTag(3);
+        var result = await BuildService(repo).GetPostCountByTagAsync(3, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, result);
@@ -384,18 +384,18 @@ public class TagSvcTests
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    public void GetOrCreateTagRejectsBlankName(string tagName)
+    public async Task GetOrCreateTagRejectsBlankName(string tagName)
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
 
         // Act
-        var result = BuildService(repo).GetOrCreateTag(tagName);
+        var result = await BuildService(repo).GetOrCreateTagAsync(tagName, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
-        repo.DidNotReceive().GetBySlug(Arg.Any<string>());
-        repo.DidNotReceive().InsertToGetId(Arg.Any<BlogTag>());
+        await repo.DidNotReceive().GetBySlugAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await repo.DidNotReceive().InsertToGetIdAsync(Arg.Any<BlogTag>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -404,20 +404,20 @@ public class TagSvcTests
     /// post carrying it.
     /// </summary>
     [Fact]
-    public void GetOrCreateTagReusesExistingTagMatchedBySlug()
+    public async Task GetOrCreateTagReusesExistingTagMatchedBySlug()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
         var stored = new BlogTag { TagId = 12, TagName = "ASP.NET Core", Slug = "aspnet-core" };
-        repo.GetBySlug("aspnet-core").Returns(stored);
+        repo.GetBySlugAsync("aspnet-core", Arg.Any<CancellationToken>()).Returns(stored);
 
         // Act
-        var result = BuildService(repo).GetOrCreateTag("  ASP.NET Core  ");
+        var result = await BuildService(repo).GetOrCreateTagAsync("  ASP.NET Core  ", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Same(stored, result);
         Assert.Equal("ASP.NET Core", result!.TagName);
-        repo.DidNotReceive().InsertToGetId(Arg.Any<BlogTag>());
+        await repo.DidNotReceive().InsertToGetIdAsync(Arg.Any<BlogTag>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -425,14 +425,14 @@ public class TagSvcTests
     /// and comes back carrying the generated identifier.
     /// </summary>
     [Fact]
-    public void GetOrCreateTagInsertsGenuinelyNewName()
+    public async Task GetOrCreateTagInsertsGenuinelyNewName()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.InsertToGetId(Arg.Any<BlogTag>()).Returns(31L);
+        repo.InsertToGetIdAsync(Arg.Any<BlogTag>(), Arg.Any<CancellationToken>()).Returns(31L);
 
         // Act
-        var result = BuildService(repo).GetOrCreateTag("  Minimal APIs ");
+        var result = await BuildService(repo).GetOrCreateTagAsync("  Minimal APIs ", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -446,14 +446,14 @@ public class TagSvcTests
     /// path, and returning null would attach the post to no tag while reporting success.
     /// </summary>
     [Fact]
-    public void GetOrCreateTagLetsRepositoryFailuresPropagate()
+    public async Task GetOrCreateTagLetsRepositoryFailuresPropagate()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.When(r => r.GetBySlug("minimal-apis")).Do(_ => throw new InvalidOperationException("boom"));
+        repo.When(r => r.GetBySlugAsync("minimal-apis", Arg.Any<CancellationToken>())).Do(_ => throw new InvalidOperationException("boom"));
 
         // Act & Assert
-        Assert.Throws<InvalidOperationException>(() => BuildService(repo).GetOrCreateTag("Minimal APIs"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => BuildService(repo).GetOrCreateTagAsync("Minimal APIs", TestContext.Current.CancellationToken));
     }
 
     // =============================================================================================
@@ -464,13 +464,13 @@ public class TagSvcTests
     /// A null tag is refused as a failed result rather than a null-reference exception.
     /// </summary>
     [Fact]
-    public void CreateTagRejectsNull()
+    public async Task CreateTagRejectsNull()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
 
         // Act
-        var result = BuildService(repo).CreateTag(null!);
+        var result = await BuildService(repo).CreateTagAsync(null!, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
@@ -481,18 +481,18 @@ public class TagSvcTests
     /// A name is mandatory, and whitespace does not count as one.
     /// </summary>
     [Fact]
-    public void CreateTagRejectsBlankName()
+    public async Task CreateTagRejectsBlankName()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
 
         // Act
-        var result = BuildService(repo).CreateTag(new BlogTag { TagName = "  " });
+        var result = await BuildService(repo).CreateTagAsync(new BlogTag { TagName = "  " }, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
         Assert.Equal("Tag name is required", result.ErrorMessage);
-        repo.DidNotReceive().InsertToGetId(Arg.Any<BlogTag>());
+        await repo.DidNotReceive().InsertToGetIdAsync(Arg.Any<BlogTag>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -500,15 +500,15 @@ public class TagSvcTests
     /// key is written back onto the supplied instance.
     /// </summary>
     [Fact]
-    public void CreateTagDerivesSlugAndAssignsIdentifier()
+    public async Task CreateTagDerivesSlugAndAssignsIdentifier()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.InsertToGetId(Arg.Any<BlogTag>()).Returns(8L);
+        repo.InsertToGetIdAsync(Arg.Any<BlogTag>(), Arg.Any<CancellationToken>()).Returns(8L);
         var tag = ValidTag();
 
         // Act
-        var result = BuildService(repo).CreateTag(tag);
+        var result = await BuildService(repo).CreateTagAsync(tag, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -522,7 +522,7 @@ public class TagSvcTests
     /// because it is the tag's public address and their choice is deliberate.
     /// </summary>
     [Fact]
-    public void CreateTagKeepsSuppliedSlug()
+    public async Task CreateTagKeepsSuppliedSlug()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
@@ -530,7 +530,7 @@ public class TagSvcTests
         tag.Slug = "hand-picked";
 
         // Act
-        BuildService(repo).CreateTag(tag);
+        await BuildService(repo).CreateTagAsync(tag, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("hand-picked", tag.Slug);
@@ -541,15 +541,15 @@ public class TagSvcTests
     /// tags may legitimately share a name-derived slug while meaning different things.
     /// </summary>
     [Fact]
-    public void CreateTagSuffixesDuplicateSlug()
+    public async Task CreateTagSuffixesDuplicateSlug()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.SlugExists("blazor-server").Returns(true);
+        repo.SlugExistsAsync("blazor-server", 0, Arg.Any<CancellationToken>()).Returns(true);
         var tag = ValidTag();
 
         // Act
-        BuildService(repo).CreateTag(tag);
+        await BuildService(repo).CreateTagAsync(tag, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("blazor-server-2", tag.Slug);
@@ -560,16 +560,16 @@ public class TagSvcTests
     /// found.
     /// </summary>
     [Fact]
-    public void CreateTagRetriesUntilSlugIsFree()
+    public async Task CreateTagRetriesUntilSlugIsFree()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.SlugExists("blazor-server").Returns(true);
-        repo.SlugExists("blazor-server-2").Returns(true);
+        repo.SlugExistsAsync("blazor-server", 0, Arg.Any<CancellationToken>()).Returns(true);
+        repo.SlugExistsAsync("blazor-server-2", 0, Arg.Any<CancellationToken>()).Returns(true);
         var tag = ValidTag();
 
         // Act
-        BuildService(repo).CreateTag(tag);
+        await BuildService(repo).CreateTagAsync(tag, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("blazor-server-3", tag.Slug);
@@ -580,19 +580,19 @@ public class TagSvcTests
     /// the last candidate for the database's unique constraint to arbitrate.
     /// </summary>
     [Fact]
-    public void CreateTagStopsSuffixingAtTheAttemptCap()
+    public async Task CreateTagStopsSuffixingAtTheAttemptCap()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.SlugExists(Arg.Any<string>()).Returns(true);
+        repo.SlugExistsAsync(Arg.Any<string>(), 0, Arg.Any<CancellationToken>()).Returns(true);
         var tag = ValidTag();
 
         // Act
-        BuildService(repo).CreateTag(tag);
+        await BuildService(repo).CreateTagAsync(tag, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("blazor-server-100", tag.Slug);
-        repo.Received(100).SlugExists(Arg.Any<string>());
+        await repo.Received(100).SlugExistsAsync(Arg.Any<string>(), 0, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -604,16 +604,16 @@ public class TagSvcTests
     /// silently.
     /// </summary>
     [Fact]
-    public void CreateTagReportsPersistenceFailure()
+    public async Task CreateTagReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
         var logger = new RecordingLogger<TagSvc>();
-        repo.When(r => r.InsertToGetId(Arg.Any<BlogTag>()))
+        repo.When(r => r.InsertToGetIdAsync(Arg.Any<BlogTag>(), Arg.Any<CancellationToken>()))
             .Do(_ => throw new InvalidOperationException("duplicate key"));
 
         // Act
-        var result = BuildService(repo, logger).CreateTag(ValidTag());
+        var result = await BuildService(repo, logger).CreateTagAsync(ValidTag(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
@@ -626,13 +626,13 @@ public class TagSvcTests
     /// A null tag is refused before anything is read or written.
     /// </summary>
     [Fact]
-    public void UpdateTagRejectsNull()
+    public async Task UpdateTagRejectsNull()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
 
         // Act
-        var result = BuildService(repo).UpdateTag(null!);
+        var result = await BuildService(repo).UpdateTagAsync(null!, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
@@ -646,25 +646,25 @@ public class TagSvcTests
     [Theory]
     [InlineData(0)]
     [InlineData(-4)]
-    public void UpdateTagRejectsNonPositiveIdentifier(long tagId)
+    public async Task UpdateTagRejectsNonPositiveIdentifier(long tagId)
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
 
         // Act
-        var result = BuildService(repo).UpdateTag(ValidTag(tagId));
+        var result = await BuildService(repo).UpdateTagAsync(ValidTag(tagId), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
         Assert.Equal("Invalid tag ID", result.ErrorMessage);
-        repo.DidNotReceive().Update(Arg.Any<BlogTag>());
+        await repo.DidNotReceive().UpdateAsync(Arg.Any<BlogTag>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
     /// The name rule applies to an edit exactly as it does to a creation.
     /// </summary>
     [Fact]
-    public void UpdateTagRejectsBlankName()
+    public async Task UpdateTagRejectsBlankName()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
@@ -672,7 +672,7 @@ public class TagSvcTests
         tag.TagName = "";
 
         // Act
-        var result = BuildService(repo).UpdateTag(tag);
+        var result = await BuildService(repo).UpdateTagAsync(tag, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
@@ -684,19 +684,19 @@ public class TagSvcTests
     /// rows.
     /// </summary>
     [Fact]
-    public void UpdateTagRejectsMissingRow()
+    public async Task UpdateTagRejectsMissingRow()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.GetSingle(4).Returns((BlogTag?)null);
+        repo.GetSingleAsync(4, Arg.Any<CancellationToken>()).Returns((BlogTag?)null);
 
         // Act
-        var result = BuildService(repo).UpdateTag(ValidTag(4));
+        var result = await BuildService(repo).UpdateTagAsync(ValidTag(4), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
         Assert.Equal("Tag not found", result.ErrorMessage);
-        repo.DidNotReceive().Update(Arg.Any<BlogTag>());
+        await repo.DidNotReceive().UpdateAsync(Arg.Any<BlogTag>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -704,38 +704,38 @@ public class TagSvcTests
     /// collide with itself and pointlessly renumber its slug — which would break its published URL.
     /// </summary>
     [Fact]
-    public void UpdateTagExcludesItselfFromSlugCheck()
+    public async Task UpdateTagExcludesItselfFromSlugCheck()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.GetSingle(4).Returns(ValidTag(4));
+        repo.GetSingleAsync(4, Arg.Any<CancellationToken>()).Returns(ValidTag(4));
         var tag = ValidTag(4);
         tag.Slug = "blazor-server";
 
         // Act
-        var result = BuildService(repo).UpdateTag(tag);
+        var result = await BuildService(repo).UpdateTagAsync(tag, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal("blazor-server", tag.Slug);
-        repo.Received(1).SlugExists("blazor-server", 4);
-        repo.Received(1).Update(tag);
+        await repo.Received(1).SlugExistsAsync("blazor-server", 4, Arg.Any<CancellationToken>());
+        await repo.Received(1).UpdateAsync(tag, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
     /// A slug that genuinely belongs to another tag is suffixed, exactly as on creation.
     /// </summary>
     [Fact]
-    public void UpdateTagSuffixesCollidingSlug()
+    public async Task UpdateTagSuffixesCollidingSlug()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.GetSingle(4).Returns(ValidTag(4));
-        repo.SlugExists("blazor-server", 4).Returns(true);
+        repo.GetSingleAsync(4, Arg.Any<CancellationToken>()).Returns(ValidTag(4));
+        repo.SlugExistsAsync("blazor-server", 4, Arg.Any<CancellationToken>()).Returns(true);
         var tag = ValidTag(4);
 
         // Act
-        BuildService(repo).UpdateTag(tag);
+        await BuildService(repo).UpdateTagAsync(tag, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("blazor-server-2", tag.Slug);
@@ -746,17 +746,17 @@ public class TagSvcTests
     /// exclusion of the edited row applies to every attempt rather than only the first.
     /// </summary>
     [Fact]
-    public void UpdateTagRetriesUntilSlugIsFree()
+    public async Task UpdateTagRetriesUntilSlugIsFree()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.GetSingle(4).Returns(ValidTag(4));
-        repo.SlugExists("blazor-server", 4).Returns(true);
-        repo.SlugExists("blazor-server-2", 4).Returns(true);
+        repo.GetSingleAsync(4, Arg.Any<CancellationToken>()).Returns(ValidTag(4));
+        repo.SlugExistsAsync("blazor-server", 4, Arg.Any<CancellationToken>()).Returns(true);
+        repo.SlugExistsAsync("blazor-server-2", 4, Arg.Any<CancellationToken>()).Returns(true);
         var tag = ValidTag(4);
 
         // Act
-        BuildService(repo).UpdateTag(tag);
+        await BuildService(repo).UpdateTagAsync(tag, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("blazor-server-3", tag.Slug);
@@ -770,16 +770,16 @@ public class TagSvcTests
     /// silently.
     /// </summary>
     [Fact]
-    public void UpdateTagReportsPersistenceFailure()
+    public async Task UpdateTagReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
         var logger = new RecordingLogger<TagSvc>();
-        repo.GetSingle(4).Returns(ValidTag(4));
-        repo.When(r => r.Update(Arg.Any<BlogTag>())).Do(_ => throw new InvalidOperationException("deadlock"));
+        repo.GetSingleAsync(4, Arg.Any<CancellationToken>()).Returns(ValidTag(4));
+        repo.When(r => r.UpdateAsync(Arg.Any<BlogTag>(), Arg.Any<CancellationToken>())).Do(_ => throw new InvalidOperationException("deadlock"));
 
         // Act
-        var result = BuildService(repo, logger).UpdateTag(ValidTag(4));
+        var result = await BuildService(repo, logger).UpdateTagAsync(ValidTag(4), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
@@ -792,13 +792,13 @@ public class TagSvcTests
     /// The save entry point refuses a null tag before deciding between insert and update.
     /// </summary>
     [Fact]
-    public void SaveTagRejectsNull()
+    public async Task SaveTagRejectsNull()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
 
         // Act
-        var result = BuildService(repo).SaveTag(null!);
+        var result = await BuildService(repo).SaveTagAsync(null!, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
@@ -810,77 +810,77 @@ public class TagSvcTests
     /// while a real one updates.
     /// </summary>
     [Fact]
-    public void SaveTagRoutesOnIdentifier()
+    public async Task SaveTagRoutesOnIdentifier()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.GetSingle(4).Returns(ValidTag(4));
+        repo.GetSingleAsync(4, Arg.Any<CancellationToken>()).Returns(ValidTag(4));
         var service = BuildService(repo);
 
         // Act
-        service.SaveTag(ValidTag());
-        service.SaveTag(ValidTag(4));
+        await service.SaveTagAsync(ValidTag(), TestContext.Current.CancellationToken);
+        await service.SaveTagAsync(ValidTag(4), TestContext.Current.CancellationToken);
 
         // Assert
-        repo.Received(1).InsertToGetId(Arg.Any<BlogTag>());
-        repo.Received(1).Update(Arg.Any<BlogTag>());
+        await repo.Received(1).InsertToGetIdAsync(Arg.Any<BlogTag>(), Arg.Any<CancellationToken>());
+        await repo.Received(1).UpdateAsync(Arg.Any<BlogTag>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
     /// A non-positive identifier cannot name a row and is refused before any read.
     /// </summary>
     [Fact]
-    public void DeleteTagRejectsNonPositiveIdentifier()
+    public async Task DeleteTagRejectsNonPositiveIdentifier()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
 
         // Act
-        var result = BuildService(repo).DeleteTag(0);
+        var result = await BuildService(repo).DeleteTagAsync(0, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
         Assert.Equal("Invalid tag ID", result.ErrorMessage);
-        repo.DidNotReceive().GetSingle(Arg.Any<long>());
+        await repo.DidNotReceive().GetSingleAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
     /// Deleting an already-deleted tag reports "not found" rather than succeeding silently.
     /// </summary>
     [Fact]
-    public void DeleteTagRejectsMissingRow()
+    public async Task DeleteTagRejectsMissingRow()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.GetSingle(4).Returns((BlogTag?)null);
+        repo.GetSingleAsync(4, Arg.Any<CancellationToken>()).Returns((BlogTag?)null);
 
         // Act
-        var result = BuildService(repo).DeleteTag(4);
+        var result = await BuildService(repo).DeleteTagAsync(4, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
         Assert.Equal("Tag not found", result.ErrorMessage);
-        repo.DidNotReceive().Delete(Arg.Any<long>());
+        await repo.DidNotReceive().DeleteAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
     /// A tag is a label rather than a home, so the delete is not blocked when posts still carry it.
     /// </summary>
     [Fact]
-    public void DeleteTagRemovesTagEvenWhenPostsCarryIt()
+    public async Task DeleteTagRemovesTagEvenWhenPostsCarryIt()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
         var existing = ValidTag(4);
         existing.PostCount = 12;
-        repo.GetSingle(4).Returns(existing);
+        repo.GetSingleAsync(4, Arg.Any<CancellationToken>()).Returns(existing);
 
         // Act
-        var result = BuildService(repo).DeleteTag(4);
+        var result = await BuildService(repo).DeleteTagAsync(4, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsSuccess);
-        repo.Received(1).Delete(4);
+        await repo.Received(1).DeleteAsync(4, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -891,16 +891,16 @@ public class TagSvcTests
     /// silently.
     /// </summary>
     [Fact]
-    public void DeleteTagReportsPersistenceFailure()
+    public async Task DeleteTagReportsPersistenceFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
         var logger = new RecordingLogger<TagSvc>();
-        repo.GetSingle(4).Returns(ValidTag(4));
-        repo.When(r => r.Delete(4)).Do(_ => throw new InvalidOperationException("constraint"));
+        repo.GetSingleAsync(4, Arg.Any<CancellationToken>()).Returns(ValidTag(4));
+        repo.When(r => r.DeleteAsync(4, Arg.Any<CancellationToken>())).Do(_ => throw new InvalidOperationException("constraint"));
 
         // Act
-        var result = BuildService(repo, logger).DeleteTag(4);
+        var result = await BuildService(repo, logger).DeleteTagAsync(4, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsFailure);
@@ -914,17 +914,17 @@ public class TagSvcTests
     /// repository unchanged.
     /// </summary>
     [Fact]
-    public void SetTagsForPostForwardsTheCompleteSet()
+    public async Task SetTagsForPostForwardsTheCompleteSet()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
         var ids = new long[] { 3, 5, 8 };
 
         // Act
-        BuildService(repo).SetTagsForPost(9, ids);
+        await BuildService(repo).SetTagsForPostAsync(9, ids, TestContext.Current.CancellationToken);
 
         // Assert
-        repo.Received(1).SetTagsForPost(9, ids);
+        await repo.Received(1).SetTagsForPostAsync(9, ids, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -932,15 +932,15 @@ public class TagSvcTests
     /// which is why the post save can succeed while the author's tag changes are lost.
     /// </summary>
     [Fact]
-    public void SetTagsForPostSwallowsRepositoryFailure()
+    public async Task SetTagsForPostSwallowsRepositoryFailure()
     {
         // Arrange
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.When(r => r.SetTagsForPost(Arg.Any<long>(), Arg.Any<IEnumerable<long>>()))
+        repo.When(r => r.SetTagsForPostAsync(Arg.Any<long>(), Arg.Any<IEnumerable<long>>(), Arg.Any<CancellationToken>()))
             .Do(_ => throw new InvalidOperationException("boom"));
 
         // Act
-        var exception = Record.Exception(() => BuildService(repo).SetTagsForPost(9, new long[] { 1 }));
+        var exception = await Record.ExceptionAsync(() => BuildService(repo).SetTagsForPostAsync(9, new long[] { 1 }, TestContext.Current.CancellationToken));
 
         // Assert
         Assert.Null(exception);

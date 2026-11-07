@@ -36,10 +36,10 @@ const BASE = process.env.SMOKE_BASE ?? 'https://localhost:7481';
 const ADMIN = { email: 'Ravi@techieblog.com', password: 'admin_password' };
 
 /**
- * Where screenshots are written. Playwright wipes `test-results/` at the start of every run, and
+ * Where screenshots are written. Playwright wipes `tests/.artifacts/test-results/` at the start of every run, and
  * sibling clusters run concurrently, so evidence masters are written outside it and copied in.
  */
-const SHOTS = process.env.SHOT_DIR ?? 'test-results/cluster-b';
+const SHOTS = process.env.SHOT_DIR ?? 'tests/.artifacts/test-results/cluster-b';
 
 /** Text Blazor's default ErrorBoundary renders when a component throws. */
 const ERROR_BOUNDARY_TEXT = 'An unhandled error has occurred';
@@ -120,7 +120,7 @@ async function loginAsAdmin(page: Page) {
     'the sign-in did not reach the admin shell').toBeVisible({ timeout: 20000 });
 }
 
-test.describe('REQ-UI-052 admin surface', () => {
+test.describe('web admin tables (formerly tagged with the BlogApp row id; retired port + password): admin surface', () => {
   test('every admin route renders real data, not an empty error boundary', async ({ page }) => {
     const pageErrors: string[] = [];
     page.on('pageerror', e => pageErrors.push(String(e)));

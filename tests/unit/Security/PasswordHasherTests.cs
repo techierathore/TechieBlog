@@ -21,7 +21,7 @@ public class PasswordHasherTests
     /// Hashing a password produces the documented
     /// "PBKDF2-SHA256$iterations$salt$subkey" envelope with the configured iteration count.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-002 a password is stored as a PBKDF2-SHA256 hash in the documented format")]
     public void HashProducesDocumentedFormat()
     {
         var hash = PasswordHasher.HashPassword(SamplePassword);
@@ -38,7 +38,7 @@ public class PasswordHasherTests
     /// Hashing the same password twice yields different strings, proving the salt is random
     /// per call rather than the single fixed salt the retired scheme used.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-002 each hash call draws a fresh salt so equal passwords hash differently")]
     public void HashUsesFreshSaltPerCall()
     {
         var first = PasswordHasher.HashPassword(SamplePassword);
@@ -60,7 +60,7 @@ public class PasswordHasherTests
     /// Verifying the correct password against a current hash succeeds and does not ask for a
     /// re-hash, because the stored work factor already matches the configured one.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-002 the correct password verifies against its salted hash")]
     public void VerifyAcceptsCorrectPassword()
     {
         var hash = PasswordHasher.HashPassword(SamplePassword);
@@ -71,7 +71,7 @@ public class PasswordHasherTests
     /// <summary>
     /// Verifying a wrong password against a current hash fails.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-002 a wrong password is rejected by the salted hash")]
     public void VerifyRejectsWrongPassword()
     {
         var hash = PasswordHasher.HashPassword(SamplePassword);
@@ -187,7 +187,7 @@ public class PasswordHasherTests
     /// 017-SecurityAndTokenPersistence.sql still verifies the documented bootstrap password,
     /// so the migration cannot silently lock the administrator out (REQ-NFR-023).
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-023 the seeded admin credential is a salted hash that verifies the documented bootstrap password")]
     public void SeededAdminHashVerifiesDocumentedPassword()
     {
         const string seededHash =

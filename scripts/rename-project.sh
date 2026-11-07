@@ -74,7 +74,7 @@ CHANGE_COUNT=0
 
 log_change() {
     echo -e "  ${GRAY}$1 : $2${NC}"
-    ((CHANGE_COUNT++))
+    CHANGE_COUNT=$((CHANGE_COUNT + 1))
 }
 
 # Step 1: Update solution file content
@@ -97,7 +97,7 @@ fi
 # Step 2: Update .cs files in TechieBlog project (namespaces)
 echo -e "${GREEN}[2/6] Updating namespace references in source files...${NC}"
 if [[ -d "source/$OLD_NAME" ]]; then
-    find "source/$OLD_NAME" -name "*.cs" -type f 2>/dev/null | while read -r file; do
+    while read -r file; do
         if grep -q "namespace $OLD_NAME\|using $OLD_NAME" "$file" 2>/dev/null; then
             log_change "UPDATE" "$file"
             if ! $DRY_RUN; then
@@ -110,13 +110,13 @@ if [[ -d "source/$OLD_NAME" ]]; then
                 fi
             fi
         fi
-    done
+    done < <(find "source/$OLD_NAME" -name "*.cs" -type f 2>/dev/null)
 fi
 
 # Step 3: Update .razor files
 echo -e "${GREEN}[3/6] Updating Razor component references...${NC}"
 if [[ -d "source/$OLD_NAME" ]]; then
-    find "source/$OLD_NAME" -name "*.razor" -type f 2>/dev/null | while read -r file; do
+    while read -r file; do
         if grep -q "@namespace $OLD_NAME\|@using $OLD_NAME" "$file" 2>/dev/null; then
             log_change "UPDATE" "$file"
             if ! $DRY_RUN; then
@@ -129,7 +129,7 @@ if [[ -d "source/$OLD_NAME" ]]; then
                 fi
             fi
         fi
-    done
+    done < <(find "source/$OLD_NAME" -name "*.razor" -type f 2>/dev/null)
 fi
 
 # Step 4: Update configuration files

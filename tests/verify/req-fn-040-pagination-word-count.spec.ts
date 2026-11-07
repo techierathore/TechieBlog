@@ -1,3 +1,4 @@
+// 2026-10-27 W1 (verify-phase): titles prefixed 'retired:' asserted retired demo/fixture data (UAT-007, 2026-08-22), the removed header About link, or wrote the database directly; they are superseded by tests/verify/fxv1-public.spec.ts and fxv1-settings.spec.ts, which build their own state through the app.
 /**
  * REQ-FN-040 / production report 2026-10-21 — "I set 2400 words per page and the pages are way
  * shorter." The post page read the word count from a browser-storage key nothing ever wrote, so
@@ -57,7 +58,7 @@ test.afterAll(() => {
   psql(`update sitesetting set settingvalue='${originalWordCount}' where settingkey='Blog.PaginationWordCount'`);
 });
 
-test('REQ-FN-040 the article pagination word count saved in Settings governs the public post pages', async ({ page }) => {
+test('retired: REQ-FN-040 the article pagination word count saved in Settings governs the public post pages', async ({ page }) => {
   test.setTimeout(5 * 60 * 1000);
   await login(page, 'admin');
 

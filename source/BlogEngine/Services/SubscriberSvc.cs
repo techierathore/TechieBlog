@@ -15,9 +15,9 @@ namespace BlogEngine.Services;
 ///
 /// <para><b>Code Flow:</b></para>
 /// <list type="number">
-///   <item><see cref="Subscribe"/> normalises and validates the address, then either reactivates a
+///   <item><see cref="SubscribeAsync"/> normalises and validates the address, then either reactivates a
 ///     lapsed row, refuses a duplicate, or inserts a new subscriber.</item>
-///   <item><see cref="Unsubscribe"/> and <see cref="UpdateSubscriberStatus"/> flip
+///   <item><see cref="UnsubscribeAsync"/> and <see cref="UpdateSubscriberStatusAsync"/> flip
 ///     <c>IsActive</c>; rows are never deleted, so an address that resubscribes keeps its original
 ///     <c>SubscribedOn</c> and its unsubscribe token.</item>
 ///   <item>The read methods back the admin subscriber list, the audience estimate on the newsletter
@@ -56,12 +56,12 @@ namespace BlogEngine.Services;
 /// <para><b>Two subscription paths exist, and only one of them is double opt-in.</b>
 /// <see cref="SubscribePendingAsync"/> is the double opt-in path and is the ONLY one an
 /// anonymous, publicly reachable form may use: it writes <c>IsConfirmed = false</c> and mails a
-/// confirmation link through <see cref="IEmailVerificationService"/>. <see cref="Subscribe"/>
+/// confirmation link through <see cref="IEmailVerificationService"/>. <see cref="SubscribeAsync"/>
 /// auto-confirms (<c>IsConfirmed = true</c> at insert) and is therefore <b>administrative only</b>
 /// — an auto-confirming public form lets one visitor subscribe a stranger's address without their
 /// consent.</para>
 ///
-/// <para><b>[REQ-UI-056] 2026-08-09 — the sidebar form used to call <see cref="Subscribe"/>.</b>
+/// <para><b>[REQ-UI-056] 2026-08-09 — the sidebar form used to call <see cref="SubscribeAsync"/>.</b>
 /// <c>BlogSidebar</c> is rendered by <c>MainLayout</c> on every public page, so the single
 /// anonymous surface with the widest reach in the whole site was writing confirmed subscribers with
 /// no captcha and no consent check. It now goes through <see cref="SubscribePendingAsync"/> behind
@@ -73,28 +73,16 @@ namespace BlogEngine.Services;
 /// yields an empty sequence, because a broken sidebar must not take a blog page down with it.</para>
 ///
 /// <para><b>Dependencies:</b> <see cref="ISubscriberRepo"/> and
-/// <see cref="ILogger{TCategoryName}"/>. Synchronous throughout — the repository surface it sits on
-/// has not been converted (REQ-NFR-026), which is why <c>BlogSidebar</c> wraps
-/// <see cref="Subscribe"/> in <c>Task.Run</c> rather than awaiting it.</para>
-///
-/// <para><b>Async surface (REQ-NFR-026 stage 3):</b> every member below exists twice — a legacy
-/// blocking member and an <c>…Async</c> twin carrying a <see cref="CancellationToken"/> as its last
-/// parameter. Each twin sits immediately after the synchronous member it mirrors, routes every read
-/// and write through the matching <c>ISubscriberRepo…Async</c> member with the token flowed in and
-/// <c>ConfigureAwait(false)</c>, and preserves that member's behaviour exactly — same filters, same
-/// ordering, same swallow-and-log on reads, same <c>Result</c> failure strings on writes.
-/// <b>Call the async member.</b> The synchronous surface is retained only until the last Blazor call
-/// site migrates and is <b>pending deletion in stage 4</b>; nothing new should be written against
-/// it. <c>Result</c>/<c>Result&lt;T&gt;</c> is unchanged by the conversion — it simply travels
-/// inside a task, because <c>Result</c> models the expected-failure axis and <c>Task</c> models the
-/// completion axis.</para>
+/// <see cref="ILogger{TCategoryName}"/>. Asynchronous throughout (REQ-NFR-026): the blocking
+/// twins were removed, so every member returns a task and carries a <see cref="CancellationToken"/>
+/// as its last parameter, routed through the matching <c>ISubscriberRepo…Async</c> member.</para>
 ///
 /// <para><b>Usage:</b> Registered transient by <c>BlogSvcInitializer</c>.
-/// <see cref="Subscribe"/> and <see cref="Unsubscribe"/> are reachable anonymously from public
+/// <see cref="SubscribeAsync"/> and <see cref="UnsubscribeAsync"/> are reachable anonymously from public
 /// pages; every other member is administrative and its callers sit behind
 /// <c>AppPolicies.AdminOnly</c>. This class performs <b>no</b> authorization of its own — the
 /// calling page is responsible for the policy check, so never expose
-/// <see cref="GetAllSubscribers"/> or <see cref="GetSubscribersForExport"/> from an unauthenticated
+/// <see cref="GetAllSubscribersAsync"/> or <see cref="GetSubscribersForExportAsync"/> from an unauthenticated
 /// surface: both return every subscriber's email address.</para>
 /// </remarks>
 public class SubscriberSvc
@@ -224,7 +212,8 @@ public class SubscriberSvc
             if (existing != null && existing.IsConfirmed)
                 return Result<bool>.Success(false);
 
-            var subscriberId = existing?.SubscriberId ?? InsertPending(email, name);
+            var subscriberId = existing?.SubscriberId
+                ?? await InsertPendingAsync(email, name, cancellationToken).ConfigureAwait(false);
             var issued = await emailVerification
                 .IssueAsync(email, DeriveName(email, name), EmailVerificationPurpose.Subscription, subscriberId, string.Empty)
                 .ConfigureAwait(false);
@@ -252,10 +241,11 @@ public class SubscriberSvc
     /// </remarks>
     /// <param name="email">The already-normalised address.</param>
     /// <param name="name">Display name supplied by the caller; may be empty.</param>
+    /// <param name="cancellationToken">Cancels the insert.</param>
     /// <returns>The new subscriber id.</returns>
-    private long InsertPending(string email, string name)
+    private Task<long> InsertPendingAsync(string email, string name, CancellationToken cancellationToken)
     {
-        return subscriberRepo.InsertToGetId(new Subscriber
+        return subscriberRepo.InsertToGetIdAsync(new Subscriber
         {
             Email = email,
             Name = DeriveName(email, name),
@@ -263,7 +253,7 @@ public class SubscriberSvc
             IsConfirmed = false,
             IsActive = false,
             Preferences = string.Empty
-        });
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -282,110 +272,11 @@ public class SubscriberSvc
     }
 
     /// <summary>
-    /// Adds an address to the subscriber list, or reactivates it if it lapsed.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> The address is lower-cased and trimmed first, so
-    /// <c>Foo@Example.com</c> and <c>foo@example.com</c> are one subscriber rather than two. Three
-    /// outcomes follow: an already-active address is <i>refused</i> (a duplicate row would mean two
-    /// copies of every issue); an inactive address is <i>reactivated</i> in place, keeping its
-    /// original id and subscription date but receiving a FRESH unsubscribe token; anything else is
-    /// inserted. A missing name defaults to the local part of the address, so the greeting in a
-    /// newsletter is never blank.</para>
-    /// <para><b>Flow:</b> require an address → normalise → validate the format → branch on the
-    /// existing row → insert.</para>
-    /// <para><b>Side Effects:</b> Inserts a <c>Subscriber</c> row, or records a re-consent on one
-    /// (stamping <c>ConfirmedOn</c> and rotating the unsubscribe token). Sends no email — the
-    /// caller decides whether confirmation is required.</para>
-    /// <para><b>Behaviourally identical to <see cref="SubscribeAsync"/> [REQ-FN-059].</b> The two
-    /// overloads must write the same consent record; the reactivation branch here calls
-    /// <c>ISubscriberRepo.RecordConsent</c>, the blocking twin of the <c>RecordConsentAsync</c> the
-    /// async overload uses, over the same SQL constant. Before 2026-08-10 this overload flipped
-    /// <c>IsConfirmed</c> alone, so which overload a caller happened to reach decided whether the
-    /// consent instant was stamped and whether the subscriber was left holding the burned token
-    /// that had removed them.</para>
-    /// <para><b>ADMINISTRATIVE ONLY — never call this from an anonymous surface.</b> The new row is
-    /// written with <c>IsConfirmed = true</c>, so this path is single opt-in and a visitor can
-    /// subscribe an address they do not own. It also discloses, through its distinct "already
-    /// subscribed" message, whether a given address is on the list. Every public form must use
-    /// <see cref="SubscribePendingAsync"/> behind a captcha instead. [REQ-UI-056]</para>
-    /// </remarks>
-    /// <param name="email">Address to subscribe. Case and surrounding whitespace are ignored.</param>
-    /// <param name="name">Display name; defaults to the address's local part when omitted.</param>
-    /// <returns>
-    /// Success carrying the new or reactivated subscriber; a failure when the address is missing,
-    /// malformed, already active, or could not be written.
-    /// </returns>
-    public Result<Subscriber> Subscribe(string email, string name = "")
-    {
-        // Validate email
-        if (string.IsNullOrWhiteSpace(email))
-            return Result<Subscriber>.Failure("Email address is required.");
-
-        email = email.Trim().ToLower();
-
-        if (!IsValidEmail(email))
-            return Result<Subscriber>.Failure("Please enter a valid email address.");
-
-        // Check for existing subscription
-        if (subscriberRepo.EmailExists(email))
-        {
-            var existing = subscriberRepo.GetByEmail(email);
-            if (existing != null && existing.IsActive)
-                return Result<Subscriber>.Failure("This email is already subscribed.");
-
-            // Reactivate inactive subscription. [REQ-FN-059] This is a re-consent, so it goes
-            // through RecordConsent rather than the bare status flip, exactly as SubscribeAsync
-            // does: the consent instant is stamped and the subscriber is handed a fresh, unburned
-            // unsubscribe link, because the one they were holding may well be the burned link that
-            // took them off the list. Until 2026-08-10 this overload did only UpdateStatus(id,
-            // true), so the SAME reactivation wrote a DIFFERENT consent record depending on which
-            // overload the caller reached — and the address came back holding a token the
-            // repository had already refused once.
-            if (existing != null && !existing.IsActive)
-            {
-                var reissuedToken = GenerateUnsubscribeToken();
-                subscriberRepo.RecordConsent(existing.SubscriberId, reissuedToken);
-
-                existing.IsActive = true;
-                existing.IsConfirmed = true;
-                existing.ConfirmedOn = DateTime.UtcNow;
-                existing.UnsubscribeToken = reissuedToken;
-                existing.UnsubscribeTokenIssuedOn = existing.ConfirmedOn;
-                existing.UnsubscribeTokenUsedOn = null;
-                logger.LogInformation("Reactivated subscription for {Email}", email);
-                return Result<Subscriber>.Success(existing);
-            }
-        }
-
-        try
-        {
-            var subscriber = new Subscriber
-            {
-                Email = email,
-                Name = string.IsNullOrWhiteSpace(name) ? email.Split('@')[0] : name.Trim(),
-                SubscribedOn = DateTime.UtcNow,
-                IsConfirmed = true, // Auto-confirm for now (no double opt-in)
-                IsActive = true
-            };
-
-            subscriber.SubscriberId = subscriberRepo.InsertToGetId(subscriber);
-            logger.LogInformation("New subscription created for {Email}", email);
-            return Result<Subscriber>.Success(subscriber);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to create subscription for {Email}", email);
-            return Result<Subscriber>.Failure("Failed to subscribe. Please try again later.");
-        }
-    }
-
-    /// <summary>
     /// Adds an address to the subscriber list, or reactivates it if it lapsed, without blocking the
     /// calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> The async twin of <see cref="Subscribe"/> (REQ-NFR-026 stage 3)
+    /// <para><b>Business Logic:</b> The async twin of <see cref="SubscribeAsync"/> (REQ-NFR-026 stage 3)
     /// and behaviourally identical to it. The address is lower-cased and trimmed first, so
     /// <c>Foo@Example.com</c> and <c>foo@example.com</c> are one subscriber rather than two. Three
     /// outcomes follow: an already-active address is <i>refused</i> (a duplicate row would mean two
@@ -479,51 +370,11 @@ public class SubscriberSvc
     }
 
     /// <summary>
-    /// Marks an address inactive so it stops receiving newsletters.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> A soft opt-out — the row survives with <c>IsActive = false</c>,
-    /// which is the flag the dispatch audience query filters on. An unknown address is reported as a
-    /// failure rather than treated as success, because the admin screen that calls this needs to
-    /// distinguish "removed" from "was never there".</para>
-    /// <para><b>Flow:</b> require an address → look it up → flip the active flag.</para>
-    /// <para><b>Side Effects:</b> Updates one <c>Subscriber</c> row; logs the opt-out.</para>
-    /// <para><b>Note:</b> this is the <i>administrative</i> opt-out, keyed by address. The
-    /// one-click unsubscribe link in a newsletter goes through
-    /// <c>NewsletterSvc.UnsubscribeAsync</c> instead, which resolves an opaque token so the URL
-    /// never carries an email address and cannot be used to unsubscribe a stranger by guessing
-    /// theirs.</para>
-    /// </remarks>
-    /// <param name="email">Address to deactivate; surrounding whitespace is ignored.</param>
-    /// <returns>Success, or a failure when the address is missing, unknown or could not be saved.</returns>
-    public Result Unsubscribe(string email)
-    {
-        if (string.IsNullOrWhiteSpace(email))
-            return Result.Failure("Email address is required.");
-
-        var subscriber = subscriberRepo.GetByEmail(email.Trim());
-        if (subscriber == null)
-            return Result.Failure("Email not found in subscribers list.");
-
-        try
-        {
-            subscriberRepo.UpdateStatus(subscriber.SubscriberId, false);
-            logger.LogInformation("Unsubscribed {Email}", email);
-            return Result.Success();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to unsubscribe {Email}", email);
-            return Result.Failure("Failed to unsubscribe. Please try again later.");
-        }
-    }
-
-    /// <summary>
     /// Marks an address inactive so it stops receiving newsletters, without blocking the calling
     /// thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> The async twin of <see cref="Unsubscribe"/> (REQ-NFR-026
+    /// <para><b>Business Logic:</b> The async twin of <see cref="UnsubscribeAsync"/> (REQ-NFR-026
     /// stage 3) and behaviourally identical to it. A soft opt-out — the row survives with
     /// <c>IsActive = false</c>, which is the flag the dispatch audience query filters on. An unknown
     /// address is reported as a failure rather than treated as success, because the admin screen that
@@ -920,37 +771,11 @@ public class SubscriberSvc
     }
 
     /// <summary>
-    /// Lists every subscriber, active or not, for the admin roster.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Unfiltered by design — the admin list shows opt-outs too, so an
-    /// administrator can see that an address unsubscribed rather than being left wondering where it
-    /// went.</para>
-    /// <para><b>Side Effects:</b> None beyond logging.</para>
-    /// <para><b>Authorization:</b> returns personal data (every subscriber's email address). The
-    /// caller must already sit behind <c>AppPolicies.AdminOnly</c>; this method checks
-    /// nothing.</para>
-    /// </remarks>
-    /// <returns>Every subscriber; an empty sequence if the read failed.</returns>
-    public IEnumerable<Subscriber> GetAllSubscribers()
-    {
-        try
-        {
-            return subscriberRepo.GetAll();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error getting all subscribers");
-            return Enumerable.Empty<Subscriber>();
-        }
-    }
-
-    /// <summary>
     /// Lists every subscriber, active or not, for the admin roster, without blocking the calling
     /// thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> The async twin of <see cref="GetAllSubscribers"/> (REQ-NFR-026
+    /// <para><b>Business Logic:</b> The async twin of <see cref="GetAllSubscribersAsync"/> (REQ-NFR-026
     /// stage 3) and behaviourally identical to it. Unfiltered by design — the admin list shows
     /// opt-outs too, so an administrator can see that an address unsubscribed rather than being left
     /// wondering where it went.</para>
@@ -975,35 +800,11 @@ public class SubscriberSvc
     }
 
     /// <summary>
-    /// Lists subscribers on one side of the active/opted-out split.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Backs the admin list's status filter. Passing <c>true</c> gives
-    /// the set that would actually receive an issue sent to everyone.</para>
-    /// <para><b>Side Effects:</b> None beyond logging.</para>
-    /// <para><b>Authorization:</b> administrative; see <see cref="GetAllSubscribers"/>.</para>
-    /// </remarks>
-    /// <param name="isActive">True for current subscribers, false for opt-outs.</param>
-    /// <returns>The matching subscribers; an empty sequence if the read failed.</returns>
-    public IEnumerable<Subscriber> GetSubscribersByStatus(bool isActive)
-    {
-        try
-        {
-            return subscriberRepo.GetByStatus(isActive);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error getting subscribers by status");
-            return Enumerable.Empty<Subscriber>();
-        }
-    }
-
-    /// <summary>
     /// Lists subscribers on one side of the active/opted-out split, without blocking the calling
     /// thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> The async twin of <see cref="GetSubscribersByStatus"/>
+    /// <para><b>Business Logic:</b> The async twin of <see cref="GetSubscribersByStatusAsync"/>
     /// (REQ-NFR-026 stage 3) and behaviourally identical to it. Backs the admin list's status filter.
     /// Passing <c>true</c> gives the set that would actually receive an issue sent to everyone. The
     /// filter is applied against <c>IsConfirmed</c> in SQL, so a row with a NULL <c>IsConfirmed</c>
@@ -1031,37 +832,11 @@ public class SubscriberSvc
     }
 
     /// <summary>
-    /// Finds subscribers whose address matches a search fragment.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> An empty query means "no filter" and returns the whole roster,
-    /// which is what makes the admin search box behave sensibly when the user clears it.</para>
-    /// <para><b>Side Effects:</b> None beyond logging.</para>
-    /// <para><b>Authorization:</b> administrative; see <see cref="GetAllSubscribers"/>.</para>
-    /// </remarks>
-    /// <param name="query">Fragment to match against the email address; empty returns everything.</param>
-    /// <returns>The matching subscribers; an empty sequence if the read failed.</returns>
-    public IEnumerable<Subscriber> SearchSubscribers(string query)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(query))
-                return subscriberRepo.GetAll();
-            return subscriberRepo.SearchByEmail(query);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error searching subscribers with query: {Query}", query);
-            return Enumerable.Empty<Subscriber>();
-        }
-    }
-
-    /// <summary>
     /// Finds subscribers whose address matches a search fragment, without blocking the calling
     /// thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> The async twin of <see cref="SearchSubscribers"/> (REQ-NFR-026
+    /// <para><b>Business Logic:</b> The async twin of <see cref="SearchSubscribersAsync"/> (REQ-NFR-026
     /// stage 3) and behaviourally identical to it. An empty query means "no filter" and returns the
     /// whole roster, which is what makes the admin search box behave sensibly when the user clears
     /// it. A non-empty query goes to the repository's capped <c>ILIKE</c> search, so at most fifty
@@ -1092,47 +867,10 @@ public class SubscriberSvc
     }
 
     /// <summary>
-    /// Sets a subscriber's active flag from the admin roster.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> The id-keyed counterpart of <see cref="Unsubscribe"/>, and the
-    /// only way to put a lapsed subscriber back on the list without them acting themselves.
-    /// Existence is confirmed first so a stale row id reports "not found" rather than silently
-    /// updating nothing.</para>
-    /// <para><b>Flow:</b> load the row → reject when absent → write the new flag.</para>
-    /// <para><b>Side Effects:</b> Updates one <c>Subscriber</c> row; logs the change with the id and
-    /// the new status, which is the audit trail for a re-activation.</para>
-    /// <para><b>Authorization:</b> administrative; the calling page must already have enforced
-    /// <c>AppPolicies.AdminOnly</c>. Re-activating an address the owner opted out of is a consent
-    /// decision, so it should never be reachable anonymously.</para>
-    /// </remarks>
-    /// <param name="subscriberId">Identifier of the subscriber to change.</param>
-    /// <param name="isActive">True to put the address back on the list, false to opt it out.</param>
-    /// <returns>Success, or a failure when the subscriber is unknown or the write failed.</returns>
-    public Result UpdateSubscriberStatus(long subscriberId, bool isActive)
-    {
-        try
-        {
-            var subscriber = subscriberRepo.GetSingle(subscriberId);
-            if (subscriber == null)
-                return Result.Failure("Subscriber not found.");
-
-            subscriberRepo.UpdateStatus(subscriberId, isActive);
-            logger.LogInformation("Updated subscriber {Id} status to {Status}", subscriberId, isActive);
-            return Result.Success();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error updating subscriber status for ID {Id}", subscriberId);
-            return Result.Failure("Failed to update subscriber status.");
-        }
-    }
-
-    /// <summary>
     /// Sets a subscriber's active flag from the admin roster, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> The async twin of <see cref="UpdateSubscriberStatus"/>
+    /// <para><b>Business Logic:</b> The async twin of <see cref="UpdateSubscriberStatusAsync"/>
     /// (REQ-NFR-026 stage 3) and behaviourally identical to it. The id-keyed counterpart of
     /// <see cref="UnsubscribeAsync"/>, and the only way to put a lapsed subscriber back on the list
     /// without them acting themselves. Existence is confirmed first so a stale row id reports "not
@@ -1172,37 +910,11 @@ public class SubscriberSvc
     }
 
     /// <summary>
-    /// Gets the roster head-count, split into total and currently active.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Feeds the dashboard tile and the newsletter composer's audience
-    /// estimate. The estimate is advisory only — the real audience is resolved at send time by
-    /// <c>INewsletterRepo.GetRecipientsAsync</c>, which also applies the selected audience
-    /// filter.</para>
-    /// <para><b>Side Effects:</b> None beyond logging. Two separate count queries, so the two
-    /// numbers are not a consistent snapshot; treat a momentary <c>Active &gt; Total</c> skew as
-    /// impossible in practice but never assert on it.</para>
-    /// </remarks>
-    /// <returns>Total and active subscriber counts; <c>(0, 0)</c> if the read failed.</returns>
-    public (int Total, int Active) GetSubscriberStats()
-    {
-        try
-        {
-            return (subscriberRepo.GetTotalCount(), subscriberRepo.GetActiveCount());
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error getting subscriber stats");
-            return (0, 0);
-        }
-    }
-
-    /// <summary>
     /// Gets the roster head-count, split into total and currently active, without blocking the
     /// calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> The async twin of <see cref="GetSubscriberStats"/> (REQ-NFR-026
+    /// <para><b>Business Logic:</b> The async twin of <see cref="GetSubscriberStatsAsync"/> (REQ-NFR-026
     /// stage 3) and behaviourally identical to it. Feeds the dashboard tile and the newsletter
     /// composer's audience estimate. The estimate is advisory only — the real audience is resolved at
     /// send time by <c>INewsletterRepo.GetRecipientsAsync</c>, which also applies the selected
@@ -1233,36 +945,10 @@ public class SubscriberSvc
     }
 
     /// <summary>
-    /// Gets the active subscribers for the CSV export.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Active only. An export is normally taken to seed another mail
-    /// system, and carrying opted-out addresses across would resurrect an opt-out the subscriber
-    /// already exercised.</para>
-    /// <para><b>Side Effects:</b> None beyond logging.</para>
-    /// <para><b>Authorization:</b> this produces a downloadable file of personal data — the highest
-    /// disclosure risk in this class. The calling page must be behind
-    /// <c>AppPolicies.AdminOnly</c>.</para>
-    /// </remarks>
-    /// <returns>Active subscribers; an empty sequence if the read failed.</returns>
-    public IEnumerable<Subscriber> GetSubscribersForExport()
-    {
-        try
-        {
-            return subscriberRepo.GetActiveSubscribers();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error getting subscribers for export");
-            return Enumerable.Empty<Subscriber>();
-        }
-    }
-
-    /// <summary>
     /// Gets the active subscribers for the CSV export, without blocking the calling thread.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> The async twin of <see cref="GetSubscribersForExport"/>
+    /// <para><b>Business Logic:</b> The async twin of <see cref="GetSubscribersForExportAsync"/>
     /// (REQ-NFR-026 stage 3) and behaviourally identical to it. Active only. An export is normally
     /// taken to seed another mail system, and carrying opted-out addresses across would resurrect an
     /// opt-out the subscriber already exercised. "Active" here is the repository's strict reading —

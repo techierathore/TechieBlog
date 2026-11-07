@@ -10,6 +10,7 @@
  */
 import { test, expect, Page } from '@playwright/test';
 import * as fs from 'fs';
+import { execSync } from 'child_process';
 import { BASE, login, nav, renderCheck, visualCheck, ControlResult, VisualResult } from './_gates';
 
 const OUT = 'tests/.artifacts/verify-203-gates';
@@ -52,16 +53,28 @@ test.afterAll(() => fs.writeFileSync(`${OUT}/evidence.json`, JSON.stringify(evid
 // ------------------------------------------------------------------ public, anonymous
 test('REQ-UI-049 home: every section renders from site-owner data; no login affordance; gates at 1280/390', async ({ page }) => {
   test.setTimeout(240000);
+  const published = Number(execSync(`docker exec WinPostgre psql -U PgVectorAdmin -d TechieBlog -tAc "SELECT count(*) FROM blogpost WHERE published AND isdeleted IS NOT TRUE"`, { encoding: 'utf8' }).trim());
+  test.skip(published === 0, 'the dev DB holds no published post (UAT-007); the latest-articles gate needs one. fxv1-public.spec.ts builds its own.');
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('[data-testid="post-card"]', { timeout: 60000 });
-  await page.waitForTimeout(1500);
+  // The prerendered DOM is swapped when the circuit attaches (~5s); measuring during the swap reads an empty hero.
+  await page.waitForTimeout(7000);
+  await page.waitForSelector('[data-testid="post-card"]', { timeout: 60000 });
   const R = '/';
   await mustRender(page, R, 'hero name', '[data-testid="hero-name"], [data-testid="resume-hero"] h1, h1');
-  await mustRender(page, R, 'home-stats band', '[data-testid="home-stats"]', 'present');
-  await mustRender(page, R, 'stat tile value slot', '[data-testid="home-stat-card"] [data-slot="stat-tile-value"]');
-  await mustRender(page, R, 'stat tile label slot', '[data-testid="home-stat-card"] [data-slot="stat-tile-label"]');
-  const tiles = await page.locator('[data-testid="home-stat-card"]').count();
-  expect(tiles).toBe(4);
+  // The stats band renders from the site owner's stats rows and is deliberately ABSENT when the owner
+  // has none (empty-by-default dev DB, 2026-10-27 W1 repair: the old test demanded 4 tiles from seed data
+  // that no longer exists). Read the owner's row count with a psql SELECT and assert the matching state.
+  const ownerStats = Number(execSync(`docker exec WinPostgre psql -U PgVectorAdmin -d TechieBlog -tAc "SELECT count(*) FROM userstats WHERE userid = (SELECT userid FROM bloguser WHERE issiteowner = TRUE LIMIT 1)"`, { encoding: 'utf8' }).trim());
+  if (ownerStats > 0) {
+    await mustRender(page, R, 'home-stats band', '[data-testid="home-stats"]', 'present');
+    await mustRender(page, R, 'stat tile value slot', '[data-testid="home-stat-card"] [data-slot="stat-tile-value"]');
+    await mustRender(page, R, 'stat tile label slot', '[data-testid="home-stat-card"] [data-slot="stat-tile-label"]');
+    const tiles = await page.locator('[data-testid="home-stat-card"]').count();
+    expect(tiles).toBe(Math.min(ownerStats, 4));
+  } else {
+    expect(await page.locator('[data-testid="home-stats"]').count(), 'no owner stats rows: the band is absent by design').toBe(0);
+  }
   await mustRender(page, R, 'latest articles', '[data-testid="home-latest-articles"]', 'present');
   await mustRender(page, R, 'post card title', '[data-testid="post-card-title"]');
   await mustRender(page, R, 'post card no-banner fallback', '[data-testid="post-card-image-placeholder"]:not(.hidden)', 'present');
@@ -81,8 +94,15 @@ test('REQ-UI-049 home: every section renders from site-owner data; no login affo
 
 const PUBLIC: [string, RegExp][] = [
   ['/categories', /categor/i], ['/tags', /tag/i], ['/series', /series/i], ['/search', /search/i],
-  ['/newsletters', /newsletter/i], ['/speaker-profile', /speak/i], ['/post/fix-test-post-no-banner-20260824', /no banner/i],
+  ['/newsletters', /newsletter/i], ['/speaker-profile', /speak/i],
 ];
+// A published post page is part of the surface. The dev DB holds no demo content (UAT-007) and the draft
+// `fix-test-post-*` fixtures are not public, so use whichever published post exists right now.
+const publishedPost = execSync(`docker exec WinPostgre psql -U PgVectorAdmin -d TechieBlog -tAc "SELECT Slug || '|' || Title FROM BlogPost WHERE Published = TRUE AND (IsDeleted = FALSE OR IsDeleted IS NULL) ORDER BY PostId LIMIT 1"`, { encoding: 'utf8' }).trim();
+if (publishedPost) {
+  const [pSlug, pTitle] = publishedPost.split('|');
+  PUBLIC.push([`/post/${pSlug}`, new RegExp(pTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').slice(0, 30), 'i')]);
+}
 for (const [route, heading] of PUBLIC) {
   test(`REQ-UI-048 public ${route}: styled, no error boundary, gates at 1280/390`, async ({ page }) => {
     test.setTimeout(240000);

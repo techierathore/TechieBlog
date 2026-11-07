@@ -18,7 +18,7 @@ namespace BlogUI.Pages.AdminPages;
 /// <remarks>
 /// The page is gated by <c>AppPolicies.AuthorOrAbove</c> so that an Author — who is
 /// allowed to open the post editor — can also reach the list. Row scoping is enforced
-/// server-side by <c>BlogSvc.GetAllPosts(userId, isAdminOrEditor)</c>: an Author only
+/// server-side by <c>BlogSvc.GetAllPostsAsync(userId, isAdminOrEditor)</c>: an Author only
 /// ever receives their own posts, while Editor and Admin receive every post.
 /// </remarks>
 partial class BlogsList : ComponentBase
@@ -38,7 +38,7 @@ partial class BlogsList : ComponentBase
     public IExternalLinkOpener LinkOpener { get; set; } = default!;
 
     /// <summary>All posts visible to the signed-in user.</summary>
-    public List<BlogPost> ObjectList { get; set; } = new();
+    public List<BlogPost>? ObjectList { get; set; }
 
     /// <summary>Posts remaining after the status and search filters are applied.</summary>
     public List<BlogPost> FilteredList { get; set; } = new();

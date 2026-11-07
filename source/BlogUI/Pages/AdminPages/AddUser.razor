@@ -223,6 +223,9 @@
                 + "They must change this password at first sign-in.";
             IsError = false;
 
+            // Render the notice now: without this it only reaches the screen in the same render as
+            // the redirect, so the admin never sees it (REQ-FN-006).
+            StateHasChanged();
             await Task.Delay(1500);
             Navigation.NavigateTo("/users");
         }

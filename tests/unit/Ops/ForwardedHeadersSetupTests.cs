@@ -33,7 +33,7 @@ public class ForwardedHeadersSetupTests
     /// With no ForwardedHeaders section configured nothing is trusted, so a direct-to-Kestrel
     /// deployment keeps using the transport address exactly as it did before the change.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-028 with no allow-list forwarded headers trust nothing")]
     public void EmptyConfigurationTrustsNothing()
     {
         var options = new ForwardedHeadersOptions();
@@ -79,7 +79,7 @@ public class ForwardedHeadersSetupTests
     /// A configured proxy address is trusted, and the header flags cover the client address, scheme
     /// and host so an HTTPS-terminating proxy does not leave the app thinking it is serving HTTP.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-028 a configured proxy is trusted so the real client address is used")]
     public void ConfiguredProxyIsTrusted()
     {
         var options = new ForwardedHeadersOptions();
@@ -119,7 +119,7 @@ public class ForwardedHeadersSetupTests
     /// A blanket-trust network such as 0.0.0.0/0 is refused outright, because trusting everyone lets
     /// any caller forge an address and mint a fresh rate-limit identity for every request.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-028 a blanket-trust network is refused")]
     public void BlanketTrustNetworkIsRefused()
     {
         var options = new ForwardedHeadersOptions();

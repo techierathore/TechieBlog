@@ -15,7 +15,7 @@ import * as path from 'path';
 
 const BASE = process.env.TB_BASE ?? 'http://localhost:5431';
 const POST = '/post/getting-started-with-blazor-server';
-const OUT = path.join(process.cwd(), 'test-results', 'a11y-reaudit');
+const OUT = path.join(process.cwd(), 'tests/.artifacts/test-results', 'a11y-reaudit');
 fs.mkdirSync(OUT, { recursive: true });
 
 /** Describes the currently focused element. */

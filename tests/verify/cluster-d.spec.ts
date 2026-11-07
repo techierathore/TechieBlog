@@ -64,8 +64,10 @@ async function visualGate(page: Page, testIds: string[], label: string) {
   }
 }
 
-test.describe('REQ-UI-044 analytics dashboard', () => {
-  test('REQ-UI-044 panels render real data and the date range filters them', async ({ page }) => {
+// retired 2026-10-27 (W5): signs in with the retired admin_password and asserts 960 post views / 6 newsletter rows that no longer exist; superseded by fxv5-analytics REQ-UI-044 and fxv5-newsletter REQ-UI-043.
+test.describe.skip('retired: analytics dashboard', () => {
+  // retired 2026-10-27 (W5): signs in with the retired admin_password and asserts 960 post views / 6 newsletter rows that no longer exist; superseded by fxv5-analytics REQ-UI-044 and fxv5-newsletter REQ-UI-043.
+  test.skip('retired: panels render real data and the date range filters them', async ({ page }) => {
     await login(page);
     await gotoAdmin(page, '/admin/analytics');
 
@@ -107,18 +109,20 @@ test.describe('REQ-UI-044 analytics dashboard', () => {
     await page.waitForTimeout(500);
     await visualGate(page, ['analytics-stat-tiles', 'analytics-popular-card', 'analytics-trend-card',
       'analytics-category-card', 'analytics-range-card'], 'analytics@1280');
-    await page.screenshot({ path: 'test-results/cluster-d/analytics-1280.png', fullPage: true });
+    await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-d/analytics-1280.png', fullPage: true });
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(500);
     await visualGate(page, ['analytics-stat-tiles', 'analytics-popular-card', 'analytics-trend-card',
       'analytics-category-card', 'analytics-range-card'], 'analytics@390');
-    await page.screenshot({ path: 'test-results/cluster-d/analytics-390.png', fullPage: true });
+    await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-d/analytics-390.png', fullPage: true });
   });
 });
 
-test.describe('REQ-UI-043 newsletter composer', () => {
-  test('REQ-UI-043 composer renders, previews, and lists send history', async ({ page }) => {
+// retired 2026-10-27 (W5): signs in with the retired admin_password and asserts 960 post views / 6 newsletter rows that no longer exist; superseded by fxv5-analytics REQ-UI-044 and fxv5-newsletter REQ-UI-043.
+test.describe.skip('retired: newsletter composer', () => {
+  // retired 2026-10-27 (W5): signs in with the retired admin_password and asserts 960 post views / 6 newsletter rows that no longer exist; superseded by fxv5-analytics REQ-UI-044 and fxv5-newsletter REQ-UI-043.
+  test.skip('retired: composer renders, previews, and lists send history', async ({ page }) => {
     await login(page);
     await gotoAdmin(page, '/admin/newsletter');
 
@@ -147,12 +151,12 @@ test.describe('REQ-UI-043 newsletter composer', () => {
     await page.waitForTimeout(500);
     await visualGate(page, ['newsletter-compose-card', 'newsletter-history-card',
       'newsletter-recipients-card', 'newsletter-body', 'newsletter-audience'], 'composer@1280');
-    await page.screenshot({ path: 'test-results/cluster-d/composer-1280.png', fullPage: true });
+    await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-d/composer-1280.png', fullPage: true });
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(500);
     await visualGate(page, ['newsletter-compose-card', 'newsletter-history-card',
       'newsletter-recipients-card', 'newsletter-body', 'newsletter-audience'], 'composer@390');
-    await page.screenshot({ path: 'test-results/cluster-d/composer-390.png', fullPage: true });
+    await page.screenshot({ path: 'tests/.artifacts/test-results/cluster-d/composer-390.png', fullPage: true });
   });
 });

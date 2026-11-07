@@ -157,38 +157,24 @@ public class CacheConsumerTests
     // =============================================================================================
 
     /// <summary>
-    /// The category listing the sidebar renders on every page is read once and cached.
-    /// </summary>
-    [Fact]
-    public void CategoryListingIsReadOnlyOnce()
-    {
-        var repo = Substitute.For<ICategoryRepo>();
-        repo.GetAll().Returns([BuildCategory(1, "Blazor")]);
-        var service = BuildCategorySvc(repo, BuildCache());
-
-        service.GetAllCategories();
-        service.GetAllCategories();
-
-        repo.Received(1).GetAll();
-    }
-
-    /// <summary>
     /// Renaming a category evicts the listing, so the public archive shows the new name on the very
     /// next render rather than when the ten-minute expiry lapses.
     /// </summary>
     [Fact]
-    public void CategoryUpdateEvictsTheListing()
+    public async Task CategoryUpdateEvictsTheListing()
     {
         var repo = Substitute.For<ICategoryRepo>();
-        repo.GetAll().Returns([BuildCategory(1, "Blazor")]);
-        repo.GetSingle(1).Returns(BuildCategory(1, "Blazor"));
+        repo.GetAllAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IEnumerable<Category>>([BuildCategory(1, "Blazor")]));
+        repo.GetSingleAsync(1, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Category?>(BuildCategory(1, "Blazor")));
         var service = BuildCategorySvc(repo, BuildCache());
 
-        service.GetAllCategories();
-        service.UpdateCategory(BuildCategory(1, "Blazor Server"));
-        service.GetAllCategories();
+        await service.GetAllCategoriesAsync();
+        await service.UpdateCategoryAsync(BuildCategory(1, "Blazor Server"));
+        await service.GetAllCategoriesAsync();
 
-        repo.Received(2).GetAll();
+        await repo.Received(2).GetAllAsync(Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -196,18 +182,20 @@ public class CacheConsumerTests
     /// a link into a page that no longer exists.
     /// </summary>
     [Fact]
-    public void CategoryDeleteEvictsTheListing()
+    public async Task CategoryDeleteEvictsTheListing()
     {
         var repo = Substitute.For<ICategoryRepo>();
-        repo.GetAll().Returns([BuildCategory(1, "Blazor")]);
-        repo.GetSingle(1).Returns(BuildCategory(1, "Blazor"));
+        repo.GetAllAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IEnumerable<Category>>([BuildCategory(1, "Blazor")]));
+        repo.GetSingleAsync(1, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Category?>(BuildCategory(1, "Blazor")));
         var service = BuildCategorySvc(repo, BuildCache());
 
-        service.GetAllCategories();
-        service.DeleteCategory(1);
-        service.GetAllCategories();
+        await service.GetAllCategoriesAsync();
+        await service.DeleteCategoryAsync(1);
+        await service.GetAllCategoriesAsync();
 
-        repo.Received(2).GetAll();
+        await repo.Received(2).GetAllAsync(Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -227,47 +215,6 @@ public class CacheConsumerTests
         await repo.Received(1).GetAllAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// A write through the synchronous twin evicts the value the asynchronous twin cached. The two
-    /// twins hold separate entries under one tag, and this is the test that stops them drifting
-    /// apart — an admin screen saving through one API must not leave the other API stale.
-    /// </summary>
-    [Fact]
-    public async Task CategorySyncWriteEvictsTheAsyncListing()
-    {
-        var repo = Substitute.For<ICategoryRepo>();
-        repo.GetAllAsync(Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<IEnumerable<Category>>([BuildCategory(1, "Blazor")]));
-        repo.GetSingle(1).Returns(BuildCategory(1, "Blazor"));
-        var service = BuildCategorySvc(repo, BuildCache());
-
-        await service.GetAllCategoriesAsync();
-        service.UpdateCategory(BuildCategory(1, "Blazor Server"));
-        await service.GetAllCategoriesAsync();
-
-        await repo.Received(2).GetAllAsync(Arg.Any<CancellationToken>());
-    }
-
-    /// <summary>
-    /// A write through the asynchronous twin evicts the value the synchronous twin cached — the
-    /// mirror image of the previous test, and the direction the admin screens actually use.
-    /// </summary>
-    [Fact]
-    public async Task CategoryAsyncWriteEvictsTheSyncListing()
-    {
-        var repo = Substitute.For<ICategoryRepo>();
-        repo.GetAll().Returns([BuildCategory(1, "Blazor")]);
-        repo.GetSingleAsync(1, Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<Category?>(BuildCategory(1, "Blazor")));
-        var service = BuildCategorySvc(repo, BuildCache());
-
-        service.GetAllCategories();
-        await service.UpdateCategoryAsync(BuildCategory(1, "Blazor Server"));
-        service.GetAllCategories();
-
-        repo.Received(2).GetAll();
-    }
-
     // =============================================================================================
     // Taxonomy surface — tags
     // =============================================================================================
@@ -276,34 +223,37 @@ public class CacheConsumerTests
     /// The tag cloud is read once and cached.
     /// </summary>
     [Fact]
-    public void TagCloudIsReadOnlyOnce()
+    public async Task TagCloudIsReadOnlyOnce()
     {
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.GetAllWithCounts().Returns([new BlogTag { TagId = 1, TagName = "dotnet", Slug = "dotnet" }]);
+        repo.GetAllWithCountsAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IEnumerable<BlogTag>>([new BlogTag { TagId = 1, TagName = "dotnet", Slug = "dotnet" }]));
         var service = BuildTagSvc(repo, BuildCache());
 
-        service.GetAllWithCounts();
-        service.GetAllWithCounts();
+        await service.GetAllWithCountsAsync();
+        await service.GetAllWithCountsAsync();
 
-        repo.Received(1).GetAllWithCounts();
+        await repo.Received(1).GetAllWithCountsAsync(Arg.Any<CancellationToken>());
     }
 
     /// <summary>
     /// Deleting a tag evicts the cloud.
     /// </summary>
     [Fact]
-    public void TagDeleteEvictsTheCloud()
+    public async Task TagDeleteEvictsTheCloud()
     {
         var repo = Substitute.For<IBlogTagRepo>();
-        repo.GetAllWithCounts().Returns([new BlogTag { TagId = 1, TagName = "dotnet", Slug = "dotnet" }]);
-        repo.GetSingle(1).Returns(new BlogTag { TagId = 1, TagName = "dotnet", Slug = "dotnet" });
+        repo.GetAllWithCountsAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IEnumerable<BlogTag>>([new BlogTag { TagId = 1, TagName = "dotnet", Slug = "dotnet" }]));
+        repo.GetSingleAsync(1, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<BlogTag?>(new BlogTag { TagId = 1, TagName = "dotnet", Slug = "dotnet" }));
         var service = BuildTagSvc(repo, BuildCache());
 
-        service.GetAllWithCounts();
-        service.DeleteTag(1);
-        service.GetAllWithCounts();
+        await service.GetAllWithCountsAsync();
+        await service.DeleteTagAsync(1);
+        await service.GetAllWithCountsAsync();
 
-        repo.Received(2).GetAllWithCounts();
+        await repo.Received(2).GetAllWithCountsAsync(Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -311,25 +261,26 @@ public class CacheConsumerTests
     /// tag cloud and changes which posts a tag lists, so it must evict both groups.
     /// </summary>
     [Fact]
-    public void SetTagsForPostEvictsTheCloudAndTheListings()
+    public async Task SetTagsForPostEvictsTheCloudAndTheListings()
     {
         var cache = BuildCache();
         var tagRepo = Substitute.For<IBlogTagRepo>();
-        tagRepo.GetAllWithCounts().Returns([new BlogTag { TagId = 1, TagName = "dotnet", Slug = "dotnet" }]);
+        tagRepo.GetAllWithCountsAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IEnumerable<BlogTag>>([new BlogTag { TagId = 1, TagName = "dotnet", Slug = "dotnet" }]));
         var postRepo = Substitute.For<IBlogPostRepo>();
-        postRepo.GetPublishedPosts(3, 0).Returns([BuildPost(1)]);
+        postRepo.GetPublishedPostsAsync(3, 0, Arg.Any<CancellationToken>()).Returns(Task.FromResult<IEnumerable<BlogPost>>([BuildPost(1)]));
 
         var tagSvc = BuildTagSvc(tagRepo, cache);
         var blogSvc = BuildBlogSvc(postRepo, cache);
 
-        tagSvc.GetAllWithCounts();
-        blogSvc.GetPublishedPosts(3, 0);
-        tagSvc.SetTagsForPost(1, [1L, 2L]);
-        tagSvc.GetAllWithCounts();
-        blogSvc.GetPublishedPosts(3, 0);
+        await tagSvc.GetAllWithCountsAsync();
+        await blogSvc.GetPublishedPostsAsync(3, 0);
+        await tagSvc.SetTagsForPostAsync(1, [1L, 2L]);
+        await tagSvc.GetAllWithCountsAsync();
+        await blogSvc.GetPublishedPostsAsync(3, 0);
 
-        tagRepo.Received(2).GetAllWithCounts();
-        postRepo.Received(2).GetPublishedPosts(3, 0);
+        await tagRepo.Received(2).GetAllWithCountsAsync(Arg.Any<CancellationToken>());
+        await postRepo.Received(2).GetPublishedPostsAsync(3, 0, Arg.Any<CancellationToken>());
     }
 
     // =============================================================================================
@@ -341,34 +292,34 @@ public class CacheConsumerTests
     /// rather than a stale hit — the discriminator rule the cache's own remarks insist on.
     /// </summary>
     [Fact]
-    public void PublishedPostPagesAreCachedPerPage()
+    public async Task PublishedPostPagesAreCachedPerPage()
     {
         var repo = Substitute.For<IBlogPostRepo>();
-        repo.GetPublishedPosts(Arg.Any<int>(), Arg.Any<int>()).Returns([BuildPost(1)]);
+        repo.GetPublishedPostsAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult<IEnumerable<BlogPost>>([BuildPost(1)]));
         var service = BuildBlogSvc(repo, BuildCache());
 
-        service.GetPublishedPosts(3, 0);
-        service.GetPublishedPosts(3, 0);
-        service.GetPublishedPosts(3, 3);
+        await service.GetPublishedPostsAsync(3, 0);
+        await service.GetPublishedPostsAsync(3, 0);
+        await service.GetPublishedPostsAsync(3, 3);
 
-        repo.Received(1).GetPublishedPosts(3, 0);
-        repo.Received(1).GetPublishedPosts(3, 3);
+        await repo.Received(1).GetPublishedPostsAsync(3, 0, Arg.Any<CancellationToken>());
+        await repo.Received(1).GetPublishedPostsAsync(3, 3, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
     /// The featured post is cached, because the landing page asks for it on every render.
     /// </summary>
     [Fact]
-    public void FeaturedPostIsReadOnlyOnce()
+    public async Task FeaturedPostIsReadOnlyOnce()
     {
         var repo = Substitute.For<IBlogPostRepo>();
-        repo.GetFeaturedPost().Returns(BuildPost(1));
+        repo.GetFeaturedPostAsync(Arg.Any<CancellationToken>()).Returns(BuildPost(1));
         var service = BuildBlogSvc(repo, BuildCache());
 
-        service.GetFeaturedPost();
-        service.GetFeaturedPost();
+        await service.GetFeaturedPostAsync();
+        await service.GetFeaturedPostAsync();
 
-        repo.Received(1).GetFeaturedPost();
+        await repo.Received(1).GetFeaturedPostAsync(Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -377,22 +328,22 @@ public class CacheConsumerTests
     /// absence would be the most visible defect in the whole requirement.
     /// </summary>
     [Fact]
-    public void PublishingAPostEvictsTheListingsAndTheFeaturedSlot()
+    public async Task PublishingAPostEvictsTheListingsAndTheFeaturedSlot()
     {
         var repo = Substitute.For<IBlogPostRepo>();
-        repo.GetPublishedPosts(3, 0).Returns([BuildPost(1)]);
-        repo.GetFeaturedPost().Returns(BuildPost(1));
-        repo.GetSingle(2).Returns(BuildPost(2));
+        repo.GetPublishedPostsAsync(3, 0, Arg.Any<CancellationToken>()).Returns(Task.FromResult<IEnumerable<BlogPost>>([BuildPost(1)]));
+        repo.GetFeaturedPostAsync(Arg.Any<CancellationToken>()).Returns(BuildPost(1));
+        repo.GetSingleAsync(2, Arg.Any<CancellationToken>()).Returns(BuildPost(2));
         var service = BuildBlogSvc(repo, BuildCache());
 
-        service.GetPublishedPosts(3, 0);
-        service.GetFeaturedPost();
-        service.QuickPublish(2);
-        service.GetPublishedPosts(3, 0);
-        service.GetFeaturedPost();
+        await service.GetPublishedPostsAsync(3, 0);
+        await service.GetFeaturedPostAsync();
+        await service.QuickPublishAsync(2);
+        await service.GetPublishedPostsAsync(3, 0);
+        await service.GetFeaturedPostAsync();
 
-        repo.Received(2).GetPublishedPosts(3, 0);
-        repo.Received(2).GetFeaturedPost();
+        await repo.Received(2).GetPublishedPostsAsync(3, 0, Arg.Any<CancellationToken>());
+        await repo.Received(2).GetFeaturedPostAsync(Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -400,18 +351,18 @@ public class CacheConsumerTests
     /// home page on the next render.
     /// </summary>
     [Fact]
-    public void DeletingAPostEvictsTheListings()
+    public async Task DeletingAPostEvictsTheListings()
     {
         var repo = Substitute.For<IBlogPostRepo>();
-        repo.GetPublishedPosts(3, 0).Returns([BuildPost(1)]);
-        repo.GetSingle(1).Returns(BuildPost(1));
+        repo.GetPublishedPostsAsync(3, 0, Arg.Any<CancellationToken>()).Returns(Task.FromResult<IEnumerable<BlogPost>>([BuildPost(1)]));
+        repo.GetSingleAsync(1, Arg.Any<CancellationToken>()).Returns(BuildPost(1));
         var service = BuildBlogSvc(repo, BuildCache());
 
-        service.GetPublishedPosts(3, 0);
-        service.DeletePost(1);
-        service.GetPublishedPosts(3, 0);
+        await service.GetPublishedPostsAsync(3, 0);
+        await service.DeletePostAsync(1);
+        await service.GetPublishedPostsAsync(3, 0);
 
-        repo.Received(2).GetPublishedPosts(3, 0);
+        await repo.Received(2).GetPublishedPostsAsync(3, 0, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -420,22 +371,23 @@ public class CacheConsumerTests
     /// count that no longer matches the archive behind it.
     /// </summary>
     [Fact]
-    public void PostWriteEvictsTheTaxonomyCounts()
+    public async Task PostWriteEvictsTheTaxonomyCounts()
     {
         var cache = BuildCache();
         var categoryRepo = Substitute.For<ICategoryRepo>();
-        categoryRepo.GetAllWithCounts().Returns([BuildCategory(1, "Blazor")]);
+        categoryRepo.GetAllWithCountsAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IEnumerable<Category>>([BuildCategory(1, "Blazor")]));
         var postRepo = Substitute.For<IBlogPostRepo>();
-        postRepo.GetSingle(2).Returns(BuildPost(2));
+        postRepo.GetSingleAsync(2, Arg.Any<CancellationToken>()).Returns(BuildPost(2));
 
         var categorySvc = BuildCategorySvc(categoryRepo, cache);
         var blogSvc = BuildBlogSvc(postRepo, cache);
 
-        categorySvc.GetAllWithCounts();
-        blogSvc.QuickPublish(2);
-        categorySvc.GetAllWithCounts();
+        await categorySvc.GetAllWithCountsAsync();
+        await blogSvc.QuickPublishAsync(2);
+        await categorySvc.GetAllWithCountsAsync();
 
-        categoryRepo.Received(2).GetAllWithCounts();
+        await categoryRepo.Received(2).GetAllWithCountsAsync(Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -445,22 +397,23 @@ public class CacheConsumerTests
     /// into a needless cache flush on every taxonomy save.
     /// </summary>
     [Fact]
-    public void TaxonomyEditLeavesThePostListingsAlone()
+    public async Task TaxonomyEditLeavesThePostListingsAlone()
     {
         var cache = BuildCache();
         var categoryRepo = Substitute.For<ICategoryRepo>();
-        categoryRepo.GetSingle(1).Returns(BuildCategory(1, "Blazor"));
+        categoryRepo.GetSingleAsync(1, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Category?>(BuildCategory(1, "Blazor")));
         var postRepo = Substitute.For<IBlogPostRepo>();
-        postRepo.GetPublishedPosts(3, 0).Returns([BuildPost(1)]);
+        postRepo.GetPublishedPostsAsync(3, 0, Arg.Any<CancellationToken>()).Returns(Task.FromResult<IEnumerable<BlogPost>>([BuildPost(1)]));
 
         var categorySvc = BuildCategorySvc(categoryRepo, cache);
         var blogSvc = BuildBlogSvc(postRepo, cache);
 
-        blogSvc.GetPublishedPosts(3, 0);
-        categorySvc.UpdateCategory(BuildCategory(1, "Blazor Server"));
-        blogSvc.GetPublishedPosts(3, 0);
+        await blogSvc.GetPublishedPostsAsync(3, 0);
+        await categorySvc.UpdateCategoryAsync(BuildCategory(1, "Blazor Server"));
+        await blogSvc.GetPublishedPostsAsync(3, 0);
 
-        postRepo.Received(1).GetPublishedPosts(3, 0);
+        await postRepo.Received(1).GetPublishedPostsAsync(3, 0, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -468,19 +421,19 @@ public class CacheConsumerTests
     /// <c>/post/{slug}</c> both cheap and correct after an edit.
     /// </summary>
     [Fact]
-    public void PostBySlugIsCachedAndEvictedOnUpdate()
+    public async Task PostBySlugIsCachedAndEvictedOnUpdate()
     {
         var repo = Substitute.For<IBlogPostRepo>();
-        repo.GetBySlug("caching").Returns(BuildPost(1));
-        repo.GetSingle(1).Returns(BuildPost(1));
+        repo.GetBySlugAsync("caching", Arg.Any<CancellationToken>()).Returns(BuildPost(1));
+        repo.GetSingleAsync(1, Arg.Any<CancellationToken>()).Returns(BuildPost(1));
         var service = BuildBlogSvc(repo, BuildCache());
 
-        service.GetPostBySlug("caching");
-        service.GetPostBySlug("caching");
-        service.UpdatePost(BuildPost(1));
-        service.GetPostBySlug("caching");
+        await service.GetPostBySlugAsync("caching");
+        await service.GetPostBySlugAsync("caching");
+        await service.UpdatePostAsync(BuildPost(1));
+        await service.GetPostBySlugAsync("caching");
 
-        repo.Received(2).GetBySlug("caching");
+        await repo.Received(2).GetBySlugAsync("caching", Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -488,19 +441,19 @@ public class CacheConsumerTests
     /// without the principal would serve one author's unpublished drafts to the next caller.
     /// </summary>
     [Fact]
-    public void AdminPostListingIsNeverCached()
+    public async Task AdminPostListingIsNeverCached()
     {
         var repo = Substitute.For<IBlogPostRepo>();
-        repo.GetAll().Returns([BuildPost(1)]);
-        repo.GetAllById(7).Returns([BuildPost(2)]);
+        repo.GetAllAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult<IEnumerable<BlogPost>>([BuildPost(1)]));
+        repo.GetAllByIdAsync(7, Arg.Any<CancellationToken>()).Returns(Task.FromResult<IEnumerable<BlogPost>>([BuildPost(2)]));
         var service = BuildBlogSvc(repo, BuildCache());
 
-        service.GetAllPosts(7, true);
-        service.GetAllPosts(7, true);
-        service.GetAllPosts(7, false);
+        await service.GetAllPostsAsync(7, true);
+        await service.GetAllPostsAsync(7, true);
+        await service.GetAllPostsAsync(7, false);
 
-        repo.Received(2).GetAll();
-        repo.Received(1).GetAllById(7);
+        await repo.Received(2).GetAllAsync(Arg.Any<CancellationToken>());
+        await repo.Received(1).GetAllByIdAsync(7, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -509,16 +462,16 @@ public class CacheConsumerTests
     /// late.
     /// </summary>
     [Fact]
-    public void ScheduledPostQueueIsNeverCached()
+    public async Task ScheduledPostQueueIsNeverCached()
     {
         var repo = Substitute.For<IBlogPostRepo>();
-        repo.GetDueScheduledPosts(Arg.Any<DateTime>()).Returns([BuildPost(1)]);
+        repo.GetDueScheduledPostsAsync(Arg.Any<DateTime>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult<IEnumerable<BlogPost>>([BuildPost(1)]));
         var service = BuildBlogSvc(repo, BuildCache());
 
-        service.GetDueScheduledPosts();
-        service.GetDueScheduledPosts();
+        await service.GetDueScheduledPostsAsync();
+        await service.GetDueScheduledPostsAsync();
 
-        repo.Received(2).GetDueScheduledPosts(Arg.Any<DateTime>());
+        await repo.Received(2).GetDueScheduledPostsAsync(Arg.Any<DateTime>(), Arg.Any<CancellationToken>());
     }
 
     // =============================================================================================
@@ -530,20 +483,20 @@ public class CacheConsumerTests
     /// latest-articles grid used to cost.
     /// </summary>
     [Fact]
-    public void RatingAggregatesAreReadOnlyOnce()
+    public async Task RatingAggregatesAreReadOnlyOnce()
     {
         var repo = Substitute.For<IPostRatingRepo>();
-        repo.GetAverageByPost(1).Returns(4.5);
-        repo.GetCountByPost(1).Returns(12);
+        repo.GetAverageByPostAsync(1, Arg.Any<CancellationToken>()).Returns(Task.FromResult(4.5));
+        repo.GetCountByPostAsync(1, Arg.Any<CancellationToken>()).Returns(Task.FromResult(12));
         var service = BuildRatingSvc(repo, BuildCache());
 
-        service.GetAverageRating(1);
-        service.GetAverageRating(1);
-        service.GetRatingCount(1);
-        service.GetRatingCount(1);
+        await service.GetAverageRatingAsync(1);
+        await service.GetAverageRatingAsync(1);
+        await service.GetRatingCountAsync(1);
+        await service.GetRatingCountAsync(1);
 
-        repo.Received(1).GetAverageByPost(1);
-        repo.Received(1).GetCountByPost(1);
+        await repo.Received(1).GetAverageByPostAsync(1, Arg.Any<CancellationToken>());
+        await repo.Received(1).GetCountByPostAsync(1, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -555,15 +508,15 @@ public class CacheConsumerTests
     public async Task RatingSubmissionEvictsOnlyThatPost()
     {
         var repo = Substitute.For<IPostRatingRepo>();
-        repo.GetAverageByPost(Arg.Any<long>()).Returns(4.5);
+        repo.GetAverageByPostAsync(Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult(4.5));
         repo.UpsertByEmailAsync(Arg.Any<long>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<long?>(), Arg.Any<bool>())
             .Returns(Task.FromResult(9L));
         var verification = Substitute.For<IEmailVerificationService>();
         verification.IsAddressVerifiedAsync(Arg.Any<string>()).Returns(Task.FromResult(true));
         var service = BuildRatingSvc(repo, BuildCache(), verification);
 
-        service.GetAverageRating(1);
-        service.GetAverageRating(2);
+        await service.GetAverageRatingAsync(1);
+        await service.GetAverageRatingAsync(2);
         await service.SubmitRatingAsync(new RatingSubmission
         {
             PostId = 1,
@@ -571,11 +524,11 @@ public class CacheConsumerTests
             Email = "ada@example.com",
             UserId = 3
         });
-        service.GetAverageRating(1);
-        service.GetAverageRating(2);
+        await service.GetAverageRatingAsync(1);
+        await service.GetAverageRatingAsync(2);
 
-        repo.Received(2).GetAverageByPost(1);
-        repo.Received(1).GetAverageByPost(2);
+        await repo.Received(2).GetAverageByPostAsync(1, Arg.Any<CancellationToken>());
+        await repo.Received(1).GetAverageByPostAsync(2, Arg.Any<CancellationToken>());
     }
 
     /// <summary>

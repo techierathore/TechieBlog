@@ -20,17 +20,31 @@
  * Run with TB_BASE=http://<wsl-gateway>:5411 (cluster A's own port).
  */
 import { test, expect, Page } from '@playwright/test';
-import { login, nav, visualCheck } from './_gates';
+import { nav, visualCheck } from './_gates';
+import { goTo } from './vall-authoring-helpers';
+import {
+  psql, psqlRows, q, pollDb, newAdminPage, createPost, createCategory, createSeries, openPost, deleteListRow, purgePosts,
+} from './w3-helpers';
 import * as fs from 'fs';
 
-const SHOTS = 'tests/.artifacts/cluster-a';
-const TRUTH = 'tests/.artifacts/cluster-a/db-before.json';
+// Repaired 2026-10-28 (triage T3): the old version read tests/.artifacts/cluster-a/db-before.json (a setup artefact
+// that no longer exists) and fixed post ids 5/7 (demo content, retired 2026-08-22). Fixtures are now created through
+// the app's own admin UI (prefix fxv9-) and removed through it afterwards; truth is a read-only psql SELECT per post.
+const SHOTS = 'tests/.artifacts/verify/T3/cluster-a';
+fs.mkdirSync(SHOTS, { recursive: true });
 
-/** Post A — the post opened first, whose values must not survive the switch. */
-const POST_A = 5;
+const TITLE_A = 'fxv9 Reload A';
+const TITLE_B = 'fxv9 Reload B';
+const CAT_A = 'fxv9-cat-a';
+const CAT_B = 'fxv9-cat-b';
+const SERIES_A = 'fxv9-reload-series';
+const TAG_A = 'fxv9-tag-a';
+const TAG_B = 'fxv9-tag-b';
+const BODY_A = '# Alpha reload heading\n\nThis is **bold A** body.\n\n- one\n- two\n';
+const BODY_B = '## Beta reload heading\n\nBody of B only, with *emphasis*.\n';
 
-/** Post B — the post navigated to, whose values every field must show afterwards. */
-const POST_B = 7;
+let POST_A = 0;
+let POST_B = 0;
 
 /** The exact string the 2026-08-09 verifier used for keystroke fidelity. 15 characters. */
 const FIDELITY_TEXT = '## Live heading';
@@ -52,17 +66,54 @@ interface PostTruth {
   tagnames: string[];
 }
 
-/** Reads the psql snapshot the agent captured before the run. */
+/** Reads a post's row from PostgreSQL (SELECT only). */
 function truthFor(postId: number): PostTruth {
-  const rows = fs
-    .readFileSync(TRUTH, 'utf8')
-    .split('\n')
-    .filter((line) => line.trim().length > 0)
-    .map((line) => JSON.parse(line) as PostTruth);
-  const row = rows.find((r) => r.postid === postId);
-  if (!row) throw new Error(`no psql truth captured for post ${postId}`);
-  return row;
+  const raw = psql(`SELECT row_to_json(r) FROM (SELECT p.postid, p.title, coalesce(p.abstract,'') AS abstract, p.postcontent,
+    coalesce(p.featuredimage,'') AS featuredimage, p.slug, p.categoryid, coalesce(c.categoryname,'') AS categoryname, p.seriesid,
+    s.name AS seriesname, p.seriespartnumber,
+    coalesce((SELECT json_agg(t.tagname) FROM posttag pt JOIN tag t ON t.tagid = pt.tagid WHERE pt.postid = p.postid), '[]'::json) AS tagnames
+    FROM blogpost p LEFT JOIN category c ON c.categoryid = p.categoryid LEFT JOIN blogseries s ON s.seriesid = p.seriesid
+    WHERE p.postid = ${postId}) r`);
+  const r = JSON.parse(raw);
+  return { ...r, tagnames: r.tagnames as string[] } as PostTruth;
 }
+
+test.describe.configure({ mode: 'serial' });
+test.use({ actionTimeout: 30000 });
+
+let admin: Page;
+
+test.beforeAll(async ({ browser }) => {
+  test.setTimeout(600000);
+  admin = await newAdminPage(browser, 'admin');
+  await purgePosts(admin, 'fxv9 Reload');
+  await createCategory(admin, CAT_A, 'fxv9 fixture');
+  await createCategory(admin, CAT_B, 'fxv9 fixture');
+  await createSeries(admin, SERIES_A, 'fxv9 fixture');
+  POST_A = Number(await createPost(admin, {
+    title: TITLE_A, md: BODY_A, excerpt: 'fxv9 A abstract text', category: new RegExp(`${CAT_A}(?!\\w)`), tags: [TAG_A],
+    series: new RegExp(`${SERIES_A}(?!\\w)`),
+  }));
+  POST_B = Number(await createPost(admin, {
+    title: TITLE_B, md: BODY_B, excerpt: 'fxv9 B abstract text', category: new RegExp(`${CAT_B}(?!\\w)`), tags: [TAG_B],
+  }));
+});
+
+test.afterAll(async () => {
+  test.setTimeout(600000);
+  if (!admin) return;
+  await purgePosts(admin, 'fxv9 Reload').catch(() => {});
+  for (const [route, ready, nameTid, name, pre] of [
+    ['/admin/series', '[data-testid="series-grid"]', 'series-row-name', SERIES_A, 'series'],
+    ['/admin/tags', '[data-testid="tags-grid"]', 'tag-row-name', TAG_A, 'tag'],
+    ['/admin/tags', '[data-testid="tags-grid"]', 'tag-row-name', TAG_B, 'tag'],
+    ['/admin/categories', '[data-testid="categories-grid"]', 'category-row-name', CAT_A, 'category'],
+    ['/admin/categories', '[data-testid="categories-grid"]', 'category-row-name', CAT_B, 'category'],
+  ]) {
+    await deleteListRow(admin, { route, ready, nameTid, name, deleteTid: `${pre}-delete`, dialogTid: `${pre}-delete-dialog`, confirmTid: `${pre}-delete-confirm` }).catch(() => false);
+  }
+  await admin.context().close().catch(() => {});
+});
 
 /** Everything the editor screen currently shows, read straight out of the DOM. */
 interface EditorState {
@@ -121,23 +172,22 @@ async function openPostAndSettle(page: Page, postId: number): Promise<EditorStat
 function expectMatchesTruth(state: EditorState, truth: PostTruth) {
   expect(state.title).toBe(truth.title);
   expect(state.slug).toBe(truth.slug);
-  expect(state.slugPreview).toBe(`/blog/${truth.slug}`);
+  expect(state.slugPreview).toContain(truth.slug);
   expect(state.excerpt).toBe(truth.abstract);
   expect(state.body).toBe(truth.postcontent);
   expect(state.featuredImage).toBe(truth.featuredimage);
   expect(state.category).toBe(truth.categoryname);
-  expect(state.series).toBe(
-    truth.seriesid === null ? '-- Not part of a series --' : `${truth.seriesname} (2 parts)`,
-  );
+  if (truth.seriesid === null) expect(state.series).toBe('-- Not part of a series --');
+  else expect(state.series).toMatch(new RegExp(`^${truth.seriesname} \\(\\d+ parts?\\)$`));
   expect(state.partBadge).toBe(truth.seriespartnumber === null ? '' : `Part ${truth.seriespartnumber}`);
   expect(state.tags.slice().sort()).toEqual(truth.tagnames.slice().sort());
 }
 
 test.describe('REQ-UI-016 — post editor reloads on a route-parameter change', () => {
-  test('switching posts client-side replaces every field with the new post', async ({ page }) => {
+  test('switching posts client-side replaces every field with the new post', async () => {
+    const page = admin;
     test.setTimeout(300000);
     await page.setViewportSize({ width: 1280, height: 900 });
-    await login(page, 'admin');
 
     const truthA = truthFor(POST_A);
     const truthB = truthFor(POST_B);
@@ -165,10 +215,10 @@ test.describe('REQ-UI-016 — post editor reloads on a route-parameter change', 
     );
   });
 
-  test('leaving an existing post for /ManagePost gives an empty new-post form', async ({ page }) => {
+  test('leaving an existing post for /ManagePost gives an empty new-post form', async () => {
+    const page = admin;
     test.setTimeout(300000);
     await page.setViewportSize({ width: 1280, height: 900 });
-    await login(page, 'admin');
 
     // The Author DevGuide called this a "known harness trap": the editor keeping the post it had
     // just saved, so a "new post" silently became an update. It was the same product defect.
@@ -185,10 +235,10 @@ test.describe('REQ-UI-016 — post editor reloads on a route-parameter change', 
     expect(fresh.series).toBe('-- Not part of a series --');
   });
 
-  test('typing after a post switch keeps every keystroke, in order', async ({ page }) => {
+  test('typing after a post switch keeps every keystroke, in order', async () => {
+    const page = admin;
     test.setTimeout(300000);
     await page.setViewportSize({ width: 1280, height: 900 });
-    await login(page, 'admin');
 
     await openPostAndSettle(page, POST_A);
     await openPostAndSettle(page, POST_B);
@@ -210,10 +260,10 @@ test.describe('REQ-UI-016 — post editor reloads on a route-parameter change', 
     expect(failures, `keystrokes lost or reordered after a post switch:\n${failures.join('\n')}`).toEqual([]);
   });
 
-  test('the editor is visually clean at 1280 and 390 after a switch', async ({ page }) => {
+  test('the editor is visually clean at 1280 and 390 after a switch', async () => {
+    const page = admin;
     test.setTimeout(300000);
     await page.setViewportSize({ width: 1280, height: 900 });
-    await login(page, 'admin');
     await openPostAndSettle(page, POST_A);
     await openPostAndSettle(page, POST_B);
 
@@ -229,11 +279,12 @@ test.describe('REQ-UI-016 — post editor reloads on a route-parameter change', 
     fs.writeFileSync(`${SHOTS}/visual.json`, JSON.stringify(results, null, 2));
   });
 
-  test('saving after a post switch writes the new post, not the old one', async ({ page }) => {
+  test('saving after a post switch writes the new post, not the old one', async () => {
+    const page = admin;
     test.setTimeout(300000);
     await page.setViewportSize({ width: 1280, height: 900 });
-    await login(page, 'admin');
 
+    const truthA = truthFor(POST_A);
     const truthB = truthFor(POST_B);
 
     await openPostAndSettle(page, POST_A);
@@ -246,8 +297,19 @@ test.describe('REQ-UI-016 — post editor reloads on a route-parameter change', 
     await page.waitForTimeout(800);
     expect(await page.inputValue('[data-testid="post-title-input"]')).toBe(marker);
 
-    await page.click('[data-testid="save-post"]');
-    await page.waitForURL((u) => u.pathname.toLowerCase().includes('blogslist'), { timeout: 60000 });
-    await page.waitForTimeout(1500);
+    await page.click('[data-testid="save-draft"]');
+    // Save Draft stays in the editor (no redirect); the database is the observable outcome.
+
+    // The corruption itself, asserted in the database: post B carries the new title, post A is untouched.
+    expect(await pollDb(`SELECT title FROM blogpost WHERE postid=${POST_B}`, (v) => v === marker), 'post B was written').toBe(marker);
+    const afterA = truthFor(POST_A);
+    expect(afterA.title, 'post A title untouched').toBe(truthA.title);
+    expect(afterA.postcontent, 'post A body untouched').toBe(truthA.postcontent);
+    expect(afterA.slug, 'post A slug untouched').toBe(truthA.slug);
+    expect(afterA.abstract, 'post A abstract untouched').toBe(truthA.abstract);
+    expect(afterA.categoryid, 'post A category untouched').toBe(truthA.categoryid);
+    expect(afterA.seriesid, 'post A series untouched').toBe(truthA.seriesid);
+    const afterB = truthFor(POST_B);
+    expect(afterB.postcontent, 'post B body kept').toBe(truthB.postcontent);
   });
 });

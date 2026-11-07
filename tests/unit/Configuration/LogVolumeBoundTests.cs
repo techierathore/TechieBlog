@@ -109,7 +109,7 @@ public class LogVolumeBoundTests : IDisposable
     /// Total bytes on disk stay within <c>SizeLimitBytes * RetainedFileCountLimit</c> however much
     /// is written — the acceptance criterion of REQ-NFR-036 stated as an observation, not a product.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-037 total log volume stays within the configured bound")]
     public void TotalVolumeStaysWithinTheConfiguredBound()
     {
         WriteEvents(eventCount: 2000);
@@ -150,7 +150,7 @@ public class LogVolumeBoundTests : IDisposable
     /// <summary>
     /// The shipped web-host defaults bound disk at 100 MB, and say so in one place.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-037 the shipped web host defaults bound log disk at 100 MB")]
     public void ShippedWebHostDefaultsBoundDiskAtOneHundredMegabytes()
     {
         Assert.Equal(

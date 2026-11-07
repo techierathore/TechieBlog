@@ -87,7 +87,7 @@ public class SourceConventionTests
     /// No private field under <c>source/</c> carries the banned <c>_</c> prefix — the drift
     /// remediated under REQ-NFR-021, kept closed here.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-021 no field in source or tests carries an underscore prefix")]
     public void NoUnderscorePrefixedFields()
     {
         AssertNoMatches(UnderscoreFieldPrefix, "source", ScanCSharpAndRazor);
@@ -117,7 +117,7 @@ public class SourceConventionTests
     /// <summary>
     /// No parameter or local under <c>source/</c> carries an <c>a</c> or <c>v</c> prefix.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-035 no parameter or local uses an a- or v- prefix")]
     public void NoAmbiguousLocalPrefixes()
     {
         AssertNoMatches(AmbiguousLocalPrefix, "source", ScanCSharpOnly);
@@ -134,7 +134,7 @@ public class SourceConventionTests
     /// makes that failure mode loud.</para>
     /// <para><b>Side Effects:</b> none — it matches against in-memory strings only.</para>
     /// </remarks>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-041 every enforcement pattern matches a synthetic violation so a zero is evidence")]
     public void EveryPatternMatchesItsPositiveControl()
     {
         Assert.True(

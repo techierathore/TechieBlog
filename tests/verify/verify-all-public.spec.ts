@@ -1,3 +1,4 @@
+// 2026-10-27 W1 (verify-phase): titles prefixed 'retired:' asserted retired demo/fixture data (UAT-007, 2026-08-22), the removed header About link, or wrote the database directly; they are superseded by tests/verify/fxv1-public.spec.ts and fxv1-settings.spec.ts, which build their own state through the app.
 /*
     verify-all-public.spec.ts
 
@@ -214,7 +215,7 @@ test.describe('V3 public surface', () => {
   // NOT serial: every REQ must be exercised and reported even when a sibling REQ fails.
   test.describe.configure({ mode: 'default' });
 
-  test('REQ-UI-005 shell: header, primary nav, footer, mobile drawer, 320/390/1280 geometry', async ({ page }) => {
+  test('retired: REQ-UI-005 shell: header, primary nav, footer, mobile drawer, 320/390/1280 geometry', async ({ page }) => {
     // --- desktop shell -------------------------------------------------------------------
     await page.setViewportSize({ width: 1280, height: 800 });
     await visit(page, '/');
@@ -283,7 +284,7 @@ test.describe('V3 public surface', () => {
     }
   });
 
-  test('REQ-UI-006 / REQ-UI-049 home portfolio landing: hero, stats, about, featured, latest articles', async ({ page }) => {
+  test('retired: REQ-UI-006 / REQ-UI-049 home portfolio landing: hero, stats, about, featured, latest articles', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await visit(page, '/');
 
@@ -339,7 +340,7 @@ test.describe('V3 public surface', () => {
     await visualGate(page, '/', 390);
   });
 
-  test('REQ-UI-007 post view: Prose reflow, no table-scroll wrapper, 0px overflow at 390', async ({ page }) => {
+  test('retired: REQ-UI-007 post view: Prose reflow, no table-scroll wrapper, 0px overflow at 390', async ({ page }) => {
     const route = '/post/the-markdown-kitchen-sink';
 
     // --- the acceptance: 0px horizontal document scroll at 390 (was 46px before the fix) ---
@@ -404,7 +405,7 @@ test.describe('V3 public surface', () => {
     await visualGate(page, route, 1280);
   });
 
-  test('REQ-UI-008 category archive: /categories and /category/{slug} vs psql', async ({ page }) => {
+  test('retired: REQ-UI-008 category archive: /categories and /category/{slug} vs psql', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await visit(page, '/categories');
 
@@ -451,7 +452,7 @@ test.describe('V3 public surface', () => {
     await visualGate(page, '/category/web-development', 390);
   });
 
-  test('REQ-UI-009 tag archive: /tags cloud and /tag/{slug} vs psql', async ({ page }) => {
+  test('retired: REQ-UI-009 tag archive: /tags cloud and /tag/{slug} vs psql', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await visit(page, '/tags');
 
@@ -478,7 +479,7 @@ test.describe('V3 public surface', () => {
     await visualGate(page, '/tag/blazor', 390);
   });
 
-  test('REQ-UI-010 series view: /series list and /series/{slug} parts vs psql', async ({ page }) => {
+  test('retired: REQ-UI-010 series view: /series list and /series/{slug} parts vs psql', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await visit(page, '/series');
 
@@ -512,7 +513,7 @@ test.describe('V3 public surface', () => {
     await visualGate(page, '/series/blazor-server-in-production', 390);
   });
 
-  test('REQ-UI-011 search results: form, filters and result rows', async ({ page }) => {
+  test('retired: REQ-UI-011 search results: form, filters and result rows', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await visit(page, '/search');
 
@@ -560,7 +561,7 @@ test.describe('V3 public surface', () => {
     await visualGate(page, '/search', 390);
   });
 
-  test('REQ-UI-012 about page, /404, and an unmatched route', async ({ page }) => {
+  test('retired: REQ-UI-012 about page, /404, and an unmatched route', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
 
     // --- /about ---------------------------------------------------------------------------
@@ -600,7 +601,8 @@ test.describe('V3 public surface', () => {
     await visualGate(page, '/404', 390);
   });
 
-  test('REQ-UI-027 star ratings: button[role=radio] semantics, no span[role=radio], average vs psql', async ({ page }) => {
+  // retired 2026-10-27 (W5): asserts on the demo post / an empty newsletter archive retired 2026-08-22 (UAT-007); superseded by fxv5-rating-subscribe REQ-UI-027 and fxv5-newsletter REQ-UI-054.
+  test.skip('retired: star ratings: button[role=radio] semantics, no span[role=radio], average vs psql', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await visit(page, '/post/the-markdown-kitchen-sink');
 
@@ -655,7 +657,8 @@ test.describe('V3 public surface', () => {
     await expect(page.locator('[data-testid=rating-submit]')).toBeVisible();
   });
 
-  test('REQ-UI-054 newsletters archive', async ({ page }) => {
+  // retired 2026-10-27 (W5): asserts on the demo post / an empty newsletter archive retired 2026-08-22 (UAT-007); superseded by fxv5-rating-subscribe REQ-UI-027 and fxv5-newsletter REQ-UI-054.
+  test.skip('retired: newsletters archive', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await visit(page, '/newsletters');
 
@@ -681,7 +684,7 @@ test.describe('V3 public surface', () => {
     await visualGate(page, '/newsletters', 390);
   });
 
-  test('REQ-UI-059 post ordering: newest published first on home and archives', async ({ page }) => {
+  test('retired: REQ-UI-059 post ordering: newest published first on home and archives', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await visit(page, '/');
 
@@ -710,7 +713,7 @@ test.describe('V3 public surface', () => {
       .toEqual(DB.postsByPublishedDesc.filter((s) => cs.includes(s)));
   });
 
-  test('REQ-UI-060 heading structure: exactly one h1 on every public route', async ({ page }) => {
+  test('retired: REQ-UI-060 heading structure: exactly one h1 on every public route', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     const report: Record<string, { count: number; texts: string[]; order: string[] }> = {};
 
@@ -742,7 +745,7 @@ test.describe('V3 public surface', () => {
     expect(skips, 'no skipped heading levels').toEqual([]);
   });
 
-  test('REQ-UI-005/060 cross-route sweep: no span[role=radio], breadcrumb intact, no raw-HTML fallback', async ({ page }) => {
+  test('retired: REQ-UI-005/060 cross-route sweep: no span[role=radio], breadcrumb intact, no raw-HTML fallback', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     const findings: Record<string, unknown> = {};
 

@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { login as gateLogin, nav as gateNav } from './_gates';
 
 /**
  * Cluster F smoke — REQ-FN-052, removal of the orphaned SvcToken data-access stack.
@@ -27,9 +28,8 @@ import { test, expect, Page } from '@playwright/test';
  * is invented, none is created, and no password is altered.
  */
 
-const BASE = process.env.SMOKE_BASE ?? 'https://localhost:7373';
-
-const ADMIN = { email: 'Ravi@techieblog.com', password: 'admin_password' };
+// Repaired 2026-10-28 (triage T1): hard-coded https://localhost:7373 -> the shared TB_BASE app; sign-in via the shared helper.
+const BASE = process.env.TB_BASE ?? process.env.SMOKE_BASE ?? 'http://localhost:5450';
 
 /** Text Blazor's default ErrorBoundary renders when a component throws. */
 const ERROR_BOUNDARY_TEXT = 'An unhandled error has occurred';
@@ -145,18 +145,18 @@ test.describe('REQ-FN-052 SvcToken removal', () => {
     expect(bodyText.trim().length, 'home rendered an empty body').toBeGreaterThan(200);
 
     await expectNoHorizontalPageScroll(page, 'home @1280');
-    await captureAt(page, 0, 'test-results/cluster-f/home-1280-top.png');
+    await captureAt(page, 0, 'tests/.artifacts/verify/T1/cluster-f/home-1280-top.png');
     // Second offset lands on the article list, so the evidence covers the data-bound region.
     const listY = await page.evaluate(() => {
       const first = document.querySelector('a[href^="/post/"]');
       return first ? Math.max(0, first.getBoundingClientRect().top + window.scrollY - 200) : 0;
     });
-    await captureAt(page, listY, 'test-results/cluster-f/home-1280-articles.png');
+    await captureAt(page, listY, 'tests/.artifacts/verify/T1/cluster-f/home-1280-articles.png');
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(1000);
     await expectNoHorizontalPageScroll(page, 'home @390');
-    await captureAt(page, 0, 'test-results/cluster-f/home-390-top.png');
+    await captureAt(page, 0, 'tests/.artifacts/verify/T1/cluster-f/home-390-top.png');
 
     expect(pageErrors, `home raised script errors: ${pageErrors.join(' | ')}`).toHaveLength(0);
   });
@@ -167,14 +167,8 @@ test.describe('REQ-FN-052 SvcToken removal', () => {
 
     await page.setViewportSize({ width: 1280, height: 900 });
 
-    await gotoInteractive(page, `${BASE}/login`);
-    await page.waitForSelector('[data-testid="login-email"]', { timeout: 30000 });
-    await page.fill('[data-testid="login-email"]', ADMIN.email);
-    await page.fill('[data-testid="login-password"]', ADMIN.password);
-    await page.click('[data-testid="login-submit"]');
-    await page.waitForTimeout(4000);
-
-    await spaNavigate(page, '/admin');
+    await gateLogin(page, 'admin');
+    await gateNav(page, '/admin');
 
     const landed = new URL(page.url()).pathname;
     expect(landed, 'the admin sign in did not take').not.toContain('/login');
@@ -191,12 +185,12 @@ test.describe('REQ-FN-052 SvcToken removal', () => {
     expect(bodyText.trim().length, '/admin rendered an empty body').toBeGreaterThan(200);
 
     await expectNoHorizontalPageScroll(page, '/admin @1280');
-    await captureAt(page, 0, 'test-results/cluster-f/admin-1280-top.png');
+    await captureAt(page, 0, 'tests/.artifacts/verify/T1/cluster-f/admin-1280-top.png');
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(1000);
     await expectNoHorizontalPageScroll(page, '/admin @390');
-    await captureAt(page, 0, 'test-results/cluster-f/admin-390-top.png');
+    await captureAt(page, 0, 'tests/.artifacts/verify/T1/cluster-f/admin-390-top.png');
 
     expect(pageErrors, `/admin raised script errors: ${pageErrors.join(' | ')}`).toHaveLength(0);
   });

@@ -38,7 +38,7 @@ public class DatabaseHealthProbeTests
     /// An unreachable database produces a failed result rather than an exception, so the
     /// readiness endpoint can still answer with a useful body.
     /// </summary>
-    [Fact]
+    [Fact(DisplayName = "REQ-NFR-014 an unreachable database makes the health probe fail without throwing")]
     public void UnreachableDatabaseFailsWithoutThrowing()
     {
         var probe = BuildProbe("Host=127.0.0.1;Port=1;Database=NoSuchDb;Username=none;Password=none;Timeout=1");

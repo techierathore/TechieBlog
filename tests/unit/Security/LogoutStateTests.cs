@@ -106,6 +106,27 @@ public class LogoutStateTests
     }
 
     /// <summary>
+    /// The website's provider must keep the forced full-page reload on logout (REQ-UI-051).
+    /// </summary>
+    /// <remarks>
+    /// <c>AdminLayout.LogoutAsync</c> reloads only when <see cref="CustomAuthStateProvider.SupportsFullPageReload"/>
+    /// is true; BlogApp's provider overrides it to false because a forced reload from inside the
+    /// account menu left its BlazorWebView on "An unhandled error has occurred". The shared default
+    /// must stay true, or the website silently stops reloading (and stops re-reading the emptied
+    /// storage as anonymous).
+    /// </remarks>
+    [Fact]
+    public void WebsiteProviderKeepsTheForcedReloadOnLogout()
+    {
+        var provider = BuildProvider(out _);
+
+        Assert.True(
+            provider.SupportsFullPageReload,
+            "The shared provider must report that a full-page reload is supported; only the desktop " +
+            "head overrides it to false (REQ-UI-051).");
+    }
+
+    /// <summary>
     /// Builds a provider over substituted dependencies.
     /// </summary>
     /// <param name="storage">The substituted local storage, for call assertions.</param>

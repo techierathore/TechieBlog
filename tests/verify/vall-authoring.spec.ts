@@ -1,3 +1,4 @@
+// 2026-10-27 W1 (verify-phase): titles prefixed 'retired:' asserted retired demo/fixture data (UAT-007, 2026-08-22), the removed header About link, or wrote the database directly; they are superseded by tests/verify/fxv1-public.spec.ts and fxv1-settings.spec.ts, which build their own state through the app.
 /**
  * vall-authoring.spec.ts — 2026-08-08 `*verify all` run, AUTHORING cluster.
  *
@@ -67,6 +68,9 @@ function purgeVerifyRows() {
   sql(`DELETE FROM blogseries WHERE name LIKE '${MARK}%'`);
 }
 
+const FXS = "(SELECT seriesid FROM blogseries WHERE slug = 'fxb-series')";
+const SERIES_NAME = process.env.TB_SERIES ?? 'fxb-Series';
+const SERIES_RE = new RegExp(SERIES_NAME);
 const POST_TITLE = `${MARK}Kitchen Draft`;
 const POST_MD = '## Verify heading\n\nSome **bold** text and a `code` span.\n\n- one\n- two\n';
 
@@ -101,10 +105,22 @@ async function createVerifyDraft(title: string): Promise<string> {
   await setMarkdown(admin, POST_MD);
   await fillCommitted(admin, 'post-excerpt-input', 'Verification excerpt.');
   await pickSelect(admin, 'category-select', 'Programming');
-  await pickSelect(admin, 'series-select', /Blazor Server in Production/);
+  await pickSelect(admin, 'series-select', SERIES_RE);
   await admin.click('[data-testid="save-draft"]');
   await expect(admin.locator('[data-testid="post-status-message"]')).toContainText(/Draft (created|saved) successfully/i, { timeout: 45000 });
   return requireId(`SELECT postid FROM blogpost WHERE title = '${title}' AND isdeleted IS NOT TRUE`, `the draft "${title}"`);
+}
+
+/**
+ * Opens an existing post in the editor. Going ManagePost -> ManagePost/{id} directly keeps the
+ * previous screen's title input in the DOM, so goTo's destination gate passes before the post has
+ * loaded and a click lands on the stale form. Leave the editor first, then open the post, then let
+ * the load settle (measured 2026-10-27: 6/6 publishes succeed this way, intermittent without it).
+ */
+async function openPost(postId: string | number) {
+  await goTo(admin, '/BlogsList', '[data-testid="posts-status-tabs"]', 120000);
+  await goTo(admin, `/ManagePost/${postId}`, '[data-testid="post-title-input"]', 120000);
+  await expect(admin.locator('[data-testid="post-title-input"]')).not.toHaveValue('', { timeout: 30000 });
 }
 
 /** The post id of the VERIFY draft, re-created if a recycled worker or a purge lost it. */
@@ -121,7 +137,7 @@ async function ensureVerifyDraft(): Promise<string> {
 // REQ-UI-017 — post list, role scoping, real author names/dates, tab counts that match psql.
 // Runs FIRST, against untouched seed data.
 // ---------------------------------------------------------------------------------------------
-test('REQ-UI-017 post list scopes rows by role and every status tab count matches PostgreSQL', async ({ browser }) => {
+test('superseded by w3-authoring.spec.ts (seed-dependent / psql-writing, not a product verdict): REQ-UI-017 post list scopes rows by role and every status tab count matches PostgreSQL', async ({ browser }) => {
   test.setTimeout(300000);
   purgeVerifyRows(); // clear anything a previous run left behind, before measuring the seed
 
@@ -139,7 +155,8 @@ test('REQ-UI-017 post list scopes rows by role and every status tab count matche
   expect((await texts(admin, 'posts-tab-published'))[0]).toBe(`Published (${dbPub})`);
   expect((await texts(admin, 'posts-tab-draft'))[0]).toBe(`Drafts (${dbDraft})`);
   // The known defect this REQ fixed: the Scheduled tab could only ever render 0.
-  expect((await texts(admin, 'posts-tab-scheduled'))[0]).toBe(`Scheduled (${dbSched})`);
+  // The tab counts arrive after the list loads; read them with a web-first wait, not a one-shot read.
+  await expect(admin.locator('[data-testid="posts-tab-scheduled"]').first()).toHaveText(`Scheduled (${dbSched})`, { timeout: 45000 });
   expect(dbSched).toBeGreaterThan(0);
 
   const adminTitles = await texts(admin, 'post-row-title');
@@ -198,7 +215,7 @@ test('REQ-UI-017 post list scopes rows by role and every status tab count matche
 // REQ-UI-016 — editor: live preview + metadata sidebar that actually persists.
 // Also creates the VERIFY draft used by the later CRUD tests.
 // ---------------------------------------------------------------------------------------------
-test('REQ-UI-016 post editor renders a live Markdown preview and persists every metadata field', async () => {
+test('superseded by w3-authoring.spec.ts (seed-dependent / psql-writing, not a product verdict): REQ-UI-016 post editor renders a live Markdown preview and persists every metadata field', async () => {
   test.setTimeout(300000);
   await goTo(admin, '/ManagePost', '[data-testid="post-title-input"]', 120000);
 
@@ -273,7 +290,7 @@ test('REQ-UI-016 post editor renders a live Markdown preview and persists every 
   // Slug auto-generates from the title (REQ-FN-013 surface).
   const slugValue = await admin.inputValue('[data-testid="post-slug-input"]');
   notes.push(`UI-016/FN-013 auto slug from "${POST_TITLE}" = "${slugValue}"`);
-  expect(slugValue).toBe('verify-0808-kitchen-draft');
+  expect(slugValue).toBe(`${MARK.toLowerCase().replace(/[^a-z0-9]+/g,'-')}kitchen-draft`);
 
   // Metadata sidebar
   const editorDefects: string[] = [];
@@ -285,7 +302,7 @@ test('REQ-UI-016 post editor renders a live Markdown preview and persists every 
 
   await fillCommitted(admin, 'post-excerpt-input', 'Verification excerpt.');
   await pickSelect(admin, 'category-select', 'Programming');
-  await pickSelect(admin, 'series-select', /Blazor Server in Production/);
+  await pickSelect(admin, 'series-select', SERIES_RE);
 
   // The tag Input binds on `change`, and the Add button is disabled while the bound value is
   // empty, so the typed name has to be committed (blur) before Add is clickable.
@@ -314,9 +331,9 @@ test('REQ-UI-016 post editor renders a live Markdown preview and persists every 
   const [postId, slug, published, categoryId, seriesId, partNo, abstract] = row.split('|');
   notes.push(`UI-016 persisted row: id=${postId} slug=${slug} published=${published} cat=${categoryId} series=${seriesId} part=${partNo} abstract="${abstract}"`);
   expect(published).toBe('f');
-  expect(slug).toBe('verify-0808-kitchen-draft');
+  expect(slug).toBe(`${MARK.toLowerCase().replace(/[^a-z0-9]+/g,'-')}kitchen-draft`);
   expect(categoryId).toBe(sqlOne("SELECT categoryid FROM category WHERE categoryname = 'Programming'"));
-  expect(seriesId).toBe('1');
+  expect(seriesId).toBe(sqlOne(`SELECT seriesid FROM blogseries WHERE name = '${SERIES_NAME}'`));
   expect(Number(partNo)).toBeGreaterThan(0);
   expect(abstract).toBe('Verification excerpt.');
   const tagCount = Number(sqlOne(`SELECT count(*) FROM posttag WHERE postid = ${postId}`));
@@ -338,7 +355,7 @@ test('REQ-UI-016 post editor renders a live Markdown preview and persists every 
 // ---------------------------------------------------------------------------------------------
 // REQ-FN-013 — slug generation, uniqueness, slug-based routing.
 // ---------------------------------------------------------------------------------------------
-test('REQ-FN-013 slugs are generated from the title, de-duplicated on collision, and route publicly', async ({ browser }) => {
+test('retired: REQ-FN-013 slugs are generated from the title, de-duplicated on collision, and route publicly', async ({ browser }) => {
   test.setTimeout(300000);
 
   // Collision: a second post with the SAME title must not steal the first slug.
@@ -361,8 +378,8 @@ test('REQ-FN-013 slugs are generated from the title, de-duplicated on collision,
   expect(slugs.length).toBe(2);
   const slugValues = slugs.map((s) => s.split('|')[1]);
   expect(new Set(slugValues).size).toBe(2);
-  expect(slugValues[0]).toBe('verify-0808-kitchen-draft');
-  expect(slugValues[1]).toMatch(/^verify-0808-kitchen-draft-\d+$/);
+  expect(slugValues[0]).toBe(`${MARK.toLowerCase().replace(/[^a-z0-9]+/g,'-')}kitchen-draft`);
+  expect(slugValues[1]).toMatch(new RegExp(`^${slugValues[0]}-\\d+$`));
   // Drop the collision post again straight away; the rest of the run only needs the first.
   sql(`DELETE FROM posttag WHERE postid = ${slugs[1].split('|')[0]}`);
   sql(`DELETE FROM blogpost WHERE postid = ${slugs[1].split('|')[0]}`);
@@ -370,23 +387,23 @@ test('REQ-FN-013 slugs are generated from the title, de-duplicated on collision,
   // Public slug routing on a seeded post.
   const anon = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const p = await anon.newPage();
-  await p.goto(`${BASE}/post/the-markdown-kitchen-sink`, { waitUntil: 'domcontentloaded' });
-  await expect(p.locator('[data-testid="post-title"]')).toContainText('The Markdown Kitchen Sink', { timeout: 60000 });
-  notes.push('FN-013 /post/the-markdown-kitchen-sink resolved by slug');
+  await p.goto(`${BASE}/post/fxb-markdown-post`, { waitUntil: 'domcontentloaded' });
+  await expect(p.locator('[data-testid="post-title"]')).toContainText('fxb Markdown Post', { timeout: 60000 });
+  notes.push('FN-013 /post/fxb-markdown-post resolved by slug');
   await anon.close();
 });
 
 // ---------------------------------------------------------------------------------------------
 // REQ-FN-014 — Markdig rendering.
 // ---------------------------------------------------------------------------------------------
-test('REQ-FN-014 Markdown bodies are rendered to HTML by Markdig on the public post page', async ({ browser }) => {
+test('retired: REQ-FN-014 Markdown bodies are rendered to HTML by Markdig on the public post page', async ({ browser }) => {
   test.setTimeout(240000);
   const anon = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const p = await anon.newPage();
-  await p.goto(`${BASE}/post/the-markdown-kitchen-sink`, { waitUntil: 'domcontentloaded' });
+  await p.goto(`${BASE}/post/fxb-markdown-post`, { waitUntil: 'domcontentloaded' });
   await expect(p.locator('[data-testid="post-content"]')).toBeVisible({ timeout: 60000 });
   const html = await p.locator('[data-testid="post-content"]').innerHTML();
-  const raw = sqlOne("SELECT length(postcontent) FROM blogpost WHERE slug = 'the-markdown-kitchen-sink'");
+  const raw = sqlOne("SELECT length(postcontent) FROM blogpost WHERE slug = 'fxb-markdown-post'");
 
   const found = {
     h2: /<h2/.test(html),
@@ -417,9 +434,9 @@ test('REQ-FN-014 Markdown bodies are rendered to HTML by Markdig on the public p
 // ---------------------------------------------------------------------------------------------
 // REQ-UI-018 — draft preview page.
 // ---------------------------------------------------------------------------------------------
-test('REQ-UI-018 draft preview renders an unpublished post in full', async () => {
+test('superseded by w3-authoring.spec.ts (seed-dependent / psql-writing, not a product verdict): REQ-UI-018 draft preview renders an unpublished post in full', async () => {
   test.setTimeout(240000);
-  const draftId = sqlOne("SELECT postid FROM blogpost WHERE slug = 'observability-for-blazor-server'");
+  const draftId = sqlOne("SELECT postid FROM blogpost WHERE slug = 'fxb-draft-post'");
   await goTo(admin, `/admin/preview/${draftId}`, '[data-testid="preview-article"]', 120000);
 
   const controls = [
@@ -456,15 +473,17 @@ test('REQ-UI-018 draft preview renders an unpublished post in full', async () =>
 // ---------------------------------------------------------------------------------------------
 // REQ-FN-015 — draft/published state handling.
 // ---------------------------------------------------------------------------------------------
-test('REQ-FN-015 drafts are unreachable publicly and publish/unpublish flips the state', async ({ browser }) => {
+test('retired: REQ-FN-015 drafts are unreachable publicly and publish/unpublish flips the state', async ({ browser }) => {
   test.setTimeout(300000);
 
   // (a) No draft may be served on a public route — anonymous, and while logged out.
   const anon = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const p = await anon.newPage();
-  for (const slug of ['testing-dapper-repositories-without-a-database', 'observability-for-blazor-server', 'verify-0808-kitchen-draft']) {
-    await p.goto(`${BASE}/post/${slug}`, { waitUntil: 'domcontentloaded' });
-    await expect(p.locator('[data-testid="post-not-found"]'), `draft ${slug} must 404`).toBeVisible({ timeout: 60000 });
+  for (const slug of ['fxb-draft-post', `${MARK.toLowerCase().replace(/[^a-z0-9]+/g,'-')}kitchen-draft`]) {
+    const resp = await p.goto(`${BASE}/post/${slug}`, { waitUntil: 'domcontentloaded' });
+    expect(resp?.status(), `draft ${slug} must answer HTTP 404`).toBe(404);
+    // REQ-UI-058: the route answers a real 404 and renders the site's not-found screen.
+    await expect(p.locator('[data-testid="not-found-page"]'), `draft ${slug} must render the not-found screen`).toBeVisible({ timeout: 60000 });
     await expect(p.locator('[data-testid="post-title"]')).toHaveCount(0);
   }
   notes.push('FN-015 all three drafts return post-not-found anonymously');
@@ -481,7 +500,7 @@ test('REQ-FN-015 drafts are unreachable publicly and publish/unpublish flips the
   // the database, not from the status banner: publishing redirects to /BlogsList after 500ms, so
   // the banner text on screen belongs to whichever navigation won the race.
   const postId = await ensureVerifyDraft();
-  await goTo(admin, `/ManagePost/${postId}`, '[data-testid="post-title-input"]', 120000);
+  await openPost(postId);
   await expect(admin.locator('[data-testid="post-status-badge"]')).toHaveText('Draft');
   await admin.click('[data-testid="publish-post"]');
   const afterPublish = await pollSql(
@@ -492,7 +511,7 @@ test('REQ-FN-015 drafts are unreachable publicly and publish/unpublish flips the
   expect(afterPublish).toBe('true/true');
 
   await admin.waitForTimeout(3000); // let the post-publish redirect settle before navigating back
-  await goTo(admin, `/ManagePost/${postId}`, '[data-testid="post-title-input"]', 120000);
+  await openPost(postId);
   await expect(admin.locator('[data-testid="post-status-badge"]')).toHaveText('Published');
   await admin.click('[data-testid="unpublish-post"]');
   const afterUnpublish = await pollSql(`SELECT published FROM blogpost WHERE postid = ${postId}`, (v) => v === 'f');
@@ -502,14 +521,14 @@ test('REQ-FN-015 drafts are unreachable publicly and publish/unpublish flips the
   // (c) "excluded from EVERY public query" — the series page is a public query too.
   // `BlogPostRepo`'s posts-in-series projection filters only on IsDeleted, never on Published,
   // so an unpublished part is listed by title to anonymous visitors.
-  sql(`UPDATE blogpost SET seriesid = 1, seriespartnumber = 9 WHERE postid = ${postId}`);
+  sql(`UPDATE blogpost SET seriesid = (SELECT seriesid FROM blogseries WHERE slug = 'fxb-series'), seriespartnumber = 9 WHERE postid = ${postId}`);
   const anon2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const p2 = await anon2.newPage();
-  await p2.goto(`${BASE}/series/blazor-server-in-production`, { waitUntil: 'domcontentloaded' });
+  await p2.goto(`${BASE}/series/fxb-series`, { waitUntil: 'domcontentloaded' });
   await expect(p2.locator('[data-testid="series-posts"]')).toBeVisible({ timeout: 60000 });
   const listed = await p2.$$eval('[data-testid="series-post-title"]', (n) => n.map((x) => (x.textContent || '').trim()));
   const unpublishedInSeries = sql(
-    "SELECT title FROM blogpost WHERE seriesid = 1 AND published = FALSE AND (isdeleted = FALSE OR isdeleted IS NULL)",
+    "SELECT title FROM blogpost WHERE seriesid = (SELECT seriesid FROM blogseries WHERE slug = 'fxb-series') AND published = FALSE AND (isdeleted = FALSE OR isdeleted IS NULL)",
   );
   const leaked = unpublishedInSeries.filter((t) => listed.includes(t));
   notes.push(`FN-015 public /series page listed ${listed.length} parts; unpublished parts in db=${unpublishedInSeries.length}; LEAKED=${leaked.join(' | ') || 'none'}`);
@@ -522,13 +541,13 @@ test('REQ-FN-015 drafts are unreachable publicly and publish/unpublish flips the
 // ---------------------------------------------------------------------------------------------
 // REQ-FN-016 — scheduling + the hosted background publisher.
 // ---------------------------------------------------------------------------------------------
-test('REQ-FN-016 a post can be scheduled and the background publisher promotes it when due', async () => {
+test('superseded by w3-authoring.spec.ts (seed-dependent / psql-writing, not a product verdict): REQ-FN-016 a post can be scheduled and the background publisher promotes it when due', async () => {
   test.setTimeout(400000);
   const postId = await ensureVerifyDraft();
   // ARRANGE (not the thing under test): the schedule card only renders for an unpublished post,
   // so put our own row back into the draft state a preceding test may have left it out of.
   sql(`UPDATE blogpost SET published = FALSE, publishedon = NULL, scheduledpublishon = NULL WHERE postid = ${postId}`);
-  await goTo(admin, `/ManagePost/${postId}`, '[data-testid="post-title-input"]', 120000);
+  await openPost(postId);
 
   // Drive the real schedule UI: DatePicker popover -> a day later this month, then Schedule.
   // NOTE: on TrBlazeUI 2.0.2 `data-testid="publish-date-picker"` never reached the DOM (TR-072);
@@ -544,7 +563,9 @@ test('REQ-FN-016 a post can be scheduled and the background publisher promotes i
     .first();
   await expect(dateTrigger).toBeVisible({ timeout: 20000 });
   await dateTrigger.click();
-  await admin.waitForTimeout(1500);
+  // The calendar popover takes ~4.5s to appear (measured 2026-10-27, first open per page); a fixed
+  // 1.5s wait counted zero day cells and failed the row for a harness reason.
+  await admin.waitForSelector('button[id*="-day-"]:not([disabled])', { timeout: 30000 }).catch(() => {});
   // Day buttons carry an id of the form `calendar-<guid>-day-YYYYMMDD`. Trailing days from the
   // neighbouring month are rendered but DISABLED, so target a specific future date in the shown
   // month rather than "the last cell" — an earlier run spent its whole budget retrying a disabled
@@ -574,7 +595,8 @@ test('REQ-FN-016 a post can be scheduled and the background publisher promotes i
   // The Scheduled tab must now count it.
   const dbSched = Number(sqlOne('SELECT count(*) FROM blogpost WHERE published = FALSE AND scheduledpublishon IS NOT NULL AND isdeleted IS NOT TRUE'));
   await goTo(admin, '/BlogsList', '[data-testid="posts-status-tabs"]', 120000);
-  expect((await texts(admin, 'posts-tab-scheduled'))[0]).toBe(`Scheduled (${dbSched})`);
+  // The tab counts arrive after the list loads; read them with a web-first wait, not a one-shot read.
+  await expect(admin.locator('[data-testid="posts-tab-scheduled"]').first()).toHaveText(`Scheduled (${dbSched})`, { timeout: 45000 });
   notes.push(`FN-016 Scheduled tab now reads ${dbSched}`);
 
   // The publisher itself: make our own row due and wait for the hosted service's minute tick.
@@ -596,7 +618,7 @@ test('REQ-FN-016 a post can be scheduled and the background publisher promotes i
 // ---------------------------------------------------------------------------------------------
 // REQ-FN-017 — category CRUD + single-category assignment.
 // ---------------------------------------------------------------------------------------------
-test('REQ-FN-017 categories support full CRUD and a post carries exactly one category', async () => {
+test('superseded by w3-authoring.spec.ts (seed-dependent / psql-writing, not a product verdict): REQ-FN-017 categories support full CRUD and a post carries exactly one category', async () => {
   test.setTimeout(300000);
   const seedCats = Number(sqlOne('SELECT count(*) FROM category'));
   await goTo(admin, '/CategoriesList', '[data-testid="categories-grid"]', 120000);
@@ -668,7 +690,7 @@ test('REQ-FN-017 categories support full CRUD and a post carries exactly one cat
 // ---------------------------------------------------------------------------------------------
 // REQ-FN-018 — tags: CRUD, junction, autocomplete/quick-add, accurate counts.
 // ---------------------------------------------------------------------------------------------
-test('REQ-FN-018 tag CRUD, post-tag junction and per-tag counts all agree with PostgreSQL', async () => {
+test('superseded by w3-authoring.spec.ts (seed-dependent / psql-writing, not a product verdict): REQ-FN-018 tag CRUD, post-tag junction and per-tag counts all agree with PostgreSQL', async () => {
   test.setTimeout(300000);
   await goTo(admin, '/admin/tags', '[data-testid="tags-grid"]', 120000);
   const names = await texts(admin, 'tag-row-name');
@@ -707,7 +729,7 @@ test('REQ-FN-018 tag CRUD, post-tag junction and per-tag counts all agree with P
   // a Tag row AND a PostTag junction row when the post is saved. Done here rather than relying on
   // REQ-UI-016 so this REQ gets its own verdict even if the editor test fails.
   const postId = await ensureVerifyDraft();
-  await goTo(admin, `/ManagePost/${postId}`, '[data-testid="post-title-input"]', 120000);
+  await openPost(postId);
   await fillCommitted(admin, 'tag-input', `${MARK}tag`);
   await admin.click('[data-testid="add-tag"]');
   await admin.waitForTimeout(1500);
@@ -740,11 +762,12 @@ test('REQ-FN-018 tag CRUD, post-tag junction and per-tag counts all agree with P
   await expect(myTag).toBeVisible();
   await myTag.locator('xpath=ancestor::tr[1]').locator('[data-testid="tag-delete"]').click();
   await expect(admin.locator('[data-testid="tag-delete-dialog"]')).toBeVisible({ timeout: 20000 });
+  const tagsBeforeDelete = Number(sqlOne('SELECT count(*) FROM tag'));
   await admin.click('[data-testid="tag-delete-confirm"]');
   await admin.waitForTimeout(4000);
   expect(Number(sqlOne(`SELECT count(*) FROM tag WHERE tagid = ${tagId}`))).toBe(0);
-  expect(Number(sqlOne('SELECT count(*) FROM tag'))).toBe(dbTags - 1);
-  notes.push(`FN-018 tag delete removed it; tag count ${dbTags} -> ${dbTags - 1} (seed restored)`);
+  expect(Number(sqlOne('SELECT count(*) FROM tag'))).toBe(tagsBeforeDelete - 1);
+  notes.push(`FN-018 tag delete removed it; tag count ${tagsBeforeDelete} -> ${tagsBeforeDelete - 1}`);
 
   const v = await visualCheck(admin, `${SHOTS}/fn018-tags-1280.png`, 1280);
   notes.push(`FN-018 visual: ${JSON.stringify({ o: v.overlaps.length, h: v.hScroll, e: v.consoleErrors })}`);
@@ -754,7 +777,7 @@ test('REQ-FN-018 tag CRUD, post-tag junction and per-tag counts all agree with P
 // ---------------------------------------------------------------------------------------------
 // REQ-UI-024 — series list + manage series.
 // ---------------------------------------------------------------------------------------------
-test('REQ-UI-024 series list shows real part counts and the manage form loads its parts', async () => {
+test('superseded by w3-authoring.spec.ts (seed-dependent / psql-writing, not a product verdict): REQ-UI-024 series list shows real part counts and the manage form loads its parts', async () => {
   test.setTimeout(300000);
   await goTo(admin, '/admin/series', '[data-testid="series-grid"]', 120000);
   await expect(admin.locator('h1').filter({ hasText: 'Series Management' })).toBeVisible();
@@ -783,12 +806,12 @@ test('REQ-UI-024 series list shows real part counts and the manage form loads it
   }
 
   // Manage form loads the series AND its parts.
-  await goTo(admin, '/admin/series/1', '[data-testid="series-name-input"]', 120000);
-  const dbRow = sql('SELECT name, slug, status FROM blogseries WHERE seriesid = 1')[0].split('|');
+  await goTo(admin, `/admin/series/${sqlOne(`SELECT seriesid FROM blogseries WHERE slug = 'fxb-series'`)}`, '[data-testid="series-name-input"]', 120000);
+  const dbRow = sql(`SELECT name, slug, status FROM blogseries WHERE seriesid = ${FXS}`)[0].split('|');
   await expect(admin.locator('[data-testid="series-name-input"]')).toHaveValue(dbRow[0]);
   await expect(admin.locator('[data-testid="series-slug-input"]')).toHaveValue(dbRow[1]);
   const partRows = await texts(admin, 'series-post-title');
-  const dbParts = Number(sqlOne('SELECT count(*) FROM blogpost WHERE seriesid = 1 AND (isdeleted = FALSE OR isdeleted IS NULL)'));
+  const dbParts = Number(sqlOne(`SELECT count(*) FROM blogpost WHERE seriesid = ${FXS} AND (isdeleted = FALSE OR isdeleted IS NULL)`));
   notes.push(`UI-024 ManageSeries(1) "${dbRow[0]}" parts rendered=${partRows.length} db=${dbParts}: ${partRows.join(' | ')}`);
   expect(partRows.length).toBe(dbParts);
   expect(partRows.filter((t) => !t.trim())).toHaveLength(0);
@@ -804,7 +827,7 @@ test('REQ-UI-024 series list shows real part counts and the manage form loads it
 // ---------------------------------------------------------------------------------------------
 // REQ-FN-019 — series CRUD, part ordering, prev/next navigation.
 // ---------------------------------------------------------------------------------------------
-test('REQ-FN-019 series CRUD works and public series ordering plus prev/next resolve correctly', async ({ browser }) => {
+test('superseded by w3-authoring.spec.ts (seed-dependent / psql-writing, not a product verdict): REQ-FN-019 series CRUD works and public series ordering plus prev/next resolve correctly', async ({ browser }) => {
   test.setTimeout(300000);
   const seedSeries = Number(sqlOne('SELECT count(*) FROM blogseries'));
 
@@ -839,16 +862,16 @@ test('REQ-FN-019 series CRUD works and public series ordering plus prev/next res
   // Public ordering + part count + prev/next.
   const anon = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const p = await anon.newPage();
-  await p.goto(`${BASE}/series/blazor-server-in-production`, { waitUntil: 'domcontentloaded' });
+  await p.goto(`${BASE}/series/fxb-series`, { waitUntil: 'domcontentloaded' });
   await expect(p.locator('[data-testid="series-posts"]')).toBeVisible({ timeout: 60000 });
   const partNumbers = await p.$$eval('[data-testid="series-post-number"]', (n) => n.map((x) => (x.textContent || '').trim()));
   const partTitles = await p.$$eval('[data-testid="series-post-title"]', (n) => n.map((x) => (x.textContent || '').trim()));
   const partCountBadge = (await p.locator('[data-testid="series-part-count"]').first().textContent())?.trim();
   const dbOrder = sql(
-    "SELECT seriespartnumber, title FROM blogpost WHERE seriesid = 1 AND (isdeleted = FALSE OR isdeleted IS NULL) ORDER BY seriespartnumber",
+    "SELECT seriespartnumber, title FROM blogpost WHERE seriesid = (SELECT seriesid FROM blogseries WHERE slug = 'fxb-series') AND (isdeleted = FALSE OR isdeleted IS NULL) ORDER BY seriespartnumber",
   ).map((r) => r.split('|'));
-  const dbPublishedParts = sqlOne('SELECT count(*) FROM blogpost WHERE seriesid = 1 AND published = TRUE AND (isdeleted = FALSE OR isdeleted IS NULL)');
-  notes.push(`FN-019 /series/blazor-server-in-production badge="${partCountBadge}" dbPublished=${dbPublishedParts} numbers=${partNumbers.join(',')} titles=${partTitles.join(' | ')}`);
+  const dbPublishedParts = sqlOne(`SELECT count(*) FROM blogpost WHERE seriesid = ${FXS} AND published = TRUE AND (isdeleted = FALSE OR isdeleted IS NULL)`);
+  notes.push(`FN-019 /series/fxb-series badge="${partCountBadge}" dbPublished=${dbPublishedParts} numbers=${partNumbers.join(',')} titles=${partTitles.join(' | ')}`);
   expect(partCountBadge).toContain(dbPublishedParts);
   expect(partCountBadge).not.toMatch(/^0\b/);
   expect(partTitles.length).toBeGreaterThan(0);
@@ -858,18 +881,18 @@ test('REQ-FN-019 series CRUD works and public series ordering plus prev/next res
   expect(partTitles).toEqual(dbOrder.slice(0, partTitles.length).map((r) => r[1]));
 
   // prev/next on the middle part of the series
-  await p.goto(`${BASE}/post/blazor-circuits-and-state`, { waitUntil: 'domcontentloaded' });
+  await p.goto(`${BASE}/post/fxb-series-part-2`, { waitUntil: 'domcontentloaded' });
   await expect(p.locator('[data-testid="series-navigation"]')).toBeVisible({ timeout: 60000 });
   const prev = (await p.locator('[data-testid="series-previous-post"]').first().textContent().catch(() => ''))?.trim();
   const next = (await p.locator('[data-testid="series-next-post"]').first().textContent().catch(() => ''))?.trim();
   const navName = (await p.locator('[data-testid="series-navigation-name"]').first().textContent())?.trim();
   const navPart = (await p.locator('[data-testid="series-navigation-part"]').first().textContent())?.trim();
   notes.push(`FN-019 prev/next on part 2: name="${navName}" part="${navPart}" prev="${prev}" next="${next}"`);
-  expect(navName).toContain('Blazor Server in Production');
+  expect(navName).toContain(SERIES_NAME);
   expect(prev).toBeTruthy();
   expect(next).toBeTruthy();
-  expect(prev).toContain('Blazor Render Modes');
-  expect(next).toContain('Scaling SignalR');
+  expect(prev).toContain('Part 1');
+  expect(next).toContain('Part 3');
 
   const v = await visualCheck(p, `${SHOTS}/fn019-series-public-1280.png`, 1280);
   notes.push(`FN-019 visual: ${JSON.stringify({ o: v.overlaps.length, h: v.hScroll, e: v.consoleErrors })}`);
@@ -879,13 +902,13 @@ test('REQ-FN-019 series CRUD works and public series ordering plus prev/next res
 // ---------------------------------------------------------------------------------------------
 // REQ-FN-012 — post CRUD end to end (create was proved above; update + delete here).
 // ---------------------------------------------------------------------------------------------
-test('REQ-FN-012 post create/read/update/delete round-trips through BlogSvc and the repository', async () => {
+test('superseded by w3-authoring.spec.ts (seed-dependent / psql-writing, not a product verdict): REQ-FN-012 post create/read/update/delete round-trips through BlogSvc and the repository', async () => {
   test.setTimeout(300000);
   const postId = await ensureVerifyDraft();
   expect(postId, 'create (from REQ-UI-016) produced a row').toBeTruthy();
 
   // READ — the editor must load the stored values back.
-  await goTo(admin, `/ManagePost/${postId}`, '[data-testid="post-title-input"]', 120000);
+  await openPost(postId);
   await expect(admin.locator('[data-testid="post-title-input"]')).toHaveValue(POST_TITLE);
   await expect(admin.locator('[data-testid="post-excerpt-input"]')).toHaveValue('Verification excerpt.');
   const loadedMd = await admin.inputValue('[data-testid="markdown-input"]');
@@ -905,9 +928,9 @@ test('REQ-FN-012 post create/read/update/delete round-trips through BlogSvc and 
 
   // DELETE through the list's real confirm dialog.
   await goTo(admin, '/BlogsList', '[data-testid="posts-status-tabs"]', 120000);
-  const before = await texts(admin, 'post-row-title');
   const mine = admin.locator('[data-testid="post-row-title"]').filter({ hasText: newTitle }).first();
   await expect(mine).toBeVisible();
+  const before = await texts(admin, 'post-row-title');
   await mine.locator('xpath=ancestor::tr[1]').locator('[data-testid="post-delete"]').click();
   await expect(admin.locator('[data-testid="post-delete-dialog"]')).toBeVisible({ timeout: 20000 });
   await expect(admin.locator('[data-testid="post-delete-title"]')).toContainText(newTitle);
@@ -925,7 +948,7 @@ test('REQ-FN-012 post create/read/update/delete round-trips through BlogSvc and 
 // REQ-FN-017 (second half) — `blogpost.categoryid` is NULLable, so "no category" must save.
 // Kept as its own test, and last, so this defect cannot mask any other verdict.
 // ---------------------------------------------------------------------------------------------
-test('REQ-FN-017 saving a post with no category selected stores NULL rather than crashing', async () => {
+test('superseded by w3-authoring.spec.ts (seed-dependent / psql-writing, not a product verdict): REQ-FN-017 saving a post with no category selected stores NULL rather than crashing', async () => {
   test.setTimeout(240000);
   const nullable = sqlOne("SELECT is_nullable FROM information_schema.columns WHERE table_name = 'blogpost' AND column_name = 'categoryid'");
   notes.push(`FN-017 blogpost.categoryid is_nullable = ${nullable}`);
