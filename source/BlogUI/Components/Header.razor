@@ -215,6 +215,9 @@
     private static readonly NavEntry[] NavLinks =
     {
         new("Home", "/", "house", "nav-home", NavLinkMatch.All),
+        // [REQ-UI-075] 2026-11-26 — the all-posts page, second after Home (owner). This one list
+        // feeds the desktop menu and the phone drawer, so both carry it.
+        new("Blog", "/blog", "newspaper", "nav-blog"),
         new("Categories", "/categories", "folder", "nav-categories"),
         new("Series", "/series", "book-open", "nav-series"),
         new("Newsletter", "/newsletters", "mail", "nav-newsletter"),

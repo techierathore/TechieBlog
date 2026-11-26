@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | App | TechieBlog |
-| Count | 119 logged: 1 open, 106 fixed, 12 will not fix |
+| Count | 122 logged: 1 open, 109 fixed, 12 will not fix |
 | Source | `docs/metrics/misses.jsonl`, one row per miss record. Rewritten by `tf-misses-md.sh` on every new record. Never edit it: a wrong row is corrected by a new record. |
 | Updated | 2026-11-26 |
 
@@ -15,10 +15,13 @@
 |---|---|---|---|
 | MISS-TechieBlog-20260907-01 | 2026-09-07 by gate | not sorted | triage edited 1 file(s) under src, source or tests, which a triage never does: source/TechieBlog/wwwroot/uploads/blog/blog-2-20260907002216-7bc38ddb.jpg |
 
-## Fixed (106)
+## Fixed (109)
 
 | Miss | Found | Closed | Whose gap | What went wrong |
 |---|---|---|---|---|
+| MISS-TechieBlog-20261126-11 (REQ-NFR-046) | 2026-11-26 by owner | 2026-11-26 by triage-and-fix | the app's spec | Usage guide says when a mail change takes effect |
+| MISS-TechieBlog-20261126-10 (REQ-UI-075) | 2026-11-26 by owner | 2026-11-26 by triage-and-fix | the app's spec | Blog page lists every published post |
+| MISS-TechieBlog-20261126-09 (REQ-UI-074) | 2026-11-26 by owner | 2026-11-26 by triage-and-fix | the app's spec | Header-less boxes keep their top padding |
 | MISS-TechieBlog-20261126-08 (REQ-NFR-045) | 2026-11-26 by production | 2026-11-26 by triage-and-fix | the app's spec | Whole confirmation journey proven against a mail catcher |
 | MISS-TechieBlog-20261126-07 (REQ-UI-073) | 2026-11-26 by production | 2026-11-26 by triage-and-fix | the app's spec | Admin dashboard warns while no mail server is set |
 | MISS-TechieBlog-20261126-06 (REQ-UI-072) | 2026-11-26 by production | 2026-11-26 by triage-and-fix | the app's spec | Send test mail from Settings (website and BlogApp) |

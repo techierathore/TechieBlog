@@ -313,7 +313,7 @@ else if (blogPost != null)
 
                 @* Author byline card — plain text, no profile link (REQ-UI-041/042) *@
                 <Card Class="my-8" data-testid="post-author-card">
-                    <CardContent Class="flex items-center gap-4 p-6">
+                    <CardContent Class="flex items-center gap-4 p-6 pt-6">
                         <Avatar Size="AvatarSize.Large">
                             <AvatarFallback>@GetInitials(blogPost.BlogWriter)</AvatarFallback>
                         </Avatar>
@@ -342,7 +342,7 @@ else if (blogPost != null)
                     @foreach (var related in relatedPosts)
                     {
                         <Card Class="h-full" data-testid="related-post-card">
-                            <CardContent Class="flex flex-col gap-2 p-4">
+                            <CardContent Class="flex flex-col gap-2 p-4 pt-4">
                                 <div>
                                     <Badge Variant="BadgeVariant.Secondary">@CategoryName(related)</Badge>
                                 </div>

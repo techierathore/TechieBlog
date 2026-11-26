@@ -153,7 +153,7 @@ builder.Services.AddTrBlazeUI(options =&gt;
   <!-- Engagement: Rating — a REAL interactive control for anonymous visitors (BRD-40/41).
        Click a star → the email + captcha step appears → submit → verification email (BRD-98/99).
        Stars are TbRating: 5 focusable buttons, keyboard operable, aria-checked per value. -->
-  <div class="card">
+  <div class="card" data-testid="post-rating-panel">
     <div class="card-content">
       <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
         <div style="font-weight:600;font-size:14px">Rate this article</div>
@@ -217,24 +217,24 @@ builder.Services.AddTrBlazeUI(options =&gt;
   <hr class="separator">
 
   <!-- Related posts -->
-  <section aria-label="Related posts">
+  <section aria-label="Related posts" data-testid="related-posts">
     <h2 style="font-size:20px;margin-bottom:16px">Related articles</h2>
     <div class="post-grid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">
-      <article class="card post-card">
+      <article class="card post-card" data-testid="related-post-card">
         <div class="card-content">
           <div class="meta-row"><span class="badge badge-secondary">Blazor</span><span>Jul 24, 2026</span></div>
           <h3 style="font-size:15px;margin:8px 0 4px"><a href="02-post-view.html">Blazor render modes, demystified</a></h3>
           <p class="muted" style="font-size:13px">Server, WebAssembly, Auto — when each one actually earns its keep.</p>
         </div>
       </article>
-      <article class="card post-card">
+      <article class="card post-card" data-testid="related-post-card">
         <div class="card-content">
           <div class="meta-row"><span class="badge badge-secondary">PostgreSQL</span><span>Jul 28, 2026</span></div>
           <h3 style="font-size:15px;margin:8px 0 4px"><a href="02-post-view.html">Dapper + PostgreSQL functions: a pragmatic data layer</a></h3>
           <p class="muted" style="font-size:13px">Stored functions plus a micro-ORM for read-mostly workloads.</p>
         </div>
       </article>
-      <article class="card post-card">
+      <article class="card post-card" data-testid="related-post-card">
         <div class="card-content">
           <div class="meta-row"><span class="badge badge-secondary">MAUI</span><span>Jul 19, 2026</span></div>
           <h3 style="font-size:15px;margin:8px 0 4px"><a href="02-post-view.html">One RCL, two heads: sharing Blazor UI with a desktop app</a></h3>

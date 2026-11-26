@@ -24,7 +24,7 @@
     <TypographyH1 Class="page-title">Search</TypographyH1>
 
     <Card>
-        <CardContent Class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+        <CardContent Class="flex flex-col gap-3 p-4 pt-4 sm:flex-row sm:items-center">
             <Input Type="InputType.Search"
                    Placeholder="Search posts..."
                    Class="flex-1"
@@ -104,7 +104,7 @@
             @foreach (var result in searchResults)
             {
                 <Card data-testid="search-result">
-                    <CardContent Class="flex flex-col gap-4 p-4 sm:flex-row">
+                    <CardContent Class="flex flex-col gap-4 p-4 pt-4 sm:flex-row">
                         @* REQ-UI-011 (2026-08-09): the thumbnail was a hardcoded grey "Image" box on
                            every row even though every published post carries a FeaturedImage. The
                            search projection selects that column, so the real cover is shown and the

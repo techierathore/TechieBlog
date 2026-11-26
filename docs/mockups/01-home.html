@@ -10,6 +10,7 @@
                        + social brand-icon links (LinkedIn/GitHub/X/YouTube/RSS)
     Stats row        → TbCard ×4 (stat tiles, from UserStats)
     About summary    → TbCard + Typography
+    (2026-11-26: nav gains "Blog" after Home; "browse all articles" → 45-blog.html, REQ-UI-075)
     Latest articles  → TbCard ×3 (post cards: image, TbBadge category, meta, Rating read-only)
     Contact          → TbCard + TbButton; social links
     Footer           → Typography + TbSeparator
@@ -32,6 +33,7 @@
     <a class="tb-nav__brand" href="01-home.html" aria-label="TechieBlog — home"><img class="tb-nav__lockup" src="brand/TechieBlog-horizontal.svg" alt="TechieBlog" /></a>
     <div class="tb-nav__links">
       <a class="active" href="01-home.html">Home</a>
+      <a href="45-blog.html">Blog</a>
       <a href="03-category-archive.html">Categories</a>
       <a href="05-series-list.html">Series</a>
       <a href="42-newsletter-archive.html">Newsletter</a>
@@ -96,7 +98,7 @@
 <!-- Latest articles — recent published posts -->
 <section class="section container" id="articles" style="padding-top:8px">
   <h2 class="section-title">Latest Articles</h2>
-  <p class="section-sub">Fresh from the editor — <a href="07-search-results.html" style="color:var(--primary)">browse all articles</a>.</p>
+  <p class="section-sub">Fresh from the editor — <a href="45-blog.html" style="color:var(--primary)">browse all articles</a>.</p>
   <div class="post-grid">
     <article class="card post-card">
       <div class="thumb">featured image · 800×400</div>

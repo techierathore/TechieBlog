@@ -53,8 +53,14 @@ Open `http://localhost:5399/login` and sign in as user 1. The `CREATE DATABASE` 
 
 The blog mails three things: the confirmation link a reader must open after rating, commenting or
 subscribing; password-reset links; and newsletters. **The mail server is set on the Settings screen,
-and nowhere else is needed** — no deploy secret, no environment value. A change takes effect on the
-next mail, with no restart. Until a mail server is set, the admin dashboard shows a yellow
+and nowhere else is needed** — no deploy secret, no environment value. When a change takes effect
+depends on where you save it, and neither needs a restart:
+
+- **Saved in the website's admin:** the next mail uses it.
+- **Saved in BlogApp:** the live site picks it up within ten minutes.
+
+For the step-by-step Brevo set-up (account, sender, SMTP key, the values to type here), see
+[Brevo mail set-up](Brevo-Mail-Setup.md). Until a mail server is set, the admin dashboard shows a yellow
 **"No mail server is set"** warning, and the rating, comment and subscribe forms tell readers that
 email confirmation is not available right now (nothing they submit is kept waiting).
 

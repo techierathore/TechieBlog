@@ -1,14 +1,15 @@
 # TechieBlog → TrBlazeUI feedback
 
 ## Summary
-- **Nothing is blocked.** The tracker counts 3 entries (TR-031, TR-076, TR-077): 0 open, 0 fixed upstream and not yet re-checked, 3 closed.
+- **Nothing is blocked.** The tracker counts 4 entries (TR-031, TR-076, TR-077, TR-078): 1 open, 0 fixed upstream and not yet re-checked, 3 closed.
+- **Open 2026-11-26: TR-078 (minor, Blocks: no):** a header-less `CardContent` loses its top padding; fixed app-side.
 - **Closed 2026-11-05: TR-077 (major).** On TrBlazeUI 2.2.2 `SelectValue` no longer crashes the Admin posts list. Last consolidated: 2026-11-05.
 - Every other finding, TR-001 to TR-075 (with sub-findings TR-072b to TR-072d), is a bullet inside the dated sections below, all resolved in library source. None was dropped.
 - **TechieBlog runs TrBlazeUI 2.2.2** since 2026-11-05 (both packages in all three projects; whole-solution build 0 errors). It ran 2.2.1 from 2026-10-29.
 - Re-checked on 2.2.2 (`tests/verify/trblazeui-222-upgrade.spec.ts`, 3 of 3 pass): the posts-list search filters, a row's Delete opens its dialog and deletes, the editor stays usable after a publish, no `RuntimeBinderException` logged. On 2.2.1 the search and Delete failed 1 of 1 each.
 - Re-checked on 2.2.1 (`tests/verify/trblazeui-221-upgrade.spec.ts`): TR-075 and TR-076 hold.
 - None of the three had a workaround here, so no app code changed. The 2.0.3 workaround removals still hold.
-- Next free ID **TR-078** (the bottom counter line is authoritative).
+- Next free ID **TR-079** (the bottom counter line is authoritative).
 
 ## ✅ Resolution — 2026-08-25, TrBlazeUI **2.0.3** (pending publish)
 
@@ -1878,7 +1879,29 @@ TR-076 recorded 2026-10-27 by *build-phase cluster A (REQ-UI-047).
   `HasItemWithValue(string)` overload. [Likely cause — the library source was not read here.]
 
 TR-077 recorded 2026-11-02 by *devguide (chained from *handoff-phase).
-**Next free ID: TR-078.**
+### TR-078 - `CardContent`'s default `pt-0` survives a caller's `p-6`, so a header-less card loses its top padding (2.2.2)
+
+- **Severity:** minor (visible on every public page with a header-less card)
+- **Blocks:** no — fixed on our side by naming the top padding explicitly (`p-6 pt-6`); a build gate
+  (`tests/unit/Ops/CardContentPaddingTests.cs`) keeps it that way
+- **Repro:** `<Card><CardContent Class="flex gap-4 p-6">x</CardContent></Card>` with no `CardHeader`.
+  Live page `https://techierathore.com/post/claude-code-and-opencode-are-not-just-for-coders-they-are-for-builders`,
+  2026-11-26: the rating box renders `<div class="pt-0 flex flex-col gap-4 p-6">`.
+- **Expected:** the caller's `p-6` replaces the default `p-6 pt-0` completely → `flex flex-col gap-4 p-6`
+  (tailwind-merge rule: a later `p-*` overrides an earlier `pt-*`).
+- **Actual:** the merge drops the default `p-6` but keeps the default `pt-0`; `.pt-0` is later in the
+  stylesheet than `.p-6`, so the top padding is 0 while the bottom keeps 24px. The owner's screenshot
+  `docs/screenshots/Padding-Issue.png` (rating box, author box, "More Posts" tiles, dark theme).
+  Also in 2.2.3 and 2.2.6 (same `p-6 pt-0` default and the same merger in the package).
+- **Encountered in:** `*triage-and-fix`, 2026-11-26, REQ-UI-074 (20 boxes on 16 pages).
+- **Workaround:** none in the library's sense — each header-less `CardContent` now states `pt-N` beside `p-N`,
+  which is the shadcn convention for a content area with no header above it.
+- **Suggested fix:** make the class merger treat `p-*` as overriding an earlier `pt-*/pb-*/px-*/py-*`
+  (conflicting class groups), or drop `pt-0` from `CardContent`'s default and put the header gap on
+  `CardHeader + CardContent`. [Likely cause — the merger's source was not read here.]
+
+TR-078 recorded 2026-11-26 by *triage-and-fix.
+**Next free ID: TR-079.**
 
 > **Note on this file's own "next free ID" bookkeeping:** the task brief that led to TR-073 named
 > **TR-067** as the next free id, following the SUMMARY section at the top of this file rather than
