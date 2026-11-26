@@ -116,18 +116,18 @@ public static class BlogSvcInitializer
             dbConnectionString,
             x.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Services.DatabaseHealthProbe>>()));
 
-        // Email service (REQ-FN-033): real SMTP whenever EmailSettings:SmtpHost is configured,
-        // otherwise the console transport keeps a clone-and-run checkout working with no mail
-        // server. The choice is made per resolution rather than at startup so a configuration
-        // reload takes effect without a restart.
-        services.AddTransient<Services.IEmailService>(x =>
-        {
-            var configuration = x.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>();
-            var isSmtpConfigured = !string.IsNullOrWhiteSpace(configuration[Services.SmtpEmailService.SmtpHostKey]);
-            return isSmtpConfigured
-                ? ActivatorUtilities.CreateInstance<Services.SmtpEmailService>(x)
-                : ActivatorUtilities.CreateInstance<Services.ConsoleEmailService>(x);
-        });
+        // Email (REQ-FN-033): the mail server is read at EVERY send - the one saved on the Settings
+        // screen first, the EmailSettings configuration section only as the fallback, else the log.
+        // One rule (IMailServerSource) decides for IEmailService here and for the confirmation-link
+        // sender in EngagementSvcInitializer. No deploy secret or environment value is needed.
+        services.AddTransient<Services.IMailServerSource>(x => new Services.MailServerSource(
+            x.GetRequiredService<ISiteSettingsService>(),
+            x.GetService<Microsoft.Extensions.Configuration.IConfiguration>(),
+            x.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Services.MailServerSource>>()));
+        services.AddTransient<Services.SmtpEmailService>();
+        services.AddTransient<Services.ConsoleEmailService>();
+        services.AddTransient<Services.IMailTestService>(x => x.GetRequiredService<Services.SmtpEmailService>());
+        services.AddTransient<Services.IEmailService, Services.RoutingEmailService>();
 
         // Session durations behind sign-in and token refresh (REQ-FN-008). Singleton because the
         // policy is an immutable value read from configuration once; AuthSvc takes it as an

@@ -106,7 +106,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <div class="layout">
   <nav class="side">
     <h1>TechieBlog — Architecture</h1>
-    <div class="sub">Last rendered: 2026-11-02</div>
+    <div class="sub">Last rendered: 2026-11-21</div>
     <div class="group">Contents</div>
     <ol>
         <li><a href="#table-of-contents">Table of Contents</a></li>
@@ -127,7 +127,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   </nav>
   <main>
     <h1>TechieBlog — Architecture</h1>
-    <div class="subtitle">Rendered 2026-11-02 &middot; source <code>TechieBlog-Architecture.md</code></div>
+    <div class="subtitle">Rendered 2026-11-21 &middot; source <code>TechieBlog-Architecture.md</code></div>
 
     <div class="toc-inline">
       <div>Contents</div>
@@ -591,6 +591,10 @@ mount; DbUp runs automatically on boot, so the app account needs DDL rights on f
   the cached purple icon cannot survive. Consequence: a template adopter who runs the rename script
   keeps the TechieBlog lockup in the header until they configure their own logo or replace the files —
   the rename script only touches <code>source/TechieBlog/</code>, so it never alters these assets.</p>
+<ul>
+<li><strong>ADR-018 — Ratings for staff, referring site per view, and a plain-text copy of the numbers</strong> (2026-11-21, BRD-106…111, status <em>planned</em>). Reason: the Analytics page averaged every stored rating while the post page averaged confirmed ones only, so the two disagreed and the staff had no screen that listed individual ratings; the owner also wants the weekly figures as text. Decisions: (a) <strong>One rule for rating numbers.</strong> Every aggregate in <code>AnalyticsRepo</code> filters <code>IsEmailVerified = TRUE</code>, the same predicate <code>PostRatingRepo</code> already uses, so Analytics, the Posts list and the post page cannot disagree again. (b) <strong>Ratings list for staff</strong> — the existing per-post read (<code>IPostRatingRepo.GetAllByIdAsync</code>) returns rating id, stars, created/updated date, confirmed flag and email; <code>RatingSvc.GetRatingsForStaffAsync</code> turns the email into <code>first letter + "•••@" + domain</code> <strong>inside the service</strong>, and the model the page receives (<code>StaffRatingRow</code>) has no email property at all, so the full address never reaches a Razor component or the browser. A per-post summary for the Posts list comes from one grouped query (<code>GetStatsForPostsAsync(postIds)</code>), never one query per row. The dialog is one shared component, <code>RatingsDialog</code>, used by both pages. (c) <strong>Referring site</strong> — migration <code>033-PostViewReferrer.sql</code> adds <code>PostViews.ReferrerHost VARCHAR(253) NULL</code> (DNS name maximum) and an index on <code>(ViewedOn, ReferrerHost)</code>; <code>PostViewTracker</code> reads the <code>Referer</code> header while it already reads the IP and user agent, keeps only the lower-cased host with a leading <code>www.</code> removed, and stores <code>NULL</code> for no header, an unparseable value, or the site's own host. Nothing is backfilled; older views read as "Direct or unknown". <code>IAnalyticsService.GetReferrersAsync(range)</code> groups by host. (d) <strong>Copy numbers</strong> — the text is built in C# by a pure formatter (<code>AnalyticsNumbersFormatter</code>) from the figures the page already loaded plus three fixed windows (today, 7, 30 days), so it can be unit-tested; it reaches the clipboard through <code>navigator.clipboard.writeText</code> from a small module in <code>BlogUI/wwwroot</code>, which works in the website and in BlogApp's WebView2 alike. A refused clipboard write shows the text in a read-only box to copy by hand rather than failing silently. (e) <strong>BlogApp test profile</strong> (added during the build) — <code>BlogApp.exe --profile &lt;absolute folder&gt;</code> (<code>DesktopProfile</code>) keeps the connection file, logs, uploads and WebView2 data inside that folder and never reads or writes the OS credential store, so an automated check never sees the owner's saved live connection; BlogApp's own restart passes the switch on. Without the switch nothing changes. Consequence: a new column on the largest table — nullable and without a default, so the migration is a metadata-only change and is safe on a live database.
+</li>
+</ul>
 <h2 id="target-architecture-planned-deltas"><a id="8-target-architecture--planned-deltas"></a>8. Target architecture — planned deltas<a class="anchor-link" href="#target-architecture-planned-deltas">#</a></h2>
 <p>Everything below is <strong>designed but not built</strong>. It is carried forward verbatim in intent from
 <code>docs/architecture.md</code> §8.5 / §10 / §11 and <code>docs/OldDocs/prd.md</code> Epics 5–6 so the design is not lost; each

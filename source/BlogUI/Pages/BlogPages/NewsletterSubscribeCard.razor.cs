@@ -186,9 +186,9 @@ public partial class NewsletterSubscribeCard : ComponentBase
             return;
         }
 
+        var sentTo = (emailAddress ?? string.Empty).Trim();
         emailAddress = string.Empty;
-        ShowStatus(AlertVariant.Success,
-            "Almost there — check your inbox and click the confirmation link to start your subscription.");
+        ShowStatus(AlertVariant.Success, EmailVerificationSvc.LinkSentMessage(sentTo, "subscription"));
     }
 
     /// <summary>

@@ -118,4 +118,10 @@ public class FakeSubscriberRepo : ISubscriberRepo
     /// <inheritdoc />
     public IEnumerable<Subscriber> GetAllById(long subscriberId) =>
         subscribers.Where(s => s.SubscriberId == subscriberId).ToList();
+
+    /// <summary>Removes an unconfirmed row, as the real repository does (REQ-UI-030).</summary>
+    public Task<bool> DeletePendingAsync(long subscriberId, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(subscribers.RemoveAll(s => s.SubscriberId == subscriberId && !s.IsConfirmed) > 0);
+    }
 }

@@ -22,6 +22,9 @@
         <p class="mt-1 text-sm text-muted-foreground">An overview of your site's content and audience.</p>
     </div>
 
+    @* REQ-UI-073: stays until a mail server is set. *@
+    <MailServerWarning />
+
     @* --- Headline counters --------------------------------------------------- *@
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" data-testid="dashboard-stats">
 
@@ -104,6 +107,16 @@
                     <LucideIcon Name="message-square" Size="16" />
                     <span class="ml-2">Moderate Comments</span>
                 </Button>
+                @* REQ-UI-066 (BRD-106): gated by the Analytics page's own policy, so the button is
+                   never offered to a role /admin/analytics would refuse. *@
+                <AuthorizeView Policy="@AppPolicies.EditorOrAbove">
+                    <Authorized>
+                        <Button Href="/admin/analytics" Variant="ButtonVariant.Outline" data-testid="action-analytics">
+                            <LucideIcon Name="bar-chart-3" Size="16" />
+                            <span class="ml-2">Analytics</span>
+                        </Button>
+                    </Authorized>
+                </AuthorizeView>
                 <AuthorizeView Policy="@AppPolicies.AdminOnly">
                     <Authorized>
                         <Button Href="/admin/newsletter" Variant="ButtonVariant.Outline" data-testid="action-send-newsletter">

@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Mail;
-using Microsoft.Extensions.Configuration;
+using BlogModels.Models;
 using Microsoft.Extensions.Logging;
 
 namespace BlogEngine.Services;
@@ -9,179 +9,94 @@ namespace BlogEngine.Services;
 /// Real SMTP email transport built on the .NET base class library.
 /// </summary>
 /// <remarks>
-/// <para><b>Purpose:</b> Replaces <c>ConsoleEmailService</c> in any environment with mail
-/// configured (REQ-FN-033), which unblocks newsletter dispatch (REQ-FN-032) and double opt-in
-/// verification (REQ-FN-048).</para>
+/// <para><b>Purpose:</b> Delivers every outbound mail — password resets, reader confirmations and
+/// newsletters — through the mail server set on the Settings screen (REQ-FN-033), and sends the
+/// administrator's test mail (REQ-UI-072).</para>
 ///
 /// <para><b>Code Flow:</b></para>
 /// <list type="number">
-///   <item>Settings are read once in the constructor from the <c>EmailSettings</c> configuration
-///         section — never from a shipped <c>appsettings.json</c>, since this repository is a
-///         clone-and-own template. Supply them through user secrets or environment configuration.</item>
+///   <item><b>The mail server is read at every send</b>, through <see cref="IMailServerSource"/>: the
+///         values saved on the Settings screen first, the <c>EmailSettings</c> configuration section
+///         only as the fallback. A change on the Settings screen takes effect on the next mail, with no
+///         restart and no deploy secret. (Until 2026-11-26 this class read configuration once, in its
+///         constructor, and the Settings-screen values were stored and never used — the live site had
+///         no mail server at all, and a reader's rating confirmation was never mailed.)</item>
 ///   <item>Each send builds a fresh <c>MailMessage</c> and <c>SmtpClient</c>; <c>SmtpClient</c> is
 ///         not thread-safe, and a per-send instance is what makes concurrent newsletter delivery
 ///         safe.</item>
-///   <item>Every failure is logged with the recipient address before being surfaced — a bulk send
-///         records the address and continues, a password reset rethrows so the caller reports it.</item>
+///   <item>Every failure is logged with the recipient address before being surfaced.</item>
 /// </list>
 ///
 /// <para><b>Transport choice:</b> <c>System.Net.Mail.SmtpClient</c> from the BCL, not MailKit. It
-/// covers everything this project needs — host, port, STARTTLS/implicit TLS, credentials, timeout —
-/// and adds no package to a template whose selling point is a short dependency list. Swap in MailKit
-/// behind this same <c>IEmailService</c> only if OAuth2/XOAUTH2 authentication is ever required.</para>
+/// covers host, port, STARTTLS, credentials and timeout and adds no package. Its one real limit:
+/// it cannot speak SSL-from-the-first-byte on port 465, so that port is refused with a plain
+/// sentence that says to use 587 — Gmail and every common host offer 587 with STARTTLS.</para>
 ///
-/// <para><b>THIS ONE ACTUALLY SENDS MAIL.</b> Three <c>IEmailService</c>-shaped components exist
-/// and only this one reaches a mail server. Confusing them is the single most expensive mistake
-/// available in this area — a "successful" test against a development sender proves nothing about
-/// deliverability, and conversely a change that looks harmless here mails real people.</para>
-/// <list type="table">
-///   <item>
-///     <term><see cref="SmtpEmailService"/> (this class)</term>
-///     <description>Opens a TCP connection to a real SMTP server and delivers. Selected whenever
-///     <c>EmailSettings:SmtpHost</c> has a value — including in Development, so a developer who
-///     sets a host in user secrets <b>will</b> send genuine mail to whatever addresses the
-///     subscriber table holds.</description>
-///   </item>
-///   <item>
-///     <term><c>ConsoleEmailService</c> (sibling file)</term>
-///     <description>The fallback when no host is configured. Writes the message to the log and
-///     returns success. Nothing leaves the machine. "Sent" in the log means <i>formatted</i>, not
-///     <i>delivered</i>.</description>
-///   </item>
-///   <item>
-///     <term><c>LoggingVerificationEmailSender</c> (sibling file)</term>
-///     <description>The development stand-in for <c>IVerificationEmailSender</c>. It logs the
-///     confirmation <b>link</b> so a developer can click it without a mailbox — which also means
-///     that in any environment where it is registered, <b>anyone who can read the log can confirm
-///     anyone else's email address</b>. It must never be registered in production.</description>
-///   </item>
-/// </list>
+/// <para><b>THIS ONE ACTUALLY SENDS MAIL.</b> <c>ConsoleEmailService</c> and
+/// <c>LoggingVerificationEmailSender</c> only write to the log. Which one runs is decided per send by
+/// <see cref="RoutingEmailService"/> and <see cref="RoutingVerificationEmailSender"/>, both from
+/// <see cref="IMailServerSource"/>.</para>
 ///
-/// <para><b>Credentials, encryption at rest, and the key-rotation consequence.</b> Mail
-/// credentials exist in two places in this codebase and they behave differently:</para>
-/// <list type="bullet">
-///   <item><b>Configuration (what this class reads).</b> <c>EmailSettings:Password</c> comes from
-///     user secrets or environment configuration and is held in plaintext by the configuration
-///     provider — never in a committed <c>appsettings.json</c>.</item>
-///   <item><b>Site settings (what the admin Settings screen writes).</b> The SMTP password entered
-///     there is persisted as a <c>SiteSetting</c> row and <b>encrypted at rest</b> by
-///     <c>AppEncrypt</c> under the AES key configured as <c>AppEncryptionKey</c> (see
-///     <c>AppSecrets</c>). <b>Rotating that key permanently destroys every existing ciphertext</b>:
-///     there is no key versioning, the ciphertext carries no identifier saying which key produced
-///     it, and no fallback to the previous key exists. The failure is silent at startup — the first
-///     symptom is a decryption error the next time mail is sent. <b>Anyone rotating
-///     <c>AppEncryptionKey</c> must re-enter the SMTP password (and the cloud storage access key)
-///     through the admin Settings screen immediately afterwards</b>, and should treat the rotation
-///     as a maintenance window rather than a configuration tweak.</item>
-/// </list>
+/// <para><b>Credentials at rest.</b> The password entered on the Settings screen is stored encrypted
+/// under <c>AppEncryptionKey</c>. Rotating that key destroys the stored ciphertext: re-enter the mail
+/// password on the Settings screen right after any rotation, and use "Send test mail" to prove it.</para>
 ///
-/// <para><b>Known gap — this class does not read the site settings.</b> Its constructor reads
-/// <c>IConfiguration</c> only, once, at construction. The SMTP values an administrator saves on the
-/// Settings screen are therefore encrypted, stored, and <i>not used by the sender</i>; changing
-/// them has no effect on delivery, and only a configuration change plus a restart does. That
-/// contradicts the intent documented on <c>BlogModels.Models.SmtpSettings</c> ("the sender calls
-/// <c>ISiteSettingsService.GetSmtpSettingsAsync</c> per send"), which no implementation currently
-/// honours. Tracked as a defect; do not assume the admin screen controls mail until it is
-/// closed.</para>
+/// <para><b>Dependencies:</b> <see cref="IMailServerSource"/>, <c>ILogger&lt;SmtpEmailService&gt;</c>.</para>
 ///
-/// <para><b>Dependencies:</b> <c>IConfiguration</c> for settings,
-/// <c>ILogger&lt;SmtpEmailService&gt;</c> for the mandatory failure logging.</para>
-///
-/// <para><b>Usage:</b> Registered transient by <c>BlogSvcInitializer</c> only when
-/// <c>EmailSettings:SmtpHost</c> has a value; otherwise the console fallback is used. Requires no
-/// authorization of its own — it is infrastructure, and every caller (password reset, verification,
-/// newsletter dispatch) owns the decision about whether the recipient should be mailed at
-/// all.</para>
+/// <para><b>Usage:</b> Resolved through <see cref="IEmailService"/> (the router) for normal mail, and
+/// through <see cref="IMailTestService"/> for the Settings screen's test button.</para>
 /// </remarks>
-public class SmtpEmailService : IEmailService
+public class SmtpEmailService : IEmailService, IMailTestService
 {
-    /// <summary>
-    /// Configuration key whose presence switches the engine from the console fallback to SMTP.
-    /// </summary>
-    public const string SmtpHostKey = "EmailSettings:SmtpHost";
-
-    private const int DefaultSmtpPort = 587;
-    private const int DefaultTimeoutSeconds = 30;
+    private const int SendTimeoutSeconds = 30;
+    private const int ImplicitTlsPort = 465;
 
     /// <summary>
     /// Message returned when the mail server refused the message (REQ-NFR-033).
     /// </summary>
     /// <remarks>
-    /// <para><b>This is the highest-value disclosure in the codebase, which is why it is curated
-    /// first.</b> An <c>SmtpException</c>'s text routinely carries the mail host's name, the port,
-    /// the server's greeting banner and — on an authentication failure — a "5.7.8 Username and
-    /// Password not accepted" style response that tells an attacker the send account exists and
-    /// which credential was rejected. <see cref="SendAsync"/> is reached from the <b>anonymous</b>
-    /// newsletter-subscribe path, so that text used to be one failed send away from being rendered
-    /// to a visitor who never authenticated.</para>
-    /// <para>The exception — including its SMTP status code, which is logged as a structured field
-    /// — stays in the log, where the host's <c>CorrelationIdMiddleware</c> has already stamped the
-    /// request's correlation id onto every event (REQ-NFR-015). Callers see only this sentence. Do
-    /// not reintroduce <c>ex.Message</c>.</para>
+    /// <para>An <c>SmtpException</c>'s text can carry the mail host's name and a "Username and
+    /// Password not accepted" reply. <see cref="SendAsync"/> is reached from <b>anonymous</b> forms, so
+    /// callers see only this sentence; the exception stays in the log. Only the admin-only
+    /// <see cref="SendTestMailAsync"/> shows the server's own words.</para>
     /// </remarks>
     private const string DeliveryRejectedMessage =
         "The message could not be delivered. Please try again later.";
 
-    /// <summary>
-    /// Curated message for an unexpected send failure. See <see cref="DeliveryRejectedMessage"/>.
-    /// </summary>
+    /// <summary>Curated message for an unexpected send failure. See <see cref="DeliveryRejectedMessage"/>.</summary>
     private const string DeliveryFailedMessage =
         "Email delivery failed. Please try again later.";
 
+    /// <summary>Returned when no mail server is set anywhere.</summary>
+    private const string NotSetMessage = "No mail server is set.";
+
+    /// <summary>Why port 465 is refused; shown on the Settings screen's test.</summary>
+    private const string ImplicitTlsMessage =
+        "Port 465 (SSL from the first byte) is not supported by this sender. " +
+        "Use port 587 with \"Use SSL/TLS\" ticked — Gmail and most mail hosts offer it.";
+
+    private readonly IMailServerSource mailServerSource;
     private readonly ILogger<SmtpEmailService> logger;
-    private readonly string smtpHost;
-    private readonly int smtpPort;
-    private readonly bool isSslEnabled;
-    private readonly string userName;
-    private readonly string password;
-    private readonly string fromAddress;
-    private readonly string fromName;
-    private readonly int timeoutMilliseconds;
 
     /// <summary>
-    /// Initializes the SMTP transport from configuration.
+    /// Initializes the SMTP transport.
     /// </summary>
-    /// <remarks>
-    /// Reads <c>EmailSettings:SmtpHost</c>, <c>SmtpPort</c>, <c>EnableSsl</c>, <c>UserName</c>,
-    /// <c>Password</c>, <c>FromAddress</c>, <c>FromName</c> and <c>TimeoutSeconds</c>. Credentials
-    /// must come from user secrets or environment configuration — never a committed settings file.
-    /// </remarks>
-    /// <param name="configuration">Application configuration.</param>
+    /// <param name="mailServerSource">Answers, per send, which mail server to use.</param>
     /// <param name="logger">Logger used for delivery diagnostics.</param>
-    public SmtpEmailService(IConfiguration configuration, ILogger<SmtpEmailService> logger)
+    public SmtpEmailService(IMailServerSource mailServerSource, ILogger<SmtpEmailService> logger)
     {
+        this.mailServerSource = mailServerSource;
         this.logger = logger;
-        smtpHost = configuration[SmtpHostKey] ?? string.Empty;
-        smtpPort = ReadInt(configuration, "EmailSettings:SmtpPort", DefaultSmtpPort);
-        isSslEnabled = ReadBool(configuration, "EmailSettings:EnableSsl", true);
-        userName = configuration["EmailSettings:UserName"] ?? string.Empty;
-        password = configuration["EmailSettings:Password"] ?? string.Empty;
-        fromAddress = configuration["EmailSettings:FromAddress"] ?? userName;
-        fromName = configuration["EmailSettings:FromName"] ?? "TechieBlog";
-        timeoutMilliseconds = ReadInt(configuration, "EmailSettings:TimeoutSeconds", DefaultTimeoutSeconds) * 1000;
     }
 
     /// <inheritdoc />
     /// <remarks>
-    /// <para><b>Business Logic:</b> Composes the reset message and delivers it. Unlike
-    /// <see cref="SendAsync"/> this member <b>throws</b> on failure rather than returning a
-    /// <c>Result</c>, and that asymmetry is deliberate: a password reset that silently fails leaves
-    /// the user waiting forever for a mail that will never arrive, so the caller must be forced to
-    /// notice. The convention in this codebase is that expected failures are returned and
-    /// unexpected ones throw after being logged with context — an undeliverable reset is treated as
-    /// the latter.</para>
-    /// <para><b>Flow:</b> build the message → delegate to <see cref="SendAsync"/> → return on
-    /// success, or log the recipient and the reason and throw.</para>
-    /// <para><b>Side Effects:</b> <b>Sends a real email</b> to <paramref name="email"/> containing
-    /// a working reset link. Writes an error log line on failure. Performs no rate limiting,
-    /// throttling or address-existence check of its own — the calling service owns all of that, and
-    /// must in particular avoid revealing through its own response whether the address is
-    /// registered.</para>
+    /// <para><b>Business Logic:</b> Throws rather than returning a <c>Result</c>: a reset that silently
+    /// fails leaves the user waiting for a mail that will never arrive.</para>
+    /// <para><b>Flow:</b> build the message → <see cref="SendAsync"/> → return, or log and throw.</para>
+    /// <para><b>Side Effects:</b> <b>Sends a real email</b> containing a working reset link.</para>
     /// </remarks>
-    /// <exception cref="InvalidOperationException">
-    /// The message could not be delivered. The inner reason has already been logged with the
-    /// recipient address.
-    /// </exception>
+    /// <exception cref="InvalidOperationException">The message could not be delivered.</exception>
     public async Task SendPasswordResetEmail(string email, string resetUrl)
     {
         var message = new EmailMessage
@@ -202,34 +117,40 @@ public class SmtpEmailService : IEmailService
 
     /// <inheritdoc />
     /// <remarks>
-    /// <para><b>Business Logic:</b> The general-purpose send. Every failure — a rejection by the
-    /// server, a timeout, a missing configuration value — comes back as a failed <c>Result</c>
-    /// rather than an exception, because the main caller is newsletter dispatch, which must record
-    /// one address's failure and carry on to the next rather than abandoning the run.</para>
-    /// <para><b>Flow:</b> validate the message and the configuration → build a fresh
-    /// <c>MailMessage</c> and <c>SmtpClient</c> → send → return success, or catch, log and convert
-    /// to a failure.</para>
-    /// <para><b>Side Effects:</b> <b>Sends a real email.</b> Opens an outbound TCP connection per
-    /// call and disposes it; a new <c>SmtpClient</c> per send is what makes concurrent dispatch safe,
-    /// since the type is not thread-safe. Logs one information line per delivery including the
-    /// recipient address and subject, and an error line per failure — treat the log as containing
-    /// recipient addresses when setting retention.</para>
-    /// <para><b>Not retried, not queued.</b> A transient failure is reported once and forgotten;
-    /// there is no outbox and no back-off. A caller that needs delivery guaranteed must implement
-    /// its own retry.</para>
+    /// <para><b>Business Logic:</b> Reads the mail server now, then delivers. Every failure comes back
+    /// as a failed <c>Result</c> carrying a curated sentence.</para>
+    /// <para><b>Flow:</b> <see cref="IMailServerSource.GetCurrentAsync"/> → <see cref="SendViaAsync"/>.</para>
+    /// <para><b>Side Effects:</b> <b>Sends a real email</b> when a mail server is set.</para>
     /// </remarks>
     public async Task<Result> SendAsync(EmailMessage message)
     {
-        var validation = Validate(message);
+        var choice = await mailServerSource.GetCurrentAsync().ConfigureAwait(false);
+        return await SendViaAsync(message, choice).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Delivers a message through a mail server choice the caller has already read.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Lets <see cref="RoutingEmailService"/> read the mail server once and
+    /// use the same answer to both route and send.</para>
+    /// <para><b>Flow:</b> validate → deliver → success, or log and return a curated failure.</para>
+    /// <para><b>Side Effects:</b> <b>Sends a real email.</b> Logs the recipient and subject.</para>
+    /// </remarks>
+    /// <param name="message">The message to deliver.</param>
+    /// <param name="choice">The mail server to use.</param>
+    /// <returns>Success when the server accepted the message.</returns>
+    public async Task<Result> SendViaAsync(EmailMessage message, MailServerChoice choice)
+    {
+        var validation = Validate(message, choice);
         if (validation.IsFailure)
             return validation;
 
         try
         {
-            using var mailMessage = BuildMailMessage(message);
-            using var client = BuildClient();
-            await client.SendMailAsync(mailMessage).ConfigureAwait(false);
-            logger.LogInformation("Email sent to {ToAddress} with subject {Subject}", message.ToAddress, message.Subject);
+            await DeliverAsync(message, choice.Server).ConfigureAwait(false);
+            logger.LogInformation("Email sent to {ToAddress} with subject {Subject} via the {Origin} mail server",
+                message.ToAddress, message.Subject, choice.Origin);
             return Result.Success();
         }
         catch (SmtpException ex)
@@ -245,18 +166,76 @@ public class SmtpEmailService : IEmailService
         }
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para><b>Business Logic:</b> The only place the mail server's own words reach a screen, and only
+    /// the admin Settings screen calls it. That is deliberate (REQ-UI-072): "Authentication failed" or
+    /// "connection refused" is exactly what an administrator needs to fix the values, and the reply
+    /// names nothing the administrator did not just type.</para>
+    /// <para><b>Flow:</b> validate → deliver → "accepted", or the server's reply.</para>
+    /// <para><b>Side Effects:</b> Sends one real email. Never logs the password.</para>
+    /// </remarks>
+    public async Task<MailTestOutcome> SendTestMailAsync(SmtpSettings server, string toAddress)
+    {
+        var problem = CheckTestInput(server, toAddress);
+        if (problem != null)
+            return new MailTestOutcome { IsAccepted = false, ServerAnswer = problem };
+
+        try
+        {
+            await DeliverAsync(BuildTestMessage(toAddress, server), server).ConfigureAwait(false);
+            logger.LogInformation("Test mail to {ToAddress} accepted by {Host}:{Port}", toAddress, server.Host, server.Port);
+            return new MailTestOutcome
+            {
+                IsAccepted = true,
+                ServerAnswer = $"Accepted by {server.Host}:{server.Port}. The mail server answered 250 OK, " +
+                               $"so the test mail is on its way to {toAddress.Trim()}."
+            };
+        }
+        catch (Exception failure)
+        {
+            logger.LogWarning(failure, "Test mail to {ToAddress} via {Host}:{Port} failed", toAddress, server.Host, server.Port);
+            return new MailTestOutcome { IsAccepted = false, ServerAnswer = DescribeFailure(failure, server) };
+        }
+    }
+
+    /// <summary>
+    /// Opens the connection and hands one message to the mail server.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Port 465 is refused before connecting (see the type remarks).
+    /// <c>SmtpClient.Timeout</c> is ignored by the async send, and a cancellation token does not stop a
+    /// connect to a port that a firewall silently drops — measured 2026-11-26: the send never returned.
+    /// So the wait itself is bounded with <c>WaitAsync</c>, and disposing the client abandons the
+    /// connection. Without this, a mail port blocked by the hosting provider would hang the reader's
+    /// form and the Settings screen forever.</para>
+    /// <para><b>Side Effects:</b> Network I/O; sends mail.</para>
+    /// </remarks>
+    /// <param name="message">The message.</param>
+    /// <param name="server">The mail server values.</param>
+    /// <returns>A task that completes when the server has accepted the message.</returns>
+    private static async Task DeliverAsync(EmailMessage message, SmtpSettings server)
+    {
+        if (server.Port == ImplicitTlsPort)
+            throw new NotSupportedException(ImplicitTlsMessage);
+
+        using var mailMessage = BuildMailMessage(message, server);
+        using var client = BuildClient(server);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(SendTimeoutSeconds));
+        var sending = client.SendMailAsync(mailMessage, timeout.Token);
+
+        // An abandoned send still fails later; observe it so it is not reported as unobserved.
+        _ = sending.ContinueWith(t => t.Exception, TaskContinuationOptions.OnlyOnFaulted);
+        await sending.WaitAsync(TimeSpan.FromSeconds(SendTimeoutSeconds)).ConfigureAwait(false);
+    }
+
     /// <summary>
     /// Rejects a message that could never be delivered, before a connection is opened.
     /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> A recipient, a subject and a configured host and sender address
-    /// are all mandatory; a missing one is a configuration error worth naming precisely.</para>
-    /// <para><b>Flow:</b> null check → recipient → subject → host → from address.</para>
-    /// <para><b>Side Effects:</b> Logs a warning when configuration is incomplete.</para>
-    /// </remarks>
     /// <param name="message">The candidate message.</param>
+    /// <param name="choice">The mail server choice.</param>
     /// <returns>Success when the message can be attempted.</returns>
-    private Result Validate(EmailMessage message)
+    private Result Validate(EmailMessage message, MailServerChoice choice)
     {
         if (message == null || string.IsNullOrWhiteSpace(message.ToAddress))
             return Result.Failure("A recipient address is required.");
@@ -264,40 +243,86 @@ public class SmtpEmailService : IEmailService
         if (string.IsNullOrWhiteSpace(message.Subject))
             return Result.Failure("A subject is required.");
 
-        if (string.IsNullOrWhiteSpace(smtpHost) || string.IsNullOrWhiteSpace(fromAddress))
+        if (choice == null || !choice.IsAvailable)
         {
-            logger.LogWarning("SMTP is not fully configured — set {HostKey} and EmailSettings:FromAddress", SmtpHostKey);
-            return Result.Failure("SMTP is not configured.");
+            logger.LogWarning("No mail server is set on the Settings screen or in configuration; nothing was sent");
+            return Result.Failure(NotSetMessage);
         }
 
         return Result.Success();
     }
 
     /// <summary>
-    /// Builds the transport message, including the bulk-mail unsubscribe header.
+    /// Checks the Settings-screen values before a test send.
+    /// </summary>
+    /// <param name="server">The values on the screen.</param>
+    /// <param name="toAddress">The address typed for the test.</param>
+    /// <returns>A sentence naming the problem, or null when the test can run.</returns>
+    private static string? CheckTestInput(SmtpSettings server, string toAddress)
+    {
+        if (server == null || string.IsNullOrWhiteSpace(server.Host))
+            return "Fill in the mail server (Host) first.";
+
+        if (string.IsNullOrWhiteSpace(server.FromAddress) && string.IsNullOrWhiteSpace(server.UserName))
+            return "Fill in the From address (or the Username) first.";
+
+        if (string.IsNullOrWhiteSpace(toAddress) || !MailAddress.TryCreate(toAddress.Trim(), out _))
+            return "Type the address the test mail should go to.";
+
+        return null;
+    }
+
+    /// <summary>
+    /// Turns a failed test send into the mail server's answer in its own words.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> HTML is preferred when present; the plain-text body is the
-    /// fallback. <c>List-Unsubscribe</c> is emitted whenever the caller supplied a URL, which every
-    /// newsletter message does.</para>
-    /// <para><b>Flow:</b> addresses → subject → body → optional unsubscribe header.</para>
-    /// <para><b>Side Effects:</b> None beyond allocating a disposable message.</para>
+    /// <para><b>Business Logic:</b> The SMTP status, then every message down the exception chain —
+    /// the innermost one is usually the server's reply or the socket error ("Connection refused",
+    /// "No such host is known"). Admin-only; see <see cref="SendTestMailAsync"/>.</para>
     /// </remarks>
-    /// <param name="message">The message to render.</param>
-    /// <returns>A configured <c>MailMessage</c> the caller must dispose.</returns>
-    private MailMessage BuildMailMessage(EmailMessage message)
+    /// <param name="failure">What the send threw.</param>
+    /// <param name="server">The values used, for the host and port.</param>
+    /// <returns>The answer to show.</returns>
+    private static string DescribeFailure(Exception failure, SmtpSettings server)
     {
+        if (failure is OperationCanceledException or TimeoutException)
+            return $"No answer from {server.Host}:{server.Port} within {SendTimeoutSeconds} seconds. " +
+                   "Check the host and port, and that the hosting provider does not block outgoing mail on that port.";
+
+        var parts = new List<string>();
+        if (failure is SmtpException smtpFailure)
+            parts.Add($"SMTP {(int)smtpFailure.StatusCode} ({smtpFailure.StatusCode})");
+
+        for (var current = failure; current != null; current = current.InnerException)
+        {
+            var text = current.Message?.Trim();
+            if (!string.IsNullOrEmpty(text) && !parts.Contains(text))
+                parts.Add(text);
+        }
+
+        return $"Refused by {server.Host}:{server.Port}: {string.Join(" — ", parts)}";
+    }
+
+    /// <summary>
+    /// Builds the transport message, including the bulk-mail unsubscribe header.
+    /// </summary>
+    /// <param name="message">The message to render.</param>
+    /// <param name="server">Supplies the sender address and name.</param>
+    /// <returns>A configured <c>MailMessage</c> the caller must dispose.</returns>
+    private static MailMessage BuildMailMessage(EmailMessage message, SmtpSettings server)
+    {
+        var fromAddress = string.IsNullOrWhiteSpace(server.FromAddress) ? server.UserName : server.FromAddress;
         var mailMessage = new MailMessage
         {
-            From = new MailAddress(fromAddress, fromName),
+            From = new MailAddress(fromAddress.Trim(), string.IsNullOrWhiteSpace(server.FromName) ? "TechieBlog" : server.FromName),
             Subject = message.Subject,
             Body = message.IsHtml ? message.HtmlBody : message.TextBody,
             IsBodyHtml = message.IsHtml
         };
 
         mailMessage.To.Add(string.IsNullOrWhiteSpace(message.ToName)
-            ? new MailAddress(message.ToAddress)
-            : new MailAddress(message.ToAddress, message.ToName));
+            ? new MailAddress(message.ToAddress.Trim())
+            : new MailAddress(message.ToAddress.Trim(), message.ToName));
 
         if (!string.IsNullOrWhiteSpace(message.UnsubscribeUrl))
             mailMessage.Headers.Add("List-Unsubscribe", $"<{message.UnsubscribeUrl}>");
@@ -306,41 +331,52 @@ public class SmtpEmailService : IEmailService
     }
 
     /// <summary>
-    /// Builds a per-send SMTP client from configuration.
+    /// Builds a per-send SMTP client.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> Anonymous relay is supported — credentials are attached only
-    /// when a user name is configured.</para>
-    /// <para><b>Flow:</b> host and port → TLS → timeout → optional credentials.</para>
-    /// <para><b>Side Effects:</b> None until a message is sent; the caller must dispose the client.</para>
+    /// <para><b>Business Logic:</b> Anonymous relay is supported — credentials are attached only when
+    /// a user name is set.</para>
     /// </remarks>
+    /// <param name="server">The mail server values.</param>
     /// <returns>A configured <c>SmtpClient</c>.</returns>
-    private SmtpClient BuildClient()
+    private static SmtpClient BuildClient(SmtpSettings server)
     {
-        var client = new SmtpClient(smtpHost, smtpPort)
+        var client = new SmtpClient(server.Host.Trim(), server.Port)
         {
-            EnableSsl = isSslEnabled,
-            Timeout = timeoutMilliseconds,
+            EnableSsl = server.IsSslEnabled,
             DeliveryMethod = SmtpDeliveryMethod.Network
         };
 
-        if (string.IsNullOrWhiteSpace(userName))
+        if (string.IsNullOrWhiteSpace(server.UserName))
             return client;
 
         client.UseDefaultCredentials = false;
-        client.Credentials = new NetworkCredential(userName, password);
+        client.Credentials = new NetworkCredential(server.UserName.Trim(), server.Password);
         return client;
+    }
+
+    /// <summary>
+    /// Builds the Settings screen's test mail.
+    /// </summary>
+    /// <param name="toAddress">The recipient.</param>
+    /// <param name="server">The values being tested, named in the body.</param>
+    /// <returns>The message.</returns>
+    private static EmailMessage BuildTestMessage(string toAddress, SmtpSettings server)
+    {
+        var host = WebUtility.HtmlEncode(server.Host);
+        return new EmailMessage
+        {
+            ToAddress = toAddress.Trim(),
+            Subject = "Test mail from your blog",
+            HtmlBody = $"<p>This is a test mail sent from the Settings screen through {host}:{server.Port}.</p>" +
+                       "<p>If you can read it, reader confirmations and password resets will reach their mailboxes.</p>",
+            TextBody = $"This is a test mail sent from the Settings screen through {server.Host}:{server.Port}."
+        };
     }
 
     /// <summary>
     /// Renders the password-reset email body.
     /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> The link is shown in full so a mail client that strips anchors
-    /// still leaves the user something to copy.</para>
-    /// <para><b>Flow:</b> interpolate the URL into a minimal HTML fragment.</para>
-    /// <para><b>Side Effects:</b> None; pure.</para>
-    /// </remarks>
     /// <param name="resetUrl">The absolute reset URL.</param>
     /// <returns>The HTML body.</returns>
     private static string BuildPasswordResetBody(string resetUrl)
@@ -349,29 +385,5 @@ public class SmtpEmailService : IEmailService
 <p><a href=""{resetUrl}"">Reset your password</a></p>
 <p>If the link does not work, copy this address into your browser:<br />{resetUrl}</p>
 <p>This link expires in 24 hours. If you did not request a reset, you can ignore this email.</p>";
-    }
-
-    /// <summary>
-    /// Reads an integer setting, falling back when it is absent or unparseable.
-    /// </summary>
-    /// <param name="configuration">Application configuration.</param>
-    /// <param name="key">Full configuration key.</param>
-    /// <param name="fallback">Value used when the key is missing or invalid.</param>
-    /// <returns>The configured value, or <paramref name="fallback"/>.</returns>
-    private static int ReadInt(IConfiguration configuration, string key, int fallback)
-    {
-        return int.TryParse(configuration[key], out var value) ? value : fallback;
-    }
-
-    /// <summary>
-    /// Reads a boolean setting, falling back when it is absent or unparseable.
-    /// </summary>
-    /// <param name="configuration">Application configuration.</param>
-    /// <param name="key">Full configuration key.</param>
-    /// <param name="fallback">Value used when the key is missing or invalid.</param>
-    /// <returns>The configured value, or <paramref name="fallback"/>.</returns>
-    private static bool ReadBool(IConfiguration configuration, string key, bool fallback)
-    {
-        return bool.TryParse(configuration[key], out var value) ? value : fallback;
     }
 }

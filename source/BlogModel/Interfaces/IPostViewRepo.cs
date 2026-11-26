@@ -44,6 +44,30 @@ public interface IPostViewRepo
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Records a view with its referring site — REQ-UI-071 (BRD-111).
+    /// </summary>
+    /// <remarks>
+    /// The default body drops the referrer and calls the four-argument overload, so an
+    /// implementation that predates the referring-site column (a test fake) keeps working; the
+    /// production repository overrides it and stores the host.
+    /// </remarks>
+    /// <param name="postId">The viewed post.</param>
+    /// <param name="visitorHash">Salted visitor fingerprint.</param>
+    /// <param name="viewedOn">When the view happened (UTC).</param>
+    /// <param name="dedupeWindowHours">De-duplication window in hours.</param>
+    /// <param name="referrerHost">Referring host, or <c>null</c> for direct or unknown.</param>
+    /// <param name="cancellationToken">Cancels the statement.</param>
+    /// <returns><c>true</c> when a new view row was written.</returns>
+    Task<bool> RecordViewAsync(
+        long postId,
+        string visitorHash,
+        DateTime viewedOn,
+        int dedupeWindowHours,
+        string? referrerHost,
+        CancellationToken cancellationToken = default)
+        => RecordViewAsync(postId, visitorHash, viewedOn, dedupeWindowHours, cancellationToken);
+
+    /// <summary>
     /// Reads total and unique view counts for one post.
     /// </summary>
     /// <param name="postId">The post to count.</param>

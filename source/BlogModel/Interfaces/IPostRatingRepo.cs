@@ -265,4 +265,31 @@ public interface IPostRatingRepo : IGenericRepository<PostRating>
     /// that distinction matters.</returns>
     Task DeleteAsync(long ratingId, CancellationToken cancellationToken = default)
         => RepoSyncBridge.Run(() => Delete(ratingId), cancellationToken);
+
+    /// <summary>
+    /// Confirmed-rating average and count for many posts in one call — REQ-UI-068 (BRD-108).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> only confirmed ratings count (REQ-FN-063). A post with no
+    /// confirmed rating is absent from the result; callers treat a missing key as zero.</para>
+    /// <para><b>Default body:</b> one <see cref="GetStatsByPostAsync"/> per id, so a test fake that
+    /// predates this member still answers correctly. The production repository overrides it with a
+    /// single grouped query, so the Posts list never issues one query per row.</para>
+    /// </remarks>
+    /// <param name="postIds">The posts to summarise.</param>
+    /// <param name="cancellationToken">Cancels the query.</param>
+    /// <returns>Statistics keyed by post id; never <c>null</c>.</returns>
+    async Task<IReadOnlyDictionary<long, PostRatingStats>> GetStatsForPostsAsync(
+        IReadOnlyCollection<long> postIds, CancellationToken cancellationToken = default)
+    {
+        var result = new Dictionary<long, PostRatingStats>();
+        foreach (var postId in postIds.Distinct())
+        {
+            var stats = await GetStatsByPostAsync(postId, cancellationToken).ConfigureAwait(false);
+            if (stats.RatingCount > 0)
+                result[postId] = stats;
+        }
+
+        return result;
+    }
 }

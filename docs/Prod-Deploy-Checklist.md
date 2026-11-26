@@ -472,7 +472,7 @@ That single file is the only place on the server they appear.
 | `DB_PASSWORD` | The blog's database password. GitHub writes it into the app's connection string. | Runbook Step 6 |
 | `SEQ_API_KEY` | Identifies the blog to Seq. **Repo-level and per-app** — never shared with another app. It stamps `App = techieblog` on every event *server-side*, so logs stay attributable even if the app's own enrichment is wrong, and this one app can be revoked or throttled without touching the others. Shipping works without it, unattributed. | **You create it** — Seq UI → Settings → API Keys, per §2 step 3 |
 | `JWT_SIGNING_KEY` | The signature on your sign-in tokens — it proves a session cookie was issued by your site and not forged by someone else. | You generate |
-| `APP_ENCRYPTION_KEY` | The lock on credentials the blog stores in its own database: the SMTP password and the cloud-storage key. Without it those would sit in the database readable by anyone who opened it. | You generate |
+| `APP_ENCRYPTION_KEY` | The lock on credentials the blog stores in its own database: the mail (SMTP) password entered on the Settings screen and the cloud-storage key. Without it those would sit in the database readable by anyone who opened it. **Mail itself needs no secret here** — it is set on the Settings screen after deploy (§7 step 6). | You generate |
 | `ANALYTICS_VISITOR_SALT` | Turns each visitor's IP address into an unreadable fingerprint before it is stored, so you can count unique visitors without keeping anyone's IP. | You generate |
 | `TrBlazeUiPackagesToken` | Lets the build download your private TrBlazeUI packages. Build-time only. | You generate (§5) |
 
@@ -505,7 +505,7 @@ These are effectively **write-once for the life of the deployment**:
 | Rotating… | Consequence |
 |-----------|-------------|
 | `JWT_SIGNING_KEY` | Every existing session cookie becomes invalid. Every signed-in user is silently signed out on their next request. Recoverable, but everyone sees it. |
-| `APP_ENCRYPTION_KEY` | Every value already encrypted under the old key is **permanently unreadable**: the SMTP password and cloud storage key must be re-entered by hand. Worse, they *look* present in the admin UI while failing at use. |
+| `APP_ENCRYPTION_KEY` | Every value already encrypted under the old key is **permanently unreadable**: the SMTP password and cloud storage key must be re-entered by hand. Worse, they *look* present in the admin UI while failing at use — after re-entering the mail password, press **Send test mail** on Settings → Email to prove it. |
 | `ANALYTICS_VISITOR_SALT` | Every stored visitor pseudonym stops matching. Unique-view counts jump, de-duplication restarts from zero, and old and new digests can never be reconciled. **Treat as write-once.** |
 
 `SiteSettings:BaseUrl` is **not** a secret — the compose template hard-codes
@@ -715,7 +715,22 @@ restart-looping`** (a crash-looping `techieblog` shows up here even when `verify
 container) and **`caddy config valid`** (the pipeline installs a site snippet; this proves it did not
 break the shared Caddyfile for the other apps on the box). It also re-confirms `seq container up`.
 
-**6. Add the uptime monitor.** UptimeRobot → **Add New Monitor** → **HTTP(s)** → URL
+**6. Set up mail — the site cannot confirm a single reader until you do.** There is **no mail secret
+and no mail environment value** in this pipeline, and none is needed: the mail server is set on the
+Settings screen, stored in the database (the password encrypted under `APP_ENCRYPTION_KEY`), and read
+at every send. Until it is set, the admin dashboard shows **"No mail server is set"** and the rating,
+comment and subscribe forms tell readers confirmation is not available. (This is how a reader's rating
+was lost on 2026-11-26: the live site had no mail server and the confirmation link only went to the
+log.) Clicks: sign in at `https://techierathore.com/login` → **Settings** → **Email** tab → fill Host,
+Port `587`, Username, Password, From address, From name, tick **Use SSL/TLS** → type your own address
+under **Send test mail** → **Send test mail** → wait for the green "accepted" answer and check the
+mailbox → **Save Settings** → **Dashboard**: the warning is gone. The Gmail and own-domain values are in
+`docs/TechieBlog-UsageGuide.md` → "Set up mail". Port 465 is not supported — use 587. If the answer is
+**"No answer from … within 30 seconds"**, the VPS provider is blocking outgoing mail: ask Bluehost to
+open port 587, or use a mail host they allow. Then rate one post yourself with a real address, open the
+mail, click the link, and see the count go up.
+
+**7. Add the uptime monitor.** UptimeRobot → **Add New Monitor** → **HTTP(s)** → URL
 `https://techierathore.com/healthz` → interval 5 minutes → alert after 2 consecutive failures. Same
 URL the `verify` job probes: one URL, one meaning.
 

@@ -1,0 +1,991 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TechieBlog Deployment Guide</title>
+<script>
+/* Resolve the theme BEFORE first paint (no flash). Saved choice wins; otherwise
+   pick by time of day — light 07:00–19:00 local, softened dark at night. */
+(function(){
+  try{
+    var t = localStorage.getItem('tf-theme');
+    if(t!=='light' && t!=='dark'){ var h = new Date().getHours(); t = (h>=7 && h<19) ? 'light' : 'dark'; }
+    document.documentElement.setAttribute('data-theme', t);
+  }catch(e){ document.documentElement.setAttribute('data-theme','light'); }
+})();
+</script>
+<style>
+/* LIGHT is the default theme — a warm off-white, easy on the eyes (never bright white). */
+:root{
+  --bg:#f4f1e9; --panel:#efe9db; --panel2:#e7e0cd; --line:#d8cfb6;
+  --ink:#2e2a22; --muted:#6f6857; --accent:#2f6f9f; --accent2:#3f7d54;
+  --warn:#9a6b15; --danger:#b03a52; --ok:#3f7d54;
+  --code-bg:#ece5d3; --code-ink:#332f26; --row-alt:#eae2cf;
+  --h3:#3a352b; --h4:#2f6f9f; --quote:#4a4537; --cta-bg:#e6eef5;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+/* DARK — softened near-black (warmer / less harsh than pure #0f1115). */
+html[data-theme="dark"]{
+  --bg:#11141a; --panel:#171b23; --panel2:#1e2430; --line:#2b3240;
+  --ink:#dfe3ea; --muted:#99a2b1; --accent:#7cc4ff; --accent2:#a6e3a1;
+  --warn:#f9c74f; --danger:#f38ba8; --ok:#a6e3a1;
+  --code-bg:#0c1016; --code-ink:#d8dde8; --row-alt:#141821;
+  --h3:#cfd5e3; --h4:#7cc4ff; --quote:#cfd5e3; --cta-bg:#0d2030;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;font-size:15px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:var(--mono);font-size:13px;background:var(--code-bg);color:var(--code-ink);padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+pre{font-family:var(--mono);font-size:12.5px;background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto;color:var(--code-ink);position:relative}
+pre code{background:none;border:none;padding:0}
+.copy{position:absolute;top:8px;right:8px;background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:11px;font-family:var(--sans);cursor:pointer}
+.copy:hover{color:var(--accent);border-color:var(--accent)}
+/* floating light/dark toggle (top-right) */
+.theme-toggle{position:fixed;top:12px;right:14px;z-index:10000;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12.5px;font-family:var(--sans);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.theme-toggle:hover{color:var(--accent);border-color:var(--accent)}
+
+.layout{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+.layout.no-toc{grid-template-columns:1fr}
+nav.side{position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--line);background:var(--panel);padding:18px 14px}
+nav.side h1{font-size:14px;margin:0 0 4px;letter-spacing:.5px;color:var(--ink)}
+nav.side .sub{font-size:11.5px;color:var(--muted);margin-bottom:14px}
+nav.side ol,nav.side ul{list-style:none;padding:0;margin:0}
+nav.side li{font-size:13px;margin:2px 0}
+nav.side li a{display:block;padding:5px 8px;color:var(--ink);border-radius:6px}
+nav.side li a:hover{background:var(--panel2);text-decoration:none}
+nav.side li.h3 a{padding-left:22px;font-size:12.5px;color:var(--h3)}
+nav.side .group{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin:14px 8px 4px}
+
+main{padding:28px 40px 80px;max-width:1100px}
+.layout.no-toc main{margin:0 auto}
+
+h1{font-size:28px;margin:0 0 6px}
+h2{font-size:22px;margin:32px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);scroll-margin-top:16px}
+h3{font-size:17px;margin:22px 0 6px;color:var(--h3);scroll-margin-top:16px}
+h4{font-size:14px;margin:14px 0 4px;color:var(--h4);scroll-margin-top:16px}
+.subtitle{color:var(--muted);font-size:14px;margin-top:-4px;margin-bottom:18px}
+p{margin:6px 0 10px}
+blockquote{border-left:3px solid var(--accent);background:var(--panel);margin:8px 0;padding:8px 14px;color:var(--quote)}
+ul,ol{padding-left:22px}
+li{margin:2px 0}
+
+table{border-collapse:collapse;width:100%;font-size:13.5px;margin:8px 0}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--panel2);color:var(--h3);font-weight:600}
+tr:nth-child(even) td{background:var(--row-alt)}
+
+hr{border:none;border-top:1px solid var(--line);margin:24px 0}
+.anchor-link{color:var(--muted);font-weight:400;font-size:0.85em;margin-left:8px;opacity:0;transition:opacity .15s;text-decoration:none}
+h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
+
+/* inline TOC at top of main content */
+.toc-inline{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 16px;margin:14px 0 24px}
+.toc-inline > div{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.toc-inline ol,.toc-inline ul{margin:4px 0;padding-left:18px}
+.toc-inline li{font-size:13px;margin:1px 0}
+.toc-inline a{color:var(--h3)}
+
+/* mermaid diagram wrapper + toolbar */
+.diagram{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--code-bg);margin:14px 0;overflow:hidden}
+.diagram .mermaid{padding:14px;margin:0;background:transparent;border:none;overflow:auto}
+.diagram .dt{display:flex;gap:6px;justify-content:flex-end;padding:6px 8px;background:var(--row-alt);border-bottom:1px solid var(--line)}
+.diagram .dt button{background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 10px;font-size:12px;font-family:var(--sans);cursor:pointer;min-width:30px}
+.diagram .dt button:hover{color:var(--accent);border-color:var(--accent)}
+.diagram .dt .zlabel{padding:3px 6px;font-size:11px;color:var(--muted);font-family:var(--mono);align-self:center}
+.diagram.fs{position:fixed;inset:0;z-index:9999;border-radius:0;border:none}
+.diagram.fs .mermaid{height:calc(100vh - 40px);display:flex;align-items:center;justify-content:center}
+
+@media(max-width:900px){.layout{grid-template-columns:1fr}nav.side{position:static;height:auto}}
+</style>
+</head>
+<body>
+<button id="themeToggle" class="theme-toggle" title="Toggle light / dark">&#9790; Dark</button>
+<div class="layout">
+  <nav class="side">
+    <h1>TechieBlog Deployment Guide</h1>
+    <div class="sub">Last rendered: 2026-11-26</div>
+    <div class="group">Contents</div>
+    <ol>
+        <li><a href="#table-of-contents">Table of Contents</a></li>
+        <li><a href="#pre-deployment-checklist">Pre-Deployment Checklist</a></li>
+        <li><a href="#configuration-for-production">Configuration for Production</a></li>
+        <li class="h3"><a href="#create-production-configuration">Create Production Configuration</a></li>
+        <li class="h3"><a href="#security-recommendations">Security Recommendations</a></li>
+        <li><a href="#deployment-options">Deployment Options</a></li>
+        <li class="h3"><a href="#docker-deployment">Docker Deployment</a></li>
+        <li class="h3"><a href="#azure-app-service">Azure App Service</a></li>
+        <li class="h3"><a href="#linux-server">Linux Server</a></li>
+        <li class="h3"><a href="#windows-server-iis">Windows Server / IIS</a></li>
+        <li><a href="#database-setup">Database Setup</a></li>
+        <li class="h3"><a href="#postgresql-production-setup">PostgreSQL Production Setup</a></li>
+        <li class="h3"><a href="#run-migrations">Run Migrations</a></li>
+        <li><a href="#ssl-https-configuration">SSL/HTTPS Configuration</a></li>
+        <li class="h3"><a href="#force-https">Force HTTPS</a></li>
+        <li class="h3"><a href="#hsts-headers">HSTS Headers</a></li>
+        <li><a href="#environment-variables">Environment Variables</a></li>
+        <li class="h3"><a href="#setting-in-docker">Setting in Docker</a></li>
+        <li class="h3"><a href="#setting-in-linux">Setting in Linux</a></li>
+        <li class="h3"><a href="#setting-in-azure">Setting in Azure</a></li>
+        <li><a href="#health-checks-monitoring">Health Checks &amp;amp; Monitoring</a></li>
+        <li class="h3"><a href="#health-check-endpoint">Health Check Endpoint</a></li>
+        <li class="h3"><a href="#monitoring-with-uptime-tools">Monitoring with Uptime Tools</a></li>
+        <li class="h3"><a href="#logging">Logging</a></li>
+        <li><a href="#backup-recovery">Backup &amp;amp; Recovery</a></li>
+        <li class="h3"><a href="#database-backup">Database Backup</a></li>
+        <li class="h3"><a href="#restore-from-backup">Restore from Backup</a></li>
+        <li class="h3"><a href="#image-backup">Image Backup</a></li>
+        <li class="h3"><a href="#automated-backup-script">Automated Backup Script</a></li>
+        <li><a href="#troubleshooting">Troubleshooting</a></li>
+        <li class="h3"><a href="#application-won-t-start">Application Won&#x27;t Start</a></li>
+        <li class="h3"><a href="#bad-gateway-nginx">502 Bad Gateway (Nginx)</a></li>
+        <li class="h3"><a href="#database-connection-failed">Database Connection Failed</a></li>
+        <li class="h3"><a href="#ssl-certificate-issues">SSL Certificate Issues</a></li>
+        <li class="h3"><a href="#high-memory-usage">High Memory Usage</a></li>
+        <li><a href="#quick-reference">Quick Reference</a></li>
+        <li class="h3"><a href="#common-commands">Common Commands</a></li>
+        <li class="h3"><a href="#port-reference">Port Reference</a></li>
+        <li><a href="#need-help">Need Help?</a></li>
+    </ol>
+  </nav>
+  <main>
+    <h1>TechieBlog Deployment Guide</h1>
+    <div class="subtitle">Rendered 2026-11-26 &middot; source <code>deployment.md</code></div>
+
+    <div class="toc-inline">
+      <div>Contents</div>
+      <ol>
+        <li><a href="#table-of-contents">Table of Contents</a></li>
+        <li><a href="#pre-deployment-checklist">Pre-Deployment Checklist</a></li>
+        <li><a href="#configuration-for-production">Configuration for Production</a></li>
+        <li class="h3"><a href="#create-production-configuration">Create Production Configuration</a></li>
+        <li class="h3"><a href="#security-recommendations">Security Recommendations</a></li>
+        <li><a href="#deployment-options">Deployment Options</a></li>
+        <li class="h3"><a href="#docker-deployment">Docker Deployment</a></li>
+        <li class="h3"><a href="#azure-app-service">Azure App Service</a></li>
+        <li class="h3"><a href="#linux-server">Linux Server</a></li>
+        <li class="h3"><a href="#windows-server-iis">Windows Server / IIS</a></li>
+        <li><a href="#database-setup">Database Setup</a></li>
+        <li class="h3"><a href="#postgresql-production-setup">PostgreSQL Production Setup</a></li>
+        <li class="h3"><a href="#run-migrations">Run Migrations</a></li>
+        <li><a href="#ssl-https-configuration">SSL/HTTPS Configuration</a></li>
+        <li class="h3"><a href="#force-https">Force HTTPS</a></li>
+        <li class="h3"><a href="#hsts-headers">HSTS Headers</a></li>
+        <li><a href="#environment-variables">Environment Variables</a></li>
+        <li class="h3"><a href="#setting-in-docker">Setting in Docker</a></li>
+        <li class="h3"><a href="#setting-in-linux">Setting in Linux</a></li>
+        <li class="h3"><a href="#setting-in-azure">Setting in Azure</a></li>
+        <li><a href="#health-checks-monitoring">Health Checks &amp;amp; Monitoring</a></li>
+        <li class="h3"><a href="#health-check-endpoint">Health Check Endpoint</a></li>
+        <li class="h3"><a href="#monitoring-with-uptime-tools">Monitoring with Uptime Tools</a></li>
+        <li class="h3"><a href="#logging">Logging</a></li>
+        <li><a href="#backup-recovery">Backup &amp;amp; Recovery</a></li>
+        <li class="h3"><a href="#database-backup">Database Backup</a></li>
+        <li class="h3"><a href="#restore-from-backup">Restore from Backup</a></li>
+        <li class="h3"><a href="#image-backup">Image Backup</a></li>
+        <li class="h3"><a href="#automated-backup-script">Automated Backup Script</a></li>
+        <li><a href="#troubleshooting">Troubleshooting</a></li>
+        <li class="h3"><a href="#application-won-t-start">Application Won&#x27;t Start</a></li>
+        <li class="h3"><a href="#bad-gateway-nginx">502 Bad Gateway (Nginx)</a></li>
+        <li class="h3"><a href="#database-connection-failed">Database Connection Failed</a></li>
+        <li class="h3"><a href="#ssl-certificate-issues">SSL Certificate Issues</a></li>
+        <li class="h3"><a href="#high-memory-usage">High Memory Usage</a></li>
+        <li><a href="#quick-reference">Quick Reference</a></li>
+        <li class="h3"><a href="#common-commands">Common Commands</a></li>
+        <li class="h3"><a href="#port-reference">Port Reference</a></li>
+        <li><a href="#need-help">Need Help?</a></li>
+      </ol>
+    </div>
+<p>This guide covers deploying TechieBlog to various production environments.</p>
+<hr>
+<h2 id="table-of-contents">Table of Contents<a class="anchor-link" href="#table-of-contents">#</a></h2>
+<ol>
+<li><a href="#pre-deployment-checklist">Pre-Deployment Checklist</a>
+</li>
+<li><a href="#configuration-for-production">Configuration for Production</a>
+</li>
+<li><a href="#deployment-options">Deployment Options</a>
+<ul>
+<li><a href="#docker-deployment">Docker</a>
+</li>
+<li><a href="#azure-app-service">Azure App Service</a>
+</li>
+<li><a href="#linux-server">Linux Server (Ubuntu/Debian)</a>
+</li>
+<li><a href="#windows-server--iis">Windows Server / IIS</a>
+</li>
+</ul>
+</li>
+<li><a href="#database-setup">Database Setup</a>
+</li>
+<li><a href="#sslhttps-configuration">SSL/HTTPS Configuration</a>
+</li>
+<li><a href="#environment-variables">Environment Variables</a>
+</li>
+<li><a href="#health-checks--monitoring">Health Checks &amp; Monitoring</a>
+</li>
+<li><a href="#backup--recovery">Backup &amp; Recovery</a>
+</li>
+<li><a href="#troubleshooting">Troubleshooting</a>
+</li>
+</ol>
+<hr>
+<h2 id="pre-deployment-checklist">Pre-Deployment Checklist<a class="anchor-link" href="#pre-deployment-checklist">#</a></h2>
+<p>Before deploying to production:</p>
+<ul>
+<li>[ ] Change default admin password
+</li>
+<li>[ ] Update <code>appsettings.Production.json</code> with real values
+</li>
+<li>[ ] After the first start, set the mail server on <strong>Settings → Email</strong> and press <strong>Send test mail</strong> (no configuration file or environment value is needed; see the Usage Guide, "Set up mail")
+</li>
+<li>[ ] Set up PostgreSQL database
+</li>
+<li>[ ] Configure SSL certificate
+</li>
+<li>[ ] Set up backup strategy
+</li>
+<li>[ ] Review security settings
+</li>
+<li>[ ] Test locally in Release mode
+</li>
+</ul>
+<hr>
+<h2 id="configuration-for-production">Configuration for Production<a class="anchor-link" href="#configuration-for-production">#</a></h2>
+<h3 id="create-production-configuration">Create Production Configuration<a class="anchor-link" href="#create-production-configuration">#</a></h3>
+<p>Create <code>source/TechieBlog/appsettings.Production.json</code>:</p>
+<pre><code class="language-json">{
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=your-db-server;Port=5432;Database=techieblog;Username=techieblog_user;Password=STRONG_PASSWORD_HERE"
+  },
+  "SiteSettings": {
+    "SiteName": "My Blog",
+    "SiteDescription": "Welcome to my blog",
+    "SiteUrl": "https://myblog.com",
+    "Theme": "fluent-modern",
+    "PostsPerPage": 10,
+    "AllowRegistration": true,
+    "AllowComments": true,
+    "RequireCommentApproval": true
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Warning",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "myblog.com;www.myblog.com"
+}</code></pre>
+<h3 id="security-recommendations">Security Recommendations<a class="anchor-link" href="#security-recommendations">#</a></h3>
+<ol>
+<li><strong>Never commit production secrets</strong> - Use environment variables or secret managers
+</li>
+<li><strong>Use strong database passwords</strong> - 20+ characters, mixed case, numbers, symbols
+</li>
+<li><strong>Enable HTTPS only</strong> - Redirect all HTTP to HTTPS
+</li>
+<li><strong>Set AllowedHosts</strong> - Prevent host header attacks
+</li>
+<li><strong>Enable rate limiting</strong> - Protect against brute force
+</li>
+</ol>
+<hr>
+<h2 id="deployment-options">Deployment Options<a class="anchor-link" href="#deployment-options">#</a></h2>
+<h3 id="docker-deployment">Docker Deployment<a class="anchor-link" href="#docker-deployment">#</a></h3>
+<h4 id="dockerfile">Dockerfile<a class="anchor-link" href="#dockerfile">#</a></h4>
+<p>Create <code>Dockerfile</code> in the root:</p>
+<pre><code class="language-dockerfile"># Build stage
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+# Copy solution and project files
+COPY TechieBlog.slnx .
+COPY source/ source/
+
+# Restore and build
+RUN dotnet restore
+RUN dotnet publish source/TechieBlog/TechieBlog.csproj -c Release -o /app/publish
+
+# Runtime stage
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+
+# Install PostgreSQL client for health checks (optional)
+RUN apt-get update &amp;&amp; apt-get install -y postgresql-client &amp;&amp; rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /app/publish .
+
+# Create directory for uploaded images
+RUN mkdir -p /app/BlogImages
+
+EXPOSE 8080
+ENV ASPNETCORE_URLS=http://+:8080
+ENV ASPNETCORE_ENVIRONMENT=Production
+
+ENTRYPOINT ["dotnet", "TechieBlog.dll"]</code></pre>
+<h4 id="docker-compose">Docker Compose<a class="anchor-link" href="#docker-compose">#</a></h4>
+<p>Create <code>docker-compose.yml</code>:</p>
+<pre><code class="language-yaml">version: '3.8'
+
+services:
+  techieblog:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=techieblog;Username=techieblog;Password=${DB_PASSWORD}
+    depends_on:
+      - db
+    volumes:
+      - blog-images:/app/BlogImages
+    restart: unless-stopped
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=techieblog
+      - POSTGRES_USER=techieblog
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  blog-images:</code></pre>
+<h4 id="deploy-with-docker">Deploy with Docker<a class="anchor-link" href="#deploy-with-docker">#</a></h4>
+<pre><code class="language-bash"># Set environment variables
+export DB_PASSWORD=your-strong-password
+
+# Build and start
+docker-compose up -d
+
+# View logs
+docker-compose logs -f techieblog
+
+# Stop
+docker-compose down</code></pre>
+<hr>
+<h3 id="azure-app-service">Azure App Service<a class="anchor-link" href="#azure-app-service">#</a></h3>
+<h4 id="prerequisites">Prerequisites<a class="anchor-link" href="#prerequisites">#</a></h4>
+<ul>
+<li>Azure subscription
+</li>
+<li>Azure CLI installed
+</li>
+<li>PostgreSQL database (Azure Database for PostgreSQL or external)
+</li>
+</ul>
+<h4 id="step-1-create-resources">Step 1: Create Resources<a class="anchor-link" href="#step-1-create-resources">#</a></h4>
+<pre><code class="language-bash"># Login to Azure
+az login
+
+# Create resource group
+az group create --name techieblog-rg --location eastus
+
+# Create App Service plan
+az appservice plan create \
+  --name techieblog-plan \
+  --resource-group techieblog-rg \
+  --sku B1 \
+  --is-linux
+
+# Create Web App
+az webapp create \
+  --name techieblog-app \
+  --resource-group techieblog-rg \
+  --plan techieblog-plan \
+  --runtime "DOTNET|10.0"</code></pre>
+<h4 id="step-2-configure-app-settings">Step 2: Configure App Settings<a class="anchor-link" href="#step-2-configure-app-settings">#</a></h4>
+<pre><code class="language-bash"># Set connection string
+az webapp config connection-string set \
+  --name techieblog-app \
+  --resource-group techieblog-rg \
+  --settings DefaultConnection="Host=your-postgres.postgres.database.azure.com;Database=techieblog;Username=admin@your-postgres;Password=YOUR_PASSWORD;SSL Mode=Require" \
+  --connection-string-type PostgreSQL
+
+# Set app settings
+az webapp config appsettings set \
+  --name techieblog-app \
+  --resource-group techieblog-rg \
+  --settings \
+    ASPNETCORE_ENVIRONMENT=Production \
+    SiteSettings__SiteUrl=https://techieblog-app.azurewebsites.net</code></pre>
+<h4 id="step-3-deploy">Step 3: Deploy<a class="anchor-link" href="#step-3-deploy">#</a></h4>
+<p><strong>Option A: GitHub Actions (Recommended)</strong></p>
+<p>Create <code>.github/workflows/azure-deploy.yml</code>:</p>
+<pre><code class="language-yaml">name: Deploy to Azure
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build
+        run: dotnet publish source/TechieBlog/TechieBlog.csproj -c Release -o ./publish
+
+      - name: Deploy to Azure
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: techieblog-app
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ./publish</code></pre>
+<p><strong>Option B: Direct Publish</strong></p>
+<pre><code class="language-bash"># Publish locally
+dotnet publish source/TechieBlog/TechieBlog.csproj -c Release -o ./publish
+
+# Deploy using Azure CLI
+az webapp deploy \
+  --name techieblog-app \
+  --resource-group techieblog-rg \
+  --src-path ./publish.zip \
+  --type zip</code></pre>
+<hr>
+<h3 id="linux-server">Linux Server<a class="anchor-link" href="#linux-server">#</a></h3>
+<h4 id="prerequisites-2"><a id="prerequisites-1"></a>Prerequisites<a class="anchor-link" href="#prerequisites-2">#</a></h4>
+<ul>
+<li>Ubuntu 22.04+ or Debian 11+
+</li>
+<li>sudo access
+</li>
+<li>Domain name pointing to server
+</li>
+</ul>
+<h4 id="step-1-install-dependencies">Step 1: Install Dependencies<a class="anchor-link" href="#step-1-install-dependencies">#</a></h4>
+<pre><code class="language-bash"># Update system
+sudo apt update &amp;&amp; sudo apt upgrade -y
+
+# Install .NET 10 runtime
+wget https://dot.net/v1/dotnet-install.sh
+chmod +x dotnet-install.sh
+./dotnet-install.sh --runtime aspnetcore --version 10.0
+
+# Add to PATH
+echo 'export DOTNET_ROOT=$HOME/.dotnet' &gt;&gt; ~/.bashrc
+echo 'export PATH=$PATH:$DOTNET_ROOT' &gt;&gt; ~/.bashrc
+source ~/.bashrc
+
+# Install PostgreSQL
+sudo apt install -y postgresql postgresql-contrib
+
+# Install Nginx
+sudo apt install -y nginx</code></pre>
+<h4 id="step-2-setup-database">Step 2: Setup Database<a class="anchor-link" href="#step-2-setup-database">#</a></h4>
+<pre><code class="language-bash"># Switch to postgres user
+sudo -u postgres psql
+
+# Create database and user
+CREATE DATABASE techieblog;
+CREATE USER techieblog_user WITH ENCRYPTED PASSWORD 'your-strong-password';
+GRANT ALL PRIVILEGES ON DATABASE techieblog TO techieblog_user;
+\q</code></pre>
+<h4 id="step-3-deploy-application">Step 3: Deploy Application<a class="anchor-link" href="#step-3-deploy-application">#</a></h4>
+<pre><code class="language-bash"># Create app directory
+sudo mkdir -p /var/www/techieblog
+sudo chown $USER:$USER /var/www/techieblog
+
+# Copy published files (from your build machine)
+# scp -r ./publish/* user@server:/var/www/techieblog/
+
+# Create appsettings.Production.json
+sudo nano /var/www/techieblog/appsettings.Production.json</code></pre>
+<h4 id="step-4-create-systemd-service">Step 4: Create Systemd Service<a class="anchor-link" href="#step-4-create-systemd-service">#</a></h4>
+<p>Create <code>/etc/systemd/system/techieblog.service</code>:</p>
+<pre><code class="language-ini">[Unit]
+Description=TechieBlog
+After=network.target postgresql.service
+
+[Service]
+WorkingDirectory=/var/www/techieblog
+ExecStart=/home/youruser/.dotnet/dotnet /var/www/techieblog/TechieBlog.dll
+Restart=always
+RestartSec=10
+KillSignal=SIGINT
+SyslogIdentifier=techieblog
+User=www-data
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+<p>Enable and start:</p>
+<pre><code class="language-bash">sudo systemctl enable techieblog
+sudo systemctl start techieblog
+sudo systemctl status techieblog</code></pre>
+<h4 id="step-5-configure-nginx">Step 5: Configure Nginx<a class="anchor-link" href="#step-5-configure-nginx">#</a></h4>
+<p>Create <code>/etc/nginx/sites-available/techieblog</code>:</p>
+<pre><code class="language-nginx">server {
+    listen 80;
+    server_name myblog.com www.myblog.com;
+
+    location / {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection keep-alive;
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Increase max upload size for images
+    client_max_body_size 10M;
+}</code></pre>
+<p>Enable site:</p>
+<pre><code class="language-bash">sudo ln -s /etc/nginx/sites-available/techieblog /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx</code></pre>
+<h4 id="step-6-setup-ssl-with-let-s-encrypt"><a id="step-6-setup-ssl-with-lets-encrypt"></a>Step 6: Setup SSL with Let's Encrypt<a class="anchor-link" href="#step-6-setup-ssl-with-let-s-encrypt">#</a></h4>
+<pre><code class="language-bash"># Install Certbot
+sudo apt install -y certbot python3-certbot-nginx
+
+# Get certificate
+sudo certbot --nginx -d myblog.com -d www.myblog.com
+
+# Auto-renewal is configured automatically</code></pre>
+<hr>
+<h3 id="windows-server-iis"><a id="windows-server--iis"></a>Windows Server / IIS<a class="anchor-link" href="#windows-server-iis">#</a></h3>
+<h4 id="prerequisites-3"><a id="prerequisites-2"></a>Prerequisites<a class="anchor-link" href="#prerequisites-3">#</a></h4>
+<ul>
+<li>Windows Server 2019+
+</li>
+<li>IIS installed
+</li>
+<li>.NET 10 Hosting Bundle
+</li>
+</ul>
+<h4 id="step-1-install-hosting-bundle">Step 1: Install Hosting Bundle<a class="anchor-link" href="#step-1-install-hosting-bundle">#</a></h4>
+<p>Download and install the <a href="https://dotnet.microsoft.com/download/dotnet/10.0">.NET 10 Hosting Bundle</a> on the server.</p>
+<h4 id="step-2-create-iis-site">Step 2: Create IIS Site<a class="anchor-link" href="#step-2-create-iis-site">#</a></h4>
+<ol>
+<li>Open IIS Manager
+</li>
+<li>Right-click "Sites" → "Add Website"
+</li>
+<li>Configure:
+<ul>
+<li>Site name: <code>TechieBlog</code>
+</li>
+<li>Physical path: <code>C:\inetpub\techieblog</code>
+</li>
+<li>Binding: Choose your domain and port
+</li>
+</ul>
+</li>
+</ol>
+<h4 id="step-3-configure-application-pool">Step 3: Configure Application Pool<a class="anchor-link" href="#step-3-configure-application-pool">#</a></h4>
+<ol>
+<li>Select the application pool
+</li>
+<li>Set .NET CLR version to "No Managed Code"
+</li>
+<li>Set "Start Mode" to "AlwaysRunning" (optional, for faster cold starts)
+</li>
+</ol>
+<h4 id="step-4-deploy-files">Step 4: Deploy Files<a class="anchor-link" href="#step-4-deploy-files">#</a></h4>
+<p>Publish and copy to <code>C:\inetpub\techieblog\</code>:</p>
+<pre><code class="language-powershell">dotnet publish source/TechieBlog/TechieBlog.csproj -c Release -o C:\inetpub\techieblog</code></pre>
+<h4 id="step-5-set-permissions">Step 5: Set Permissions<a class="anchor-link" href="#step-5-set-permissions">#</a></h4>
+<pre><code class="language-powershell"># Grant IIS_IUSRS permissions
+icacls "C:\inetpub\techieblog" /grant "IIS_IUSRS:(OI)(CI)M"
+icacls "C:\inetpub\techieblog\BlogImages" /grant "IIS_IUSRS:(OI)(CI)M"</code></pre>
+<hr>
+<h2 id="database-setup">Database Setup<a class="anchor-link" href="#database-setup">#</a></h2>
+<h3 id="postgresql-production-setup">PostgreSQL Production Setup<a class="anchor-link" href="#postgresql-production-setup">#</a></h3>
+<pre><code class="language-sql">-- Connect as superuser
+psql -U postgres
+
+-- Create database
+CREATE DATABASE techieblog
+    WITH ENCODING = 'UTF8'
+    LC_COLLATE = 'en_US.UTF-8'
+    LC_CTYPE = 'en_US.UTF-8';
+
+-- Create application user (limited privileges)
+CREATE USER techieblog_app WITH ENCRYPTED PASSWORD 'strong-password-here';
+GRANT CONNECT ON DATABASE techieblog TO techieblog_app;
+
+-- Connect to the database
+\c techieblog
+
+-- Grant schema permissions
+GRANT USAGE ON SCHEMA public TO techieblog_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO techieblog_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO techieblog_app;
+
+-- Set default privileges for future tables
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO techieblog_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO techieblog_app;</code></pre>
+<h3 id="run-migrations">Run Migrations<a class="anchor-link" href="#run-migrations">#</a></h3>
+<p>Migrations run automatically on app startup, or manually:</p>
+<pre><code class="language-bash">cd source/BlogDb
+dotnet run -- --environment Production</code></pre>
+<hr>
+<h2 id="ssl-https-configuration"><a id="sslhttps-configuration"></a>SSL/HTTPS Configuration<a class="anchor-link" href="#ssl-https-configuration">#</a></h2>
+<h3 id="force-https">Force HTTPS<a class="anchor-link" href="#force-https">#</a></h3>
+<p>In <code>Program.cs</code> or via configuration:</p>
+<pre><code class="language-csharp">if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+app.UseHttpsRedirection();</code></pre>
+<h3 id="hsts-headers">HSTS Headers<a class="anchor-link" href="#hsts-headers">#</a></h3>
+<p>Add to <code>appsettings.Production.json</code>:</p>
+<pre><code class="language-json">{
+  "Hsts": {
+    "MaxAge": 31536000,
+    "IncludeSubDomains": true,
+    "Preload": true
+  }
+}</code></pre>
+<hr>
+<h2 id="environment-variables">Environment Variables<a class="anchor-link" href="#environment-variables">#</a></h2>
+<p>For sensitive configuration, use environment variables instead of config files:</p>
+<table>
+<thead><tr><th>Variable</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td><code>ConnectionStrings__DefaultConnection</code></td><td>Database connection</td></tr>
+<tr><td><code>SiteSettings__SiteUrl</code></td><td>Public URL</td></tr>
+<tr><td><em>(none for mail)</em></td><td>The mail server is set on <strong>Settings → Email</strong> and read at every send. An <code>EmailSettings</code> configuration section is only a fallback when the Settings screen has none.</td></tr>
+<tr><td><code>ASPNETCORE_ENVIRONMENT</code></td><td>Environment name</td></tr>
+</tbody>
+</table>
+<h3 id="setting-in-docker">Setting in Docker<a class="anchor-link" href="#setting-in-docker">#</a></h3>
+<pre><code class="language-yaml">environment:
+  - ConnectionStrings__DefaultConnection=Host=db;...</code></pre>
+<h3 id="setting-in-linux">Setting in Linux<a class="anchor-link" href="#setting-in-linux">#</a></h3>
+<pre><code class="language-bash">export ConnectionStrings__DefaultConnection="Host=localhost;..."</code></pre>
+<h3 id="setting-in-azure">Setting in Azure<a class="anchor-link" href="#setting-in-azure">#</a></h3>
+<pre><code class="language-bash">az webapp config appsettings set --settings KEY=VALUE</code></pre>
+<hr>
+<h2 id="health-checks-monitoring"><a id="health-checks--monitoring"></a>Health Checks &amp; Monitoring<a class="anchor-link" href="#health-checks-monitoring">#</a></h2>
+<h3 id="health-check-endpoint">Health Check Endpoint<a class="anchor-link" href="#health-check-endpoint">#</a></h3>
+<p>TechieBlog exposes <code>/health</code> for monitoring:</p>
+<pre><code class="language-bash">curl https://myblog.com/health
+# Returns: Healthy</code></pre>
+<h3 id="monitoring-with-uptime-tools">Monitoring with Uptime Tools<a class="anchor-link" href="#monitoring-with-uptime-tools">#</a></h3>
+<p>Configure your monitoring service to check:</p>
+<ul>
+<li><strong>URL:</strong> <code>https://myblog.com/health</code>
+</li>
+<li><strong>Expected:</strong> HTTP 200
+</li>
+<li><strong>Interval:</strong> 60 seconds
+</li>
+</ul>
+<h3 id="logging">Logging<a class="anchor-link" href="#logging">#</a></h3>
+<p>Logs are written via Serilog. Configure sinks in <code>appsettings.Production.json</code>:</p>
+<pre><code class="language-json">{
+  "Serilog": {
+    "WriteTo": [
+      { "Name": "Console" },
+      {
+        "Name": "File",
+        "Args": {
+          "path": "/var/log/techieblog/log-.txt",
+          "rollingInterval": "Day",
+          "retainedFileCountLimit": 30
+        }
+      }
+    ]
+  }
+}</code></pre>
+<hr>
+<h2 id="backup-recovery"><a id="backup--recovery"></a>Backup &amp; Recovery<a class="anchor-link" href="#backup-recovery">#</a></h2>
+<h3 id="database-backup">Database Backup<a class="anchor-link" href="#database-backup">#</a></h3>
+<pre><code class="language-bash"># Daily backup script
+pg_dump -U techieblog_app -h localhost techieblog &gt; /backups/techieblog_$(date +%Y%m%d).sql
+
+# Compress
+gzip /backups/techieblog_$(date +%Y%m%d).sql</code></pre>
+<h3 id="restore-from-backup">Restore from Backup<a class="anchor-link" href="#restore-from-backup">#</a></h3>
+<pre><code class="language-bash">gunzip techieblog_20250101.sql.gz
+psql -U postgres -d techieblog &lt; techieblog_20250101.sql</code></pre>
+<h3 id="image-backup">Image Backup<a class="anchor-link" href="#image-backup">#</a></h3>
+<pre><code class="language-bash"># Backup uploaded images
+tar -czf /backups/images_$(date +%Y%m%d).tar.gz /var/www/techieblog/BlogImages</code></pre>
+<h3 id="automated-backup-script">Automated Backup Script<a class="anchor-link" href="#automated-backup-script">#</a></h3>
+<p>Create <code>/etc/cron.daily/techieblog-backup</code>:</p>
+<pre><code class="language-bash">#!/bin/bash
+BACKUP_DIR=/backups/techieblog
+DATE=$(date +%Y%m%d)
+
+# Database
+pg_dump -U techieblog_app techieblog | gzip &gt; $BACKUP_DIR/db_$DATE.sql.gz
+
+# Images
+tar -czf $BACKUP_DIR/images_$DATE.tar.gz /var/www/techieblog/BlogImages
+
+# Keep only last 30 days
+find $BACKUP_DIR -mtime +30 -delete</code></pre>
+<hr>
+<h2 id="troubleshooting">Troubleshooting<a class="anchor-link" href="#troubleshooting">#</a></h2>
+<h3 id="application-won-t-start"><a id="application-wont-start"></a>Application Won't Start<a class="anchor-link" href="#application-won-t-start">#</a></h3>
+<ol>
+<li>Check logs: <code>journalctl -u techieblog -f</code>
+</li>
+<li>Verify database connection
+</li>
+<li>Check file permissions
+</li>
+<li>Ensure .NET runtime is installed
+</li>
+</ol>
+<h3 id="bad-gateway-nginx"><a id="502-bad-gateway-nginx"></a>502 Bad Gateway (Nginx)<a class="anchor-link" href="#bad-gateway-nginx">#</a></h3>
+<ol>
+<li>Check if app is running: <code>systemctl status techieblog</code>
+</li>
+<li>Verify proxy_pass port matches app port
+</li>
+<li>Check Nginx error logs: <code>tail -f /var/log/nginx/error.log</code>
+</li>
+</ol>
+<h3 id="database-connection-failed">Database Connection Failed<a class="anchor-link" href="#database-connection-failed">#</a></h3>
+<ol>
+<li>Verify PostgreSQL is running
+</li>
+<li>Check connection string format
+</li>
+<li>Test connection: <code>psql -h host -U user -d database</code>
+</li>
+<li>Check firewall rules
+</li>
+</ol>
+<h3 id="ssl-certificate-issues">SSL Certificate Issues<a class="anchor-link" href="#ssl-certificate-issues">#</a></h3>
+<ol>
+<li>Verify certificate is valid: <code>certbot certificates</code>
+</li>
+<li>Renew if needed: <code>certbot renew</code>
+</li>
+<li>Check Nginx SSL configuration
+</li>
+</ol>
+<h3 id="high-memory-usage">High Memory Usage<a class="anchor-link" href="#high-memory-usage">#</a></h3>
+<ol>
+<li>Check for memory leaks in logs
+</li>
+<li>Configure garbage collection:
+</li>
+</ol>
+<pre><code class="language-json">   {
+     "runtimeOptions": {
+       "configProperties": {
+         "System.GC.Server": true
+       }
+     }
+   }</code></pre>
+<hr>
+<h2 id="quick-reference">Quick Reference<a class="anchor-link" href="#quick-reference">#</a></h2>
+<h3 id="common-commands">Common Commands<a class="anchor-link" href="#common-commands">#</a></h3>
+<table>
+<thead><tr><th>Task</th><th>Command</th></tr></thead>
+<tbody>
+<tr><td>Start app</td><td><code>sudo systemctl start techieblog</code></td></tr>
+<tr><td>Stop app</td><td><code>sudo systemctl stop techieblog</code></td></tr>
+<tr><td>Restart app</td><td><code>sudo systemctl restart techieblog</code></td></tr>
+<tr><td>View logs</td><td><code>journalctl -u techieblog -f</code></td></tr>
+<tr><td>Check status</td><td><code>sudo systemctl status techieblog</code></td></tr>
+<tr><td>Test Nginx config</td><td><code>sudo nginx -t</code></td></tr>
+<tr><td>Reload Nginx</td><td><code>sudo systemctl reload nginx</code></td></tr>
+<tr><td>Renew SSL</td><td><code>sudo certbot renew</code></td></tr>
+</tbody>
+</table>
+<h3 id="port-reference">Port Reference<a class="anchor-link" href="#port-reference">#</a></h3>
+<table>
+<thead><tr><th>Service</th><th>Default Port</th></tr></thead>
+<tbody>
+<tr><td>TechieBlog</td><td>5000 (HTTP), 5001 (HTTPS)</td></tr>
+<tr><td>PostgreSQL</td><td>5432</td></tr>
+<tr><td>Nginx</td><td>80 (HTTP), 443 (HTTPS)</td></tr>
+</tbody>
+</table>
+<hr>
+<h2 id="need-help">Need Help?<a class="anchor-link" href="#need-help">#</a></h2>
+<ul>
+<li>Check <a href="../GETTING_STARTED.md">GETTING_STARTED.md</a> for initial setup
+</li>
+<li>Review <a href="TechieBlog-Architecture.html">Architecture</a> for technical details
+</li>
+<li>Open an issue on GitHub for deployment problems
+</li>
+</ul>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+<script>
+// Light/dark toggle. The initial theme was already applied flash-free by the
+// <head> script (saved choice, else time-of-day). Clicking flips it, saves the
+// choice, and reloads so Mermaid re-renders in the matching theme.
+(function(){
+  var btn = document.getElementById('themeToggle');
+  if(!btn) return;
+  var relabel = function(){
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    btn.textContent = dark ? '☀ Light' : '☾ Dark';
+  };
+  relabel();
+  btn.addEventListener('click', function(){
+    var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    try{ localStorage.setItem('tf-theme', next); }catch(e){}
+    location.reload();
+  });
+})();
+
+// Copy buttons on every code <pre> — but NEVER on a `pre.mermaid`:
+// mermaid reads the <pre>'s textContent as the diagram source, so a button
+// appended here glues "copy" onto the last line and breaks the parse
+// (flowcharts → "Syntax error"; sequence diagrams silently absorb it).
+// Mermaid blocks get copy/export from their own .diagram toolbar instead.
+document.querySelectorAll('pre:not(.mermaid)').forEach(pre => {
+  const btn = document.createElement('button');
+  btn.className = 'copy';
+  btn.textContent = 'copy';
+  btn.addEventListener('click', () => {
+    const text = pre.querySelector('code') ? pre.querySelector('code').innerText : pre.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'copied';
+      setTimeout(() => { btn.textContent = 'copy'; }, 1200);
+    });
+  });
+  pre.appendChild(btn);
+});
+
+// Mermaid init — theme follows the resolved light/dark theme
+if (window.mermaid) {
+  var mermaidTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
+  mermaid.initialize({ startOnLoad: true, theme: mermaidTheme, securityLevel: 'loose' });
+}
+
+// Mermaid toolbar wiring — run after mermaid renders
+function wireMermaidToolbars() {
+  document.querySelectorAll('.diagram').forEach(dia => {
+    if (dia.dataset.wired) return;
+    const merm = dia.querySelector('.mermaid');
+    const svg = merm && merm.querySelector('svg');
+    if (!svg) return;
+    dia.dataset.wired = '1';
+    let scale = 1;
+    const label = dia.querySelector('.zlabel');
+    const apply = () => {
+      svg.style.transform = `scale(${scale})`;
+      svg.style.transformOrigin = 'top left';
+      if (label) label.textContent = Math.round(scale * 100) + '%';
+    };
+    const setScale = (s) => { scale = Math.max(0.25, Math.min(4, s)); apply(); };
+    dia.querySelector('[data-zin]').onclick = () => setScale(scale * 1.2);
+    dia.querySelector('[data-zout]').onclick = () => setScale(scale / 1.2);
+    dia.querySelector('[data-fit]').onclick = () => {
+      svg.style.transform = '';
+      svg.removeAttribute('width');
+      svg.style.maxWidth = '100%';
+      svg.style.height = 'auto';
+      scale = 1;
+      if (label) label.textContent = 'Fit';
+    };
+    dia.querySelector('[data-one]').onclick = () => {
+      svg.style.transform = '';
+      svg.style.maxWidth = 'none';
+      svg.style.width = '';
+      svg.style.height = '';
+      scale = 1;
+      if (label) label.textContent = '100%';
+    };
+    dia.querySelector('[data-fs]').onclick = () => {
+      dia.classList.toggle('fs');
+      if (dia.classList.contains('fs')) {
+        document.addEventListener('keydown', escFs);
+      } else {
+        document.removeEventListener('keydown', escFs);
+      }
+    };
+    function escFs(e) { if (e.key === 'Escape') { dia.classList.remove('fs'); document.removeEventListener('keydown', escFs); } }
+    dia.querySelector('[data-pop]').onclick = () => openInNewTab(svg);
+    // Ctrl+wheel zoom
+    merm.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setScale(scale * (e.deltaY < 0 ? 1.1 : 1/1.1));
+    }, { passive: false });
+  });
+}
+
+function openInNewTab(svg) {
+  const svgSource = new XMLSerializer().serializeToString(svg);
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Diagram</title>
+<style>
+  html,body{margin:0;height:100%;background:#0f1115;color:#e6e8ee;font-family:system-ui,sans-serif}
+  .bar{position:fixed;top:0;left:0;right:0;padding:8px 12px;background:#161a22;border-bottom:1px solid #2a3142;display:flex;gap:8px;z-index:10}
+  .bar button{background:#1c2230;color:#9aa3b2;border:1px solid #2a3142;border-radius:6px;padding:5px 12px;font-size:13px;cursor:pointer}
+  .bar button:hover{color:#7cc4ff;border-color:#7cc4ff}
+  .bar .hint{margin-left:auto;color:#9aa3b2;font-size:11.5px;align-self:center}
+  #stage{position:absolute;top:42px;bottom:0;left:0;right:0;overflow:hidden}
+  #stage svg{width:100%;height:100%}
+</style>
+</head><body>
+<div class="bar">
+  <button onclick="zpz.zoomIn()">+</button>
+  <button onclick="zpz.zoomOut()">−</button>
+  <button onclick="zpz.fit();zpz.center()">Fit</button>
+  <button onclick="zpz.resetZoom();zpz.center()">1:1</button>
+  <button onclick="window.print()">Print</button>
+  <button onclick="dlPng()">PNG</button>
+  <button onclick="dlSvg()">SVG</button>
+  <span class="hint">Drag to pan · Ctrl+wheel to zoom · + / − keys</span>
+</div>
+<div id="stage">${svgSource}</div>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"><\/script>
+<script>
+  const el = document.querySelector('#stage svg');
+  const zpz = svgPanZoom(el, { zoomScaleSensitivity: .3, minZoom: .2, maxZoom: 10, controlIconsEnabled: false, fit: true, center: true });
+  document.addEventListener('keydown', e => {
+    if (e.key === '+' || e.key === '=') zpz.zoomIn();
+    if (e.key === '-' || e.key === '_') zpz.zoomOut();
+    if (e.key === '0') { zpz.resetZoom(); zpz.center(); }
+  });
+  function dlSvg() {
+    const blob = new Blob([new XMLSerializer().serializeToString(el)], { type: 'image/svg+xml' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'diagram.svg'; a.click();
+  }
+  function dlPng() {
+    const src = new XMLSerializer().serializeToString(el);
+    const img = new Image();
+    const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(src)));
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = el.clientWidth * 2; c.height = el.clientHeight * 2;
+      const ctx = c.getContext('2d'); ctx.scale(2,2); ctx.drawImage(img, 0, 0);
+      c.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'diagram.png'; a.click(); });
+    };
+    img.src = url;
+  }
+<\/script>
+</body></html>`;
+  const w = window.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+// Run wiring after mermaid finishes (it renders async)
+if (window.mermaid) {
+  setTimeout(wireMermaidToolbars, 400);
+  setTimeout(wireMermaidToolbars, 1200);  // safety re-run for slow renders
+}
+</script>
+</body>
+</html>

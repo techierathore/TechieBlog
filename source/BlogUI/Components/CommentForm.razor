@@ -27,6 +27,8 @@
 
     <CardContent Class="flex flex-col gap-4">
 
+        <MailUnavailableNote TestId="comment-mail-unavailable" />
+
         @if (!string.IsNullOrEmpty(statusMessage))
         {
             <Alert Variant="@(isStatusError ? AlertVariant.Danger : AlertVariant.Success)"

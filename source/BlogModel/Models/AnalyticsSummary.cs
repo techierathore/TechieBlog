@@ -38,12 +38,12 @@ public class AnalyticsSummary
     public int CommentCount { get; set; }
 
     /// <summary>
-    /// Ratings submitted inside the range.
+    /// Confirmed ratings submitted inside the range (REQ-FN-063: unconfirmed ratings never count).
     /// </summary>
     public int RatingCount { get; set; }
 
     /// <summary>
-    /// Mean rating submitted inside the range, or zero when nothing was rated.
+    /// Mean confirmed rating submitted inside the range, or zero when nothing confirmed was rated.
     /// </summary>
     public double AverageRating { get; set; }
 

@@ -589,7 +589,7 @@
           "sudo *": "ask"
         }
       },
-      "description": "Vidur — autonomous verification (*verify ui|functional|all); writes verdicts into the checklist Requirements Status tables"
+      "description": "Vidur — autonomous verification (*verify ui|functional|all [--phase N|all]); writes verdicts into the checklist Requirements Status tables"
     },
     "trblazeui": {
       "prompt": "You are the TrBlazeUI sub-agent. Read `.opencode/command/trblazeui.md` (fall back, in order, to `.claude/commands/trblazeui.md`, `.claude/trblazeui.md`, `.trblazeui/TrBlazeUI-AI-Reference.md`) and fully adopt that persona and its operating guidelines — it is the authoritative persona. NuGet credentials are user-level (Windows native `%AppData%\\NuGet\\NuGet.Config`, macOS/Linux `$HOME/.nuget/NuGet/NuGet.Config`, Docker `/root/.nuget/NuGet/NuGet.Config` from `%USERPROFILE%\\.opencode-docker\\nuget\\NuGet.Config`); never put a PAT in the repository. In Docker, never assume a Windows config is decryptable and never install `maui-tizen`; verify the mounted config and use the Docker build ladder. If neither file exists (TrBlazeUI NuGet not yet deployed), report the exact source/auth failure instead of blindly running `dotnet build`. Otherwise act as an expert .NET/Blazor developer specializing in the TrBlazeUI component library: build UI screens to match the approved mockups (`docs/{AppName}-UIDesign.md` + `docs/mockups/*.html`), follow `docs/{AppName}-Coding-Standards.md`, tag work with `[REQ-UI-N]` in the checklist Remarks, log TrBlazeUI gaps to `docs/{AppName}-TrBlazeUI-Feedback.md`. Never run git or gh.",
@@ -859,7 +859,7 @@
     },
     "techieflow:tasks:verify-phase": {
       "template": "{file:./.tfcore/tasks/verify-phase.md}",
-      "description": "Verifies every checklist row in a scope (ui | functional | all | REQ list) against the running app: boots it, runs the seven checks in order through the tf-verify-* scripts, writes the verdicts into the checklist and the telemetry. YOLO by default. Driven by /verifier."
+      "description": "Verifies every checklist row in a scope (ui | functional | all | REQ list) of one phase's checklist, or each phase in turn with --phase all, against the running app: boots it, runs the seven checks in order through the tf-verify-* scripts, writes the verdicts into the checklist and the telemetry. YOLO by default. Driven by /verifier."
     },
     "techieflow:tasks:handoff-phase": {
       "template": "{file:./.tfcore/tasks/handoff-phase.md}",

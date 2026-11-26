@@ -70,7 +70,12 @@ public class FakeSiteSettingsService : ISiteSettingsService
     }
 
     /// <inheritdoc />
-    public Task<SmtpSettings> GetSmtpSettingsAsync() => Task.FromResult(new SmtpSettings());
+    public Task<SmtpSettings> GetSmtpSettingsAsync()
+    {
+        return ThrowOnRead
+            ? throw new InvalidOperationException("The settings store is unavailable.")
+            : Task.FromResult(Settings.Smtp?.Clone() ?? new SmtpSettings());
+    }
 
     /// <inheritdoc />
     public Task<StorageSettings> GetStorageSettingsAsync() => Task.FromResult(new StorageSettings());

@@ -97,8 +97,8 @@ public class PostViewRepo : GenericRepository<PostView>, IPostViewRepo
                       AND VisitorHash = @VisitorHash) AS VisitorKnown
             ),
             Written AS (
-                INSERT INTO PostViews (PostId, ViewedOn, ViewerIp, VisitorHash)
-                SELECT @PostId, @ViewedOn, NULL, @VisitorHash
+                INSERT INTO PostViews (PostId, ViewedOn, ViewerIp, VisitorHash, ReferrerHost)
+                SELECT @PostId, @ViewedOn, NULL, @VisitorHash, @ReferrerHost
                 WHERE NOT EXISTS (
                     SELECT 1 FROM PostViews
                     WHERE PostId = @PostId
@@ -197,11 +197,42 @@ public class PostViewRepo : GenericRepository<PostView>, IPostViewRepo
     /// <param name="dedupeWindowHours">Hours during which a repeat view is not counted again.</param>
     /// <param name="cancellationToken">Cancels the conditional insert.</param>
     /// <returns><c>true</c> when a new row was written; <c>false</c> when the view was de-duplicated.</returns>
+    public Task<bool> RecordViewAsync(
+        long postId,
+        string visitorHash,
+        DateTime viewedOn,
+        int dedupeWindowHours,
+        CancellationToken cancellationToken = default)
+    {
+        return RecordViewAsync(postId, visitorHash, viewedOn, dedupeWindowHours, null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Records a view together with the referring site, unless the same visitor viewed the same
+    /// post inside the de-duplication window.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> REQ-UI-071 (BRD-111). Identical to the four-argument overload,
+    /// plus the referring host: already reduced to a lower-cased host name by
+    /// <c>ReferrerHostParser</c>, or <c>null</c> for a direct, unknown or same-site visit. The
+    /// repository stores what it is given and never parses a header itself.</para>
+    /// <para><b>Flow:</b> one statement — conditional insert into <c>PostViews</c> plus the
+    /// <c>PostViewCount</c> rollup (migration 028), exactly as before.</para>
+    /// <para><b>Side Effects:</b> at most one <c>PostViews</c> row and one rollup update.</para>
+    /// </remarks>
+    /// <param name="postId">The viewed post.</param>
+    /// <param name="visitorHash">Salted visitor fingerprint.</param>
+    /// <param name="viewedOn">When the view happened (UTC).</param>
+    /// <param name="dedupeWindowHours">Hours during which a repeat view by the same visitor is ignored.</param>
+    /// <param name="referrerHost">Referring host, or <c>null</c> for direct or unknown.</param>
+    /// <param name="cancellationToken">Cancels the statement.</param>
+    /// <returns><c>true</c> when a new view row was written.</returns>
     public async Task<bool> RecordViewAsync(
         long postId,
         string visitorHash,
         DateTime viewedOn,
         int dedupeWindowHours,
+        string? referrerHost,
         CancellationToken cancellationToken = default)
     {
         var parameters = new DynamicParameters();
@@ -209,32 +240,13 @@ public class PostViewRepo : GenericRepository<PostView>, IPostViewRepo
         parameters.Add("VisitorHash", visitorHash);
         parameters.Add("ViewedOn", DbTimestamp.AsTimestamp(viewedOn));
         parameters.Add("WindowStart", DbTimestamp.AsTimestamp(viewedOn.AddHours(-Math.Abs(dedupeWindowHours))));
+        parameters.Add("ReferrerHost", string.IsNullOrWhiteSpace(referrerHost) ? null : referrerHost, System.Data.DbType.String);
 
         var rowsWritten = await ExecuteScalarAsync<int>(InsertIfNotSeenSql, parameters, cancellationToken)
             .ConfigureAwait(false);
         return rowsWritten > 0;
     }
 
-    /// <summary>
-    /// Reads total and unique view counts for one post, without blocking the calling thread.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> Total views are rows; unique views are distinct visitor hashes over
-    /// all time. Both are read from the maintained <c>PostViewCount</c> rollup rather than recomputed,
-    /// so the definitions are unchanged and only the cost of answering is. A post nobody has read has
-    /// no rollup row, and the null coalesce turns that into the same zeroed answer the old aggregate
-    /// produced.</para>
-    /// <para><b>Flow:</b> helper opens the connection asynchronously → primary-key lookup → counts or a
-    /// zeroed value carrying the post id.</para>
-    /// <para><b>Side Effects:</b> None — read-only query.</para>
-    /// <para><b>[REQ-NFR-034] This is the per-render read, and it is now O(1).</b> It used to be
-    /// <c>COUNT(*)</c> + <c>COUNT(DISTINCT VisitorHash)</c> over every <c>PostViews</c> row belonging
-    /// to the post — measured as <c>Aggregate → Sort → Seq Scan</c> — on every single article view.
-    /// It is a unique-index probe of one row, and stays one row at any table size.</para>
-    /// </remarks>
-    /// <param name="postId">The post to count.</param>
-    /// <param name="cancellationToken">Cancels the query.</param>
-    /// <returns>Counts for the post; zeroes when it has never been viewed.</returns>
     public async Task<PostViewCounts> GetCountsAsync(long postId, CancellationToken cancellationToken = default)
     {
         var counts = await QueryFirstOrDefaultAsync<PostViewCounts>(

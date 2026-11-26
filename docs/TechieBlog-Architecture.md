@@ -462,6 +462,37 @@ mount; DbUp runs automatically on boot, so the app account needs DDL rights on f
   keeps the TechieBlog lockup in the header until they configure their own logo or replace the files —
   the rename script only touches `source/TechieBlog/`, so it never alters these assets.
 
+- **ADR-018 — Ratings for staff, referring site per view, and a plain-text copy of the numbers**
+  (2026-11-21, BRD-106…111, status *planned*). Reason: the Analytics page averaged every stored rating
+  while the post page averaged confirmed ones only, so the two disagreed and the staff had no screen
+  that listed individual ratings; the owner also wants the weekly figures as text. Decisions:
+  (a) **One rule for rating numbers.** Every aggregate in `AnalyticsRepo` filters
+  `IsEmailVerified = TRUE`, the same predicate `PostRatingRepo` already uses, so Analytics, the Posts
+  list and the post page cannot disagree again. (b) **Ratings list for staff** — the existing
+  per-post read (`IPostRatingRepo.GetAllByIdAsync`) returns rating id, stars, created/updated date,
+  confirmed flag and email; `RatingSvc.GetRatingsForStaffAsync` turns the email into `first letter + "•••@" + domain`
+  **inside the service**, and the model the page receives (`StaffRatingRow`) has no email property at
+  all, so the full address never reaches a Razor component or the browser. A per-post summary for the
+  Posts list comes from one grouped query (`GetStatsForPostsAsync(postIds)`), never one query per row.
+  The dialog is one shared component, `RatingsDialog`, used by both pages. (c) **Referring site** —
+  migration `033-PostViewReferrer.sql` adds `PostViews.ReferrerHost VARCHAR(253) NULL` (DNS name
+  maximum) and an index on `(ViewedOn, ReferrerHost)`; `PostViewTracker` reads the `Referer` header
+  while it already reads the IP and user agent, keeps only the lower-cased host with a leading `www.`
+  removed, and stores `NULL` for no header, an unparseable value, or the site's own host. Nothing is
+  backfilled; older views read as "Direct or unknown". `IAnalyticsService.GetReferrersAsync(range)`
+  groups by host. (d) **Copy numbers** — the text is built in C# by a pure formatter
+  (`AnalyticsNumbersFormatter`) from the figures the page already loaded plus three fixed windows
+  (today, 7, 30 days), so it can be unit-tested; it reaches the clipboard through
+  `navigator.clipboard.writeText` from a small module in `BlogUI/wwwroot`, which works in the website
+  and in BlogApp's WebView2 alike. A refused clipboard write shows the text in a read-only box to copy
+  by hand rather than failing silently. (e) **BlogApp test profile** (added during the build) —
+  `BlogApp.exe --profile <absolute folder>` (`DesktopProfile`) keeps the connection file, logs,
+  uploads and WebView2 data inside that folder and never reads or writes the OS credential store,
+  so an automated check never sees the owner's saved live connection; BlogApp's own restart passes
+  the switch on. Without the switch nothing changes. Consequence: a new column on the largest
+  table — nullable and without a default, so the migration is a metadata-only change and is safe on
+  a live database.
+
 ## 8. Target architecture — planned deltas
 
 Everything below is **designed but not built**. It is carried forward verbatim in intent from

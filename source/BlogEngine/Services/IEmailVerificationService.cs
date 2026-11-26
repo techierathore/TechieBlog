@@ -79,4 +79,19 @@ public interface IEmailVerificationService
     /// <param name="email">The address to test.</param>
     /// <returns>True when confirmation can be skipped.</returns>
     Task<bool> IsAddressVerifiedAsync(string email);
+
+    /// <summary>
+    /// Tells whether a confirmation mail cannot be sent right now because no mail server is set.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> True when neither the Settings screen nor configuration names a
+    /// mail server (REQ-FN-033). The rating, comment and subscribe forms ask this BEFORE writing
+    /// anything, so a reader is told "confirmation is not available right now" instead of being left
+    /// waiting for a link that will never come. Phrased as "unavailable" so that a test double that
+    /// answers the default (false) behaves like a site with mail.</para>
+    /// <para><b>Flow:</b> one read of the current mail server.</para>
+    /// <para><b>Side Effects:</b> None.</para>
+    /// </remarks>
+    /// <returns>True when no mail server is set.</returns>
+    Task<bool> IsMailUnavailableAsync();
 }

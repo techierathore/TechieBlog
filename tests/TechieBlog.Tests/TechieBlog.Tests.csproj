@@ -109,6 +109,9 @@
     production code with no dependency on the host's UI graph.
   -->
   <ItemGroup>
+    <!-- 2026-11-21: BlogApp's isolated test profile switch, pure BCL, linked because BlogApp targets Windows only. -->
+    <Compile Include="..\..\source\BlogApp\Services\DesktopProfile.cs"
+             Link="LinkedSource\DesktopProfile.cs" />
     <Compile Include="..\..\source\TechieBlog\Observability\GlobalExceptionLogging.cs"
              Link="LinkedSource\GlobalExceptionLogging.cs" />
     <!-- REQ-FN-015 / REQ-FN-037 / REQ-FN-038: the output-cache-evicting cache decorator, linked for the same reason. -->

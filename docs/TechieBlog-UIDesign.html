@@ -106,7 +106,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <div class="layout no-toc">
   <main>
     <h1>TechieBlog — UI Design Spec (TrBlazeUI)</h1>
-    <div class="subtitle">Rendered 2026-10-27 &middot; source <code>TechieBlog-UIDesign.md</code></div>
+    <div class="subtitle">Rendered 2026-11-21 &middot; source <code>TechieBlog-UIDesign.md</code></div>
 
     <div class="toc-inline">
       <div>Contents</div>
@@ -599,6 +599,8 @@ CSS-variable theming, dark mode via <code>.dark</code> on <code>&lt;html&gt;</co
 <tr><td>Status filter</td><td>TbTabs</td><td>All 24 · Published 18 · Drafts 4 · Scheduled 2 (live counts)</td><td>Active tab filters table server-side</td></tr>
 <tr><td>Search</td><td>TbInput</td><td>Title/slug contains, debounced</td><td>Clears to full list</td></tr>
 <tr><td>Table</td><td>TbDataTable</td><td>Columns: title (link to editor), status TbBadge (success/secondary/warning), category, date, views (mono), rating stars</td><td>Loading → TbSkeleton rows</td></tr>
+<tr><td>Rating cell <em>(BRD-108, added 2026-11-21)</em></td><td>TbButton ghost sm (<code>post-row-rating</code>)</td><td>Confirmed average + confirmed count, e.g. "4.4 ★ (31)"; click opens the Ratings dialog for that post</td><td>No confirmed ratings → "No ratings" (still clickable when unconfirmed ones exist)</td></tr>
+<tr><td>Ratings dialog</td><td>TbDialog (<code>ratings-dialog</code>) + table</td><td>Shared with Analytics: stars, date, "Confirmed" / "Not yet confirmed" TbBadge, rater masked <code>r•••@gmail.com</code></td><td>Empty → "No ratings yet"; loading → TbSkeleton</td></tr>
 <tr><td>Row actions</td><td>TbButton ghost sm ×3</td><td>Edit → editor; Preview → draft preview; Delete → confirm</td><td>Delete → TbDialog confirm then TbToast</td></tr>
 <tr><td>Pager</td><td>TbPagination</td><td>10/page, 24 total</td><td>Hidden when ≤1 page</td></tr>
 <tr><td>Empty</td><td>TbEmpty</td><td>"No posts yet — write your first" + New post CTA</td><td>Shown when filter/search yields none</td></tr>
@@ -712,6 +714,7 @@ CSS-variable theming, dark mode via <code>.dark</code> on <code>&lt;html&gt;</co
 <tr><td>Live counts</td><td>TbCard ×6 stat tiles</td><td>Posts 24 / Published 18 / Users 132 / Subscribers 486 / Comments 291 / Pending 7</td><td>Loading → TbSkeleton tiles; pending 0 → no badge</td></tr>
 <tr><td>Pending tile badge</td><td>TbBadge (warning)</td><td>Count of comments awaiting moderation</td><td>Hidden when queue is empty</td></tr>
 <tr><td>Quick actions</td><td>TbButton (primary + outline ×3)</td><td>New post → editor; Moderate comments; Manage images; Site settings</td><td>—</td></tr>
+<tr><td>Analytics action <em>(BRD-106, added 2026-11-21)</em></td><td>TbButton outline (<code>action-analytics</code>)</td><td>"Analytics" → <code>/admin/analytics</code></td><td>Wrapped in an AuthorizeView on <code>EditorOrAbove</code>, the Analytics page's own policy</td></tr>
 <tr><td>Popular posts</td><td>TbCard + list rows</td><td>Top 5 published posts by views, count right-aligned .mono</td><td>Empty → TbEmpty "No published posts"</td></tr>
 <tr><td>Recent comments</td><td>TbCard + TbAvatar + TbButton(sm)</td><td>Latest 4 comments: author, excerpt, post link, Approve/Delete</td><td>Empty → TbEmpty "Moderation queue is clear"</td></tr>
 </tbody>
@@ -927,6 +930,10 @@ CSS-variable theming, dark mode via <code>.dark</code> on <code>&lt;html&gt;</co
 <tr><td>Views trend</td><td>placeholder div bars — <strong>GAP: no TrBlazeUI chart component</strong></td><td>14 daily single-hue (--chart-1) bars, hover tooltip per bar, peak direct-labeled, sparse x-axis labels</td><td>No data in range → TbEmpty "No traffic recorded"</td></tr>
 <tr><td>Popular posts</td><td>TbDataTable</td><td>Title, views, unique, comments, rating (stars + numeric)</td><td>Empty → TbEmpty</td></tr>
 <tr><td>Engagement by category</td><td>TbCard + labeled .progress bars</td><td>5 categories, chart colors --chart-1..5, text label + value on every bar (identity never color-alone)</td><td>Missing category data → row omitted</td></tr>
+<tr><td>Copy numbers <em>(BRD-110, added 2026-11-21)</em></td><td>TbButton outline (<code>analytics-copy-numbers</code>)</td><td>Plain text: views today / 7 / 30 days, top 10 posts, referring sites</td><td>Copied → TbToast; refused → read-only text box</td></tr>
+<tr><td>Rating cell <em>(BRD-107)</em></td><td>TbButton ghost sm (<code>popular-row-rating</code>)</td><td>Confirmed average + confirmed count; opens the Ratings dialog</td><td>No confirmed ratings → "No ratings"</td></tr>
+<tr><td>Ratings dialog <em>(BRD-107, BRD-109)</em></td><td>TbDialog (<code>ratings-dialog</code>) + table</td><td>Stars, date, confirmed TbBadge, masked rater <code>r•••@gmail.com</code></td><td>Empty → "No ratings yet"</td></tr>
+<tr><td>Where readers came from <em>(BRD-111)</em></td><td>TbCard (<code>analytics-referrer-card</code>) + labeled .progress bars</td><td>Site name + views; "Direct or unknown"</td><td>Empty → TbEmpty</td></tr>
 </tbody>
 </table>
 <ul>
@@ -935,8 +942,6 @@ CSS-variable theming, dark mode via <code>.dark</code> on <code>&lt;html&gt;</co
 <li>Trend bars expose per-day tooltips (date + views); the trend is a single series so it carries no legend — the card title names it.
 </li>
 <li>Table rows link to the public post view; ratings render read-only stars with the numeric average for accessibility.
-</li>
-<li>Build note: the chart areas are visual placeholders — the implementation needs a charting approach (custom SVG or a chart library) because TrBlazeUI ships none.
 </li>
 </ul>
 <h3 id="screen-manage-profile-admin-profile"><a id="screen-manage-profile-adminprofile"></a>Screen: Manage Profile (<code>/admin/profile</code>)<a class="anchor-link" href="#screen-manage-profile-admin-profile">#</a></h3>

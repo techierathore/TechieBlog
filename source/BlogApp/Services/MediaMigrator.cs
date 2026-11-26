@@ -153,7 +153,6 @@ public class MediaMigrator
     /// <returns>The absolute path of the desktop head's local uploads folder.</returns>
     public static string DefaultLocalUploadsFolder()
     {
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        return Path.Combine(localAppData, "TechieBlog", "BlogApp", "wwwroot", "uploads");
+        return Path.Combine(DesktopProfile.AppDataRoot, "wwwroot", "uploads");
     }
 }

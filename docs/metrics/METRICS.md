@@ -6,20 +6,22 @@
 
      THE ONE RULE FOR THIS DOCUMENT: no combined first-pass rate, gate catch
      distribution, escape rate, miss rate, or cost-per-miss across live/backfilled,
-     across project_type, across attribution confidence, or across cost attribution.
-     No "total" row, no "overall" line, no averaged intro sentence. -->
+     across project_type, across attribution confidence, across cost attribution,
+     or across estimate and measurement. No "total" row, no "overall" line, no
+     averaged intro sentence. -->
 
-**Snapshot as of 2026-11-05** · project_type `app` · schema v1 · every figure from `tf-metrics.sh --report` and `--phases`; nothing recomputed by hand
+**Snapshot as of 2026-11-26** (sections 1–3 and 5 refreshed; sections 4 and 6 still read as of 2026-11-16 unless dated) · project_type `app` · schema v1 · every figure from `tf-metrics.sh --report`, `--phases` and `--estimates`; nothing recomputed by hand
 
-| Stream | Records | Span |
-|---|---|---|
-| `runs.jsonl` | 69 | 2026-08-08 → 2026-11-05 |
-| `gates.jsonl` | 512 (0 backfilled, 0 malformed) | 2026-08-08 → 2026-11-05 |
-| `sessions.jsonl` | 30 (1 duplicate collapsed) | 2026-08-08 → 2026-11-05 |
-| `commits.jsonl` | 105 | 2026-08-08 → 2026-11-02 |
-| `misses.jsonl` | 110 miss + 184 miss-fix | 2026-08-09 → 2026-11-05 |
+| Stream | Records |
+|---|---|
+| `runs.jsonl` | 83 (2026-08-08 → 2026-11-26) |
+| `gates.jsonl` | 535 (0 backfilled, 0 malformed) |
+| `sessions.jsonl` | 35 (1 duplicate collapsed) |
+| `commits.jsonl` | 109 |
+| `misses.jsonl` | 119 miss + 194 miss-fix |
+| `estimates.jsonl` | 688 (one estimate: phase 1, 2026-11-16) |
 
-Written by `*triage-and-fix TechieBlog` on 2026-11-05 (the TrBlazeUI 2.2.2 upgrade for TR-077). Every record is live; this project has no backfilled data, so there is no backfilled column anywhere on this page.
+Written by `*metrics TechieBlog` on 2026-11-16, straight after `*estimate-phase TechieBlog --phase 1`. Every record is live; this project has no backfilled data, so there is no backfilled column anywhere on this page.
 
 ---
 
@@ -29,7 +31,7 @@ Written by `*triage-and-fix TechieBlog` on 2026-11-05 (the TrBlazeUI 2.2.2 upgra
 
 | Provenance | project_type | REQs scored | First-pass | Rate |
 |---|---|---|---|---|
-| **Live** | app | 159 | 129 | 81% |
+| **Live** | app | 169 | — | 80% |
 
 No REQ is excluded for backfilled history (0 tainted rows).
 
@@ -39,23 +41,19 @@ No REQ is excluded for backfilled history (0 tainted rows).
 
 *Of all failures, which gate caught them.*
 
-### Live · `app` — 147 failures
+### Live · `app` — 155 failures
 
 | Gate | Caught | Share |
 |---|---|---|
 | build | 4 | 3% |
-| acceptance | 110 | 75% |
+| acceptance | 110 | 71% |
 | render (data shows) | 7 | 5% |
-| visual (nothing overlaps or clips) | 13 | 9% |
+| visual (nothing overlaps or clips) | 13 | 8% |
 | mockup-parity | 6 | 4% |
 | standards | 1 | 1% |
-| **escaped** — no gate caught it | 6 | 4% |
+| **escaped** — no gate caught it | 14 | 9% |
 
-Gates added after the first records ran on fewer rows than the others: `assets` ran 17 times and caught 0; `mockup-parity` ran 12 times and caught 6; `perf` ran once and caught 0; `test-users` (added 2026-11-01) has not run yet. A gate that was not there cannot have caught anything, so these shares undercount the late gates.
-
-**Most common failure classes:** `assert-fail` ×102 (the acceptance test failed), `other` ×17, `overlap` ×10, `mockup-drift` ×6.
-
-Two of the six escapes are this run's: the posts-list crash on TrBlazeUI 2.2.1 (TR-077) and the editor opening any post for any Author, both found by reading and running the app, not by a gate.
+Gates added after the first records ran on fewer rows than the others: `assets` ran 17 times and caught 0; `mockup-parity` ran 12 times and caught 6 (50%); `perf` ran once and caught 0 (insufficient data, n=1); `test-users` (added 2026-11-01) has not run yet. A gate that was not there cannot have caught anything, so these shares undercount the late gates.
 
 ---
 
@@ -63,11 +61,11 @@ Two of the six escapes are this run's: the posts-list crash on TrBlazeUI 2.2.1 (
 
 *What fraction of defective REQs reached UAT/production instead of a gate.*
 
-| Provenance | project_type | REQs with any failure | Escaped to UAT/prod | Rate |
+| Provenance | project_type | Failures over the scored rows | Escaped to UAT/prod | Rate |
 |---|---|---|---|---|
-| **Live** | app | 147 failures over the scored rows | 6 | 6% |
+| **Live** | app | 155 | 14 | 14% (per defective REQ, as `tf-metrics.sh` prints it) |
 
-Escapes are the `gate:"escaped"` records written by triage. Of the two from 2026-11-05, REQ-UI-016 had `prior_verdict: Verified` (from 2026-10-28), the strongest signal on this page: a passing verify never asked who may open which post. REQ-UI-017 was already `Needs re-verify` when it escaped, because the DevGuide run of 2026-11-02 had flagged the crash by hand before any triage logged it.
+2026-11-26: eight rows escaped to production in one report — a reader's rating was lost because no confirmation mail could ever be sent (REQ-FN-033, REQ-FN-048, REQ-UI-027/029/030 demoted; REQ-UI-072, REQ-UI-073, REQ-NFR-045 added). All eight were fixed and re-verified the same day by `*triage-and-fix`.
 
 ---
 
@@ -75,17 +73,15 @@ Escapes are the `gate:"escaped"` records written by triage. Of the two from 2026
 
 | Metric | Value |
 |---|---|
-| Runs total | 69 (verify-phase=20, fix-issues=22, build-phase=13, triage-and-fix=4, amend-docs=3, handoff-phase=2, triage-issues=2, devguide=1, metrics-report=1, refresh-status=1) |
-| Rework ratio (fix-mode ÷ build-phase runs) | 285% |
-| Batch size — median REQs per `build-phase` run | 4 |
+| Runs total | 73 (verify-phase=21, fix-issues=22, build-phase=14, triage-and-fix=4, amend-docs=3, handoff-phase=2, metrics-report=2, triage-issues=2, devguide=1, estimate-phase=1, refresh-status=1) |
+| Rework ratio (fix-mode ÷ build-phase runs) | 271% |
+| Batch size — median REQs per `build-phase` run | 3.5 |
 | REQ throughput — median REQs/hour | 5.42 |
-| Sessions / total tokens | 30 / 10 743 074 |
-| Tokens per `Verified` REQ | 29 433 |
-| Commit cadence | 1.17 commits/active day over 90 days |
+| Sessions / total tokens | 32 / 11 497 402 |
+| Tokens per `Verified` REQ | 31 243 |
+| Commit cadence | 1.2 commits/active day (109 commits over 91 days) |
 
-**Cost in USD is not reported as a measurement.** Every run here is Claude Code on a subscription: `cost_usd` is null on all of them. The list-price figure the tool prints (787.53 USD over 39 records, 2.16 USD per Verified REQ) is a rate-card product, not money paid, and is shown only so the reader knows it exists.
-
-The rework ratio counts fix-issues and triage-and-fix runs against build-phase runs; the 2026-11-05 run was a fix (a package upgrade), which is why it moved from 269% to 285% since the last report.
+**Cost in USD is not reported as a measurement.** Every run here is Claude Code on a subscription: `cost_usd` is null on all of them. The list-price figure the tool prints (823.70 USD over 43 priced runs, 2.24 USD per Verified REQ) is a rate-card product, not money paid, and is shown only so the reader knows it exists.
 
 ---
 
@@ -93,13 +89,11 @@ The rework ratio counts fix-issues and triage-and-fix runs against build-phase r
 
 | Metric | Value |
 |---|---|
-| Misses logged | 110 (2 open, 96 resolved, 12 wont-fix) |
+| Misses logged | 110 (1 open, 97 resolved, 12 wont-fix; 185 fix records) |
 | Design-miss share (`unspecified-gap`) | 1% |
 | Found by a human (`owner` / `production`) | 5% (2 owner, 3 production) |
 
-*Reported beside the escape rate in §3, never merged with it: different records, different definition.*
-
-*`wont-fix` is a decision, not a backlog item, so it is not counted as open. The duplicate check still treats it as a live defect, which is why the editor-ownership defect found on 2026-11-05 got no miss record of its own (TechieFlow feedback TF-003).*
+*Reported beside the escape rate in §3, never merged with it: different records, different definition. `wont-fix` is a decision, not a backlog item, so it is not counted as open.*
 
 **Miss classes** — *what* was missed
 
@@ -113,23 +107,11 @@ The rework ratio counts fix-issues and triage-and-fix runs against build-phase r
 | unspecified-gap | 1 | 1% |
 | wrong-behaviour | 1 | 1% |
 
-**Why it was missed** — *which practice failed* (6 of 110 misses assessed)
+Found by: gate 103, production 3, agent-review 2, owner 2.
 
-| Practice | n | Share of assessed |
-|---|---|---|
-| insufficient-verify-method | 4 | 67% |
-| instruction-ignored | 2 | 33% |
+**Why it was missed** (6 of 110 misses assessed): insufficient-verify-method 4 (67%), instruction-ignored 2 (33%).
 
-0 misses predate the field. 0 escapes lack it. The other 104 misses were found by a gate, where the field is optional and was not assessed.
-
-**Whose gap it was** (`sort`, 7 of 22 eligible misses carry it; 88 predate the field)
-
-| Sort | n |
-|---|---|
-| weak-check (a check existed and let it through) | 5 |
-| spec (the specification never said it) | 2 |
-
-Both readings point at verification, not specification: the checks that exist are too narrow for the defects that occur (the 2.2.1 upgrade check drove two components, not the posts-list search).
+**Whose gap it was** (`sort`, 7 of 22 eligible misses carry it; 88 predate the field, added 2026-09-07): weak-check 5 (71%), spec 2 (29%).
 
 ### 5a. Attribution — `linked` records only
 
@@ -141,73 +123,119 @@ Both readings point at verification, not specification: the checks that exist ar
 | Origin agent | general-purpose=31, flow-master=6, trblazeui=3 |
 | Origin model | unknown=33, claude-opus-5=3, claude-opus-5-5=3, claude-sonnet-5-5=1 |
 
-**These are observational, not causal.** Which model gets the hard work is not random; a model at the top may be doing the hardest building rather than the worst. Read it as a question, never as a ranking to route on. 33 of the 40 attributed misses have no model recorded at all, so the per-model line rests on 7 records: insufficient data for any conclusion.
+**These are observational, not causal.** Which model gets the hard work is not random. 33 of the 40 attributed misses have no model recorded, so the per-model line rests on 7 records: insufficient data for any conclusion.
 
 ### 5b. Rework cost — measured and apportioned never combine
 
 | | Fix records | Tokens out per miss |
 |---|---|---|
-| **Measured** (`sole` — the run fixed only this REQ) | 0 | insufficient data (n=0) |
+| **Measured** (`sole`) | 0 | insufficient data (n=0) |
 | Apportioned (`shared:n` — divided equally, **not a measurement**) | 10 | 88 537 |
-| Unattributable (`none` — no usable token window) | 174 | — |
+| Unattributable (`none` — no usable token window) | 175 | — |
 
-**Dollars.** No measured dollars: every record is Claude Code with `cost_usd: null`, and pricing tokens from a rate card would be an estimate presented as a measurement. Tokens are the honest figure.
-
-174 of 184 fix records carry no token window at all, so the apportioned figure stands on 10 records, 4 of them from the 2026-11-05 run (one window shared over four rows). A miss fixed inline inside a longer run cannot be costed, which is why the unattributable row is printed rather than dropped.
+Discovery cost per miss: none recorded (all 110 misses predate the field). No measured dollars: Claude Code carries `cost_usd: null`, and tokens are the honest figure.
 
 ---
 
 ## 6. Effort per phase — time, tokens, model, fan-out
 
-Aggregated over **69 live run records**. Token-window coverage: `tree 16` · `main 21` · `none/absent 30`. Duration: 54 of 67 earlier records usable, 13 discarded (start after end), 4 taken from the timestamps where the stored figure disagreed. The two newest records (2026-11-05) were written after the `--phases` table below was computed and are not in it.
+Aggregated over **73 live run records**. Token-window coverage: `tree 16` · `main 27` · `none 17` · absent 13. Duration: 60 of 73 records usable, 13 discarded (start after end), 4 taken from the timestamps where the stored figure disagreed.
 
 | Phase (`cmd`) | Runs | Wall clock (total / median) | Tokens out | % of all output | Tokens measured on |
 |---|---|---|---|---|---|
-| `verify-phase` | 20 | 45h12m / — | 3.3M | 41% | 14 of 20 runs |
-| `build-phase` | 13 | 40h05m / — | 1.8M | 22% | 6 of 13 runs |
-| `fix-issues` | 22 | 7h55m / — | 1.8M | 22% | 9 of 22 runs |
-| `devguide` | 1 | 17m02s / 17m02s | 572.9k | 7% | 1 of 1 run |
-| `triage-and-fix` | 2 | 45m09s / — | 217.8k | 3% | 1 of 2 runs |
+| `verify-phase` | 21 | 45h31m / 27m50s | 3.3M | 35% | 15 of 21 runs |
+| `build-phase` | 14 | 40h22m / 1h50m | 1.9M | 20% | 7 of 14 runs |
+| `fix-issues` | 22 | 7h55m / 37m30s | 1.8M | 19% | 9 of 22 runs |
+| `estimate-phase` | 1 | 3m21s / 3m21s | 772.3k | 8% | 1 of 1 run ⚠ |
+| `triage-and-fix` | 4 | 2h54m / 23m44s | 697.9k | 7% | 3 of 4 runs |
+| `devguide` | 1 | 17m02s / 17m02s | 572.9k | 6% | 1 of 1 run |
 | `amend-docs` | 3 | 43m43s / 6m38s | 178.2k | 2% | 3 of 3 runs |
-| `handoff-phase` | 2 | 36m25s / — | 145.4k | 2% | 1 of 2 runs |
-| `triage-issues` | 2 | 39m14s / — | 109.7k | 1% | 1 of 2 runs |
-| `metrics-report` | 1 | 1m32s / 1m32s | 7.3k | 0% | 1 of 1 run |
+| `handoff-phase` | 2 | 36m25s / 18m12s | 145.4k | 2% | 1 of 2 runs |
+| `triage-issues` | 2 | 39m14s / 19m37s | 109.7k | 1% | 1 of 2 runs |
+| `metrics-report` | 2 | 3m25s / 1m42s | 35.3k | 0% | 2 of 2 runs |
 | `refresh-status` | 1 | — | 0 | 0% | 0 of 1 run |
 
-Runs whose token window could not be computed are excluded from the token columns, never averaged in as zero; the last column says how many that is per phase. A median is printed only where the tool printed one.
+Runs whose token window could not be computed are excluded from the token columns, never averaged in as zero.
 
-`verify-phase` costing more than `build-phase` is a fact about what those phases are (twenty verify runs over 159 rows, each booting the app and driving every screen), not a finding about either.
+⚠ **The `estimate-phase` figure is suspect.** The one run (2026-11-16) records 772.3k output tokens over 3 minutes 21 seconds on the main thread with no subagents. That is far more than the run wrote; the emitter's token window most likely over-counted. It is printed as the tool gave it, not corrected by hand.
+
+`verify-phase` costing more than `build-phase` is a fact about what those phases are, not a finding about either.
 
 ### 6a. Which model did the work
 
 | Phase | Model | Output tokens | Share of the phase | Runs |
 |---|---|---|---|---|
-| `amend-docs` | `claude-opus-5-5` | 178.2k | 100% | 3 |
+| `verify-phase` | `claude-sonnet-5-5` | 2.1M | 64% | 1 |
+| `verify-phase` | `claude-opus-5-5` | 424.4k | 13% | 6 |
+| `verify-phase` | `claude-fable-5` | 315.6k | 10% | 2 |
+| `verify-phase` | `claude-opus-5` | 303.9k | 9% | 4 |
+| `verify-phase` | `claude-sonnet-5` | 143.0k | 4% | 1 |
+| `verify-phase` | `claude-fable-5-1` | 13.9k | 0% | 2 |
+| `build-phase` | `claude-sonnet-5-5` | 1.2M | 64% | 2 |
+| `build-phase` | `claude-opus-5-5` | 567.4k | 30% | 6 |
+| `build-phase` | `claude-fable-5-1` | 111.3k | 6% | 1 |
+| `fix-issues` | `claude-opus-5` | 1.8M | 100% | 9 |
+| `triage-and-fix` | `claude-fable-5-1` | 480.1k | 69% | 2 |
+| `triage-and-fix` | `claude-opus-5-5` | 217.8k | 31% | 1 |
+| `devguide` | `claude-haiku-5-5` | 461.7k | 81% | 1 |
+| `devguide` | `claude-opus-5-5` | 111.1k | 19% | 1 |
 
-The per-model split is printed by `tf-metrics.sh --phases` only for phases whose every measured run names a model; for the other phases the tool prints no split, and none is invented here. **This ranking is observational, not causal.**
+**This split is observational, not causal.** The large `claude-sonnet-5-5` shares are subagent output inside one fanned-out run each.
 
 ### 6b. Subagent fan-out — measured, on its own denominator
 
 | Phase | Runs observed | Spawns (total / median / max) | Runs that fanned out | Output tokens in subagents | Subagent share |
 |---|---|---|---|---|---|
-| `verify-phase` | 4 of 20 | 19 / 0 / 19 | 1 | 2.1M | 84% |
-| `build-phase` | 6 of 13 | 10 / 0 / 8 | 2 | 1.2M | 68% |
+| `verify-phase` | 4 of 21 | 19 / 0 / 19 | 1 | 2.1M | 84% |
+| `build-phase` | 6 of 14 | 10 / 0 / 8 | 2 | 1.2M | 68% |
 | `devguide` | 1 of 1 | 4 / 4 / 4 | 1 | 461.7k | 81% |
 | `handoff-phase` | 1 of 2 | 0 / 0 / 0 | 0 | 0 | 0% |
 | `fix-issues` | 0 of 22 | not observed | — | — | — |
-| `triage-and-fix` | 0 of 2 | not observed | — | — | — |
 
-**Read the `observed` column before anything else.** Fan-out is visible only on a `tokens_scope: "tree"` record; a `main`-scope window never read the subagent transcripts, so 0 on such a run means *not looked*, not *none ran*. Excluded: `fix-issues` 18 runs not tree scope and 4 written before `subagent_runs` existed (2026-08-31); `triage-and-fix` 2, `triage-issues` 2, `amend-docs` 3, `metrics-report` 1, `refresh-status` 1, all not tree scope.
+Fan-out is visible only on a `tokens_scope: "tree"` record; 0 on any other run means *not looked*, not *none ran*. `fix-issues`: 18 runs not tree scope, 4 written before `subagent_runs` existed (2026-08-31).
 
-**Declared vs measured.** The 2026-11-05 triage-and-fix run declared no subagents and its window is `main` scope, so its fan-out is unobserved, not zero; it did in fact spawn none.
+**Declared vs measured** (the measured figure is right): `build-phase` declared 11, measured 10; `verify-phase` declared 8, measured 19; `handoff-phase` declared 2, measured 0.
+
+### 6c. Estimate against actual — two columns, never one number
+
+**Phase 1 was estimated after the fact.** 44 runs on its own rows already existed, so this is hindsight, not a forecast. Those 44 runs were left out of the estimate's own history (a phase is never estimated from itself), and the figures come from the family repos TrBlazeUI and Chatur.
+
+| Phase | Estimated by | Step | Estimate mid (low–high) | Actual | In range (tokens · time) | Actual runs (apportioned · named no row) |
+|---|---|---|---|---|---|---|
+| 1 | `claude-opus-5-5` | `build-phase` [171/171] | 2.5M (1.3M–4.9M) · 10h09m (4h18m–26h51m) | 1.9M · 40h22m | within · above | 14 (0 · 0) |
+| 1 | `claude-opus-5-5` | `verify-phase` [171/171] | 84.8k (18.5k–341.8k) · 2h14m (1h01m–5h36m) | 3.3M · 45h16m | above · above | 20 (0 · 1) |
+| 1 | `claude-opus-5-5` | `fix-issues` [171/171] | 4.7M (3.0M–8.1M) · 22h02m (16h55m–46h30m) | 754.2k · 4h55m | below · below | 7 (0 · 0) |
+| 1 | `claude-opus-5-5` | after handoff [127/171] | 3.3M (1.3M–6.5M) · 10h24m (3h02m–28h08m) | insufficient data (n=2) · 2h59m | — · below | 3 (1 · 3) |
+
+**Phase 1 in three parts**
+
+| Part | Estimate mid (low–high) | Actual |
+|---|---|---|
+| build | 2.5M (1.3M–4.9M) tok · 10h09m (4h18m–26h51m) | 1.9M tok · 40h22m |
+| machine QA (verify + fix) | 4.8M (3.0M–8.5M) tok · 24h16m (17h56m–52h06m) | 4.0M tok · 50h12m |
+| after handoff | 3.3M (1.3M–6.5M) tok · 10h24m (3h02m–28h08m) | insufficient data (n=2) · 2h59m |
+
+Unmeasured actual runs: `build-phase` 7 of 14 with no tokens (1 main-thread only); `verify-phase` 6 of 20 with no tokens (10 main-thread only); `fix-issues` 2 of 7 with no tokens (2 main-thread only); after handoff 1 of 3 with no tokens (2 main-thread only). A main-thread window did not read subagent transcripts, so those actuals are floors.
+
+**Runs that named no row: 4** (1 `verify-phase`, 3 after handoff). They cannot be placed in any phase, so they are in no actual; they are counted, never shared out.
+
+The 44 REQ-NFR rows have no precedent for the after-handoff step (2 family runs, none here), so that line covers 127 of 171 rows. Each of the 44 rows carries a dated Remark in the checklist. A row's QA estimate is one verify and one fix pass, so a phase that re-verifies many times sits above it. Owner UAT time is not measured.
 
 ---
 
+## 5c. Run of 2026-11-26 — `*triage-and-fix` (mail confirmation)
+
+| Miss | Row | Discovery cost | Fix cost (tokens out) | Verdict |
+|---|---|---|---|---|
+| ISS-TechieBlog-20261126-01 … -08 | REQ-FN-048, REQ-FN-033, REQ-UI-027, REQ-UI-029, REQ-UI-030, REQ-UI-072, REQ-UI-073, REQ-NFR-045 | not measured (the harness store held no messages in the triage window) | 45.5k each — **apportioned 1/8** of one run, not a measurement per row | Verified (all eight) |
+
 ## 7. What is missing
 
-- **Dollars.** No run on this project carries a measured cost; the harness does not report one. The list-price line in §4 is a rate card, not a bill.
-- **Fan-out on most runs.** 53 of 69 runs have no `tree` window, so §6b sees 12 runs. The framework's own session hook decides the scope; nothing here can widen it after the fact.
-- **`sort` and `why_missed` on old records.** 88 of 110 misses predate the `sort` field and 104 were found by a gate, where `why_missed` is optional. The practice table in §5 therefore rests on 6 records.
-- **Per-model attribution.** 33 of 40 attributed misses carry no origin model. Nothing on this page can say which model misses more.
-- **Commit telemetry.** The pre-commit hook is installed (`commit_hook: true`); the stream ends at the owner's last commit on 2026-11-02 and lags reality by one commit by design.
+- **Dollars.** No run on this project carries a measured cost; the list-price line in §4 is a rate card, not a bill.
+- **Tokens on half the build and fix runs.** 7 of 14 `build-phase` and 13 of 22 `fix-issues` runs have no token window, so their actuals in §6c are floors, not totals.
+- **Fan-out on most runs.** 57 of 73 runs have no `tree` window.
+- **`sort` and `why_missed` on old records.** 88 of 110 misses predate `sort`; `why_missed` was assessed on 6.
+- **Per-model attribution.** 33 of 40 attributed misses carry no origin model.
+- **A real forecast for phase 1.** The only estimate is hindsight; the first true forecast will be the next phase's, run before its `*build-phase`.
+- **Commit telemetry.** The pre-commit hook is installed (`commit_hook: true`); the stream lags the owner's last commit by one by design.
 - **Cycle time per feature** is not reported and never will be: the unit of work in this framework is the run, not the ticket.

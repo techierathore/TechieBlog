@@ -1,0 +1,90 @@
+@*
+    RatingsDialog.razor
+    Purpose: One post's ratings for the staff — stars, date, confirmed or not yet
+             confirmed, and the rater as a masked address (r•••@gmail.com).
+
+    REQ:   REQ-UI-067 (Analytics), REQ-UI-068 (Posts list), REQ-FN-063 (BRD-107…109)
+    Mockup: docs/mockups/34-analytics-dashboard.html, docs/mockups/22-posts-list.html (dlg-ratings)
+
+    Used by AnalyticsDashboard and BlogsList, so both screens show exactly the same
+    dialog. The email is masked inside RatingSvc; the row model has no email
+    property, so the full address cannot reach this markup.
+*@
+@using BlogModels
+@using TrBlazeUI.Components.Table
+
+<Dialog Open="@Open" OpenChanged="@OnOpenChangedAsync">
+    <DialogContent Class="max-w-2xl" data-testid="ratings-dialog">
+        <DialogHeader>
+            <DialogTitle>Ratings</DialogTitle>
+            <DialogDescription data-testid="ratings-dialog-summary">@SummaryText</DialogDescription>
+        </DialogHeader>
+
+        @if (IsLoading)
+        {
+            <Skeleton Class="h-24 w-full" data-testid="ratings-dialog-loading" />
+        }
+        else if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <p class="text-sm text-destructive" data-testid="ratings-dialog-error">@ErrorMessage</p>
+        }
+        else if (Rows.Count == 0)
+        {
+            <p class="text-sm text-muted-foreground" data-testid="ratings-dialog-empty">No ratings yet.</p>
+        }
+        else
+        {
+            <Table data-testid="ratings-dialog-table">
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Stars</TableHead>
+                        <TableHead Class="hidden sm:table-cell">Date</TableHead>
+                        <TableHead>Status and rater</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    @foreach (var row in Rows)
+                    {
+                        <TableRow data-testid="ratings-row">
+                            <TableCell>
+                                <span class="whitespace-nowrap text-primary"
+                                      aria-label="@($"{row.Stars} of 5 stars")"
+                                      data-testid="ratings-row-stars"
+                                      data-stars="@row.Stars">@StarText(row.Stars)</span>
+                                @* On a phone the Date column is hidden and the date sits under the stars. *@
+                                <span class="block whitespace-nowrap text-xs text-muted-foreground sm:hidden">@row.RatedOn.ToString("MMM d, yyyy")</span>
+                            </TableCell>
+                            <TableCell Class="hidden whitespace-nowrap text-muted-foreground sm:table-cell">
+                                <span data-testid="ratings-row-date">@row.RatedOn.ToString("MMM d, yyyy")</span>
+                            </TableCell>
+                            @* Status and rater share one cell so the table fits a 390 px phone without sideways scrolling. *@
+                            <TableCell>
+                                <div class="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-3">
+                                    @if (row.IsConfirmed)
+                                    {
+                                        <Badge data-testid="ratings-row-status">Confirmed</Badge>
+                                    }
+                                    else
+                                    {
+                                        <Badge Variant="BadgeVariant.Outline" data-testid="ratings-row-status">Not yet confirmed</Badge>
+                                    }
+                                    <span class="break-all font-mono text-sm" data-testid="ratings-row-rater">@row.MaskedEmail</span>
+                                </div>
+                            </TableCell>
+                        </TableRow>
+                    }
+                </TableBody>
+            </Table>
+        }
+
+        <p class="text-xs text-muted-foreground">
+            Only confirmed ratings count in the average. Raters are never shown on the public site.
+        </p>
+
+        <DialogFooter>
+            <Button Variant="ButtonVariant.Outline" OnClick="@CloseAsync" data-testid="ratings-dialog-close">
+                Close
+            </Button>
+        </DialogFooter>
+    </DialogContent>
+</Dialog>

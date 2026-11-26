@@ -43,9 +43,13 @@ public class ConnectionStore : IConnectionStore
     {
         this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        fallbackFilePath = Path.Combine(appDataRoot, "TechieBlog", "BlogApp", FallbackFileName);
-        storageDescription = "Platform secure storage (OS credential store)";
+        // An isolated test profile (DesktopProfile, --profile) keeps the connection in a DPAPI file
+        // inside that profile and never touches the OS credential store, so the owner's own saved
+        // connection is neither read nor overwritten by an automated run.
+        fallbackFilePath = Path.Combine(DesktopProfile.AppDataRoot, FallbackFileName);
+        storageDescription = DesktopProfile.IsIsolated
+            ? "Test profile file (DPAPI-protected)"
+            : "Platform secure storage (OS credential store)";
     }
 
     /// <inheritdoc />
@@ -81,6 +85,12 @@ public class ConnectionStore : IConnectionStore
 
         var json = JsonSerializer.Serialize(settings);
 
+        if (DesktopProfile.IsIsolated)
+        {
+            WriteFallback(json);
+            return;
+        }
+
         try
         {
             await SecureStorage.Default.SetAsync(StorageKey, json).ConfigureAwait(false);
@@ -101,7 +111,8 @@ public class ConnectionStore : IConnectionStore
     {
         try
         {
-            SecureStorage.Default.Remove(StorageKey);
+            if (!DesktopProfile.IsIsolated)
+                SecureStorage.Default.Remove(StorageKey);
         }
         catch (Exception ex)
         {
@@ -130,6 +141,9 @@ public class ConnectionStore : IConnectionStore
     /// <returns>The stored JSON, or <c>null</c> when neither backend holds a value.</returns>
     private async Task<string> ReadRawAsync()
     {
+        if (DesktopProfile.IsIsolated)
+            return ReadFallback();
+
         try
         {
             var stored = await SecureStorage.Default.GetAsync(StorageKey).ConfigureAwait(false);

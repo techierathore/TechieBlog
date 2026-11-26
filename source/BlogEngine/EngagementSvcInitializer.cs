@@ -93,8 +93,15 @@ public static class EngagementSvcInitializer
         services.AddTransient<IEmailVerificationTokenRepo>(x => new EmailVerificationTokenRepo(dbConnectionString));
         services.AddTransient<IVerifiedEmailRepo>(x => new VerifiedEmailRepo(dbConnectionString));
 
-        // Development fallback only - a real SMTP-backed sender (REQ-FN-033) wins over this.
-        services.TryAddTransient<IVerificationEmailSender, LoggingVerificationEmailSender>();
+        // The confirmation link is really mailed whenever a mail server is set - on the Settings
+        // screen first, in the EmailSettings configuration section as the fallback - and logged
+        // otherwise. The choice is made at EVERY send by the same rule IEmailService follows
+        // (IMailServerSource, REQ-FN-033). Before 2026-11-26 only the logging sender was ever
+        // registered, so no visitor could confirm a rating, comment or subscription (REQ-FN-048).
+        // Still TryAdd, so a host's own sender wins.
+        services.TryAddTransient<VerificationEmailSender>();
+        services.TryAddTransient<LoggingVerificationEmailSender>();
+        services.TryAddTransient<IVerificationEmailSender, RoutingVerificationEmailSender>();
 
         services.AddTransient<IEmailVerificationService, EmailVerificationSvc>();
 

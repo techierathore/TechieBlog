@@ -319,4 +319,18 @@ public class VerificationEmailSenderTests
         // Assert
         Assert.Contains("https://blog.test/confirm?t=abc", Assert.Single(recordingLogger.Entries).Message);
     }
+
+    /// <summary>
+    /// Both bodies tell the reader that replies to this message are not read. Owner's ask, 26 Nov 2026.
+    /// </summary>
+    /// <returns>A task that completes when the assertion has run.</returns>
+    [Fact]
+    public async Task BothBodiesSayNotToReply()
+    {
+        await sender.SendVerificationEmailAsync("reader@example.test", "Reader", "rating", "https://example.test/verify/abc");
+
+        var message = Assert.Single(transport.SentMessages);
+        Assert.Contains("Please do not reply", message.HtmlBody);
+        Assert.Contains("Please do not reply", message.TextBody);
+    }
 }

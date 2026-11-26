@@ -28,7 +28,7 @@ Before deploying to production:
 
 - [ ] Change default admin password
 - [ ] Update `appsettings.Production.json` with real values
-- [ ] Configure SMTP for email functionality
+- [ ] After the first start, set the mail server on **Settings → Email** and press **Send test mail** (no configuration file or environment value is needed; see the Usage Guide, "Set up mail")
 - [ ] Set up PostgreSQL database
 - [ ] Configure SSL certificate
 - [ ] Set up backup strategy
@@ -57,14 +57,6 @@ Create `source/TechieBlog/appsettings.Production.json`:
     "AllowRegistration": true,
     "AllowComments": true,
     "RequireCommentApproval": true
-  },
-  "EmailSettings": {
-    "SmtpHost": "smtp.your-provider.com",
-    "SmtpPort": 587,
-    "SmtpUsername": "your-smtp-user",
-    "SmtpPassword": "your-smtp-password",
-    "FromAddress": "noreply@myblog.com",
-    "FromName": "My Blog"
   },
   "Logging": {
     "LogLevel": {
@@ -544,7 +536,7 @@ For sensitive configuration, use environment variables instead of config files:
 |----------|---------|
 | `ConnectionStrings__DefaultConnection` | Database connection |
 | `SiteSettings__SiteUrl` | Public URL |
-| `EmailSettings__SmtpPassword` | SMTP password |
+| *(none for mail)* | The mail server is set on **Settings → Email** and read at every send. An `EmailSettings` configuration section is only a fallback when the Settings screen has none. |
 | `ASPNETCORE_ENVIRONMENT` | Environment name |
 
 ### Setting in Docker

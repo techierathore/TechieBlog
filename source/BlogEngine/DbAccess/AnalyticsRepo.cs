@@ -67,8 +67,8 @@ public class AnalyticsRepo : GenericRepository<PostEngagement>, IAnalyticsRepo
         (SELECT COUNT(DISTINCT v.VisitorHash)::int FROM PostViews v WHERE v.PostId = p.PostId) AS UniqueViews,
         (SELECT COUNT(*)::int FROM BlogComment c WHERE c.PostId = p.PostId) AS CommentCount,
         (SELECT COUNT(*)::int FROM BlogComment c WHERE c.PostId = p.PostId AND c.Published = TRUE) AS ApprovedCommentCount,
-        (SELECT COUNT(*)::int FROM PostRating r WHERE r.PostId = p.PostId) AS RatingCount,
-        COALESCE((SELECT AVG(r.Rating) FROM PostRating r WHERE r.PostId = p.PostId), 0)::double precision AS AverageRating,
+        (SELECT COUNT(*)::int FROM PostRating r WHERE r.PostId = p.PostId AND r.IsEmailVerified = TRUE) AS RatingCount,
+        COALESCE((SELECT AVG(r.Rating) FROM PostRating r WHERE r.PostId = p.PostId AND r.IsEmailVerified = TRUE), 0)::double precision AS AverageRating,
         (SELECT MAX(v.ViewedOn) FROM PostViews v WHERE v.PostId = p.PostId) AS LastViewedOn";
 
     /// <summary>
@@ -79,8 +79,8 @@ public class AnalyticsRepo : GenericRepository<PostEngagement>, IAnalyticsRepo
             COUNT(v.ViewId)::int AS TotalViews,
             COUNT(DISTINCT v.VisitorHash)::int AS UniqueViews,
             (SELECT COUNT(*)::int FROM BlogComment c WHERE c.PostId = p.PostId) AS CommentCount,
-            (SELECT COUNT(*)::int FROM PostRating r WHERE r.PostId = p.PostId) AS RatingCount,
-            COALESCE((SELECT AVG(r.Rating) FROM PostRating r WHERE r.PostId = p.PostId), 0)::double precision AS AverageRating";
+            (SELECT COUNT(*)::int FROM PostRating r WHERE r.PostId = p.PostId AND r.IsEmailVerified = TRUE) AS RatingCount,
+            COALESCE((SELECT AVG(r.Rating) FROM PostRating r WHERE r.PostId = p.PostId AND r.IsEmailVerified = TRUE), 0)::double precision AS AverageRating";
 
     /// <summary>
     /// Ranking order shared by both popular-post queries, so the two can never diverge.
@@ -155,9 +155,29 @@ public class AnalyticsRepo : GenericRepository<PostEngagement>, IAnalyticsRepo
                 (SELECT COUNT(*)::int FROM BlogComment c
                  WHERE c.GivenOn >= @FromUtc AND c.GivenOn < @ToUtc) AS CommentCount,
                 (SELECT COUNT(*)::int FROM PostRating r
-                 WHERE r.CreatedOn >= @FromUtc AND r.CreatedOn < @ToUtc) AS RatingCount,
+                 WHERE r.IsEmailVerified = TRUE
+                   AND r.CreatedOn >= @FromUtc AND r.CreatedOn < @ToUtc) AS RatingCount,
                 COALESCE((SELECT AVG(r.Rating) FROM PostRating r
-                 WHERE r.CreatedOn >= @FromUtc AND r.CreatedOn < @ToUtc), 0)::double precision AS AverageRating";
+                 WHERE r.IsEmailVerified = TRUE
+                   AND r.CreatedOn >= @FromUtc AND r.CreatedOn < @ToUtc), 0)::double precision AS AverageRating";
+
+    /// <summary>
+    /// Views per referring site inside a closed range — REQ-UI-071 (BRD-111).
+    /// </summary>
+    /// <remarks>
+    /// A view with no recorded referrer (no <c>Referer</c> header, the site itself, or a view stored
+    /// before migration 033) groups under the empty string, which the page labels "Direct or unknown".
+    /// </remarks>
+    private const string SelectReferrersSql = $@"
+            SELECT COALESCE(v.ReferrerHost, '') AS ReferrerHost,
+                   COUNT(v.ViewId)::int AS TotalViews,
+                   COUNT(DISTINCT v.VisitorHash)::int AS UniqueViews
+            FROM PostViews v
+            INNER JOIN BlogPost p ON p.PostId = v.PostId
+            WHERE v.ViewedOn >= @FromUtc AND v.ViewedOn < @ToUtc AND {VisiblePostPredicate}
+            GROUP BY COALESCE(v.ReferrerHost, '')
+            ORDER BY TotalViews DESC, ReferrerHost
+            LIMIT @MaxCount";
 
     /// <summary>
     /// Initializes the repository with the PostgreSQL connection string.
@@ -337,6 +357,32 @@ public class AnalyticsRepo : GenericRepository<PostEngagement>, IAnalyticsRepo
         var summary = await QueryFirstOrDefaultAsync<AnalyticsSummary>(
             SelectSummarySql, BuildRangeParameters(fromUtc, toUtc), cancellationToken).ConfigureAwait(false);
         return summary ?? new AnalyticsSummary();
+    }
+
+    /// <summary>
+    /// Counts views per referring site inside a closed date range, without blocking the caller.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> REQ-UI-071 (BRD-111). Groups the range's views by the stored
+    /// referring host; views without one form a single group keyed by the empty string. Only
+    /// published, non-deleted posts count, matching every other panel on the page.</para>
+    /// <para><b>Flow:</b> one grouped aggregate over <c>PostViews</c> joined to <c>BlogPost</c>.</para>
+    /// <para><b>Side Effects:</b> none — read only.</para>
+    /// </remarks>
+    /// <param name="fromUtc">Inclusive range start (UTC).</param>
+    /// <param name="toUtc">Exclusive range end (UTC).</param>
+    /// <param name="maxCount">Most groups to return.</param>
+    /// <param name="cancellationToken">Cancels the query.</param>
+    /// <returns>Referring sites ordered by views, busiest first; never <c>null</c>.</returns>
+    public async Task<IReadOnlyList<ReferrerEngagement>> GetReferrersAsync(
+        DateTime fromUtc, DateTime toUtc, int maxCount, CancellationToken cancellationToken = default)
+    {
+        var parameters = BuildRangeParameters(fromUtc, toUtc);
+        parameters.Add("MaxCount", maxCount);
+
+        var rows = await QueryAsync<ReferrerEngagement>(
+            SelectReferrersSql, parameters, cancellationToken).ConfigureAwait(false);
+        return rows.AsList();
     }
 
     /// <summary>

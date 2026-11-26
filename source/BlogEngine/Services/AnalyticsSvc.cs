@@ -206,6 +206,45 @@ public class AnalyticsSvc : IAnalyticsService
     }
 
     /// <summary>
+    /// Views per referring site for a date range, never throwing.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> REQ-UI-071 (BRD-111). Applies the same whole-day range rules as
+    /// every other panel, so the card always describes the same period as the rest of the page.</para>
+    /// <para><b>Flow:</b> order and widen the range → clamp the count → repository → empty list on
+    /// failure.</para>
+    /// <para><b>Side Effects:</b> logs an error when the read fails.</para>
+    /// </remarks>
+    /// <param name="fromUtc">First day of the range (UTC).</param>
+    /// <param name="toUtc">Last day of the range (UTC), inclusive.</param>
+    /// <param name="maxCount">Most sites to return.</param>
+    /// <param name="cancellationToken">Cancels the query.</param>
+    /// <returns>Referring sites, busiest first; empty on failure.</returns>
+    public async Task<IReadOnlyList<ReferrerEngagement>> GetReferrersAsync(
+        DateTime fromUtc, DateTime toUtc, int maxCount, CancellationToken cancellationToken = default)
+    {
+        var (rangeStart, rangeEnd) = OrderRange(fromUtc, toUtc);
+        var count = Math.Clamp(maxCount, 1, MaxResultCount);
+
+        try
+        {
+            return await analyticsRepo
+                .GetReferrersAsync(rangeStart, rangeEnd, count, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to read referring sites between {RangeStart} and {RangeEnd}",
+                rangeStart, rangeEnd);
+            return new List<ReferrerEngagement>();
+        }
+    }
+
+    /// <summary>
     /// Puts a caller-supplied range the right way round and snaps it to whole days.
     /// </summary>
     /// <remarks>

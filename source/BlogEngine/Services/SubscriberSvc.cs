@@ -212,6 +212,9 @@ public class SubscriberSvc
             if (existing != null && existing.IsConfirmed)
                 return Result<bool>.Success(false);
 
+            if (await emailVerification.IsMailUnavailableAsync().ConfigureAwait(false))
+                return Result<bool>.Failure(EmailVerificationSvc.ConfirmationUnavailableMessage);
+
             var subscriberId = existing?.SubscriberId
                 ?? await InsertPendingAsync(email, name, cancellationToken).ConfigureAwait(false);
             var issued = await emailVerification
@@ -219,7 +222,11 @@ public class SubscriberSvc
                 .ConfigureAwait(false);
 
             if (issued.IsFailure)
+            {
+                // Nothing is left waiting on a link that never went out (REQ-UI-030).
+                await subscriberRepo.DeletePendingAsync(subscriberId, CancellationToken.None).ConfigureAwait(false);
                 return Result<bool>.Failure(issued.ErrorMessage ?? "We could not start the subscription. Please try again.");
+            }
 
             logger.LogInformation("Pending subscription created for {Email}", email);
             return Result<bool>.Success(true);

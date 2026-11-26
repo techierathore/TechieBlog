@@ -1,0 +1,7 @@
+{
+  "BlogApp": {
+    "CdpPort": 9333,
+    "ProfileFolder": "tests/.artifacts/blogapp-profile",
+    "WebsiteAddress": "http://localhost:5399"
+  }
+}

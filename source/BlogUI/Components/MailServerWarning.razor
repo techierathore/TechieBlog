@@ -1,0 +1,55 @@
+@*
+    MailServerWarning.razor
+    Purpose: The admin dashboard's warning while no mail server is set (REQ-UI-073).
+
+    Shown until a mail server is saved on the Settings screen (or set in configuration). While it
+    shows, readers cannot confirm ratings, comments or subscriptions, and password resets are only
+    written to the log. Admins get a button to the Settings screen; Editors see the warning only,
+    because /settings is AdminOnly.
+*@
+
+@inject BlogEngine.Services.IMailServerSource MailServerSource
+
+@if (isMailServerMissing)
+{
+    <Alert Variant="AlertVariant.Warning" AccentBorder="true" data-testid="dashboard-mail-warning">
+        <LucideIcon Name="mail-warning" Size="16" />
+        <AlertTitle>No mail server is set</AlertTitle>
+        <AlertDescription>
+            Readers cannot confirm ratings, comments or subscriptions, and password-reset mail is not sent.
+            <AuthorizeView Policy="@AppPolicies.AdminOnly">
+                <Authorized>
+                    Open Settings, then the Email tab, fill in the mail server and use "Send test mail".
+                    <div class="mt-2">
+                        <Button Href="/settings" Size="ButtonSize.Small" Variant="ButtonVariant.Outline"
+                                data-testid="dashboard-mail-warning-settings">
+                            Set up mail
+                        </Button>
+                    </div>
+                </Authorized>
+                <NotAuthorized>Ask an administrator to set up mail on the Settings screen.</NotAuthorized>
+            </AuthorizeView>
+        </AlertDescription>
+    </Alert>
+}
+
+@code {
+    private bool isMailServerMissing;
+
+    /// <summary>
+    /// Reads, once per visit to the dashboard, whether a mail server is set.
+    /// </summary>
+    /// <returns>A task that completes when the answer is known.</returns>
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var choice = await MailServerSource.GetCurrentAsync();
+            isMailServerMissing = !choice.IsAvailable;
+        }
+        catch (Exception)
+        {
+            isMailServerMissing = false;
+        }
+    }
+}

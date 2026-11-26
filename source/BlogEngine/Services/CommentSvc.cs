@@ -157,6 +157,9 @@ public class CommentSvc
         {
             var isVerified = await emailVerificationService
                 .IsAddressVerifiedAsync(submission.AuthorEmail).ConfigureAwait(false);
+            if (!isVerified && await emailVerificationService.IsMailUnavailableAsync().ConfigureAwait(false))
+                return Result<CommentSubmissionOutcome>.Failure(EmailVerificationSvc.ConfirmationUnavailableMessage);
+
             var isModerated = await IsModerationRequiredAsync().ConfigureAwait(false);
             var comment = BuildPendingComment(submission, isVerified, isModerated);
             comment.CommentID = await commentRepo.InsertPendingAsync(comment).ConfigureAwait(false);
@@ -244,7 +247,7 @@ public class CommentSvc
             CommentId = comment.CommentID,
             ModerationStatus = CommentModerationStatus.PendingVerification,
             IsEmailVerificationRequired = true,
-            Message = "Almost there - check your inbox and click the link to confirm your comment."
+            Message = EmailVerificationSvc.LinkSentMessage(submission.AuthorEmail, "comment")
         });
     }
 
