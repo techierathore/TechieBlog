@@ -1,0 +1,48 @@
+@*
+    MailUnavailableNote.razor
+    Purpose: Tells a reader, before they fill in a form, that email confirmation is not available
+    right now because no mail server is set (REQ-FN-033, owner request 2026-11-26).
+
+    Used by the rating panel, the comment form and both subscribe forms. Renders nothing while a
+    mail server is set. The service refuses an unconfirmed submission in the same situation, so the
+    note and the refusal say the same thing.
+*@
+
+@inject BlogEngine.Services.IEmailVerificationService EmailVerificationService
+
+@if (isMailUnavailable)
+{
+    <Alert Variant="AlertVariant.Warning" data-testid="@TestId">
+        <AlertDescription>
+            Email confirmation is not available right now, so new submissions cannot be confirmed.
+            Please try again later.
+        </AlertDescription>
+    </Alert>
+}
+
+@code {
+    private bool isMailUnavailable;
+
+    /// <summary>
+    /// Gets or sets the <c>data-testid</c> of the note, so each form's note is addressable on its own.
+    /// </summary>
+    [Parameter]
+    public string TestId { get; set; } = "mail-unavailable-note";
+
+    /// <summary>
+    /// Asks once, when the form first renders, whether a mail server is set.
+    /// </summary>
+    /// <returns>A task that completes when the answer is known.</returns>
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            isMailUnavailable = await EmailVerificationService.IsMailUnavailableAsync();
+        }
+        catch (Exception)
+        {
+            // The form itself still reports the real outcome on submit; a failed check shows no note.
+            isMailUnavailable = false;
+        }
+    }
+}

@@ -6,6 +6,9 @@
 
     Route: /admin/analytics
     REQ:   REQ-UI-044 (BRD-60, BRD-61) — mockup docs/mockups/34-analytics-dashboard.html
+           REQ-UI-067 rating cell + ratings dialog, REQ-UI-070 Copy numbers,
+           REQ-UI-071 Where readers came from, REQ-FN-063 confirmed-only ratings
+           (BRD-107, BRD-109, BRD-110, BRD-111 — added 2026-11-21)
     Authorization: EditorOrAbove policy required.
 
     Every panel reads from the SAME date range, so moving the range moves the whole
@@ -28,10 +31,36 @@
 <div class="mx-auto max-w-[1400px] space-y-6">
 
     @* ---- Page header ----------------------------------------------------- *@
-    <div>
-        <h1 class="text-2xl font-semibold tracking-tight text-foreground">Analytics</h1>
-        <p class="text-sm text-muted-foreground">Traffic and engagement (BRD-60, BRD-61).</p>
+    <div class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-semibold tracking-tight text-foreground">Analytics</h1>
+            <p class="text-sm text-muted-foreground">Traffic and engagement (BRD-60, BRD-61).</p>
+        </div>
+        @* REQ-UI-070 (BRD-110): the page's numbers as plain text, for the weekly planning hand-off. *@
+        <Button Variant="ButtonVariant.Outline"
+                OnClick="CopyNumbersAsync"
+                Disabled="@(IsLoading || IsCopying)"
+                data-testid="analytics-copy-numbers">
+            <LucideIcon Name="clipboard-copy" Size="16" />
+            <span class="ml-2">Copy numbers</span>
+        </Button>
     </div>
+
+    @if (!string.IsNullOrEmpty(CopyFallbackText))
+    {
+        @* The clipboard refused the write: show the text to copy by hand rather than fail silently. *@
+        <Card data-testid="analytics-copy-fallback">
+            <CardHeader>
+                <CardTitle Class="text-base">Copy these numbers by hand</CardTitle>
+                <CardDescription>The clipboard did not accept the text. Select it below and copy it.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Textarea Value="@CopyFallbackText" Rows="12" MaxRows="20" readonly="readonly"
+                          AriaLabel="Analytics numbers as plain text"
+                          data-testid="analytics-copy-fallback-text" />
+            </CardContent>
+        </Card>
+    }
 
     @* ---- Date range ------------------------------------------------------ *@
     <Card data-testid="analytics-range-card">
@@ -103,6 +132,13 @@
             </Card>
         }
     </div>
+
+    @* ---- Fixed windows (REQ-UI-070): the three figures Copy numbers leads with ---- *@
+    <p class="text-sm text-muted-foreground" data-testid="analytics-fixed-windows">
+        Views today (UTC) <span class="font-semibold text-foreground" data-testid="analytics-views-today">@ViewsToday.ToString("N0")</span>
+        · last 7 days <span class="font-semibold text-foreground" data-testid="analytics-views-7">@ViewsLast7Days.ToString("N0")</span>
+        · last 30 days <span class="font-semibold text-foreground" data-testid="analytics-views-30">@ViewsLast30Days.ToString("N0")</span>
+    </p>
 
     @* ---- Views trend ----------------------------------------------------- *@
     <Card data-testid="analytics-trend-card">
@@ -212,9 +248,16 @@
                                     <span data-testid="popular-row-comments">@row.CommentCount.ToString("N0")</span>
                                 </CellTemplate>
                             </DataTableColumn>
-                            <DataTableColumn TData="PopularPost" TValue="double" Property="@(p => p.AverageRating)" Header="Rating" Sortable Width="100px">
+                            <DataTableColumn TData="PopularPost" TValue="double" Property="@(p => p.AverageRating)" Header="Rating" Sortable Width="130px">
                                 <CellTemplate Context="row">
-                                    <span data-testid="popular-row-rating">@FormatRating(row.AverageRating)</span>
+                                    @* REQ-UI-067: confirmed average + confirmed count; opens that post's ratings. *@
+                                    <Button Variant="ButtonVariant.Ghost"
+                                            Size="ButtonSize.Small"
+                                            OnClick="@(() => OpenRatings(row.PostId, row.Title))"
+                                            AriaLabel="@($"Show ratings for {row.Title}")"
+                                            data-testid="popular-row-rating">
+                                        @FormatRatingWithCount(row.AverageRating, row.RatingCount)
+                                    </Button>
                                 </CellTemplate>
                             </DataTableColumn>
                         </Columns>
@@ -262,5 +305,46 @@
                 }
             </CardContent>
         </Card>
+
+        @* ---- Where readers came from (REQ-UI-071, BRD-111) ------------------ *@
+        <Card data-testid="analytics-referrer-card">
+            <CardHeader>
+                <CardTitle>Where readers came from</CardTitle>
+                <CardDescription>Referring site · @RangeCaption</CardDescription>
+            </CardHeader>
+            <CardContent>
+                @if (IsLoading)
+                {
+                    <Skeleton Class="h-24 w-full" data-testid="analytics-referrer-loading" />
+                }
+                else if (Referrers.Count == 0)
+                {
+                    <Empty Title="No views recorded in this range"
+                           Description="Each view keeps only the name of the site the reader came from."
+                           data-testid="analytics-referrer-empty">
+                        <Icon><LucideIcon Name="globe" Size="48" /></Icon>
+                    </Empty>
+                }
+                else
+                {
+                    <div class="space-y-3" data-testid="analytics-referrer-list">
+                        @foreach (var referrer in Referrers)
+                        {
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between gap-3 text-sm">
+                                    <span class="truncate font-medium text-foreground" data-testid="referrer-row-name">@referrer.DisplayName</span>
+                                    <span class="text-muted-foreground" data-testid="referrer-row-views">@referrer.TotalViews.ToString("N0")</span>
+                                </div>
+                                <Progress Value="@ReferrerSharePercent(referrer)"
+                                          Class="h-2"
+                                          aria-label="@($"{referrer.DisplayName}: {referrer.TotalViews} views")" />
+                            </div>
+                        }
+                    </div>
+                }
+            </CardContent>
+        </Card>
     </div>
 </div>
+
+<RatingsDialog @bind-Open="RatingsOpen" PostId="@RatingsPostId" PostTitle="@RatingsPostTitle" />

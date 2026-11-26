@@ -283,6 +283,22 @@ public interface ISubscriberRepo : IGenericRepository<Subscriber>
         => RepoSyncBridge.Run(() => UpdateStatus(subscriberId, isActive), cancellationToken);
 
     /// <summary>
+    /// Removes a subscriber row that was never confirmed.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Used when the confirmation mail for a new subscription could not be
+    /// sent, so no pending row is left waiting on a link that never went out (REQ-UI-030). A confirmed
+    /// row is never touched.</para>
+    /// <para><b>Flow:</b> one DELETE guarded on <c>IsConfirmed</c>.</para>
+    /// <para><b>Side Effects:</b> Deletes at most one row.</para>
+    /// </remarks>
+    /// <param name="subscriberId">The pending subscriber.</param>
+    /// <param name="cancellationToken">Cancels the delete.</param>
+    /// <returns>True when a row was removed. The default (for test doubles) removes nothing.</returns>
+    Task<bool> DeletePendingAsync(long subscriberId, CancellationToken cancellationToken = default)
+        => Task.FromResult(false);
+
+    /// <summary>
     /// Gets the total subscriber count without blocking the calling thread.
     /// </summary>
     /// <remarks>

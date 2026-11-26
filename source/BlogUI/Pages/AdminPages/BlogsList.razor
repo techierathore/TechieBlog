@@ -176,6 +176,19 @@
                     </CellTemplate>
                 </DataTableColumn>
 
+                @* REQ-UI-068 (BRD-108): confirmed average + confirmed count; opens that post's ratings. *@
+                <DataTableColumn TData="BlogPost" TValue="long" Property="@(p => p.PostID)" Header="Rating" Width="130px">
+                    <CellTemplate Context="row">
+                        <Button Variant="ButtonVariant.Ghost"
+                                Size="ButtonSize.Small"
+                                OnClick="@(() => OpenRatings(row))"
+                                AriaLabel="@($"Show ratings for {row.Title}")"
+                                data-testid="post-row-rating">
+                            @RatingLabel(row.PostID)
+                        </Button>
+                    </CellTemplate>
+                </DataTableColumn>
+
                 <DataTableColumn TData="BlogPost" TValue="long" Property="@(p => p.PostID)" Header="Actions" Width="180px">
                     <CellTemplate Context="row">
                         <div class="flex flex-nowrap items-center gap-1">
@@ -309,3 +322,5 @@
     </DialogContent>
 </Dialog>
 
+@* ---- Ratings (REQ-UI-068) — the same dialog the Analytics page opens ------ *@
+<RatingsDialog @bind-Open="RatingsOpen" PostId="@RatingsPostId" PostTitle="@RatingsPostTitle" />

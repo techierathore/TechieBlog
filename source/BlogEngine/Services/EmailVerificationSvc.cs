@@ -58,6 +58,7 @@ public class EmailVerificationSvc : IEmailVerificationService
     private readonly ISiteSettingsService siteSettingsService;
     private readonly ILogger<EmailVerificationSvc> logger;
     private readonly ICacheService? cacheService;
+    private readonly IMailServerSource? mailServerSource;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EmailVerificationSvc"/> class.
@@ -71,6 +72,10 @@ public class EmailVerificationSvc : IEmailVerificationService
     /// <param name="configuration">Supplies the public base URL.</param>
     /// <param name="siteSettingsService">Supplies the comment-moderation site setting [BRD-38].</param>
     /// <param name="logger">Logger for security events.</param>
+    /// <param name="mailServerSource">
+    /// Answers whether a mail server is set (REQ-FN-033). Optional so a unit test can build the
+    /// service without one; omitted, mail is treated as available.
+    /// </param>
     /// <param name="cacheService">
     /// Content cache (REQ-NFR-018). Confirming a rating changes the public rating aggregates, which
     /// count verified rows only, so this class owns that invalidation. Optional — omitting it simply
@@ -86,7 +91,8 @@ public class EmailVerificationSvc : IEmailVerificationService
         IConfiguration configuration,
         ISiteSettingsService siteSettingsService,
         ILogger<EmailVerificationSvc> logger,
-        ICacheService? cacheService = null)
+        ICacheService? cacheService = null,
+        IMailServerSource? mailServerSource = null)
     {
         this.tokenRepo = tokenRepo;
         this.verifiedEmailRepo = verifiedEmailRepo;
@@ -98,6 +104,7 @@ public class EmailVerificationSvc : IEmailVerificationService
         this.siteSettingsService = siteSettingsService;
         this.logger = logger;
         this.cacheService = cacheService;
+        this.mailServerSource = mailServerSource;
     }
 
     /// <summary>
@@ -138,9 +145,10 @@ public class EmailVerificationSvc : IEmailVerificationService
             return Result<EmailVerificationToken>.Failure(
                 "Too many confirmation emails have been requested for this address. Please try again later.");
 
+        EmailVerificationToken? token = null;
         try
         {
-            var token = await PersistTokenAsync(email, displayName, purpose, targetId, ipAddress)
+            token = await PersistTokenAsync(email, displayName, purpose, targetId, ipAddress)
                 .ConfigureAwait(false);
             await emailSender.SendVerificationEmailAsync(
                 token.Email, displayName, purpose, BuildVerificationUrl(token.Token)).ConfigureAwait(false);
@@ -153,8 +161,79 @@ public class EmailVerificationSvc : IEmailVerificationService
         {
             logger.LogError(ex, "Failed to issue a {Purpose} verification token for target {TargetId}",
                 purpose, targetId);
-            return Result<EmailVerificationToken>.Failure(
-                "We could not send the confirmation email. Please try again.");
+            await RetireTokenAsync(token).ConfigureAwait(false);
+            return Result<EmailVerificationToken>.Failure(SendFailedMessage(email));
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> IsMailUnavailableAsync()
+    {
+        if (mailServerSource == null)
+            return false;
+
+        var choice = await mailServerSource.GetCurrentAsync().ConfigureAwait(false);
+        return !choice.IsAvailable;
+    }
+
+    /// <summary>
+    /// The sentence a reader sees when no mail server is set, so nothing can be confirmed (REQ-FN-033).
+    /// </summary>
+    public const string ConfirmationUnavailableMessage =
+        "Email confirmation is not available right now, so we cannot accept this yet. Please try again later.";
+
+    /// <summary>
+    /// The sentence a reader sees after a confirmation link was mailed.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Names where the link went with the address masked to its first
+    /// letter and domain, the same masking staff screens use (REQ-FN-063).</para>
+    /// </remarks>
+    /// <param name="email">The address the link was sent to.</param>
+    /// <param name="noun">What is being confirmed: rating, comment or subscription.</param>
+    /// <returns>The reader-facing sentence.</returns>
+    public static string LinkSentMessage(string email, string noun)
+    {
+        return $"We sent a link to {EmailMasker.Mask(email)}. Open it within 24 hours to confirm your {noun}.";
+    }
+
+    /// <summary>
+    /// The sentence a reader sees when the confirmation mail could not be sent.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Names the masked address (REQ-UI-027/029/030) and says nothing was
+    /// kept: every caller removes its pending row when this failure comes back, so nothing is left
+    /// waiting on a link that never went out.</para>
+    /// </remarks>
+    /// <param name="email">The address the mail was meant for.</param>
+    /// <returns>The reader-facing sentence.</returns>
+    public static string SendFailedMessage(string email)
+    {
+        return $"We could not send the confirmation email to {EmailMasker.Mask(email)}, so nothing was saved. " +
+               "Please try again later.";
+    }
+
+    /// <summary>
+    /// Marks a token whose mail never went out as used, so it can never be redeemed.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Side Effects:</b> Updates one token row; a failure here is logged and swallowed because
+    /// the caller is already reporting the original failure.</para>
+    /// </remarks>
+    /// <param name="token">The token written before the send failed; null when the write itself failed.</param>
+    /// <returns>A task that completes when the token is retired.</returns>
+    private async Task RetireTokenAsync(EmailVerificationToken? token)
+    {
+        if (token == null || string.IsNullOrEmpty(token.Token))
+            return;
+
+        try
+        {
+            await tokenRepo.ConsumeAsync(token.Token).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not retire unsent verification token {TokenId}", token.TokenId);
         }
     }
 

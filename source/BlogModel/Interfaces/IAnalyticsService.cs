@@ -143,4 +143,19 @@ public interface IAnalyticsService
     /// <returns>The summary; a zeroed instance when nothing happened in the range.</returns>
     Task<AnalyticsSummary> GetSummaryAsync(
         DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Views per referring site for a date range — REQ-UI-071 (BRD-111).
+    /// </summary>
+    /// <remarks>
+    /// Same range rules as every other range method: inclusive whole days, swapped if inverted.
+    /// Never throws; a failed read returns an empty list and is logged.
+    /// </remarks>
+    /// <param name="fromUtc">First day of the range (UTC).</param>
+    /// <param name="toUtc">Last day of the range (UTC), inclusive.</param>
+    /// <param name="maxCount">Most sites to return (clamped to 1–100).</param>
+    /// <param name="cancellationToken">Cancels the query.</param>
+    /// <returns>Referring sites, busiest first.</returns>
+    Task<IReadOnlyList<ReferrerEngagement>> GetReferrersAsync(
+        DateTime fromUtc, DateTime toUtc, int maxCount, CancellationToken cancellationToken = default);
 }

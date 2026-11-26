@@ -62,7 +62,13 @@ public class AppRestarter
 
         try
         {
-            Process.Start(new ProcessStartInfo(executablePath) { UseShellExecute = true });
+            // DesktopProfile.RestartArguments keeps an isolated test run isolated after its restart;
+            // it is empty in a normal run, so the owner's restart is unchanged.
+            Process.Start(new ProcessStartInfo(executablePath)
+            {
+                UseShellExecute = true,
+                Arguments = DesktopProfile.RestartArguments
+            });
             logger.LogInformation("Relaunching BlogApp from {ExecutablePath}", executablePath);
         }
         catch (Exception ex)

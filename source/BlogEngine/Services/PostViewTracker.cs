@@ -201,14 +201,16 @@ public class PostViewTracker : IPostViewTracker
 
         var ipAddress = httpContext.Connection?.RemoteIpAddress?.ToString() ?? string.Empty;
         var userAgent = httpContext.Request?.Headers.UserAgent.ToString() ?? string.Empty;
+        var referrerHost = ReferrerHostParser.Parse(
+            httpContext.Request?.Headers.Referer.ToString(), httpContext.Request?.Host.Host);
 
         if (viewQueue == null)
-            return TrackViewAsync(postId, ipAddress, userAgent);
+            return TrackViewAsync(postId, ipAddress, userAgent, referrerHost);
 
         if (postId <= 0)
             return Task.FromResult(Result<bool>.Failure("A post id is required to track a view."));
 
-        var isQueued = viewQueue.TryEnqueue(new PostViewRequest(postId, ipAddress, userAgent));
+        var isQueued = viewQueue.TryEnqueue(new PostViewRequest(postId, ipAddress, userAgent, referrerHost));
         return Task.FromResult(Result<bool>.Success(isQueued));
     }
 
@@ -234,7 +236,27 @@ public class PostViewTracker : IPostViewTracker
     /// Success carrying <c>true</c> when a row was written and <c>false</c> when the view was
     /// de-duplicated; a failure when the post id is invalid or the write could not be attempted.
     /// </returns>
-    public async Task<Result<bool>> TrackViewAsync(long postId, string ipAddress, string userAgent)
+    public Task<Result<bool>> TrackViewAsync(long postId, string ipAddress, string userAgent)
+        => TrackViewAsync(postId, ipAddress, userAgent, null);
+
+    /// <summary>
+    /// Hashes the visitor and records the view with its referring site — REQ-UI-071 (BRD-111).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> identical to the three-argument overload, plus the referring
+    /// host, which was already reduced to a site name by <see cref="ReferrerHostParser"/> while the
+    /// request was in flight.</para>
+    /// <para><b>Flow:</b> validate → hash → conditional insert through <see cref="IPostViewRepo"/>.</para>
+    /// <para><b>Side Effects:</b> at most one <c>PostViews</c> row. Never throws; a failure is logged
+    /// and returned as a failed result.</para>
+    /// </remarks>
+    /// <param name="postId">The viewed post.</param>
+    /// <param name="ipAddress">The visitor's address, used only as hash input.</param>
+    /// <param name="userAgent">The visitor's user agent, used only as hash input.</param>
+    /// <param name="referrerHost">The referring host, or <c>null</c> for direct or unknown.</param>
+    /// <returns>Whether a new view row was written.</returns>
+    public async Task<Result<bool>> TrackViewAsync(
+        long postId, string ipAddress, string userAgent, string? referrerHost)
     {
         if (postId <= 0)
             return Result<bool>.Failure("A post id is required to track a view.");
@@ -243,7 +265,7 @@ public class PostViewTracker : IPostViewTracker
         {
             var visitorHash = VisitorHasher.ComputeHash(visitorSalt, ipAddress, userAgent);
             var isRecorded = await postViewRepo
-                .RecordViewAsync(postId, visitorHash, DateTime.UtcNow, dedupeWindowHours)
+                .RecordViewAsync(postId, visitorHash, DateTime.UtcNow, dedupeWindowHours, referrerHost)
                 .ConfigureAwait(false);
             return Result<bool>.Success(isRecorded);
         }
@@ -254,17 +276,6 @@ public class PostViewTracker : IPostViewTracker
         }
     }
 
-    /// <summary>
-    /// Resolves the de-duplication window from configuration.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Business Logic:</b> A window of zero or less would count every refresh, so an
-    /// invalid value falls back to the 24-hour default.</para>
-    /// <para><b>Flow:</b> parse the setting → validate → return the value or the default.</para>
-    /// <para><b>Side Effects:</b> None; pure.</para>
-    /// </remarks>
-    /// <param name="configuration">Application configuration.</param>
-    /// <returns>The de-duplication window in hours.</returns>
     private static int ResolveWindow(IConfiguration? configuration)
     {
         var raw = configuration?["Analytics:ViewDedupeWindowHours"];

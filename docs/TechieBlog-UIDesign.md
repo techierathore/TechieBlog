@@ -361,6 +361,8 @@ CSS-variable theming, dark mode via `.dark` on `<html>`, `<PortalHost />` requir
 | Status filter | TbTabs | All 24 · Published 18 · Drafts 4 · Scheduled 2 (live counts) | Active tab filters table server-side |
 | Search | TbInput | Title/slug contains, debounced | Clears to full list |
 | Table | TbDataTable | Columns: title (link to editor), status TbBadge (success/secondary/warning), category, date, views (mono), rating stars | Loading → TbSkeleton rows |
+| Rating cell *(BRD-108, added 2026-11-21)* | TbButton ghost sm (`post-row-rating`) | Confirmed average + confirmed count, e.g. "4.4 ★ (31)"; click opens the Ratings dialog for that post | No confirmed ratings → "No ratings" (still clickable when unconfirmed ones exist) |
+| Ratings dialog | TbDialog (`ratings-dialog`) + table | Shared with Analytics: stars, date, "Confirmed" / "Not yet confirmed" TbBadge, rater masked `r•••@gmail.com` | Empty → "No ratings yet"; loading → TbSkeleton |
 | Row actions | TbButton ghost sm ×3 | Edit → editor; Preview → draft preview; Delete → confirm | Delete → TbDialog confirm then TbToast |
 | Pager | TbPagination | 10/page, 24 total | Hidden when ≤1 page |
 | Empty | TbEmpty | "No posts yet — write your first" + New post CTA | Shown when filter/search yields none |
@@ -438,6 +440,7 @@ CSS-variable theming, dark mode via `.dark` on `<html>`, `<PortalHost />` requir
 | Live counts | TbCard ×6 stat tiles | Posts 24 / Published 18 / Users 132 / Subscribers 486 / Comments 291 / Pending 7 | Loading → TbSkeleton tiles; pending 0 → no badge |
 | Pending tile badge | TbBadge (warning) | Count of comments awaiting moderation | Hidden when queue is empty |
 | Quick actions | TbButton (primary + outline ×3) | New post → editor; Moderate comments; Manage images; Site settings | — |
+| Analytics action *(BRD-106, added 2026-11-21)* | TbButton outline (`action-analytics`) | "Analytics" → `/admin/analytics` | Wrapped in an AuthorizeView on `EditorOrAbove`, the Analytics page's own policy |
 | Popular posts | TbCard + list rows | Top 5 published posts by views, count right-aligned .mono | Empty → TbEmpty "No published posts" |
 | Recent comments | TbCard + TbAvatar + TbButton(sm) | Latest 4 comments: author, excerpt, post link, Approve/Delete | Empty → TbEmpty "Moderation queue is clear" |
 
@@ -585,11 +588,14 @@ CSS-variable theming, dark mode via `.dark` on `<html>`, `<PortalHost />` requir
 | Views trend | placeholder div bars — **GAP: no TrBlazeUI chart component** | 14 daily single-hue (--chart-1) bars, hover tooltip per bar, peak direct-labeled, sparse x-axis labels | No data in range → TbEmpty "No traffic recorded" |
 | Popular posts | TbDataTable | Title, views, unique, comments, rating (stars + numeric) | Empty → TbEmpty |
 | Engagement by category | TbCard + labeled .progress bars | 5 categories, chart colors --chart-1..5, text label + value on every bar (identity never color-alone) | Missing category data → row omitted |
+| Copy numbers *(BRD-110, added 2026-11-21)* | TbButton outline (`analytics-copy-numbers`) | Plain text: views today / 7 / 30 days, top 10 posts, referring sites | Copied → TbToast; refused → read-only text box |
+| Rating cell *(BRD-107)* | TbButton ghost sm (`popular-row-rating`) | Confirmed average + confirmed count; opens the Ratings dialog | No confirmed ratings → "No ratings" |
+| Ratings dialog *(BRD-107, BRD-109)* | TbDialog (`ratings-dialog`) + table | Stars, date, confirmed TbBadge, masked rater `r•••@gmail.com` | Empty → "No ratings yet" |
+| Where readers came from *(BRD-111)* | TbCard (`analytics-referrer-card`) + labeled .progress bars | Site name + views; "Direct or unknown" | Empty → TbEmpty |
 
 - **Interactions & states:** Apply refetches all widgets for the selected range; widgets show skeletons independently while loading; a failed widget shows its own TbAlert with retry, others stay live.
 - Trend bars expose per-day tooltips (date + views); the trend is a single series so it carries no legend — the card title names it.
 - Table rows link to the public post view; ratings render read-only stars with the numeric average for accessibility.
-- Build note: the chart areas are visual placeholders — the implementation needs a charting approach (custom SVG or a chart library) because TrBlazeUI ships none.
 
 ### Screen: Manage Profile (`/admin/profile`)
 

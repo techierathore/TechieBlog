@@ -83,4 +83,19 @@ public interface IPostViewTracker
     /// <returns>Success carrying true when a new view row was written, false when de-duplicated;
     /// failure when the write could not be attempted.</returns>
     Task<Result<bool>> TrackViewAsync(long postId, string ipAddress, string userAgent);
+
+    /// <summary>
+    /// Records a view with the referring site's host name — REQ-UI-071 (BRD-111).
+    /// </summary>
+    /// <remarks>
+    /// The default body ignores the referrer and calls the three-argument overload, so an
+    /// implementation written before referring sites were recorded keeps working unchanged.
+    /// </remarks>
+    /// <param name="postId">The viewed post.</param>
+    /// <param name="ipAddress">The visitor's address, used only as hash input.</param>
+    /// <param name="userAgent">The visitor's user agent, used only as hash input.</param>
+    /// <param name="referrerHost">The referring host, or <c>null</c> for direct or unknown.</param>
+    /// <returns>Whether a new view was written.</returns>
+    Task<Result<bool>> TrackViewAsync(long postId, string ipAddress, string userAgent, string? referrerHost)
+        => TrackViewAsync(postId, ipAddress, userAgent);
 }

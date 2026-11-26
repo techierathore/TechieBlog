@@ -236,6 +236,10 @@ public class SubscriberRepo : GenericRepository<Subscriber>, ISubscriberRepo
             UPDATE Subscriber SET IsConfirmed = @IsActive
             WHERE SubscriberId = @SubscriberId";
 
+    private const string DeletePendingSql = @"
+            DELETE FROM Subscriber
+            WHERE SubscriberId = @SubscriberId AND COALESCE(IsConfirmed, FALSE) = FALSE";
+
     private const string CountAllSql = "SELECT COUNT(*) FROM Subscriber";
 
     private const string CountActiveSql = "SELECT COUNT(*) FROM Subscriber WHERE IsConfirmed = TRUE";
@@ -559,6 +563,14 @@ public class SubscriberRepo : GenericRepository<Subscriber>, ISubscriberRepo
             UpdateStatusSql,
             new { SubscriberId = subscriberId, IsActive = isActive },
             cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> DeletePendingAsync(long subscriberId, CancellationToken cancellationToken = default)
+    {
+        var affected = await ExecuteAsync(
+            DeletePendingSql, new { SubscriberId = subscriberId }, cancellationToken).ConfigureAwait(false);
+        return affected > 0;
     }
 
     /// <summary>

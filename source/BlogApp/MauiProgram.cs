@@ -102,11 +102,14 @@ public static class MauiProgram
     /// <exception cref="Exception">Rethrown after logging when composition fails.</exception>
     public static MauiApp CreateMauiApp()
     {
+        DesktopProfile.ApplyWebViewDataFolder();
         ConfigureLogging();
 
         try
         {
             Log.Information("Starting BlogApp desktop head");
+            if (DesktopProfile.IsIsolated)
+                Log.Information("Isolated test profile in use: {ProfileFolder}; the saved connection is not read", DesktopProfile.IsolatedRoot);
 
             var builder = MauiApp.CreateBuilder();
             builder
@@ -493,7 +496,7 @@ public static class MauiProgram
     /// <returns>The absolute path of BlogApp's per-user data folder.</returns>
     private static string ResolveAppDataRoot()
     {
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        return Path.Combine(localAppData, "TechieBlog", "BlogApp");
+        // DesktopProfile: the normal per-user folder, or an isolated --profile folder for automated runs.
+        return DesktopProfile.AppDataRoot;
     }
 }

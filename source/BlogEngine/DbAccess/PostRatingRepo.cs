@@ -76,6 +76,17 @@ public class PostRatingRepo : GenericRepository<PostRating>, IPostRatingRepo
               FROM PostRating
              WHERE PostId = @PostId AND IsEmailVerified = TRUE";
 
+    /// <summary>
+    /// Confirmed-rating average and count for a set of posts in one grouped query — REQ-UI-068.
+    /// </summary>
+    private const string StatsForPostsSql = @"
+            SELECT PostId,
+                   COALESCE(AVG(Rating::DECIMAL), 0) AS AverageRating,
+                   COUNT(*) AS RatingCount
+              FROM PostRating
+             WHERE PostId = ANY(@PostIds) AND IsEmailVerified = TRUE
+             GROUP BY PostId";
+
     private const string TopRatedPostIdsSql = @"
             SELECT PostId
               FROM PostRating
@@ -391,6 +402,47 @@ public class PostRatingRepo : GenericRepository<PostRating>, IPostRatingRepo
         var stats = await QueryFirstOrDefaultAsync<PostRatingStats>(
             StatsByPostSql, parameters, cancellationToken).ConfigureAwait(false);
         return stats ?? new PostRatingStats { AverageRating = 0, RatingCount = 0 };
+    }
+
+    /// <summary>
+    /// Gets the confirmed-rating average and count for many posts in one round trip.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> REQ-UI-068 / REQ-FN-063. Confirmed ratings only, the same
+    /// predicate as <see cref="GetStatsByPostAsync"/>, so the Posts list and the post page cannot
+    /// disagree. Posts with no confirmed rating are absent from the result.</para>
+    /// <para><b>Flow:</b> bind the ids as one array parameter → grouped query → dictionary.</para>
+    /// <para><b>Side Effects:</b> None — read-only query.</para>
+    /// </remarks>
+    /// <param name="postIds">The posts to summarise.</param>
+    /// <param name="cancellationToken">Cancels the query.</param>
+    /// <returns>Statistics keyed by post id; empty for an empty input.</returns>
+    public async Task<IReadOnlyDictionary<long, PostRatingStats>> GetStatsForPostsAsync(
+        IReadOnlyCollection<long> postIds, CancellationToken cancellationToken = default)
+    {
+        if (postIds == null || postIds.Count == 0)
+            return new Dictionary<long, PostRatingStats>();
+
+        var parameters = new DynamicParameters();
+        parameters.Add("PostIds", postIds.Distinct().ToArray());
+
+        var rows = await QueryAsync<PostRatingStatsRow>(StatsForPostsSql, parameters, cancellationToken)
+            .ConfigureAwait(false);
+        return rows.ToDictionary(
+            row => row.PostId,
+            row => new PostRatingStats { AverageRating = (double)row.AverageRating, RatingCount = (int)row.RatingCount });
+    }
+
+    /// <summary>
+    /// One row of <see cref="StatsForPostsSql"/>; private to this repository.
+    /// </summary>
+    private sealed class PostRatingStatsRow
+    {
+        public long PostId { get; set; }
+
+        public decimal AverageRating { get; set; }
+
+        public long RatingCount { get; set; }
     }
 
     /// <summary>

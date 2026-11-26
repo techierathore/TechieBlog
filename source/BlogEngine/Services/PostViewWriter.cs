@@ -133,7 +133,7 @@ public class PostViewWriter : BackgroundService
             var tracker = scope.ServiceProvider.GetRequiredService<IPostViewTracker>();
 
             var result = await tracker
-                .TrackViewAsync(request.PostId, request.IpAddress, request.UserAgent)
+                .TrackViewAsync(request.PostId, request.IpAddress, request.UserAgent, request.ReferrerHost)
                 .ConfigureAwait(false);
 
             if (!result.IsSuccess)

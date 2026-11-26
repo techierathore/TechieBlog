@@ -129,13 +129,15 @@ public class VerificationEmailSender : IVerificationEmailSender
                 $"<p>Please confirm your {subjectNoun} by opening the link below. " +
                 "It works once and expires in 24 hours.</p>" +
                 $"<p><a href=\"{safeUrl}\">Confirm my {subjectNoun}</a></p>" +
-                "<p>If you did not submit anything, ignore this email and nothing will be posted.</p>",
+                "<p>If you did not submit anything, ignore this email and nothing will be posted.</p>" +
+                "<p>This is an automatic message from an address nobody reads. Please do not reply to it.</p>",
             TextBody =
                 $"Hello {greetingName},\r\n\r\n" +
                 $"Please confirm your {subjectNoun} by opening this link. " +
                 "It works once and expires in 24 hours.\r\n\r\n" +
                 $"{verificationUrl}\r\n\r\n" +
-                "If you did not submit anything, ignore this email and nothing will be posted."
+                "If you did not submit anything, ignore this email and nothing will be posted.\r\n\r\n" +
+                "This is an automatic message from an address nobody reads. Please do not reply to it."
         };
     }
 

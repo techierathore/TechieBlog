@@ -11,6 +11,7 @@ after the fact.
 | `sessions.jsonl` | agent session | the `SessionEnd` hook |
 | `commits.jsonl` | commit | the repo's own `pre-commit` hook |
 | `misses.jsonl` | a requirement/behaviour an agent MISSED, and what fixing it cost | `verify-phase`, `build-phase`, `triage-issues`, `fix-issues`, `amend-docs`, `*log-miss` |
+| `estimates.jsonl` | checklist row per cmd, and phase total per cmd: what the phase SHOULD cost in tokens and time — a forecast, never a measurement | `*estimate-phase` (`tf-estimate.sh`) |
 
 `misses.jsonl` is the one stream with **three** record kinds — `miss` (opened: what
 was missed, which phase/agent/model let it through, who found it), `miss-fix`
@@ -22,13 +23,14 @@ what makes "how much did that miss cost to fix" answerable. SCHEMA.md §5.5.
 Schema, enums, and every known limitation: `.tfcore/telemetry/SCHEMA.md`.
 Report: `/TechieFlow:agents:flow-master *metrics <AppName>` (OpenCode: `/flow-master *metrics <AppName>`) → `METRICS.md`.
 
-**All five files are created empty, on purpose, and an empty one is not a fault.**
+**All six files are created empty, on purpose, and an empty one is not a fault.**
 The installer seeds the set so every repo has the same shape and no writer has to
 guess whether its stream exists. A stream stays at zero bytes until something
 actually happens: `gates.jsonl` until the first `*verify`, `runs.jsonl` until the
 first framework command, `sessions.jsonl` until the first agent session ends, and
 `commits.jsonl` until your first commit after telemetry was installed, and
-`misses.jsonl` until an agent misses something (which it will). Commit
+`misses.jsonl` until an agent misses something (which it will), and
+`estimates.jsonl` until the first `*estimate-phase`. Commit
 these empty files along with the rest — a tracked empty stream is what makes the
 first record a one-line diff instead of a new file appearing from nowhere.
 

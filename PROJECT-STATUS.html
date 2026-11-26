@@ -106,7 +106,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <div class="layout">
   <nav class="side">
     <h1>TechieBlog — Status</h1>
-    <div class="sub">Last rendered: 2026-11-05</div>
+    <div class="sub">Last rendered: 2026-11-26</div>
     <div class="group">Contents</div>
     <ol>
         <li><a href="#where-i-am">Where I am</a></li>
@@ -121,7 +121,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   </nav>
   <main>
     <h1>TechieBlog — Status</h1>
-    <div class="subtitle">Rendered 2026-11-05 &middot; source <code>PROJECT-STATUS.md</code></div>
+    <div class="subtitle">Rendered 2026-11-26 &middot; source <code>PROJECT-STATUS.md</code></div>
     <div class="cta-next" style="padding:20px; background:var(--cta-bg); border:2px solid var(--accent); border-radius:10px; margin:20px 0;">
       <div style="font-size:11px; color:var(--muted); letter-spacing:.5px;">NEXT COMMAND TO RUN</div>
       <div style="font-family:var(--mono); font-size:18px; margin-top:6px;">(owner) set current_phase to Released after UAT — no agent command</div>
@@ -129,10 +129,10 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <table>
 <tbody>
 <tr><th>project</th><td>TechieBlog</td></tr>
-<tr><th>last_updated</th><td>2026-11-05</td></tr>
-<tr><th>current_phase</th><td>Phase 1 of 1 (whole product) · UAT — handoff done, 159 of 159 verified</td></tr>
+<tr><th>last_updated</th><td>2026-11-26</td></tr>
+<tr><th>current_phase</th><td>Phase 1 of 1 (whole product) · UAT — handoff done, 169 of 169 verified</td></tr>
 <tr><th>last_verified_build</th><td>PASS</td></tr>
-<tr><th>last_verified_date</th><td>2026-11-05</td></tr>
+<tr><th>last_verified_date</th><td>2026-11-26</td></tr>
 </tbody>
 </table>
     <div class="toc-inline">
@@ -149,7 +149,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
       </ol>
     </div>
 <h2 id="where-i-am">Where I am<a class="anchor-link" href="#where-i-am">#</a></h2>
-<p>Phase 1 of 1 (whole product, kept as one plan by owner decision on 2026-10-27). Every row is Verified (159 of 159, 12 not applicable): the post editor's owner check landed today and TrBlazeUI is at 2.2.2. Handoff ran on 2026-11-02; the UsageGuide and DevGuide record today's fix. Build PASS; nothing is deployed. Waiting on the owner's UAT.</p>
+<p>Phase 1 of 1 (Whole product (kept as one plan by owner decision, 2026-10-27)). Every row is Verified (169 of 169, 11 not applicable). Fixed today: reader confirmation mail. The mail server now comes from Settings at every send; Settings has "Send test mail" on the website and in BlogApp; forms show the masked address or say confirmation is unavailable; the dashboard warns until mail is set. Proven against a mail catcher on throwaway databases. Build PASS; nothing is deployed.</p>
 <h2 id="next-command-to-run">Next command to run<a class="anchor-link" href="#next-command-to-run">#</a></h2>
 <p>Claude Code:</p>
 <pre><code>(owner) set current_phase to Released after UAT — no agent command</code></pre>
@@ -173,7 +173,11 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 </ul>
 <h2 id="known-blockers">Known blockers<a class="anchor-link" href="#known-blockers">#</a></h2>
 <ul>
-<li>Owner-only: CI secret <code>TrBlazeUiPackagesToken</code> (REQ-NFR-017); revoke the old GitHub token (REQ-NFR-025); drop the scratch database <code>fxd_techieblog</code> and the 34 <code>fxv*@example.com</code> builder accounts (ids 11–44) on WinPostgre.
+<li>Owner-only: deploy, then set up mail on the live Settings screen (Prod-Deploy-Checklist §7 step 6); live mail delivery is unproven until that test mail.
+</li>
+<li>Owner-only: drop the throwaway database <code>tbsmoke_20261126092035</code> on WinPostgre; the database guard refuses agents a DROP.
+</li>
+<li>Owner-only: CI secret <code>TrBlazeUiPackagesToken</code> (REQ-NFR-017); revoke the old GitHub token (REQ-NFR-025); drop <code>fxd_techieblog</code> and the 34 <code>fxv*@example.com</code> accounts.
 </li>
 </ul>
 <h2 id="verification-log">Verification log<a class="anchor-link" href="#verification-log">#</a></h2>
@@ -181,32 +185,34 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <table>
 <thead><tr><th>Date</th><th>Phase</th><th>Result</th><th>Status table</th></tr></thead>
 <tbody>
-<tr><td>2026-10-30</td><td>amend-docs</td><td>156/159 Verified, 12 N/A</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
-<tr><td>2026-11-02</td><td>status</td><td>155/159 Verified, 12 N/A</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
 <tr><td>2026-11-02</td><td>handoff-phase</td><td>NOT READY: 155/159 Verified, 12 N/A, 4 to re-verify</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
 <tr><td>2026-11-05</td><td>triage-and-fix</td><td>158/159 Verified, 12 N/A</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
 <tr><td>2026-11-05</td><td>build-phase</td><td>159/159 Verified, 12 N/A</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+<tr><td>2026-11-21</td><td>build-phase</td><td>165/165 Verified, 12 N/A</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
+<tr><td>2026-11-26</td><td>triage-and-fix</td><td>169/169 Verified, 11 N/A</td><td>docs/TechieBlog-Checklist.md#requirements-status</td></tr>
 </tbody>
 </table>
 <h2 id="library-feedback-summary">Library feedback summary<a class="anchor-link" href="#library-feedback-summary">#</a></h2>
 <ul>
-<li>TechieFlow: 1 open (TF-003, minor, blocks nothing) · 1 fixed upstream, not yet re-checked (TF-001) · 1 closed — docs/TechieBlog-TechieFlow-Feedback.md
+<li>TechieFlow: 1 open · 3 fixed upstream, not yet re-checked (TF-004, TF-003, TF-001) · 1 closed — docs/TechieBlog-TechieFlow-Feedback.md
 </li>
 <li>TrBlazeUI: 0 open · 3 closed — docs/TechieBlog-TrBlazeUI-Feedback.md
 </li>
 </ul>
 <h2 id="standards-compliance">Standards compliance<a class="anchor-link" href="#standards-compliance">#</a></h2>
 <ul>
-<li>Last check 2026-10-30: 0 findings, see the checklist Remarks.
+<li>Last check 2026-11-26: 0 findings, see the checklist Remarks.
 </li>
 </ul>
 <h2 id="deferred-future"><a id="deferred--future"></a>Deferred / future<a class="anchor-link" href="#deferred-future">#</a></h2>
 <ul>
-<li>DevGuide 2026-11-02 defects found by reading, not reproduced (⚠ Remarks on 9 rows). Needs <code>*triage-issues</code>.
+<li>21 older verify specs and the seed helper name the owner's <code>TechieBlog</code> database; not run today.
 </li>
-<li>The comment seed trips the spam guard's five-comments-per-address-per-hour rule when the screens run more than a few times in one hour; the Admin Dashboard and Comment Moderation screens then grade as not staged.
+<li>Mail port 465 is unsupported; 587 is documented.
 </li>
-<li>Mockups have no <code>data-testid</code> anchors, so parity is unmeasured (<code>*amend-docs</code>).
+<li>DevGuide needs the mail, ratings-dialog, referrer and <code>--profile</code> code paths.
+</li>
+<li>DevGuide 2026-11-02 defects found by reading, not reproduced (9 rows). Needs <code>*triage-issues</code>.
 </li>
 <li>The WebView2 file-dialog crash was avoided, not fixed upstream.
 </li>

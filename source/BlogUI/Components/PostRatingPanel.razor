@@ -57,6 +57,8 @@
             <span class="ml-auto text-xs text-muted-foreground">One rating per email — no sign-in needed</span>
         </div>
 
+        <MailUnavailableNote TestId="rating-mail-unavailable" />
+
         @if (!string.IsNullOrEmpty(statusMessage))
         {
             <Alert Variant="@(isStatusError ? AlertVariant.Danger : AlertVariant.Success)"

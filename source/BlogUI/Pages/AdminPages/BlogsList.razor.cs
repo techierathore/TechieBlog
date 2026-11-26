@@ -37,6 +37,54 @@ partial class BlogsList : ComponentBase
     [Inject]
     public IExternalLinkOpener LinkOpener { get; set; } = default!;
 
+    /// <summary>
+    /// Confirmed-rating figures for the listed posts, in one grouped query (REQ-UI-068).
+    /// </summary>
+    [Inject]
+    public BlogEngine.Services.RatingSvc RatingService { get; set; } = default!;
+
+    /// <summary>
+    /// Confirmed average and count per post id; a missing key means no confirmed rating.
+    /// </summary>
+    public IReadOnlyDictionary<long, PostRatingStats> RatingStats { get; private set; } =
+        new Dictionary<long, PostRatingStats>();
+
+    /// <summary>
+    /// Whether the ratings dialog is open (REQ-UI-068).
+    /// </summary>
+    public bool RatingsOpen { get; set; }
+
+    /// <summary>
+    /// The post the ratings dialog shows.
+    /// </summary>
+    public long RatingsPostId { get; private set; }
+
+    /// <summary>
+    /// The title of the post the ratings dialog shows.
+    /// </summary>
+    public string RatingsPostTitle { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// The Rating cell's text: confirmed average and confirmed count, or "No ratings".
+    /// </summary>
+    /// <param name="postId">The post.</param>
+    /// <returns>For example <c>4.5 ★ (3)</c>.</returns>
+    public string RatingLabel(long postId) =>
+        RatingStats.TryGetValue(postId, out var stats)
+            ? AnalyticsDashboard.FormatRatingWithCount(stats.AverageRating, stats.RatingCount)
+            : AnalyticsDashboard.FormatRatingWithCount(0, 0);
+
+    /// <summary>
+    /// Opens the ratings dialog for one post.
+    /// </summary>
+    /// <param name="post">The post whose Rating cell was clicked.</param>
+    public void OpenRatings(BlogPost post)
+    {
+        RatingsPostId = post.PostID;
+        RatingsPostTitle = post.Title ?? string.Empty;
+        RatingsOpen = true;
+    }
+
     /// <summary>All posts visible to the signed-in user.</summary>
     public List<BlogPost>? ObjectList { get; set; }
 
@@ -134,6 +182,7 @@ partial class BlogsList : ComponentBase
     {
         var posts = await BlogService.GetAllPostsAsync(currentUserId, isAdminOrEditor);
         ObjectList = posts?.ToList() ?? new List<BlogPost>();
+        RatingStats = await RatingService.GetStatsForPostsAsync(ObjectList.Select(p => p.PostID).ToList());
         ApplyFilter();
     }
 

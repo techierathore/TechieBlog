@@ -5,7 +5,7 @@
 | App | TechieBlog |
 | Kind | app |
 | Size | Large |
-| Date | 2026-11-02 |
+| Date | 2026-11-21 |
 
 > The owner's test plan. Agents (self-smoke, verifier) and human UAT use the SAME test users and walkthrough below; nobody invents throwaway accounts (`.tfcore/tasks/_smoke-test-policy.md`).
 
@@ -49,6 +49,60 @@ cmd.exe /c "set ASPNETCORE_ENVIRONMENT=Development&&dotnet run --project source/
 
 Open `http://localhost:5399/login` and sign in as user 1. The `CREATE DATABASE` line is for a machine where the database does not exist yet. DbUp applies `source/BlogDb/PostgresScripts/001…` at startup; `AppDbConString` comes from `appsettings.Development.json`.
 
+### Set up mail
+
+The blog mails three things: the confirmation link a reader must open after rating, commenting or
+subscribing; password-reset links; and newsletters. **The mail server is set on the Settings screen,
+and nowhere else is needed** — no deploy secret, no environment value. A change takes effect on the
+next mail, with no restart. Until a mail server is set, the admin dashboard shows a yellow
+**"No mail server is set"** warning, and the rating, comment and subscribe forms tell readers that
+email confirmation is not available right now (nothing they submit is kept waiting).
+
+**Clicks** (website admin or BlogApp — the screen is the same):
+
+1. Sign in as the administrator. Open **Settings** in the left menu, then the **Email** tab.
+2. Fill in **Host**, **Port**, **Username**, **Password**, **From address**, **From name**, and tick
+   **Use SSL/TLS** (values below).
+3. In **Send test mail**, type your own address in **Send the test mail to** and click **Send test mail**.
+4. Read the answer under the button. Green **"The mail server accepted the test mail"** means it
+   worked — check that mailbox. Red **"The test mail was not sent"** shows the mail server's own reply
+   (for example a refused password, or "No answer from … within 30 seconds"); fix the value it points
+   to and send again.
+5. Click **Save Settings** at the bottom. The test uses the values on the screen even before you save;
+   only a save puts them to use for readers.
+6. Open **Dashboard**: the "No mail server is set" warning is gone.
+
+**Example 1 — a Gmail address with an app password**
+
+| Field | Value |
+|---|---|
+| Host | `smtp.gmail.com` |
+| Port | `587` |
+| Username | your full Gmail address, e.g. `yourname@gmail.com` |
+| Password | a 16-letter **app password**, not your Gmail password: Google Account → Security → 2-Step Verification (must be on) → App passwords → create one named "TechieBlog", paste the 16 letters without spaces |
+| From address | the same Gmail address (Gmail replaces any other) |
+| From name | the blog's name, e.g. `TechieRathore` |
+| Use SSL/TLS | ticked |
+
+**Example 2 — a mailbox on your own domain** (e.g. `blog@techierathore.com`)
+
+| Field | Value |
+|---|---|
+| Host | the outgoing (SMTP) server your mail host gives for that mailbox, e.g. `mail.techierathore.com`, `smtp.zoho.in` or `smtp.hostinger.com` — it is in the mail host's "mail client settings" page |
+| Port | `587` |
+| Username | the full mailbox address, `blog@techierathore.com` |
+| Password | that mailbox's password (or the app password, if your mail host offers them) |
+| From address | `blog@techierathore.com` |
+| From name | `TechieRathore` |
+| Use SSL/TLS | ticked |
+
+**Port 465 is not supported** by this sender (it speaks SSL from the first byte, which the .NET mail
+client cannot); the test answer says so. Every common mail host also offers 587 — use that.
+**"No answer from … within 30 seconds"** on the live server usually means the hosting provider blocks
+outgoing mail ports; ask them to open port 587, or use another mail host.
+The stored password is encrypted with `APP_ENCRYPTION_KEY`; if that key is ever changed, enter the
+mail password again here and send a test mail.
+
 ## How to test, screen by screen
 
 Smoke checklist (quick capability pass):
@@ -63,6 +117,10 @@ Smoke checklist (quick capability pass):
 - [ ] Upload an image and pick it through the image picker (user 1)
 - [ ] `/resume` renders and the CV downloads (user 6)
 - [ ] Dark mode on public and admin pages: no unreadable text
+- [ ] Dashboard Quick Actions has Analytics; it opens `/admin/analytics` (user 2) *(added 2026-11-21)*
+- [ ] A Rating cell on Analytics and on the posts list opens that post's ratings, raters masked (user 2, user 1)
+- [ ] Copy numbers on Analytics, then paste into Notepad: plain text matching the page (user 2)
+- [ ] Open a post from a link on another site; Analytics lists that site under Where readers came from (user 6, then 2)
 
 Screen-to-code map and screenshots: `docs/TechieBlog-DevGuide.md`.
 
@@ -116,7 +174,7 @@ Screen-to-code map and screenshots: `docs/TechieBlog-DevGuide.md`.
 
 ### Sign in and password reset (`/login`, `/forgot-password`, `/reset-password/{token}`, `/change-password`)
 - **Sign in as:** 4
-- **Steps:** 1) sign in, sign out 2) forgot-password for that email 3) take the reset link from the application log (no SMTP host) 4) reset, sign in with the new password 5) reuse the link.
+- **Steps:** 1) sign in, sign out 2) forgot-password for that email 3) open the reset mail (with a mail server set, see "Set up mail"; with none, the link is only in the application log) 4) reset, sign in with the new password 5) reuse the link.
 - **Expected:** the reused, expired or invalid link shows a clear error. Restore the password afterwards.
 - **Covers:** REQ-UI-001, REQ-UI-002, REQ-UI-003, REQ-FN-005, REQ-FN-006, REQ-FN-007, REQ-FN-008
 
@@ -156,11 +214,23 @@ Screen-to-code map and screenshots: `docs/TechieBlog-DevGuide.md`.
 - **Expected:** every change persists and shows on the public site.
 - **Covers:** REQ-UI-019, REQ-UI-020, REQ-UI-022, REQ-UI-023, REQ-FN-036
 
+### Analytics: ratings, Copy numbers, where readers came from (`/admin`, `/admin/analytics`, `/BlogsList`) — added 2026-11-21
+- **Sign in as:** 2, then 1
+- **Steps:** 1) on `/admin`, Quick Actions → **Analytics** 2) click a post's Rating cell: dialog with stars, date, Confirmed / Not yet confirmed, rater as `r•••@domain` 3) **Copy numbers**, paste 4) as user 6, open a post from a link on another site; back on Analytics, find that site 5) as user 1, on `/BlogsList` click a Rating cell.
+- **Expected:** the cell, the dialog and the post page agree; only confirmed ratings count; the pasted text holds views today / 7 / 30 days, the ten most read posts with views and rating, and the referring sites; no full email anywhere.
+- **Covers:** REQ-UI-044, REQ-UI-066, REQ-UI-067, REQ-UI-068, REQ-UI-070, REQ-UI-071, REQ-FN-063
+
 ### Subscribers, newsletter, analytics, settings (`/admin/subscribers`, `/admin/newsletter`, `/admin/analytics`, `/settings`)
 - **Sign in as:** 1
 - **Steps:** 1) subscribers: search, filter, **deactivate**, reactivate, export CSV 2) compose and save a newsletter draft 3) change the analytics date range 4) settings: site title, posts per page, theme.
 - **Expected:** a deactivated subscriber stays listed as Inactive (none is ever deleted, BRD-57); settings show on the public site.
 - **Covers:** REQ-UI-025, REQ-UI-026, REQ-UI-043, REQ-UI-044, REQ-FN-031, REQ-FN-040
+
+### Mail: test mail, dashboard warning, reader confirmations (`/settings` Email tab, `/admin`, `/post/{slug}`, `/verify/{token}`) — added 2026-11-26
+- **Sign in as:** 1, then none
+- **Steps:** 1) with no mail server saved, open `/admin`, then a post 2) follow "Set up mail": test a wrong port, then the right one; save 3) `/admin` again 4) as a reader, rate a post with an address you can read; open the mail's link 5) reload the post.
+- **Expected:** 1) dashboard warning; the forms say confirmation is not available 2) red answer with the server's reply, then green 3) no warning 4) "We sent a link to y•••@domain"; the link shows "Email confirmed" 5) the count went up by one. BlogApp's Settings behaves the same.
+- **Covers:** REQ-FN-033, REQ-FN-048, REQ-UI-027, REQ-UI-029, REQ-UI-030, REQ-UI-072, REQ-UI-073, REQ-NFR-045
 
 ### Theming
 - **Sign in as:** 6, then 1
@@ -170,8 +240,8 @@ Screen-to-code map and screenshots: `docs/TechieBlog-DevGuide.md`.
 
 ### BlogApp desktop (`source/BlogApp`)
 - **Sign in as:** 1
-- **Steps:** 1) start BlogApp 2) Connection settings: database, the two secrets, media storage; press **Test** 3) save, sign in 4) upload an image on `/admin/images` 5) open `/resume`.
-- **Expected:** the probe passes; with SFTP media storage the image appears on the website.
+- **Steps:** 1) start BlogApp 2) Connection settings: database, the two secrets, media storage; press **Test** 3) save, sign in 4) upload an image on `/admin/images` 5) open `/resume` 6) repeat the Analytics walkthrough above in BlogApp.
+- **Expected:** the probe passes; with SFTP media storage the image appears on the website; Analytics, the ratings dialog and Copy numbers behave as on the website.
 - **Covers:** REQ-UI-051, REQ-UI-063, REQ-UI-064, REQ-FN-062
 
 ## Automated tests
@@ -180,7 +250,7 @@ Screen-to-code map and screenshots: `docs/TechieBlog-DevGuide.md`.
 cmd.exe /c "dotnet test tests\TechieBlog.Tests\TechieBlog.Tests.csproj"
 BASE_URL=http://localhost:5399 TB_BASE=http://localhost:5399 npx playwright test
 ```
-Unit, integration and source-convention tests (1 536 passing on 2026-10-30), then the Playwright browser specs in `tests/verify` against a running host.
+Unit, integration and source-convention tests (1 571 passing on 2026-11-21), then the Playwright browser specs in `tests/verify` against a running host. The 2026-11-21 rows have `req-ui-066-071-ratings-analytics.spec.ts` (website) and `req-ui-066-071-blogapp.spec.ts` (BlogApp, launched with `--profile` so it never opens the saved connection).
 
 ## Known limitations
 
@@ -188,14 +258,19 @@ Unit, integration and source-convention tests (1 536 passing on 2026-10-30), the
 - **Not yet re-verified:** REQ-UI-025, REQ-FN-031 (BRD-57: deactivate, not remove), REQ-UI-047 (sidebar active item on TrBlazeUI 2.2.1).
 - **Found by reading the code on 2026-11-02, not reproduced** (DevGuide Known issues): an Author could open and edit any post (REQ-UI-016, fixed 2026-11-05: the editor and the preview now refuse another author's post); search filters are not applied (REQ-UI-011); tag links can miss the archive (REQ-UI-007); scheduled publish drops series membership (REQ-FN-016); "Pending Comments" counts rejected and spam (REQ-FN-036).
 - **TF-002:** the boot script's NAT-mode WSL fix is untested here; this machine now runs mirrored networking.
-- **Real SMTP delivery is unexercised** (REQ-FN-033): with no `EmailSettings:SmtpHost`, mail goes to the log.
+- **Mail is set on the Settings screen** (REQ-FN-033, 2026-11-26): real delivery is proven against a local mail catcher, not yet against Gmail or the live mail host — the owner's first "Send test mail" after deploy is that check. Port 465 is not supported; use 587.
 - **CI cannot restore TrBlazeUI** until the `TrBlazeUiPackagesToken` repository secret exists (owner, REQ-NFR-017).
 - **The deploy pipeline has never run against the VPS** (REQ-NFR-038); `docs/Prod-Deploy-Checklist.md`.
+- **Where readers came from starts empty:** referring sites are recorded only from the deploy that adds migration 033; older views show as "Direct or unknown" (REQ-UI-071).
+- **Analytics ratings changed meaning on 2026-11-21:** unconfirmed ratings no longer count there, so a post rated only by an unconfirmed address shows "No ratings" (REQ-UI-044, REQ-FN-063).
+- **Test database:** post 522 (`fxv0-markdown-showcase-3`) holds one confirmed and one unconfirmed test rating (`@example.test`) that the automated tests use.
 - **No screen-reader pass has been run**; axe reports 0 violations (REQ-NFR-006, REQ-NFR-007).
 
 ## Platform notes
 
 - **BlogApp media storage:** uploads stay on the local machine unless **Change connection → Media storage** is SFTP to `/srv/data/techieblog/uploads`; press **Test** first (it writes, reads back and deletes a file). The SFTP path has not been exercised with the real server's credentials (REQ-FN-062).
 - **BlogApp before 2026-08-22** saved uploads under `%LOCALAPPDATA%\TechieBlog\BlogApp\wwwroot\uploads` and `C:\srv\data\techieblog\uploads`; **Send to server** on the same panel pushes them up with the same file names.
+- **BlogApp test runs:** `BlogApp.exe --profile <absolute folder>` keeps the connection, logs, uploads and WebView2 data in that folder and never reads the saved connection; without it BlogApp behaves as before.
+- **Deploy order for the 2026-11-21 changes:** deploy the website first (it applies migration 033), then rebuild BlogApp; until then BlogApp's Where readers came from card stays empty.
 - **BlogApp thumbnails** do not load against a plain-http local site (mixed content); production uses https.
 - **WSL:** WSL `dotnet` cannot build the whole solution; use `cmd.exe /c "dotnet …"`. Bind `0.0.0.0` when a WSL-side browser must reach a Windows-side host.

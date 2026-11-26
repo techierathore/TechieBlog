@@ -1,6 +1,9 @@
 using BlogModels;
 using BlogModels.Interfaces;
+using BlogUI.Common;
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
+using TrBlazeUI.Components.Toast;
 
 namespace BlogUI.Pages.AdminPages;
 
@@ -53,6 +56,16 @@ public partial class AnalyticsDashboard : ComponentBase, IDisposable
     private const int CategoryLimit = 8;
 
     /// <summary>
+    /// The most referring sites the card lists (REQ-UI-071).
+    /// </summary>
+    private const int ReferrerLimit = 10;
+
+    /// <summary>
+    /// The clipboard module, served by the BlogUI RCL to both heads (REQ-UI-070).
+    /// </summary>
+    private const string ClipboardModulePath = "/_content/BlogUI/js/clipboard.js";
+
+    /// <summary>
     /// Date format the HTML date input exchanges with the page.
     /// </summary>
     private const string DateInputFormat = "yyyy-MM-dd";
@@ -62,6 +75,63 @@ public partial class AnalyticsDashboard : ComponentBase, IDisposable
     /// </summary>
     [Inject]
     public IAnalyticsService AnalyticsService { get; set; } = default!;
+
+    /// <summary>
+    /// JavaScript interop, used only to reach the clipboard module (REQ-UI-070).
+    /// </summary>
+    [Inject]
+    public IJSRuntime JsRuntime { get; set; } = default!;
+
+    /// <summary>
+    /// Toast notifications for the "Copy numbers" outcome.
+    /// </summary>
+    [Inject]
+    public ToastService ToastService { get; set; } = default!;
+
+    /// <summary>
+    /// Views per referring site in the applied range, busiest first (REQ-UI-071).
+    /// </summary>
+    public IReadOnlyList<ReferrerEngagement> Referrers { get; private set; } = new List<ReferrerEngagement>();
+
+    /// <summary>
+    /// Views recorded today (UTC) — a fixed window, independent of the range (REQ-UI-070).
+    /// </summary>
+    public int ViewsToday { get; private set; }
+
+    /// <summary>
+    /// Views in the last 7 days, today included (REQ-UI-070).
+    /// </summary>
+    public int ViewsLast7Days { get; private set; }
+
+    /// <summary>
+    /// Views in the last 30 days, today included (REQ-UI-070).
+    /// </summary>
+    public int ViewsLast30Days { get; private set; }
+
+    /// <summary>
+    /// Whether the ratings dialog is open (REQ-UI-067).
+    /// </summary>
+    public bool RatingsOpen { get; set; }
+
+    /// <summary>
+    /// The post the ratings dialog shows.
+    /// </summary>
+    public long RatingsPostId { get; private set; }
+
+    /// <summary>
+    /// The title of the post the ratings dialog shows.
+    /// </summary>
+    public string RatingsPostTitle { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// True while a copy is in progress.
+    /// </summary>
+    public bool IsCopying { get; private set; }
+
+    /// <summary>
+    /// The numbers as text, shown only when the clipboard refused them.
+    /// </summary>
+    public string CopyFallbackText { get; private set; } = string.Empty;
 
     /// <summary>
     /// Start of the applied range, as typed into the "From" date input.
@@ -172,6 +242,87 @@ public partial class AnalyticsDashboard : ComponentBase, IDisposable
         appliedFrom = appliedTo.AddDays(-(DefaultRangeDays - 1));
         SyncInputsFromAppliedRange();
         await LoadAsync();
+
+        // The fixed windows are secondary to the range panels, so they load after them and never
+        // delay the first paint of the page's main figures.
+        await LoadFixedWindowsAsync();
+    }
+
+    /// <summary>
+    /// Opens the ratings dialog for one post (REQ-UI-067).
+    /// </summary>
+    /// <param name="postId">The post.</param>
+    /// <param name="title">The post's title.</param>
+    public void OpenRatings(long postId, string title)
+    {
+        RatingsPostId = postId;
+        RatingsPostTitle = title ?? string.Empty;
+        RatingsOpen = true;
+    }
+
+    /// <summary>
+    /// The confirmed average with the confirmed count, for a Rating cell (REQ-UI-067).
+    /// </summary>
+    /// <param name="averageRating">Confirmed average; 0 when unrated.</param>
+    /// <param name="ratingCount">Confirmed count.</param>
+    /// <returns>For example <c>4.5 ★ (3)</c>, or <c>No ratings</c>.</returns>
+    public static string FormatRatingWithCount(double averageRating, int ratingCount) =>
+        ratingCount <= 0 || averageRating <= 0
+            ? "No ratings"
+            : string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{averageRating:0.0} ★ ({ratingCount:N0})");
+
+    /// <summary>
+    /// A referring site's bar length relative to the busiest site (REQ-UI-071).
+    /// </summary>
+    /// <param name="referrer">The site.</param>
+    /// <returns>0–100.</returns>
+    public double ReferrerSharePercent(ReferrerEngagement referrer)
+    {
+        if (referrer == null || Referrers.Count == 0)
+            return 0;
+
+        var leader = Referrers.Max(entry => entry.TotalViews);
+        return leader <= 0 ? 0 : Math.Round(referrer.TotalViews * 100d / leader, 1);
+    }
+
+    /// <summary>
+    /// Puts the page's numbers on the clipboard as plain text — REQ-UI-070 (BRD-110).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> the text is built from exactly what the page shows (the fixed
+    /// windows, the popular posts and the referring sites of the applied range), so the clipboard and
+    /// the screen cannot disagree. A refused clipboard shows the text for copying by hand.</para>
+    /// <para><b>Flow:</b> format → clipboard module → toast, or the fallback box.</para>
+    /// <para><b>Side Effects:</b> writes the clipboard; shows a toast.</para>
+    /// </remarks>
+    /// <returns>A task that completes when the copy has been attempted.</returns>
+    public async Task CopyNumbersAsync()
+    {
+        IsCopying = true;
+        var text = AnalyticsNumbersFormatter.Format(new AnalyticsNumbers(
+            DateTime.UtcNow, RangeCaption, ViewsToday, ViewsLast7Days, ViewsLast30Days, PopularPosts, Referrers));
+
+        bool isCopied;
+        try
+        {
+            await using var module = await JsRuntime.InvokeAsync<IJSObjectReference>("import", ClipboardModulePath);
+            isCopied = await module.InvokeAsync<bool>("writeText", text);
+        }
+        catch (JSDisconnectedException)
+        {
+            return;
+        }
+        catch (JSException)
+        {
+            isCopied = false;
+        }
+
+        IsCopying = false;
+        CopyFallbackText = isCopied ? string.Empty : text;
+        if (isCopied)
+            ToastService.Success("The numbers are on the clipboard as plain text.", "Numbers copied");
+        else
+            ToastService.Warning("The clipboard refused the text. It is shown on the page to copy by hand.", "Not copied");
     }
 
     /// <summary>
@@ -283,16 +434,28 @@ public partial class AnalyticsDashboard : ComponentBase, IDisposable
         IReadOnlyList<PopularPost> popularPosts;
         IReadOnlyList<CategoryEngagement> categoryEngagements;
         IReadOnlyList<ViewTrendPoint> trendPoints;
+        IReadOnlyList<ReferrerEngagement> referrers;
         AnalyticsSummary summary;
 
         try
         {
-            summary = await AnalyticsService.GetSummaryAsync(appliedFrom, appliedTo, cancellationToken);
-            trendPoints = await AnalyticsService.GetViewTrendAsync(appliedFrom, appliedTo, cancellationToken);
-            popularPosts = await AnalyticsService
+            // Five independent reads, each on its own connection, so they run side by side rather
+            // than one after another (REQ-UI-071 added the fifth).
+            var summaryTask = AnalyticsService.GetSummaryAsync(appliedFrom, appliedTo, cancellationToken);
+            var trendTask = AnalyticsService.GetViewTrendAsync(appliedFrom, appliedTo, cancellationToken);
+            var popularTask = AnalyticsService
                 .GetPopularPostsInRangeAsync(appliedFrom, appliedTo, PopularPostLimit, cancellationToken);
-            categoryEngagements = await AnalyticsService
+            var categoryTask = AnalyticsService
                 .GetCategoryEngagementAsync(appliedFrom, appliedTo, CategoryLimit, cancellationToken);
+            var referrerTask = AnalyticsService
+                .GetReferrersAsync(appliedFrom, appliedTo, ReferrerLimit, cancellationToken);
+            await Task.WhenAll(summaryTask, trendTask, popularTask, categoryTask, referrerTask);
+
+            summary = await summaryTask;
+            trendPoints = await trendTask;
+            popularPosts = await popularTask;
+            categoryEngagements = await categoryTask;
+            referrers = await referrerTask;
         }
         catch (OperationCanceledException)
         {
@@ -306,10 +469,33 @@ public partial class AnalyticsDashboard : ComponentBase, IDisposable
         TrendPoints = trendPoints;
         PopularPosts = popularPosts;
         CategoryEngagements = categoryEngagements;
+        Referrers = referrers;
 
         RangeCaption = BuildRangeCaption();
         StatTiles = BuildStatTiles();
         IsLoading = false;
+    }
+
+    /// <summary>
+    /// Loads the three fixed windows — today, last 7 days, last 30 days (UTC) — once per visit.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> REQ-UI-070. These do not follow the date range: "views today"
+    /// means today whatever range is being studied.</para>
+    /// <para><b>Side Effects:</b> three summary reads.</para>
+    /// </remarks>
+    /// <returns>A task that completes when the three figures are loaded.</returns>
+    private async Task LoadFixedWindowsAsync()
+    {
+        var today = DateTime.UtcNow.Date;
+        var todayTask = AnalyticsService.GetSummaryAsync(today, today);
+        var weekTask = AnalyticsService.GetSummaryAsync(today.AddDays(-6), today);
+        var monthTask = AnalyticsService.GetSummaryAsync(today.AddDays(-29), today);
+        await Task.WhenAll(todayTask, weekTask, monthTask);
+
+        ViewsToday = (await todayTask).TotalViews;
+        ViewsLast7Days = (await weekTask).TotalViews;
+        ViewsLast30Days = (await monthTask).TotalViews;
     }
 
     /// <summary>

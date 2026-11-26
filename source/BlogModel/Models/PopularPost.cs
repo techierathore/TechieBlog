@@ -58,22 +58,20 @@ public class PopularPost
     public int CommentCount { get; set; }
 
     /// <summary>
-    /// Rows in <c>PostRating</c> for the post, all time — <b>every</b> rating, including those
-    /// whose address never completed double opt-in.
+    /// Confirmed ratings for the post, all time — rows in <c>PostRating</c> whose address
+    /// completed double opt-in (REQ-FN-063, 2026-11-21).
     /// </summary>
     /// <remarks>
-    /// This is deliberately noted because it does <i>not</i> match the public figure. The star
-    /// widget counts verified ratings only (see <see cref="PostRatingStats.RatingCount"/>), so this
-    /// number is the same or larger and the two will disagree on any post that has attracted
-    /// unconfirmed submissions.
+    /// Until 2026-11-21 this counted every rating, confirmed or not, so an unconfirmed rating showed
+    /// on Analytics and nowhere else. It now matches the public star widget
+    /// (<see cref="PostRatingStats.RatingCount"/>) exactly.
     /// </remarks>
     public int RatingCount { get; set; }
 
     /// <summary>
-    /// Mean of <see cref="RatingCount"/> ratings on the same 1-to-5 scale as
-    /// <see cref="PostRating.Rating"/>, and over the same unfiltered set — so unverified ratings
-    /// move it, unlike the public average. Zero when the post is unrated; a genuine zero score is
-    /// impossible, so test the count rather than treating 0.0 as "rated badly".
+    /// Mean of those same confirmed ratings on the 1-to-5 scale of <see cref="PostRating.Rating"/>.
+    /// Zero when the post has no confirmed rating; a genuine zero score is impossible, so test the
+    /// count rather than treating 0.0 as "rated badly".
     /// </summary>
     public double AverageRating { get; set; }
 

@@ -65,21 +65,20 @@ public class PostEngagement
     public int ApprovedCommentCount { get; set; }
 
     /// <summary>
-    /// Rows in <c>PostRating</c> for the post — <b>every</b> rating, verified or not.
+    /// Confirmed ratings for the post — rows in <c>PostRating</c> whose address completed double
+    /// opt-in (REQ-FN-063, 2026-11-21).
     /// </summary>
     /// <remarks>
-    /// It therefore does not agree with <see cref="PostRatingStats.RatingCount"/>, which the public
-    /// star widget uses and which counts only ratings whose address completed double opt-in. Expect
-    /// the admin figure to be the larger of the two, and do not present them side by side as if
-    /// they measured the same thing.
+    /// Until 2026-11-21 this counted every rating, confirmed or not, and so disagreed with
+    /// <see cref="PostRatingStats.RatingCount"/>. It now applies the same confirmed-only rule, so the
+    /// two always agree.
     /// </remarks>
     public int RatingCount { get; set; }
 
     /// <summary>
-    /// Mean of those same unfiltered ratings on the 1-to-5 scale, or exactly zero when
+    /// Mean of those same confirmed ratings on the 1-to-5 scale, or exactly zero when
     /// <see cref="RatingCount"/> is zero. Zero is not an achievable score, so it always means
-    /// "unrated" — branch on the count, not on this value. Because unverified ratings are included,
-    /// this average is more easily skewed than the public one.
+    /// "unrated" — branch on the count, not on this value.
     /// </summary>
     public double AverageRating { get; set; }
 

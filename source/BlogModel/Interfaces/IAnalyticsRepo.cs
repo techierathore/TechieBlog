@@ -102,4 +102,15 @@ public interface IAnalyticsRepo
     /// <returns>The summary; a zeroed instance when nothing happened in the range.</returns>
     Task<AnalyticsSummary> GetSummaryAsync(
         DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Counts views per referring site inside a closed date range — REQ-UI-071 (BRD-111).
+    /// </summary>
+    /// <param name="fromUtc">Inclusive range start (UTC).</param>
+    /// <param name="toUtc">Exclusive range end (UTC).</param>
+    /// <param name="maxCount">Most groups to return.</param>
+    /// <param name="cancellationToken">Cancels the query.</param>
+    /// <returns>Referring sites, busiest first; views without one share a row with an empty host.</returns>
+    Task<IReadOnlyList<ReferrerEngagement>> GetReferrersAsync(
+        DateTime fromUtc, DateTime toUtc, int maxCount, CancellationToken cancellationToken = default);
 }

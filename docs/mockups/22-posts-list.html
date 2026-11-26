@@ -11,7 +11,7 @@
     Status filter   → TbTabs (All / Published / Drafts / Scheduled, with counts)
     Search          → TbInput (title/slug contains)
     Table           → TbDataTable (title, status TbBadge, category, date, views,
-                      rating, row actions TbButton ghost sm: Edit/Preview/Delete)
+                      rating (clickable: confirmed average + count, opens the Ratings TbDialog — BRD-108), row actions TbButton ghost sm: Edit/Preview/Delete)
     Pager           → TbPagination
   States: empty (no posts) → TbEmpty "No posts yet — write your first";
           loading → TbSkeleton rows; Delete → confirm TbDialog then Toast;
@@ -181,7 +181,7 @@
               <td><span class="badge badge-success">Published</span></td>
               <td>Blazor</td><td class="muted">Aug 2, 2026</td>
               <td style="text-align:right" class="mono">4,812</td>
-              <td><span class="stars">★★★★<span class="off">★</span></span> <span class="muted">(31)</span></td>
+              <td><button class="btn btn-ghost btn-sm" data-testid="post-row-rating" onclick="document.getElementById('dlg-ratings').hidden=false"><span class="stars">★★★★<span class="off">★</span></span> <span class="mono">4.4</span> <span class="muted">(31)</span></button></td>
               <td style="text-align:right;white-space:nowrap">
                 <a class="btn btn-ghost btn-sm" href="21-post-editor.html">Edit</a>
                 <a class="btn btn-ghost btn-sm" href="23-draft-preview.html">Preview</a>
@@ -193,7 +193,7 @@
               <td><span class="badge badge-success">Published</span></td>
               <td>PostgreSQL</td><td class="muted">Jul 28, 2026</td>
               <td style="text-align:right" class="mono">6,240</td>
-              <td><span class="stars">★★★★★</span> <span class="muted">(48)</span></td>
+              <td><button class="btn btn-ghost btn-sm" data-testid="post-row-rating" onclick="document.getElementById('dlg-ratings').hidden=false"><span class="stars">★★★★★</span> <span class="mono">4.8</span> <span class="muted">(48)</span></button></td>
               <td style="text-align:right;white-space:nowrap">
                 <a class="btn btn-ghost btn-sm" href="21-post-editor.html">Edit</a>
                 <a class="btn btn-ghost btn-sm" href="23-draft-preview.html">Preview</a>
@@ -229,7 +229,7 @@
               <td><span class="badge badge-success">Published</span></td>
               <td>MAUI</td><td class="muted">Jul 19, 2026</td>
               <td style="text-align:right" class="mono">3,105</td>
-              <td><span class="stars">★★★★<span class="off">★</span></span> <span class="muted">(19)</span></td>
+              <td><button class="btn btn-ghost btn-sm" data-testid="post-row-rating" onclick="document.getElementById('dlg-ratings').hidden=false"><span class="stars">★★★★<span class="off">★</span></span> <span class="mono">4.1</span> <span class="muted">(19)</span></button></td>
               <td style="text-align:right;white-space:nowrap">
                 <a class="btn btn-ghost btn-sm" href="21-post-editor.html">Edit</a>
                 <a class="btn btn-ghost btn-sm" href="23-draft-preview.html">Preview</a>
@@ -253,7 +253,7 @@
               <td><span class="badge badge-success">Published</span></td>
               <td>Blazor</td><td class="muted">Jul 8, 2026</td>
               <td style="text-align:right" class="mono">9,317</td>
-              <td><span class="stars">★★★★★</span> <span class="muted">(62)</span></td>
+              <td><button class="btn btn-ghost btn-sm" data-testid="post-row-rating" onclick="document.getElementById('dlg-ratings').hidden=false"><span class="stars">★★★★★</span> <span class="mono">4.6</span> <span class="muted">(62)</span></button></td>
               <td style="text-align:right;white-space:nowrap">
                 <a class="btn btn-ghost btn-sm" href="21-post-editor.html">Edit</a>
                 <a class="btn btn-ghost btn-sm" href="23-draft-preview.html">Preview</a>
@@ -281,6 +281,26 @@
           <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg> New post</a></div>
       -->
     </main>
+  </div>
+</div>
+
+<!-- Ratings TbDialog — BRD-108 (added 2026-11-21): the same dialog as Analytics. Closed by default. -->
+<div class="dialog-overlay" id="dlg-ratings" hidden data-tf-state="popup-open">
+  <div class="dialog" data-testid="ratings-dialog">
+    <h3 style="font-size:17px;margin-bottom:4px">Ratings</h3>
+    <p class="muted" style="font-size:13.5px;margin-bottom:14px" data-testid="ratings-dialog-summary">Migrating a Blazor app from Fluent UI to TrBlazeUI · 4.4 ★ from 31 confirmed ratings</p>
+    <div class="table-wrap">
+      <table class="tb" data-testid="ratings-dialog-table">
+        <thead><tr><th>Stars</th><th>Date</th><th>Status and rater</th></tr></thead>
+        <tbody>
+          <tr><td><span class="stars">★★★★★</span></td><td class="muted">Nov 18, 2026</td><td><span style="display:inline-flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="badge badge-success">Confirmed</span> <span class="mono">r•••@gmail.com</span></span></td></tr>
+          <tr><td><span class="stars">★★★★<span class="off">★</span></span></td><td class="muted">Nov 9, 2026</td><td><span style="display:inline-flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="badge badge-warning">Not yet confirmed</span> <span class="mono">p•••@example.org</span></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+      <button class="btn btn-outline" onclick="document.getElementById('dlg-ratings').hidden=true">Close</button>
+    </div>
   </div>
 </div>
 

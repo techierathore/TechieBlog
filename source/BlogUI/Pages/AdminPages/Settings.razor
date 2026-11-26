@@ -24,6 +24,7 @@
 @inject ICacheService CacheService
 @inject BlogEngine.Services.ISiteCacheNotifier CacheNotifier
 @inject AuthenticationStateProvider AuthStateProvider
+@inject BlogEngine.Services.IMailTestService MailTestService
 
 <SiteBrandTitle Page="Settings" />
 
@@ -431,6 +432,46 @@
                         </div>
                     </CardContent>
                 </Card>
+
+                @* REQ-UI-072: test the values on screen, saved or not, and show the server's own answer. *@
+                <Card Class="mt-4" data-testid="smtp-test-card">
+                    <CardHeader>
+                        <CardTitle>Send test mail</CardTitle>
+                        <CardDescription>
+                            Sends one mail with the values above, before or after you save, and shows what
+                            the mail server answered. Save Settings afterwards to put the values to use.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent Class="flex flex-col gap-3">
+                        <div class="flex flex-wrap items-end gap-3">
+                            <Field Class="mb-0 min-w-[15rem] flex-1">
+                                <FieldLabel For="smtp-test-to">Send the test mail to</FieldLabel>
+                                <FieldContent>
+                                    <Input Id="smtp-test-to" Type="InputType.Email" @bind-Value="testMailAddress"
+                                           Placeholder="you@example.com" data-testid="smtp-test-to" />
+                                </FieldContent>
+                            </Field>
+                            <Button OnClick="SendTestMail" Disabled="@isSendingTestMail" Variant="ButtonVariant.Outline"
+                                    data-testid="smtp-test-send">
+                                @if (isSendingTestMail)
+                                {
+                                    <Spinner Size="SpinnerSize.Small" Class="mr-2" />
+                                }
+                                Send test mail
+                            </Button>
+                        </div>
+                        @if (testMailOutcome != null)
+                        {
+                            <Alert Variant="@(testMailOutcome.IsAccepted ? AlertVariant.Success : AlertVariant.Danger)"
+                                   data-testid="@(testMailOutcome.IsAccepted ? "smtp-test-accepted" : "smtp-test-refused")">
+                                <AlertTitle>@(testMailOutcome.IsAccepted ? "The mail server accepted the test mail" : "The test mail was not sent")</AlertTitle>
+                                <AlertDescription>
+                                    <span data-testid="smtp-test-answer">@testMailOutcome.ServerAnswer</span>
+                                </AlertDescription>
+                            </Alert>
+                        }
+                    </CardContent>
+                </Card>
             </TabsContent>
 
             @* ---------------- Storage ---------------- *@
@@ -548,6 +589,15 @@
     private bool isLoading = true;
     private bool isSaving;
 
+    /// <summary>Where the Settings screen's test mail goes (REQ-UI-072).</summary>
+    private string testMailAddress = string.Empty;
+
+    /// <summary>True while the test mail is being sent.</summary>
+    private bool isSendingTestMail;
+
+    /// <summary>The mail server's answer to the last test mail; null before the first test.</summary>
+    private BlogEngine.Services.MailTestOutcome? testMailOutcome;
+
     /// <summary>True while the maintenance cache flush is running (UAT-001).</summary>
     private bool isClearingCache;
 
@@ -633,6 +683,34 @@
         // Preview only — writing to LocalStorage here would turn the administrator into a
         // visitor with a personal override and hide the site default from them (REQ-UI-032).
         ThemeService.PreviewTheme(themeId);
+    }
+
+    /// <summary>
+    /// Sends one test mail with the mail server values currently on the screen (REQ-UI-072).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> Uses the values as typed, saved or not, so the administrator can
+    /// prove them before saving. The answer shown is the mail server's own, good or bad.</para>
+    /// <para><b>Side Effects:</b> Sends one real email.</para>
+    /// </remarks>
+    /// <returns>A task that completes when the answer is on screen.</returns>
+    private async Task SendTestMail()
+    {
+        if (isSendingTestMail)
+        {
+            return;
+        }
+
+        isSendingTestMail = true;
+        testMailOutcome = null;
+        try
+        {
+            testMailOutcome = await MailTestService.SendTestMailAsync(settings.Smtp.Clone(), testMailAddress);
+        }
+        finally
+        {
+            isSendingTestMail = false;
+        }
     }
 
     /// <summary>

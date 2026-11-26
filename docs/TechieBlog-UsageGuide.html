@@ -106,13 +106,14 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <div class="layout no-toc">
   <main>
     <h1>TechieBlog — Usage Guide</h1>
-    <div class="subtitle">Rendered 2026-11-05 &middot; source <code>TechieBlog-UsageGuide.md</code></div>
+    <div class="subtitle">Rendered 2026-11-26 &middot; source <code>TechieBlog-UsageGuide.md</code></div>
 
     <div class="toc-inline">
       <div>Contents</div>
       <ol>
         <li><a href="#test-users">Test users</a></li>
         <li><a href="#execution-guide">Execution guide</a></li>
+        <li class="h3"><a href="#set-up-mail">Set up mail</a></li>
         <li><a href="#how-to-test-screen-by-screen">How to test, screen by screen</a></li>
         <li class="h3"><a href="#home">Home (/)</a></li>
         <li class="h3"><a href="#post-view-post-slug">Post view (/post/{slug})</a></li>
@@ -129,7 +130,9 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
         <li class="h3"><a href="#profile-and-resume-data-admin-profile-admin-experience-admin-skills-admin-awards-admin-stats-admin-speaking">Profile and resume data (/admin/profile, /admin/experience, /admin/skills, /admin/awards, /admin/stats, /admin/speaking)</a></li>
         <li class="h3"><a href="#comment-moderation-commentslist">Comment moderation (/CommentsList)</a></li>
         <li class="h3"><a href="#admin-dashboard-users-taxonomy-admin-users-adduser-admin-categories-admin-tags">Admin dashboard, users, taxonomy (/admin, /users, /adduser, /admin/categories, /admin/tags)</a></li>
+        <li class="h3"><a href="#analytics-ratings-copy-numbers-where-readers-came-from-admin-admin-analytics-blogslist-added-2026-11-21">Analytics: ratings, Copy numbers, where readers came from (/admin, /admin/analytics, /BlogsList) — added 2026-11-21</a></li>
         <li class="h3"><a href="#subscribers-newsletter-analytics-settings-admin-subscribers-admin-newsletter-admin-analytics-settings">Subscribers, newsletter, analytics, settings (/admin/subscribers, /admin/newsletter, /admin/analytics, /settings)</a></li>
+        <li class="h3"><a href="#mail-test-mail-dashboard-warning-reader-confirmations-settings-email-tab-admin-post-slug-verify-token-added-2026-11-26">Mail: test mail, dashboard warning, reader confirmations (/settings Email tab, /admin, /post/{slug}, /verify/{token}) — added 2026-11-26</a></li>
         <li class="h3"><a href="#theming">Theming</a></li>
         <li class="h3"><a href="#blogapp-desktop-source-blogapp">BlogApp desktop (source/BlogApp)</a></li>
         <li><a href="#automated-tests">Automated tests</a></li>
@@ -143,7 +146,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <tr><td>App</td><td>TechieBlog</td></tr>
 <tr><td>Kind</td><td>app</td></tr>
 <tr><td>Size</td><td>Large</td></tr>
-<tr><td>Date</td><td>2026-11-02</td></tr>
+<tr><td>Date</td><td>2026-11-21</td></tr>
 </tbody>
 </table>
 <blockquote>
@@ -190,6 +193,60 @@ dotnet restore TechieBlog.slnx
 cmd.exe /c "dotnet build TechieBlog.slnx"
 cmd.exe /c "set ASPNETCORE_ENVIRONMENT=Development&amp;&amp;dotnet run --project source/TechieBlog --urls http://0.0.0.0:5399"</code></pre>
 <p>Open <code>http://localhost:5399/login</code> and sign in as user 1. The <code>CREATE DATABASE</code> line is for a machine where the database does not exist yet. DbUp applies <code>source/BlogDb/PostgresScripts/001…</code> at startup; <code>AppDbConString</code> comes from <code>appsettings.Development.json</code>.</p>
+<h3 id="set-up-mail">Set up mail<a class="anchor-link" href="#set-up-mail">#</a></h3>
+<p>The blog mails three things: the confirmation link a reader must open after rating, commenting or
+subscribing; password-reset links; and newsletters. <strong>The mail server is set on the Settings screen,
+and nowhere else is needed</strong> — no deploy secret, no environment value. A change takes effect on the
+next mail, with no restart. Until a mail server is set, the admin dashboard shows a yellow
+<strong>"No mail server is set"</strong> warning, and the rating, comment and subscribe forms tell readers that
+email confirmation is not available right now (nothing they submit is kept waiting).</p>
+<p><strong>Clicks</strong> (website admin or BlogApp — the screen is the same):</p>
+<ol>
+<li>Sign in as the administrator. Open <strong>Settings</strong> in the left menu, then the <strong>Email</strong> tab.
+</li>
+<li>Fill in <strong>Host</strong>, <strong>Port</strong>, <strong>Username</strong>, <strong>Password</strong>, <strong>From address</strong>, <strong>From name</strong>, and tick <strong>Use SSL/TLS</strong> (values below).
+</li>
+<li>In <strong>Send test mail</strong>, type your own address in <strong>Send the test mail to</strong> and click <strong>Send test mail</strong>.
+</li>
+<li>Read the answer under the button. Green <strong>"The mail server accepted the test mail"</strong> means it worked — check that mailbox. Red <strong>"The test mail was not sent"</strong> shows the mail server's own reply (for example a refused password, or "No answer from … within 30 seconds"); fix the value it points to and send again.
+</li>
+<li>Click <strong>Save Settings</strong> at the bottom. The test uses the values on the screen even before you save; only a save puts them to use for readers.
+</li>
+<li>Open <strong>Dashboard</strong>: the "No mail server is set" warning is gone.
+</li>
+</ol>
+<p><strong>Example 1 — a Gmail address with an app password</strong></p>
+<table>
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Host</td><td><code>smtp.gmail.com</code></td></tr>
+<tr><td>Port</td><td><code>587</code></td></tr>
+<tr><td>Username</td><td>your full Gmail address, e.g. <code>yourname@gmail.com</code></td></tr>
+<tr><td>Password</td><td>a 16-letter <strong>app password</strong>, not your Gmail password: Google Account → Security → 2-Step Verification (must be on) → App passwords → create one named "TechieBlog", paste the 16 letters without spaces</td></tr>
+<tr><td>From address</td><td>the same Gmail address (Gmail replaces any other)</td></tr>
+<tr><td>From name</td><td>the blog's name, e.g. <code>TechieRathore</code></td></tr>
+<tr><td>Use SSL/TLS</td><td>ticked</td></tr>
+</tbody>
+</table>
+<p><strong>Example 2 — a mailbox on your own domain</strong> (e.g. <code>blog@techierathore.com</code>)</p>
+<table>
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Host</td><td>the outgoing (SMTP) server your mail host gives for that mailbox, e.g. <code>mail.techierathore.com</code>, <code>smtp.zoho.in</code> or <code>smtp.hostinger.com</code> — it is in the mail host's "mail client settings" page</td></tr>
+<tr><td>Port</td><td><code>587</code></td></tr>
+<tr><td>Username</td><td>the full mailbox address, <code>blog@techierathore.com</code></td></tr>
+<tr><td>Password</td><td>that mailbox's password (or the app password, if your mail host offers them)</td></tr>
+<tr><td>From address</td><td><code>blog@techierathore.com</code></td></tr>
+<tr><td>From name</td><td><code>TechieRathore</code></td></tr>
+<tr><td>Use SSL/TLS</td><td>ticked</td></tr>
+</tbody>
+</table>
+<p><strong>Port 465 is not supported</strong> by this sender (it speaks SSL from the first byte, which the .NET mail
+client cannot); the test answer says so. Every common mail host also offers 587 — use that.
+<strong>"No answer from … within 30 seconds"</strong> on the live server usually means the hosting provider blocks
+outgoing mail ports; ask them to open port 587, or use another mail host.
+The stored password is encrypted with <code>APP_ENCRYPTION_KEY</code>; if that key is ever changed, enter the
+mail password again here and send a test mail.</p>
 <h2 id="how-to-test-screen-by-screen">How to test, screen by screen<a class="anchor-link" href="#how-to-test-screen-by-screen">#</a></h2>
 <p>Smoke checklist (quick capability pass):</p>
 <ul>
@@ -214,6 +271,14 @@ cmd.exe /c "set ASPNETCORE_ENVIRONMENT=Development&amp;&amp;dotnet run --project
 <li>[ ] <code>/resume</code> renders and the CV downloads (user 6)
 </li>
 <li>[ ] Dark mode on public and admin pages: no unreadable text
+</li>
+<li>[ ] Dashboard Quick Actions has Analytics; it opens <code>/admin/analytics</code> (user 2) <em>(added 2026-11-21)</em>
+</li>
+<li>[ ] A Rating cell on Analytics and on the posts list opens that post's ratings, raters masked (user 2, user 1)
+</li>
+<li>[ ] Copy numbers on Analytics, then paste into Notepad: plain text matching the page (user 2)
+</li>
+<li>[ ] Open a post from a link on another site; Analytics lists that site under Where readers came from (user 6, then 2)
 </li>
 </ul>
 <p>Screen-to-code map and screenshots: <code>docs/TechieBlog-DevGuide.md</code>.</p>
@@ -309,7 +374,7 @@ cmd.exe /c "set ASPNETCORE_ENVIRONMENT=Development&amp;&amp;dotnet run --project
 <ul>
 <li><strong>Sign in as:</strong> 4
 </li>
-<li><strong>Steps:</strong> 1) sign in, sign out 2) forgot-password for that email 3) take the reset link from the application log (no SMTP host) 4) reset, sign in with the new password 5) reuse the link.
+<li><strong>Steps:</strong> 1) sign in, sign out 2) forgot-password for that email 3) open the reset mail (with a mail server set, see "Set up mail"; with none, the link is only in the application log) 4) reset, sign in with the new password 5) reuse the link.
 </li>
 <li><strong>Expected:</strong> the reused, expired or invalid link shows a clear error. Restore the password afterwards.
 </li>
@@ -382,6 +447,17 @@ cmd.exe /c "set ASPNETCORE_ENVIRONMENT=Development&amp;&amp;dotnet run --project
 <li><strong>Covers:</strong> REQ-UI-019, REQ-UI-020, REQ-UI-022, REQ-UI-023, REQ-FN-036
 </li>
 </ul>
+<h3 id="analytics-ratings-copy-numbers-where-readers-came-from-admin-admin-analytics-blogslist-added-2026-11-21"><a id="analytics-ratings-copy-numbers-where-readers-came-from-admin-adminanalytics-blogslist--added-2026-11-21"></a>Analytics: ratings, Copy numbers, where readers came from (<code>/admin</code>, <code>/admin/analytics</code>, <code>/BlogsList</code>) — added 2026-11-21<a class="anchor-link" href="#analytics-ratings-copy-numbers-where-readers-came-from-admin-admin-analytics-blogslist-added-2026-11-21">#</a></h3>
+<ul>
+<li><strong>Sign in as:</strong> 2, then 1
+</li>
+<li><strong>Steps:</strong> 1) on <code>/admin</code>, Quick Actions → <strong>Analytics</strong> 2) click a post's Rating cell: dialog with stars, date, Confirmed / Not yet confirmed, rater as <code>r•••@domain</code> 3) <strong>Copy numbers</strong>, paste 4) as user 6, open a post from a link on another site; back on Analytics, find that site 5) as user 1, on <code>/BlogsList</code> click a Rating cell.
+</li>
+<li><strong>Expected:</strong> the cell, the dialog and the post page agree; only confirmed ratings count; the pasted text holds views today / 7 / 30 days, the ten most read posts with views and rating, and the referring sites; no full email anywhere.
+</li>
+<li><strong>Covers:</strong> REQ-UI-044, REQ-UI-066, REQ-UI-067, REQ-UI-068, REQ-UI-070, REQ-UI-071, REQ-FN-063
+</li>
+</ul>
 <h3 id="subscribers-newsletter-analytics-settings-admin-subscribers-admin-newsletter-admin-analytics-settings"><a id="subscribers-newsletter-analytics-settings-adminsubscribers-adminnewsletter-adminanalytics-settings"></a>Subscribers, newsletter, analytics, settings (<code>/admin/subscribers</code>, <code>/admin/newsletter</code>, <code>/admin/analytics</code>, <code>/settings</code>)<a class="anchor-link" href="#subscribers-newsletter-analytics-settings-admin-subscribers-admin-newsletter-admin-analytics-settings">#</a></h3>
 <ul>
 <li><strong>Sign in as:</strong> 1
@@ -391,6 +467,17 @@ cmd.exe /c "set ASPNETCORE_ENVIRONMENT=Development&amp;&amp;dotnet run --project
 <li><strong>Expected:</strong> a deactivated subscriber stays listed as Inactive (none is ever deleted, BRD-57); settings show on the public site.
 </li>
 <li><strong>Covers:</strong> REQ-UI-025, REQ-UI-026, REQ-UI-043, REQ-UI-044, REQ-FN-031, REQ-FN-040
+</li>
+</ul>
+<h3 id="mail-test-mail-dashboard-warning-reader-confirmations-settings-email-tab-admin-post-slug-verify-token-added-2026-11-26"><a id="mail-test-mail-dashboard-warning-reader-confirmations-settings-email-tab-admin-postslug-verifytoken--added-2026-11-26"></a>Mail: test mail, dashboard warning, reader confirmations (<code>/settings</code> Email tab, <code>/admin</code>, <code>/post/{slug}</code>, <code>/verify/{token}</code>) — added 2026-11-26<a class="anchor-link" href="#mail-test-mail-dashboard-warning-reader-confirmations-settings-email-tab-admin-post-slug-verify-token-added-2026-11-26">#</a></h3>
+<ul>
+<li><strong>Sign in as:</strong> 1, then none
+</li>
+<li><strong>Steps:</strong> 1) with no mail server saved, open <code>/admin</code>, then a post 2) follow "Set up mail": test a wrong port, then the right one; save 3) <code>/admin</code> again 4) as a reader, rate a post with an address you can read; open the mail's link 5) reload the post.
+</li>
+<li><strong>Expected:</strong> 1) dashboard warning; the forms say confirmation is not available 2) red answer with the server's reply, then green 3) no warning 4) "We sent a link to y•••@domain"; the link shows "Email confirmed" 5) the count went up by one. BlogApp's Settings behaves the same.
+</li>
+<li><strong>Covers:</strong> REQ-FN-033, REQ-FN-048, REQ-UI-027, REQ-UI-029, REQ-UI-030, REQ-UI-072, REQ-UI-073, REQ-NFR-045
 </li>
 </ul>
 <h3 id="theming">Theming<a class="anchor-link" href="#theming">#</a></h3>
@@ -408,9 +495,9 @@ cmd.exe /c "set ASPNETCORE_ENVIRONMENT=Development&amp;&amp;dotnet run --project
 <ul>
 <li><strong>Sign in as:</strong> 1
 </li>
-<li><strong>Steps:</strong> 1) start BlogApp 2) Connection settings: database, the two secrets, media storage; press <strong>Test</strong> 3) save, sign in 4) upload an image on <code>/admin/images</code> 5) open <code>/resume</code>.
+<li><strong>Steps:</strong> 1) start BlogApp 2) Connection settings: database, the two secrets, media storage; press <strong>Test</strong> 3) save, sign in 4) upload an image on <code>/admin/images</code> 5) open <code>/resume</code> 6) repeat the Analytics walkthrough above in BlogApp.
 </li>
-<li><strong>Expected:</strong> the probe passes; with SFTP media storage the image appears on the website.
+<li><strong>Expected:</strong> the probe passes; with SFTP media storage the image appears on the website; Analytics, the ratings dialog and Copy numbers behave as on the website.
 </li>
 <li><strong>Covers:</strong> REQ-UI-051, REQ-UI-063, REQ-UI-064, REQ-FN-062
 </li>
@@ -418,7 +505,7 @@ cmd.exe /c "set ASPNETCORE_ENVIRONMENT=Development&amp;&amp;dotnet run --project
 <h2 id="automated-tests">Automated tests<a class="anchor-link" href="#automated-tests">#</a></h2>
 <pre><code>cmd.exe /c "dotnet test tests\TechieBlog.Tests\TechieBlog.Tests.csproj"
 BASE_URL=http://localhost:5399 TB_BASE=http://localhost:5399 npx playwright test</code></pre>
-<p>Unit, integration and source-convention tests (1 536 passing on 2026-10-30), then the Playwright browser specs in <code>tests/verify</code> against a running host.</p>
+<p>Unit, integration and source-convention tests (1 571 passing on 2026-11-21), then the Playwright browser specs in <code>tests/verify</code> against a running host. The 2026-11-21 rows have <code>req-ui-066-071-ratings-analytics.spec.ts</code> (website) and <code>req-ui-066-071-blogapp.spec.ts</code> (BlogApp, launched with <code>--profile</code> so it never opens the saved connection).</p>
 <h2 id="known-limitations">Known limitations<a class="anchor-link" href="#known-limitations">#</a></h2>
 <ul>
 <li><strong>Admin posts list: search and row Delete crash the page</strong> ("Something went wrong"). TrBlazeUI 2.2.1 <code>SelectValue</code>, TR-077; REQ-UI-017.
@@ -429,11 +516,17 @@ BASE_URL=http://localhost:5399 TB_BASE=http://localhost:5399 npx playwright test
 </li>
 <li><strong>TF-002:</strong> the boot script's NAT-mode WSL fix is untested here; this machine now runs mirrored networking.
 </li>
-<li><strong>Real SMTP delivery is unexercised</strong> (REQ-FN-033): with no <code>EmailSettings:SmtpHost</code>, mail goes to the log.
+<li><strong>Mail is set on the Settings screen</strong> (REQ-FN-033, 2026-11-26): real delivery is proven against a local mail catcher, not yet against Gmail or the live mail host — the owner's first "Send test mail" after deploy is that check. Port 465 is not supported; use 587.
 </li>
 <li><strong>CI cannot restore TrBlazeUI</strong> until the <code>TrBlazeUiPackagesToken</code> repository secret exists (owner, REQ-NFR-017).
 </li>
 <li><strong>The deploy pipeline has never run against the VPS</strong> (REQ-NFR-038); <code>docs/Prod-Deploy-Checklist.md</code>.
+</li>
+<li><strong>Where readers came from starts empty:</strong> referring sites are recorded only from the deploy that adds migration 033; older views show as "Direct or unknown" (REQ-UI-071).
+</li>
+<li><strong>Analytics ratings changed meaning on 2026-11-21:</strong> unconfirmed ratings no longer count there, so a post rated only by an unconfirmed address shows "No ratings" (REQ-UI-044, REQ-FN-063).
+</li>
+<li><strong>Test database:</strong> post 522 (<code>fxv0-markdown-showcase-3</code>) holds one confirmed and one unconfirmed test rating (<code>@example.test</code>) that the automated tests use.
 </li>
 <li><strong>No screen-reader pass has been run</strong>; axe reports 0 violations (REQ-NFR-006, REQ-NFR-007).
 </li>
@@ -443,6 +536,10 @@ BASE_URL=http://localhost:5399 TB_BASE=http://localhost:5399 npx playwright test
 <li><strong>BlogApp media storage:</strong> uploads stay on the local machine unless <strong>Change connection → Media storage</strong> is SFTP to <code>/srv/data/techieblog/uploads</code>; press <strong>Test</strong> first (it writes, reads back and deletes a file). The SFTP path has not been exercised with the real server's credentials (REQ-FN-062).
 </li>
 <li><strong>BlogApp before 2026-08-22</strong> saved uploads under <code>%LOCALAPPDATA%\TechieBlog\BlogApp\wwwroot\uploads</code> and <code>C:\srv\data\techieblog\uploads</code>; <strong>Send to server</strong> on the same panel pushes them up with the same file names.
+</li>
+<li><strong>BlogApp test runs:</strong> <code>BlogApp.exe --profile &lt;absolute folder&gt;</code> keeps the connection, logs, uploads and WebView2 data in that folder and never reads the saved connection; without it BlogApp behaves as before.
+</li>
+<li><strong>Deploy order for the 2026-11-21 changes:</strong> deploy the website first (it applies migration 033), then rebuild BlogApp; until then BlogApp's Where readers came from card stays empty.
 </li>
 <li><strong>BlogApp thumbnails</strong> do not load against a plain-http local site (mixed content); production uses https.
 </li>

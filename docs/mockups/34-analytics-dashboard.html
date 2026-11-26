@@ -14,6 +14,14 @@
                              build needs a chart lib or custom SVG ***
     Popular posts      → TbDataTable (title, views, unique, comments, rating)
     Engagement by cat. → TbCard + labeled .progress bars (chart colors, per-category)
+    Copy numbers       → TbButton (outline) in the header — BRD-110 (added 2026-11-21): puts the
+                         page's numbers on the clipboard as plain text; TbToast "Numbers copied"
+    Rating cell        → TbButton (link) "4.4 ★ (12)" — BRD-107: confirmed average + confirmed count;
+                         opens the Ratings TbDialog for that post
+    Ratings dialog     → TbDialog + table: stars, date, "Confirmed"/"Not yet confirmed" TbBadge,
+                         rater shown masked (r•••@gmail.com) — BRD-107/BRD-109
+    Where readers came → TbCard + labeled .progress bars — BRD-111: referring site per view in the
+      from               range; "Direct or unknown" when the browser sent none
   States: loading → TbSkeleton tiles + chart placeholder; no data in range → TbEmpty
           "No traffic recorded for this range"; invalid range (From > To) → inline error.
   Data: last-14-day daily views; per-post 30-day totals; category share of views.
@@ -158,6 +166,10 @@
           <input class="input" type="date" value="2026-08-06" style="width:160px">
         </div>
         <button class="btn btn-outline">Apply</button>
+        <button class="btn btn-outline" data-testid="analytics-copy-numbers"
+                onclick="alert('Numbers copied to the clipboard as plain text')">
+          <svg class="icon" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy numbers</button>
       </div>
 
       <!-- Stat tiles -->
@@ -199,13 +211,13 @@
         <div>
           <div class="table-wrap">
             <table class="tb">
-              <thead><tr><th>Post</th><th style="text-align:right">Views</th><th style="text-align:right">Unique</th><th style="text-align:right">Comments</th><th>Rating</th></tr></thead>
+              <thead data-testid="analytics-popular-grid"><tr><th>Post</th><th style="text-align:right">Views</th><th style="text-align:right">Unique</th><th style="text-align:right">Comments</th><th>Rating</th></tr></thead>
               <tbody>
-                <tr><td style="font-weight:500">Migrating a Blazor app from Fluent UI to TrBlazeUI</td><td class="mono" style="text-align:right">2,431</td><td class="mono" style="text-align:right">1,904</td><td class="mono" style="text-align:right">42</td><td><span class="stars">★★★★<span class="off">★</span></span> <span class="muted" style="font-size:12.5px">4.4</span></td></tr>
-                <tr><td style="font-weight:500">Dapper + PostgreSQL functions: a pragmatic data layer</td><td class="mono" style="text-align:right">1,982</td><td class="mono" style="text-align:right">1,511</td><td class="mono" style="text-align:right">48</td><td><span class="stars">★★★★★</span> <span class="muted" style="font-size:12.5px">4.8</span></td></tr>
-                <tr><td style="font-weight:500">One RCL, two heads: sharing Blazor UI with a desktop app</td><td class="mono" style="text-align:right">1,540</td><td class="mono" style="text-align:right">1,187</td><td class="mono" style="text-align:right">27</td><td><span class="stars">★★★★<span class="off">★</span></span> <span class="muted" style="font-size:12.5px">4.2</span></td></tr>
-                <tr><td style="font-weight:500">.NET 10 minimal APIs: what changed and why it matters</td><td class="mono" style="text-align:right">1,204</td><td class="mono" style="text-align:right">958</td><td class="mono" style="text-align:right">19</td><td><span class="stars">★★★★<span class="off">★</span></span> <span class="muted" style="font-size:12.5px">4.1</span></td></tr>
-                <tr><td style="font-weight:500">PostgreSQL LISTEN/NOTIFY as a poor man's message bus</td><td class="mono" style="text-align:right">987</td><td class="mono" style="text-align:right">742</td><td class="mono" style="text-align:right">23</td><td><span class="stars">★★★★<span class="off">★</span></span> <span class="muted" style="font-size:12.5px">4.5</span></td></tr>
+                <tr><td style="font-weight:500">Migrating a Blazor app from Fluent UI to TrBlazeUI</td><td class="mono" style="text-align:right">2,431</td><td class="mono" style="text-align:right">1,904</td><td class="mono" style="text-align:right">42</td><td><button class="btn btn-ghost btn-sm" data-testid="popular-row-rating" onclick="document.getElementById('dlg-ratings').hidden=false"><span class="stars">★★★★<span class="off">★</span></span> <span class="mono">4.4</span> <span class="muted">(12)</span></button></td></tr>
+                <tr><td style="font-weight:500">Dapper + PostgreSQL functions: a pragmatic data layer</td><td class="mono" style="text-align:right">1,982</td><td class="mono" style="text-align:right">1,511</td><td class="mono" style="text-align:right">48</td><td><button class="btn btn-ghost btn-sm" data-testid="popular-row-rating" onclick="document.getElementById('dlg-ratings').hidden=false"><span class="stars">★★★★★</span> <span class="mono">4.8</span> <span class="muted">(12)</span></button></td></tr>
+                <tr><td style="font-weight:500">One RCL, two heads: sharing Blazor UI with a desktop app</td><td class="mono" style="text-align:right">1,540</td><td class="mono" style="text-align:right">1,187</td><td class="mono" style="text-align:right">27</td><td><button class="btn btn-ghost btn-sm" data-testid="popular-row-rating" onclick="document.getElementById('dlg-ratings').hidden=false"><span class="stars">★★★★<span class="off">★</span></span> <span class="mono">4.2</span> <span class="muted">(12)</span></button></td></tr>
+                <tr><td style="font-weight:500">.NET 10 minimal APIs: what changed and why it matters</td><td class="mono" style="text-align:right">1,204</td><td class="mono" style="text-align:right">958</td><td class="mono" style="text-align:right">19</td><td><button class="btn btn-ghost btn-sm" data-testid="popular-row-rating" onclick="document.getElementById('dlg-ratings').hidden=false"><span class="stars">★★★★<span class="off">★</span></span> <span class="mono">4.1</span> <span class="muted">(12)</span></button></td></tr>
+                <tr><td style="font-weight:500">PostgreSQL LISTEN/NOTIFY as a poor man's message bus</td><td class="mono" style="text-align:right">987</td><td class="mono" style="text-align:right">742</td><td class="mono" style="text-align:right">23</td><td><button class="btn btn-ghost btn-sm" data-testid="popular-row-rating" onclick="document.getElementById('dlg-ratings').hidden=false"><span class="stars">★★★★<span class="off">★</span></span> <span class="mono">4.5</span> <span class="muted">(12)</span></button></td></tr>
               </tbody>
             </table>
           </div>
@@ -238,7 +250,52 @@
           </div>
         </div>
       </div>
+
+      <!-- Where readers came from — BRD-111 (added 2026-11-21) -->
+      <div class="card" style="margin-top:20px" data-testid="analytics-referrer-card">
+        <div class="card-header"><div class="card-title">Where readers came from</div><div class="card-desc">Referring site · last 30 days</div></div>
+        <div class="card-content" style="display:flex;flex-direction:column;gap:14px;padding-top:14px" data-testid="analytics-referrer-list">
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span data-testid="referrer-row-name">google.com</span><span class="mono muted" data-testid="referrer-row-views">5.2K</span></div>
+            <div class="progress"><i style="width:100%;background:var(--chart-1)"></i></div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span>Direct or unknown</span><span class="mono muted">3.8K</span></div>
+            <div class="progress"><i style="width:73%;background:var(--chart-1)"></i></div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span>linkedin.com</span><span class="mono muted">1.9K</span></div>
+            <div class="progress"><i style="width:37%;background:var(--chart-1)"></i></div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span>bing.com</span><span class="mono muted">0.8K</span></div>
+            <div class="progress"><i style="width:15%;background:var(--chart-1)"></i></div>
+          </div>
+        </div>
+      </div>
     </main>
+  </div>
+</div>
+
+<!-- Ratings TbDialog — BRD-107 / BRD-109 (added 2026-11-21). Closed by default. -->
+<div class="dialog-overlay" id="dlg-ratings" hidden data-tf-state="popup-open">
+  <div class="dialog" data-testid="ratings-dialog">
+    <h3 style="font-size:17px;margin-bottom:4px">Ratings</h3>
+    <p class="muted" style="font-size:13.5px;margin-bottom:14px" data-testid="ratings-dialog-summary">Migrating a Blazor app from Fluent UI to TrBlazeUI · 4.4 ★ from 12 confirmed ratings · 1 not yet confirmed</p>
+    <div class="table-wrap">
+      <table class="tb" data-testid="ratings-dialog-table">
+        <thead><tr><th>Stars</th><th>Date</th><th>Status and rater</th></tr></thead>
+        <tbody>
+          <tr><td><span class="stars">★★★★★</span></td><td class="muted">Nov 18, 2026</td><td><span style="display:inline-flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="badge badge-success">Confirmed</span> <span class="mono">r•••@gmail.com</span></span></td></tr>
+          <tr><td><span class="stars">★★★★★</span></td><td class="muted">Nov 16, 2026</td><td><span style="display:inline-flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="badge badge-warning">Not yet confirmed</span> <span class="mono">a•••@outlook.com</span></span></td></tr>
+          <tr><td><span class="stars">★★★★<span class="off">★</span></span></td><td class="muted">Nov 9, 2026</td><td><span style="display:inline-flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="badge badge-success">Confirmed</span> <span class="mono">p•••@example.org</span></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted" style="font-size:12.5px;margin-top:10px">Only confirmed ratings count in the average. Raters are never shown on the public site.</p>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+      <button class="btn btn-outline" onclick="document.getElementById('dlg-ratings').hidden=true">Close</button>
+    </div>
   </div>
 </div>
 

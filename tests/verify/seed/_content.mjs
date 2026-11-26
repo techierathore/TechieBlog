@@ -375,6 +375,9 @@ async function ensureComments(admin, newAnon) {
     await form.locator('[data-testid="comment-email"]').fill(c.email);
     await form.locator('[data-testid="comment-input"]').fill(c.text);
     await solveCaptcha(form);
+    // CommentSpamGuard refuses a form submitted less than 3 s after it was drawn (a bot signal), and a
+    // scripted fill is faster than that; wait as a person would (2026-11-21, it refused every run).
+    await sleep(4000);
     await form.locator('[data-testid="comment-submit"]').click();
     await until(async () => (await page.locator('[data-testid="comment-form-success"], [data-testid="comment-form-error"]').count()) > 0, 30000);
     const outcome = (await page.locator('[data-testid="comment-form-success"], [data-testid="comment-form-error"]').first().textContent().catch(() => '?'))?.replace(/\s+/g, ' ').trim() || '';

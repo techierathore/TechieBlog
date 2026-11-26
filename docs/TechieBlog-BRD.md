@@ -130,7 +130,9 @@ composer finally has a reader-facing counterpart.
 GitHub); magic-link or passwordless authentication; advanced SEO tooling (Open Graph editor, meta-tag
 UI); an admin UI for *creating* themes; a **mobile** application wrapper *(the desktop admin
 application moved in scope on 2026-08-06 — see F-DESK)*; multi-tenancy;
-localization / internationalization; and advanced analytics such as referrer tracking. A community
+localization / internationalization; and advanced analytics such as campaign or full-URL referrer
+tracking *(revised 2026-11-21: the referring **site name only** moved in scope — BRD-111; full referring
+addresses, campaign tags and per-visitor journeys stay out)*. A community
 theme repository remains a post-MVP aspiration. The MAUI Blazor Hybrid desktop writer — the reason
 `BlogUI` is kept as a Razor Class Library — moved **in scope** on 2026-08-06 as **BlogApp** (F-DESK,
 BRD-94…BRD-97).
@@ -139,14 +141,18 @@ BRD-94…BRD-97).
 
 Written by the status gate after every build, verify and handoff; not by hand.
 
-**Snapshot as of 2026-11-05.** Live per-requirement status: `PROJECT-STATUS.md` and the Requirements Status table in `docs/TechieBlog-Checklist.md`.
+**Snapshot as of 2026-11-26.** Live per-requirement status: `PROJECT-STATUS.md` and the Requirements Status table in `docs/TechieBlog-Checklist.md`.
 
 | Screen | Requirements | Verified | Open | Status |
 |---|---|---|---|---|
 | UI / Pages | 49 | 49 | 0 | Done |
-| Functional requirements | 48 | 48 | 0 | Done |
+| Functional requirements | 49 | 49 | 0 | Done |
 | Non-functional | 37 | 37 | 0 | Done |
 | Unmapped | 25 | 25 | 0 | Done |
+| Other | 6 | 6 | 0 | Done |
+| Site Settings | 1 | 1 | 0 | Done |
+| Admin Dashboard | 1 | 1 | 0 | Done |
+| Post page | 1 | 1 | 0 | Done |
 
 ## 5. Stakeholders / users
 
@@ -516,7 +522,24 @@ for "top rated" selections.
 Choosing a star reveals the email + captcha step; the rating counts once the address is confirmed
 (BRD-98, BRD-99). A visitor whose address is already verified rates in one click.
 
-**Requirements:** BRD-40 *(revised)*, BRD-41 *(revised)*, BRD-42, BRD-98, BRD-99
+**Extended 2026-11-21 — ratings the owner can see.** The owner saw a 5-star rating on the Analytics
+page and could find it nowhere else. The cause was in the numbers, not the owner: Analytics averaged
+**every** stored rating, including ratings whose email address was never confirmed, while the post page
+counts confirmed ratings only — so an unconfirmed rating was visible on one screen and invisible on all
+the others. Two changes follow. First, the rule is stated once and holds on every screen: **only
+confirmed ratings count in any average or count** (BRD-109), Analytics included. Second, the staff can
+open a post's individual ratings — stars, date, and whether the address is confirmed or not yet
+confirmed — from the Rating cell on Analytics (BRD-107) and from the Posts list (BRD-108). The rater is
+shown only as a masked address (first letter and domain, `r•••@gmail.com`), masked before it leaves the
+service, and nothing about a rater ever appears on a public page.
+
+**Acceptance (one per requirement):**
+
+- *Acceptance for BRD-107:* When an Editor or Admin opens Analytics, then each popular post's Rating cell shows the confirmed average and the confirmed count, and clicking it opens a dialog listing that post's ratings with stars, date, "Confirmed" or "Not yet confirmed", and the rater as first letter plus domain. Mockup: [34-analytics-dashboard](mockups/34-analytics-dashboard.html).
+- *Acceptance for BRD-108:* When an Author or above opens the Posts list, then each post shows its confirmed average and confirmed count, and clicking it opens the same ratings dialog. Mockup: [22-posts-list](mockups/22-posts-list.html).
+- *Acceptance for BRD-109:* When a post has one confirmed and one unconfirmed rating, then the post page, the Posts list and Analytics all show the same average and a count of one, and no public page's HTML contains any part of a rater's email address.
+
+**Requirements:** BRD-40 *(revised)*, BRD-41 *(revised)*, BRD-42, BRD-98, BRD-99, BRD-107, BRD-108, BRD-109 *(added 2026-11-21)*
 
 ### ~~F-FAV: Favourites & bookmarks~~ — REMOVED 2026-08-06
 
@@ -642,8 +665,28 @@ trend charts with a date-range filter.
 | Screen | Route | Description |
 |--------|-------|-------------|
 | Admin dashboard | `/admin`, `/AdminDashboard` | Count tiles + quick actions, `EditorOrAbove` |
+| Analytics | `/admin/analytics` | Stat tiles, views trend, popular posts, engagement by category, where readers came from, Copy numbers, `EditorOrAbove` |
+| Ratings dialog | (dialog on Analytics and on the Posts list) | One post's ratings: stars, date, confirmed or not yet confirmed, masked rater |
 
-**Requirements:** BRD-60, BRD-61, BRD-62
+**Extended 2026-11-21.** The dashboard's Quick Actions card gains an **Analytics** button, shown to
+exactly the roles that may open `/admin/analytics` (BRD-106). Analytics gains a **Copy numbers** button
+that puts the page's figures on the clipboard as plain text — views today, in the last 7 days and in the
+last 30 days, the ten most read posts with their views and rating, and where readers came from — so the
+owner can hand them to a planning assistant every week (BRD-110). "Where readers came from" is new: each
+recorded view now keeps the **name of the site** the reader arrived from (for example `google.com`),
+taken from the address the browser sends; the full address, its path and its query are never stored, a
+visit from the site itself or with no address is counted as "Direct or unknown", and views recorded
+before this change are all "Direct or unknown" (BRD-111). Both heads — the website and BlogApp — show
+the same screens, since both render the shared `BlogUI` pages; views are only ever recorded by the
+website.
+
+**Acceptance (one per requirement):**
+
+- *Acceptance for BRD-106:* When an Editor or Admin opens the admin dashboard, then the Quick Actions card shows an "Analytics" button that opens `/admin/analytics`; a role the Analytics page refuses never sees it. Mockup: [26-admin-dashboard](mockups/26-admin-dashboard.html).
+- *Acceptance for BRD-110:* When an Editor or Admin clicks "Copy numbers" on Analytics, then the clipboard holds plain text with views today, last 7 days and last 30 days, the ten most read posts with views and rating, and the referring sites with their views, matching the numbers on the page. Mockup: [34-analytics-dashboard](mockups/34-analytics-dashboard.html).
+- *Acceptance for BRD-111:* When a reader opens a post from a link on another site, then that view is recorded with the other site's name only, and Analytics' "Where readers came from" card lists that site with its view count for the range; a view with no referring address appears as "Direct or unknown". Mockup: [34-analytics-dashboard](mockups/34-analytics-dashboard.html).
+
+**Requirements:** BRD-60, BRD-61, BRD-62, BRD-106, BRD-110, BRD-111 *(added 2026-11-21)*
 
 ### F-SEO: RSS & sitemap
 
@@ -932,6 +975,15 @@ owner's say, since it is not part of the approved set named here.
 - **BRD-103** — Every page of the website shall link a `favicon.ico` (32 px), `icon-192.png` and `icon-512.png` in its `<head>`, all rendered from the approved tile by a script kept under `scripts/` — never made by hand *(F-BRAND)* <!-- added 2026-10-27 -->
 - **BRD-104** — BlogApp's app icon, icon foreground and splash screen shall be the approved TechieBlog files copied byte for byte (splash = the glyph-only file), with `#0F4DBC` replacing `#512BD4` as the `MauiIcon` and `MauiSplashScreen` colour, and no hand-made PNG under `Resources/` *(F-BRAND)* <!-- added 2026-10-27 -->
 - **BRD-105** — `README.md` shall open with the horizontal lockup PNG, committed under `docs/brand/`, above the title, so it renders on GitHub *(F-BRAND)* <!-- added 2026-10-27 -->
+- **BRD-106** — The admin dashboard's Quick Actions card shall offer an "Analytics" button that opens `/admin/analytics`, shown only to the roles that may open that page (`EditorOrAbove`) — screen: Admin dashboard, mockup [26-admin-dashboard](mockups/26-admin-dashboard.html) *(F-ANA)* <!-- added 2026-11-21 -->
+- **BRD-107** — On Analytics, each popular post's Rating cell shall show the confirmed average and the confirmed count, and a click shall open that post's ratings: stars, date, confirmed or not yet confirmed, and the rater's email masked to its first letter and domain — screen: Analytics, mockup [34-analytics-dashboard](mockups/34-analytics-dashboard.html) *(F-RATE, F-ANA)* <!-- added 2026-11-21 -->
+- **BRD-108** — The admin Posts list shall show each post's confirmed average and confirmed count, with the same click to that post's ratings — screen: Posts list, mockup [22-posts-list](mockups/22-posts-list.html) *(F-RATE)* <!-- added 2026-11-21 -->
+- **BRD-109** — Only confirmed ratings shall count in any average or count on any screen, Analytics included; a rater's email shall reach an admin screen only already masked, and no part of it shall appear on a public page *(F-RATE)* <!-- added 2026-11-21 -->
+- **BRD-110** — Analytics shall offer one "Copy numbers" button that puts the page's numbers on the clipboard as plain text: views today, last 7 and last 30 days, the ten most read posts with views and rating, and where readers came from — screen: Analytics, mockup [34-analytics-dashboard](mockups/34-analytics-dashboard.html) *(F-ANA)* <!-- added 2026-11-21 -->
+- **BRD-111** — Every recorded post view shall keep the name of the referring site only (no path, no query; the site itself or no address = "Direct or unknown"), and Analytics shall show "Where readers came from" for the selected range — screen: Analytics, mockup [34-analytics-dashboard](mockups/34-analytics-dashboard.html) *(F-ANA)* <!-- added 2026-11-21 -->
+- **BRD-112** — The Settings screen's Email tab, on the website and in BlogApp, shall offer "Send test mail" to a typed address using the values on screen, and show the mail server's own answer, good or bad — screen: Site Settings, mockup [32-admin-settings](mockups/32-admin-settings.html) *(F-SET)* <!-- added 2026-11-26 -->
+- **BRD-113** — While no mail server is set, the admin dashboard shall show a warning that readers cannot confirm, linking Admins to Settings — screen: Admin Dashboard, mockup [26-admin-dashboard](mockups/26-admin-dashboard.html) *(F-SET)* <!-- added 2026-11-26 -->
+- **BRD-114** — The rating, comment and subscription confirmation journeys shall be proven end to end by an automated test with a mail catcher and a throwaway database *(F-RATE)* <!-- added 2026-11-26 -->
 
 ## 11. Non-functional requirements
 
@@ -1041,13 +1093,14 @@ owner's say, since it is not part of the approved set named here.
 - **TrBlazeUI** — the owner's shadcn/ui-inspired Blazor component library (`TrBlazeUI.Components`, GitHub Packages NuGet feed). **Adopted 2026-08-06 as this project's UI library (BRD-92)**, replacing Microsoft Fluent UI Blazor. **TechieRag** — TechieFlow's RAG library; still not used (this project has no AI/RAG features).
 
 ---
-Last updated: 2026-10-27
-Highest BRD ID: BRD-105
+Last updated: 2026-11-21
+Highest BRD ID: BRD-111
 Last amended: 2026-08-06 — TrBlazeUI adoption (BRD-92), portfolio home + no public admin entry (BRD-30 revised, BRD-93), BlogApp MAUI desktop admin (BRD-94…97, F-DESK); design-review pass: F-AUTHOR + F-FAV retired (BRD-43/44/53/54/55), reader accounts dropped (BRD-13, BRD-37), anonymous email-identified comments and ratings (BRD-36/40/41 revised)
 Retired IDs (never reused): BRD-1, BRD-13, BRD-37, BRD-43, BRD-44, BRD-53, BRD-54, BRD-55
 Added 2026-08-06 (second design-review pass): BRD-98 email verification · BRD-99 self-hosted captcha ·
 BRD-100 public newsletter archive · BRD-101 public newsletter issue view
 Added 2026-10-27 (brand assets, F-BRAND): BRD-102 header lockup · BRD-103 favicon + icons from a script · BRD-104 BlogApp icon/splash · BRD-105 README lockup
+Added 2026-11-21 (ratings the owner can see, weekly numbers): BRD-106 dashboard Analytics button · BRD-107 Analytics ratings dialog · BRD-108 Posts list ratings · BRD-109 confirmed-only everywhere, masked rater · BRD-110 Copy numbers · BRD-111 referring site
 Sources harvested: docs/OldDocs/prd.md, docs/prd/ (sharded), docs/OldDocs/project-brief.md, docs/architecture.md, docs/architecture/ (sharded), docs/OldDocs/front-end-spec.md, docs/OldDocs/feature-ideation-images-resume.md, docs/OldDocs/MVP-EXECUTION-PLAN.md, docs/OldDocs/FIX-PLAN.md, docs/OldDocs/FAST-TRACK-BACKLOG.md, docs/OldDocs/SM-HANDOFF.md, docs/OldDocs/epic-image-resume-multiauthor.md, docs/stories/*.story.md (44), docs/qa/gates/*.yml (19), docs/deployment.md, docs/customization.md, docs/database-migration-guide.md, docs/DataMigrationGuide.md, docs/packaging-strategy-brainstorm.md, docs/template-release-checklist.md, README.md, GETTING_STARTED.md
 Custom instructions applied: none — user replied "all" (harvest every detected doc)
 Drafted from reverse-doc — review and edit. New BRDs may be added (append-only); do not renumber.

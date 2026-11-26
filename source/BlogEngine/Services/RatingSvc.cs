@@ -170,6 +170,9 @@ public class RatingSvc
         {
             var isVerified = await emailVerificationService
                 .IsAddressVerifiedAsync(submission.Email).ConfigureAwait(false);
+            if (!isVerified && await emailVerificationService.IsMailUnavailableAsync().ConfigureAwait(false))
+                return Result<RatingSubmissionOutcome>.Failure(EmailVerificationSvc.ConfirmationUnavailableMessage);
+
             var ratingId = await ratingRepo.UpsertByEmailAsync(
                 submission.PostId, submission.Email.Trim(), submission.Rating,
                 submission.UserId, isVerified).ConfigureAwait(false);
@@ -187,11 +190,11 @@ public class RatingSvc
     /// Issues the confirmation link, or reports that the score already counts.
     /// </summary>
     /// <remarks>
-    /// <para><b>Business Logic:</b> A verified address is done immediately. An unverified one
-    /// keeps its parked row even when the mail cannot be sent - unlike a comment, a stray
-    /// unverified rating is invisible and harmless, and keeping it means the visitor's score is
-    /// not lost if they confirm through a later link.</para>
-    /// <para><b>Side Effects:</b> May send an email.</para>
+    /// <para><b>Business Logic:</b> A verified address is done immediately. For an unverified one the
+    /// link is mailed; when that mail cannot be sent the parked row is removed and the reader is told
+    /// so, because a rating waiting on a link that never went out is exactly how a reader's rating was
+    /// lost on the live site (2026-11-26). Nothing is left waiting.</para>
+    /// <para><b>Side Effects:</b> May send an email; may delete the unconfirmed rating on failure.</para>
     /// </remarks>
     /// <param name="submission">The original submission.</param>
     /// <param name="ratingId">The upserted rating id.</param>
@@ -216,13 +219,17 @@ public class RatingSvc
             ratingId, submission.IpAddress).ConfigureAwait(false);
 
         if (issued.IsFailure)
+        {
+            await ratingRepo.DeleteByPostAndEmailAsync(submission.PostId, submission.Email.Trim()).ConfigureAwait(false);
+            ServiceCache.InvalidateRatings(cacheService, submission.PostId);
             return Result<RatingSubmissionOutcome>.Failure(issued.ErrorMessage);
+        }
 
         return Result<RatingSubmissionOutcome>.Success(new RatingSubmissionOutcome
         {
             RatingId = ratingId,
             IsEmailVerificationRequired = true,
-            Message = "Almost there - check your inbox and click the link to confirm your rating."
+            Message = EmailVerificationSvc.LinkSentMessage(submission.Email, "rating")
         });
     }
 
@@ -494,6 +501,92 @@ public class RatingSvc
         {
             logger.LogError(ex, "Error removing the rating for post {PostId}", postId);
             return Result.Failure("Failed to remove rating. Please try again.");
+        }
+    }
+
+    // =================================================================================================
+    // Staff surface — REQ-UI-067 / REQ-UI-068 / REQ-FN-063 (BRD-107…109).
+    // =================================================================================================
+
+    /// <summary>
+    /// Lists one post's ratings for the staff ratings dialog, with every rater's email masked.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> every rating is listed, confirmed or not, newest first, so the
+    /// staff can see why a number is what it is; <see cref="StaffRatingRow.IsConfirmed"/> says which
+    /// ones count. The email is masked <b>here</b> through <see cref="EmailMasker"/>, and
+    /// <see cref="StaffRatingRow"/> has no email property, so the full address never leaves this
+    /// service.</para>
+    /// <para><b>Flow:</b> validate the id → read the post's ratings → project and mask → order.</para>
+    /// <para><b>Side Effects:</b> none — read only. A failed read is logged and returned as a failure
+    /// with a generic message.</para>
+    /// </remarks>
+    /// <param name="postId">The post whose ratings are wanted.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The masked rows, or a failure the page can show.</returns>
+    public async Task<Result<IReadOnlyList<StaffRatingRow>>> GetRatingsForStaffAsync(
+        long postId, CancellationToken cancellationToken = default)
+    {
+        if (postId <= 0)
+            return Result<IReadOnlyList<StaffRatingRow>>.Failure("A post is required.");
+
+        try
+        {
+            var ratings = await ratingRepo.GetAllByIdAsync(postId, cancellationToken).ConfigureAwait(false);
+            IReadOnlyList<StaffRatingRow> rows = ratings
+                .Select(rating => new StaffRatingRow
+                {
+                    RatingId = rating.RatingId,
+                    Stars = rating.Rating,
+                    RatedOn = rating.UpdatedOn ?? rating.CreatedOn,
+                    IsConfirmed = rating.IsEmailVerified,
+                    MaskedEmail = EmailMasker.Mask(rating.Email)
+                })
+                .OrderByDescending(row => row.RatedOn)
+                .ToList();
+            return Result<IReadOnlyList<StaffRatingRow>>.Success(rows);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to list ratings for post {PostId}", postId);
+            return Result<IReadOnlyList<StaffRatingRow>>.Failure("The ratings could not be loaded.");
+        }
+    }
+
+    /// <summary>
+    /// Confirmed-rating average and count for every post on a staff list, in one query.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Business Logic:</b> REQ-UI-068 / REQ-FN-063 — confirmed ratings only, the same rule
+    /// as the public post page. A post missing from the result has no confirmed rating.</para>
+    /// <para><b>Flow:</b> repository grouped query; an empty dictionary on failure.</para>
+    /// <para><b>Side Effects:</b> logs an error when the read fails.</para>
+    /// </remarks>
+    /// <param name="postIds">The posts shown on the list.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>Statistics keyed by post id; never <c>null</c>.</returns>
+    public async Task<IReadOnlyDictionary<long, PostRatingStats>> GetStatsForPostsAsync(
+        IReadOnlyCollection<long> postIds, CancellationToken cancellationToken = default)
+    {
+        if (postIds == null || postIds.Count == 0)
+            return new Dictionary<long, PostRatingStats>();
+
+        try
+        {
+            return await ratingRepo.GetStatsForPostsAsync(postIds, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to read rating statistics for {PostCount} posts", postIds.Count);
+            return new Dictionary<long, PostRatingStats>();
         }
     }
 }

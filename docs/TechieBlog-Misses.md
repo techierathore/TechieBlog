@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | App | TechieBlog |
-| Count | 110 logged: 1 open, 97 fixed, 12 will not fix |
+| Count | 119 logged: 1 open, 106 fixed, 12 will not fix |
 | Source | `docs/metrics/misses.jsonl`, one row per miss record. Rewritten by `tf-misses-md.sh` on every new record. Never edit it: a wrong row is corrected by a new record. |
-| Updated | 2026-11-05 |
+| Updated | 2026-11-26 |
 
 **Whose gap** answers the four questions of the miss protocol: **the app's spec** did not say it, so the checklist line is fixed; **the framework never said it**, so one requirement line and a check are added; **the check was too weak** (a review, or a script that did not fire), so the check is fixed; **said and ignored**, so the rule becomes a hook or is deleted. **not sorted** means the record predates the sort or nobody has answered yet; `bash .tfcore/utils/tf-emit.sh --amend <miss> sort <spec|unsaid|weak-check|ignored>` completes it.
 
@@ -15,10 +15,19 @@
 |---|---|---|---|
 | MISS-TechieBlog-20260907-01 | 2026-09-07 by gate | not sorted | triage edited 1 file(s) under src, source or tests, which a triage never does: source/TechieBlog/wwwroot/uploads/blog/blog-2-20260907002216-7bc38ddb.jpg |
 
-## Fixed (97)
+## Fixed (106)
 
 | Miss | Found | Closed | Whose gap | What went wrong |
 |---|---|---|---|---|
+| MISS-TechieBlog-20261126-08 (REQ-NFR-045) | 2026-11-26 by production | 2026-11-26 by triage-and-fix | the app's spec | Whole confirmation journey proven against a mail catcher |
+| MISS-TechieBlog-20261126-07 (REQ-UI-073) | 2026-11-26 by production | 2026-11-26 by triage-and-fix | the app's spec | Admin dashboard warns while no mail server is set |
+| MISS-TechieBlog-20261126-06 (REQ-UI-072) | 2026-11-26 by production | 2026-11-26 by triage-and-fix | the app's spec | Send test mail from Settings (website and BlogApp) |
+| MISS-TechieBlog-20261126-05 (REQ-UI-030) | 2026-11-26 by production | 2026-11-26 by triage-and-fix | the check was too weak | After a subscription the reader is not told where the link went; a failed send leaves a pending subscriber waiting. |
+| MISS-TechieBlog-20261126-04 (REQ-UI-029) | 2026-11-26 by production | 2026-11-26 by triage-and-fix | the check was too weak | After a comment the reader is not told where the link went, and nothing says when confirmation mail cannot be sent. |
+| MISS-TechieBlog-20261126-03 (REQ-UI-027) | 2026-11-26 by production | 2026-11-26 by triage-and-fix | the check was too weak | After a rating the reader is told to check the inbox even when no mail can go out; a failed send left the rating parked and waiting. |
+| MISS-TechieBlog-20261126-02 (REQ-FN-033) | 2026-11-26 by production | 2026-11-26 by triage-and-fix | the check was too weak | The live site has no mail server: SmtpEmailService reads only EmailSettings from configuration, the deploy template carries none, and the mail values saved on the Settings screen are stored and never used (against 'configured from Site Settings'). |
+| MISS-TechieBlog-20261126-01 (REQ-FN-048) | 2026-11-26 by production | 2026-11-26 by triage-and-fix | the check was too weak | A reader rated a post on the live site, never got the confirmation mail, and the rating was lost: only LoggingVerificationEmailSender was ever registered, so the link went to the log on every host. |
+| MISS-TechieBlog-20261121-01 (REQ-UI-044) | 2026-11-21 by owner | 2026-11-21 by fix-issues | the check was too weak | Analytics showed a 5-star rating on one post that could not be found anywhere else: Analytics averaged unconfirmed ratings while every other screen counts confirmed ones only. |
 | MISS-TechieBlog-20261105-02 (REQ-UI-016) | 2026-11-05 by gate | 2026-11-05 by build-phase | not sorted | no sentence recorded (partial-implementation, src) |
 | MISS-TechieBlog-20261105-01 (REQ-UI-017) | 2026-11-05 by owner | 2026-11-05 by fix-issues | the check was too weak | As Admin on /BlogsList, typing in the search box and leaving it, or clicking a row's Delete, replaces the page with Something went wrong (TrBlazeUI 2.2.1 SelectValue, TR-077); reproduced 1 of 1 each on 2026-11-05 before the 2.2.2 upgrade |
 | MISS-TechieBlog-20261029-01 (REQ-NFR-041) | 2026-10-29 by owner | 2026-10-29 by log-miss | the check was too weak | Nine Playwright specs wrote their screenshots to test-results-cluster-*/ and test-results-tr054/ folders at the repo root instead of under tests/.artifacts/, crowding the root. |

@@ -31,4 +31,6 @@ namespace BlogEngine.Services;
 /// <param name="PostId">The post that was viewed; always greater than zero when queued.</param>
 /// <param name="IpAddress">The visitor's transport address, used only as hash input, never stored.</param>
 /// <param name="UserAgent">The visitor's user-agent string, used only as hash input, never stored.</param>
-public readonly record struct PostViewRequest(long PostId, string IpAddress, string UserAgent);
+/// <param name="ReferrerHost">The referring site's host name only (REQ-UI-071), already reduced by
+/// <c>ReferrerHostParser</c>; <c>null</c> for a direct, unknown or same-site visit.</param>
+public readonly record struct PostViewRequest(long PostId, string IpAddress, string UserAgent, string? ReferrerHost = null);

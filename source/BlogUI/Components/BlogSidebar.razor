@@ -117,6 +117,8 @@
 
             @if (!subscribeSuccess)
             {
+                <MailUnavailableNote TestId="subscribe-mail-unavailable" />
+
                 <Input Type="InputType.Email"
                        Placeholder="Your email address"
                        @bind-Value="emailAddress"
@@ -292,7 +294,7 @@
             var result = await SubscriberService.SubscribePendingAsync(emailAddress.Trim());
 
             subscribeSuccess = result.IsSuccess;
-            subscribeMessage = ResolveMessage(result);
+            subscribeMessage = ResolveMessage(result, emailAddress.Trim());
 
             if (result.IsSuccess)
             {
@@ -352,8 +354,9 @@
     /// <para><b>Side Effects:</b> None.</para>
     /// </remarks>
     /// <param name="result">The service outcome; <c>Data</c> is false when nothing was mailed.</param>
+    /// <param name="email">The address submitted, shown masked when a link was sent.</param>
     /// <returns>The visitor-facing message.</returns>
-    private static string ResolveMessage(Result<bool> result)
+    private static string ResolveMessage(Result<bool> result, string email)
     {
         if (result.IsFailure)
         {
@@ -361,7 +364,7 @@
         }
 
         return result.Data
-            ? "Almost there — check your inbox and click the confirmation link."
+            ? BlogEngine.Services.EmailVerificationSvc.LinkSentMessage(email, "subscription")
             : "That address is already subscribed.";
     }
 }
