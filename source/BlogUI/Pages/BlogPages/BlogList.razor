@@ -1,0 +1,87 @@
+@*
+    BlogList.razor
+    Purpose: The Blog page — every published post, newest first, as the same tiles the home
+    page's Latest Articles section shows, with paging.
+
+    REQ-UI-075 / BRD-115 (owner UAT, 2026-11-26) — the site had no page that listed all posts:
+    "browse all articles" went to the search page and the menu had no Blog entry. The menu entry
+    (second, after Home) lives in Header.razor's NavLinks; /blog is in sitemap.xml (SitemapSvc).
+
+    Paging is in the address (/blog, /blog/2, …) so each page can be linked, bookmarked and
+    crawled; page 1 is /blog itself. Page size is the "Posts per page" site setting, as on the
+    category, tag and search pages.
+
+    Dependencies: BlogBreadcrumb, PostCard, BlogPagination, TrBlazeUI Empty/Badge/Spinner/Button,
+                  BlogEngine BlogSvc + RatingSvc, ISiteSettingsService
+    Mockup: docs/mockups/45-blog.html
+*@
+
+@page "/blog"
+@page "/blog/{PageNumber:int}"
+@layout FullWidthLayout
+
+<SiteBrandTitle Page="@(currentPage > 1 ? $"Blog · Page {currentPage}" : "Blog")" Separator=" · " />
+
+<BlogBreadcrumb Items="@breadcrumbItems" />
+
+<header class="my-6 flex flex-col gap-2" data-testid="blog-header">
+    <TypographyH1 Class="page-title" data-testid="blog-title">Blog</TypographyH1>
+    <p class="text-muted-foreground">Every article on the site, newest first.</p>
+    @if (!isLoading && totalPosts > 0)
+    {
+        <div>
+            <Badge Variant="BadgeVariant.Secondary" data-testid="blog-post-count">@totalPosts @(totalPosts == 1 ? "post" : "posts")</Badge>
+        </div>
+    }
+</header>
+
+@if (isLoading)
+{
+    <div class="flex items-center justify-center gap-3 py-12" data-testid="blog-loading">
+        <Spinner />
+        <span class="text-muted-foreground">Loading...</span>
+    </div>
+}
+else if (posts.Count == 0)
+{
+    <Empty Title="@(totalPosts == 0 ? "No posts yet" : "No posts on this page")"
+           Description="@(totalPosts == 0 ? "Check back soon — new articles are on the way." : "This page is past the last one.")"
+           Class="py-12"
+           data-testid="blog-empty">
+        <Icon><LucideIcon Name="inbox" Size="48" /></Icon>
+        <ChildContent>
+            @if (totalPosts > 0)
+            {
+                <Button Href="/blog" Variant="ButtonVariant.Outline" data-testid="blog-empty-first-page">Go to the newest posts</Button>
+            }
+        </ChildContent>
+    </Empty>
+}
+else
+{
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="blog-grid">
+        @foreach (var post in posts)
+        {
+            @* The same PostCard, with the same arguments, as HomeLatestArticles: the owner asked for
+               "tiles like the home page's". Date is the PUBLICATION date (REQ-FN-057). *@
+            <PostCard Category="@GetCategory(post.Tags)"
+                      Title="@post.Title"
+                      Excerpt="@GetExcerpt(post)"
+                      PostUrl="@($"/post/{post.Slug}")"
+                      AuthorName="@(string.IsNullOrWhiteSpace(post.BlogWriter) ? "Unknown" : post.BlogWriter)"
+                      Date="@((post.PublishedOn ?? post.CreatedOn).ToString("MMM dd, yyyy"))"
+                      ReadTime="@GetReadingTime(post.PostContent)"
+                      ImageUrl="@post.FeaturedImage"
+                      ShowRating="true"
+                      Rating="@GetRating(post.PostID)"
+                      RatingCount="@GetRatingCount(post.PostID)" />
+        }
+    </div>
+
+    @if (totalPages > 1)
+    {
+        <div class="mt-8" data-testid="blog-pagination">
+            <BlogPagination CurrentPage="@currentPage" TotalPages="@totalPages" OnPageChanged="HandlePageChanged" />
+        </div>
+    }
+}

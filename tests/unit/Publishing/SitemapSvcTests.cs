@@ -95,11 +95,11 @@ public class SitemapSvcTests
     }
 
     /// <summary>
-    /// With nothing published and no taxonomy rows the document still ships — one entry, the site
-    /// root — rather than an empty or absent body.
+    /// With nothing published and no taxonomy rows the document still ships — the site root and the
+    /// Blog listing (REQ-UI-075) — rather than an empty or absent body.
     /// </summary>
     [Fact]
-    public async Task SitemapContainsOnlyTheRootWhenTheSiteIsEmpty()
+    public async Task SitemapContainsOnlyTheRootAndBlogWhenTheSiteIsEmpty()
     {
         // Arrange
         var service = CreateService();
@@ -108,8 +108,30 @@ public class SitemapSvcTests
         var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
 
         // Assert
-        var only = Assert.Single(urls);
-        Assert.Equal($"{BaseUrl}/", only.Loc);
+        Assert.Equal(new[] { $"{BaseUrl}/", $"{BaseUrl}/blog" }, urls.Select(url => url.Loc));
+    }
+
+    /// <summary>
+    /// The Blog listing (REQ-UI-075, owner 2026-11-26) is in the sitemap once, after the posts and
+    /// taxonomy, with a daily change frequency and today's lastmod, because every publish changes it.
+    /// </summary>
+    [Fact]
+    public async Task SitemapListsTheBlogPageOnceAfterTheTaxonomy()
+    {
+        // Arrange
+        ArrangePosts(new BlogPost { Slug = "one-post" });
+        ArrangeTags(new BlogTag { Slug = "blazor" });
+        var service = CreateService();
+
+        // Act
+        var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
+
+        // Assert
+        var blog = Assert.Single(urls, url => url.Loc == $"{BaseUrl}/blog");
+        Assert.Same(blog, urls[^1]);
+        Assert.Equal("daily", blog.ChangeFreq);
+        Assert.Equal("0.9", blog.Priority);
+        Assert.Equal(DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), blog.LastMod);
     }
 
     /// <summary>
@@ -135,7 +157,8 @@ public class SitemapSvcTests
                 $"{BaseUrl}/",
                 $"{BaseUrl}/post/async-all-the-way",
                 $"{BaseUrl}/category/dotnet",
-                $"{BaseUrl}/tag/blazor"
+                $"{BaseUrl}/tag/blazor",
+                $"{BaseUrl}/blog"
             },
             urls.Select(url => url.Loc));
         Assert.Equal("monthly", urls[1].ChangeFreq);
@@ -166,7 +189,7 @@ public class SitemapSvcTests
         var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
 
         // Assert
-        Assert.Equal(7, urls.Count);
+        Assert.Equal(8, urls.Count); // root, three posts, two categories, one tag, /blog
         Assert.Equal(urls.Select(url => url.Loc).Distinct().Count(), urls.Count);
     }
 
@@ -257,7 +280,8 @@ public class SitemapSvcTests
             url.Loc == $"{BaseUrl}/"
             || url.Loc.StartsWith($"{BaseUrl}/post/", StringComparison.Ordinal)
             || url.Loc.StartsWith($"{BaseUrl}/category/", StringComparison.Ordinal)
-            || url.Loc.StartsWith($"{BaseUrl}/tag/", StringComparison.Ordinal),
+            || url.Loc.StartsWith($"{BaseUrl}/tag/", StringComparison.Ordinal)
+            || url.Loc == $"{BaseUrl}/blog",
             $"Unexpected URL in sitemap: {url.Loc}"));
     }
 
@@ -384,7 +408,7 @@ public class SitemapSvcTests
 
         // Assert
         Assert.Equal(
-            new[] { $"{BaseUrl}/", $"{BaseUrl}/category/dotnet", $"{BaseUrl}/tag/blazor" },
+            new[] { $"{BaseUrl}/", $"{BaseUrl}/category/dotnet", $"{BaseUrl}/tag/blazor", $"{BaseUrl}/blog" },
             urls.Select(url => url.Loc));
         Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error && entry.Error != null);
     }
@@ -406,7 +430,7 @@ public class SitemapSvcTests
 
         // Assert
         Assert.Equal(
-            new[] { $"{BaseUrl}/", $"{BaseUrl}/post/still-here", $"{BaseUrl}/tag/blazor" },
+            new[] { $"{BaseUrl}/", $"{BaseUrl}/post/still-here", $"{BaseUrl}/tag/blazor", $"{BaseUrl}/blog" },
             urls.Select(url => url.Loc));
         Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error);
     }
@@ -430,7 +454,7 @@ public class SitemapSvcTests
         // Assert
         var urls = ParseUrls(xml);
         Assert.Equal(
-            new[] { $"{BaseUrl}/", $"{BaseUrl}/post/still-here", $"{BaseUrl}/category/dotnet" },
+            new[] { $"{BaseUrl}/", $"{BaseUrl}/post/still-here", $"{BaseUrl}/category/dotnet", $"{BaseUrl}/blog" },
             urls.Select(url => url.Loc));
         Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Error);
     }
@@ -452,7 +476,7 @@ public class SitemapSvcTests
         var urls = ParseUrls(await service.GenerateSitemapAsync(TestContext.Current.CancellationToken));
 
         // Assert
-        Assert.Single(urls);
+        Assert.Equal(2, urls.Count); // root and /blog
         Assert.Equal(3, logger.Entries.Count(entry => entry.Level == LogLevel.Error));
     }
 

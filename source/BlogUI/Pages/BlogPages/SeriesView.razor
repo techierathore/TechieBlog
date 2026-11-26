@@ -66,7 +66,7 @@
                 @foreach (var item in allSeries)
                 {
                     <Card Class="h-full" data-testid="series-card">
-                        <CardContent Class="flex flex-col gap-2 p-4">
+                        <CardContent Class="flex flex-col gap-2 p-4 pt-4">
                             <div>
                                 <Badge Variant="BadgeVariant.Secondary" data-testid="series-card-parts">@item.PostCount Parts</Badge>
                             </div>
@@ -141,7 +141,7 @@
                         var isLatest = post == series.Posts.Where(p => p.Published).OrderByDescending(p => p.PublishedOn).FirstOrDefault();
 
                         <Card Class="@(isLatest ? "ring-2 ring-primary" : string.Empty)" data-testid="series-post">
-                            <CardContent Class="flex items-start gap-4 p-4">
+                            <CardContent Class="flex items-start gap-4 p-4 pt-4">
                                 <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
                                      data-testid="series-post-number">
                                     @post.SeriesPartNumber
@@ -218,7 +218,7 @@
                     @foreach (var other in otherSeries)
                     {
                         <Card Class="h-full" data-testid="other-series-card">
-                            <CardContent Class="flex flex-col gap-2 p-4">
+                            <CardContent Class="flex flex-col gap-2 p-4 pt-4">
                                 <div>
                                     <Badge Variant="BadgeVariant.Secondary">@other.PostCount Parts</Badge>
                                 </div>

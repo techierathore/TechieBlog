@@ -71,7 +71,7 @@ CSS-variable theming, dark mode via `.dark` on `<html>`, `<PortalHost />` requir
 ## Table of Contents
 
 1. [Design system](#design-system)
-2. Screens — public: Home · Post view · Category archive · Tag archive · Series list · Series view · Search results · About · Not found
+2. Screens — public: Home · Blog · Post view · Category archive · Tag archive · Series list · Series view · Search results · About · Not found
 3. Screens — identity: Resume
 4. Screens — auth (direct-URL only, BRD-93): Sign in · Forgot password · Reset password · Access denied
 4b. Screens — newsletter & verification (public): Newsletter archive · Newsletter issue · Email confirmation
@@ -118,6 +118,24 @@ CSS-variable theming, dark mode via `.dark` on `<html>`, `<PortalHost />` requir
 
 - **Interactions & states:** Unknown slug → 09-404.html. Loading → TbSkeleton blocks for image/body/comments. Rating and commenting work for any visitor with **no account and no sign-in** (BRD-36, BRD-40 revised) — the email identifies the visitor for de-duplication and moderation and is never displayed. The page offers **no** sign-in, registration or favourite affordance. Because input is anonymous, comment moderation (BRD-38/39) and spam protection are load-bearing — see the Architecture open question.
 - Author byline renders as plain text (public author profiles retired 2026-08-06).
+
+### Screen: Blog (`/blog`)
+
+- **Mockup:** [mockups/45-blog.html](mockups/45-blog.html) · **Roles:** anonymous · **BRD:** BRD-115 · **REQ:** REQ-UI-075 *(added 2026-11-26)*
+- **Layout:** Full-width container: breadcrumb + header (title, one line, post count) → 3-col post-card grid (1 col on a phone) → pagination.
+
+| Region | TrBlazeUI control | Data / behavior | States |
+|--------|-------------------|-----------------|--------|
+| Menu entry | NavigationMenu link + phone Sheet link | "Blog", second after Home, in both menus; home page "browse all articles" links here | active styling on `/blog*` |
+| Page header | Typography + TbBadge | "Blog", "Every article on the site, newest first.", "14 posts" | — |
+| Post grid | TbCard ×N (post card as 01-home Latest Articles) | Every published post, newest first; thumb, label badge, date, read time, title → 02-post-view.html, excerpt, author, rating read-only | nothing published → TbEmpty "No posts yet" |
+| Pagination | TbPagination | "Posts per page" setting; page 2+ at `/blog/{n}` | single page → hidden; past the last page → TbEmpty with a link to `/blog` |
+
+| Field | Type | Required | Validation |
+|-------|------|----------|------------|
+| Page number (address `/blog/{n}`) | whole number | no — `/blog` is page 1 | below 1 → page 1; past the last page → TbEmpty "No posts on this page" with a link to `/blog` |
+
+- **Interactions & states:** Loading → spinner. When error: the post read fails → the service logs it and returns no posts, so the page shows TbEmpty "No posts yet" rather than an error page. `/blog` is in `sitemap.xml`.
 
 ### Screen: Category archive (`/category/{slug}`)
 

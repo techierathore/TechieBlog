@@ -10,15 +10,15 @@
      or across estimate and measurement. No "total" row, no "overall" line, no
      averaged intro sentence. -->
 
-**Snapshot as of 2026-11-26** (sections 1–3 and 5 refreshed; sections 4 and 6 still read as of 2026-11-16 unless dated) · project_type `app` · schema v1 · every figure from `tf-metrics.sh --report`, `--phases` and `--estimates`; nothing recomputed by hand
+**Snapshot as of 2026-11-27** (sections 1–4 refreshed after the night *triage-and-fix; section 5 as of 2026-11-26; sections 4 and 6 still read as of 2026-11-16 unless dated) · project_type `app` · schema v1 · every figure from `tf-metrics.sh --report`, `--phases` and `--estimates`; nothing recomputed by hand
 
 | Stream | Records |
 |---|---|
-| `runs.jsonl` | 83 (2026-08-08 → 2026-11-26) |
-| `gates.jsonl` | 535 (0 backfilled, 0 malformed) |
+| `runs.jsonl` | 87 (2026-08-08 → 2026-11-26) |
+| `gates.jsonl` | 541 (0 backfilled, 0 malformed) |
 | `sessions.jsonl` | 35 (1 duplicate collapsed) |
-| `commits.jsonl` | 109 |
-| `misses.jsonl` | 119 miss + 194 miss-fix |
+| `commits.jsonl` | 110 |
+| `misses.jsonl` | 122 miss + miss-fix records |
 | `estimates.jsonl` | 688 (one estimate: phase 1, 2026-11-16) |
 
 Written by `*metrics TechieBlog` on 2026-11-16, straight after `*estimate-phase TechieBlog --phase 1`. Every record is live; this project has no backfilled data, so there is no backfilled column anywhere on this page.
@@ -31,7 +31,7 @@ Written by `*metrics TechieBlog` on 2026-11-16, straight after `*estimate-phase 
 
 | Provenance | project_type | REQs scored | First-pass | Rate |
 |---|---|---|---|---|
-| **Live** | app | 169 | — | 80% |
+| **Live** | app | 172 | — | 80% |
 
 No REQ is excluded for backfilled history (0 tainted rows).
 
@@ -41,19 +41,19 @@ No REQ is excluded for backfilled history (0 tainted rows).
 
 *Of all failures, which gate caught them.*
 
-### Live · `app` — 155 failures
+### Live · `app` — 158 failures
 
 | Gate | Caught | Share |
 |---|---|---|
 | build | 4 | 3% |
-| acceptance | 110 | 71% |
-| render (data shows) | 7 | 5% |
+| acceptance | 110 | 70% |
+| render (data shows) | 7 | 4% |
 | visual (nothing overlaps or clips) | 13 | 8% |
 | mockup-parity | 6 | 4% |
 | standards | 1 | 1% |
-| **escaped** — no gate caught it | 14 | 9% |
+| **escaped** — no gate caught it | 17 | 11% |
 
-Gates added after the first records ran on fewer rows than the others: `assets` ran 17 times and caught 0; `mockup-parity` ran 12 times and caught 6 (50%); `perf` ran once and caught 0 (insufficient data, n=1); `test-users` (added 2026-11-01) has not run yet. A gate that was not there cannot have caught anything, so these shares undercount the late gates.
+Gates added after the first records ran on fewer rows than the others: `assets` ran 23 times and caught 0; `mockup-parity` ran 19 times and caught 6 (32%); `perf` ran once and caught 0 (insufficient data, n=1); `test-users` (added 2026-11-01) has not run yet. A gate that was not there cannot have caught anything, so these shares undercount the late gates.
 
 ---
 
@@ -63,9 +63,11 @@ Gates added after the first records ran on fewer rows than the others: `assets` 
 
 | Provenance | project_type | Failures over the scored rows | Escaped to UAT/prod | Rate |
 |---|---|---|---|---|
-| **Live** | app | 155 | 14 | 14% (per defective REQ, as `tf-metrics.sh` prints it) |
+| **Live** | app | 158 | 17 | 16% (per defective REQ, as `tf-metrics.sh` prints it) |
 
 2026-11-26: eight rows escaped to production in one report — a reader's rating was lost because no confirmation mail could ever be sent (REQ-FN-033, REQ-FN-048, REQ-UI-027/029/030 demoted; REQ-UI-072, REQ-UI-073, REQ-NFR-045 added). All eight were fixed and re-verified the same day by `*triage-and-fix`.
+
+2026-11-26 night: three more found by the owner, none caught by a gate — box top padding (REQ-UI-074), no Blog page (REQ-UI-075), usage-guide mail timing (REQ-NFR-046). All three fixed and Verified the same night.
 
 ---
 
@@ -73,11 +75,11 @@ Gates added after the first records ran on fewer rows than the others: `assets` 
 
 | Metric | Value |
 |---|---|
-| Runs total | 73 (verify-phase=21, fix-issues=22, build-phase=14, triage-and-fix=4, amend-docs=3, handoff-phase=2, metrics-report=2, triage-issues=2, devguide=1, estimate-phase=1, refresh-status=1) |
-| Rework ratio (fix-mode ÷ build-phase runs) | 271% |
-| Batch size — median REQs per `build-phase` run | 3.5 |
-| REQ throughput — median REQs/hour | 5.42 |
-| Sessions / total tokens | 32 / 11 497 402 |
+| Runs total | 87 (verify-phase=25, fix-issues=22, build-phase=17, triage-and-fix=8, amend-docs=4, metrics-report=4, handoff-phase=2, triage-issues=2, devguide=1, estimate-phase=1, refresh-status=1) |
+| Rework ratio (fix-mode ÷ build-phase runs) | 259% |
+| Batch size — median REQs per `build-phase` run | 3 |
+| REQ throughput — median REQs/hour | 6.09 |
+| Sessions / total tokens | 35 / 13 210 986 |
 | Tokens per `Verified` REQ | 31 243 |
 | Commit cadence | 1.2 commits/active day (109 commits over 91 days) |
 

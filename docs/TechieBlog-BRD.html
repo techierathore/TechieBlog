@@ -106,7 +106,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <div class="layout">
   <nav class="side">
     <h1>TechieBlog — Business Requirements</h1>
-    <div class="sub">Last rendered: 2026-11-26</div>
+    <div class="sub">Last rendered: 2026-11-27</div>
     <div class="group">Contents</div>
     <ol>
         <li><a href="#table-of-contents">Table of Contents</a></li>
@@ -153,7 +153,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
   </nav>
   <main>
     <h1>TechieBlog — Business Requirements</h1>
-    <div class="subtitle">Rendered 2026-11-26 &middot; source <code>TechieBlog-BRD.md</code></div>
+    <div class="subtitle">Rendered 2026-11-27 &middot; source <code>TechieBlog-BRD.md</code></div>
 
     <div class="toc-inline">
       <div>Contents</div>
@@ -367,7 +367,7 @@ theme repository remains a post-MVP aspiration. The MAUI Blazor Hybrid desktop w
 BRD-94…BRD-97).</p>
 <h2 id="development-status"><a id="4-development-status"></a>4. Development status<a class="anchor-link" href="#development-status">#</a></h2>
 <p>Written by the status gate after every build, verify and handoff; not by hand.</p>
-<p><strong>Snapshot as of 2026-11-26.</strong> Live per-requirement status: <code>PROJECT-STATUS.md</code> and the Requirements Status table in <code>docs/TechieBlog-Checklist.md</code>.</p>
+<p><strong>Snapshot as of 2026-11-27.</strong> Live per-requirement status: <code>PROJECT-STATUS.md</code> and the Requirements Status table in <code>docs/TechieBlog-Checklist.md</code>.</p>
 <table>
 <thead><tr><th>Screen</th><th>Requirements</th><th>Verified</th><th>Open</th><th>Status</th></tr></thead>
 <tbody>
@@ -378,7 +378,9 @@ BRD-94…BRD-97).</p>
 <tr><td>Other</td><td>6</td><td>6</td><td>0</td><td>Done</td></tr>
 <tr><td>Site Settings</td><td>1</td><td>1</td><td>0</td><td>Done</td></tr>
 <tr><td>Admin Dashboard</td><td>1</td><td>1</td><td>0</td><td>Done</td></tr>
-<tr><td>Post page</td><td>1</td><td>1</td><td>0</td><td>Done</td></tr>
+<tr><td>Post page</td><td>2</td><td>2</td><td>0</td><td>Done</td></tr>
+<tr><td>Blog page</td><td>1</td><td>1</td><td>0</td><td>Done</td></tr>
+<tr><td>Usage guide</td><td>1</td><td>1</td><td>0</td><td>Done</td></tr>
 </tbody>
 </table>
 <h2 id="stakeholders-users"><a id="5-stakeholders--users"></a>5. Stakeholders / users<a class="anchor-link" href="#stakeholders-users">#</a></h2>
@@ -720,11 +722,12 @@ commenting and rating — are anonymous and email-identified, so they carry no s
 <tbody>
 <tr><td>Home</td><td><code>/</code></td><td>Portfolio-style landing: hero, stats, about, latest articles, contact <em>(revised 2026-08-06)</em></td></tr>
 <tr><td>Post view</td><td><code>/post/{Slug}</code>, <code>/post/{Slug}/{PageNumber}</code></td><td>Full article + engagement, full-width layout</td></tr>
+<tr><td>Blog</td><td><code>/blog</code>, <code>/blog/{PageNumber}</code></td><td>Every published post, newest first, as tiles with paging <em>(added 2026-11-26, BRD-115)</em></td></tr>
 <tr><td>About</td><td><code>/about</code></td><td>Static site information</td></tr>
 <tr><td>Not found</td><td><code>/404</code></td><td>Friendly 404</td></tr>
 </tbody>
 </table>
-<p><strong>Requirements:</strong> BRD-30 <em>(revised)</em>, BRD-31, BRD-32, BRD-33, BRD-93</p>
+<p><strong>Requirements:</strong> BRD-30 <em>(revised)</em>, BRD-31, BRD-32, BRD-33, BRD-93, BRD-115, BRD-116 <em>(added 2026-11-26)</em></p>
 <h3 id="f-srch-search">F-SRCH: Search<a class="anchor-link" href="#f-srch-search">#</a></h3>
 <p><strong>Personas:</strong> Reader · <strong>Phase:</strong> 3</p>
 <p>Full-text search over published posts using PostgreSQL <code>ILIKE</code> across title, abstract, body and tags,
@@ -1340,6 +1343,12 @@ owner's say, since it is not part of the approved set named here.</p>
 </li>
 <li><strong>BRD-114</strong> — The rating, comment and subscription confirmation journeys shall be proven end to end by an automated test with a mail catcher and a throwaway database <em>(F-RATE)</em> &lt;!-- added 2026-11-26 --&gt;
 </li>
+<li><strong>BRD-115</strong> — A Blog page at <code>/blog</code> shall list every published post, newest first, as tiles like the home page's latest articles, with paging; "Blog" shall be second in the site menu (after Home) on the website and in the phone menu, the home page's "browse all articles" link shall open it, and <code>/blog</code> shall be in <code>sitemap.xml</code> — screen: Blog, mockup <a href="mockups/45-blog.html">45-blog</a> <em>(F-PUB)</em> &lt;!-- added 2026-11-26 --&gt;
+</li>
+<li><strong>BRD-116</strong> — Every box on a public page that has no heading (rating, author, related-post and listing tiles) shall keep the same space above its content as below it, in light and dark mode and at phone width — screen: Post view and the listing pages, mockup <a href="mockups/02-post-view.html">02-post-view</a> <em>(F-PUB)</em> &lt;!-- added 2026-11-26 --&gt;
+</li>
+<li><strong>BRD-117</strong> — The usage guide's "Set up mail" shall say when a change takes effect: a save in the website's admin on the next mail, a save from BlogApp on the live site within ten minutes; and link the Brevo set-up guide <em>(F-ADMIN)</em> &lt;!-- added 2026-11-26 --&gt;
+</li>
 </ul>
 <h2 id="non-functional-requirements"><a id="11-non-functional-requirements"></a>11. Non-functional requirements<a class="anchor-link" href="#non-functional-requirements">#</a></h2>
 <p><strong>Performance targets</strong></p>
@@ -1483,9 +1492,10 @@ workflows exist); <strong>R-3</strong> is closed (PBKDF2-HMAC-SHA256 at 210 000 
 </li>
 </ul>
 <hr>
-<p>Last updated: 2026-11-21
-Highest BRD ID: BRD-111
+<p>Last updated: 2026-11-26
+Highest BRD ID: BRD-117
 Last amended: 2026-08-06 — TrBlazeUI adoption (BRD-92), portfolio home + no public admin entry (BRD-30 revised, BRD-93), BlogApp MAUI desktop admin (BRD-94…97, F-DESK); design-review pass: F-AUTHOR + F-FAV retired (BRD-43/44/53/54/55), reader accounts dropped (BRD-13, BRD-37), anonymous email-identified comments and ratings (BRD-36/40/41 revised)
+Added 2026-11-26 (owner UAT): BRD-115 Blog page · BRD-116 box top padding · BRD-117 usage guide mail timing
 Retired IDs (never reused): BRD-1, BRD-13, BRD-37, BRD-43, BRD-44, BRD-53, BRD-54, BRD-55
 Added 2026-08-06 (second design-review pass): BRD-98 email verification · BRD-99 self-hosted captcha ·
 BRD-100 public newsletter archive · BRD-101 public newsletter issue view

@@ -106,7 +106,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <div class="layout no-toc">
   <main>
     <h1>TechieBlog — UI Design Spec (TrBlazeUI)</h1>
-    <div class="subtitle">Rendered 2026-11-21 &middot; source <code>TechieBlog-UIDesign.md</code></div>
+    <div class="subtitle">Rendered 2026-11-27 &middot; source <code>TechieBlog-UIDesign.md</code></div>
 
     <div class="toc-inline">
       <div>Contents</div>
@@ -116,6 +116,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
         <li><a href="#screens">Screens</a></li>
         <li class="h3"><a href="#screen-home-portfolio-landing">Screen: Home — portfolio landing (/)</a></li>
         <li class="h3"><a href="#screen-post-view-post-slug">Screen: Post view (/post/{slug})</a></li>
+        <li class="h3"><a href="#screen-blog-blog">Screen: Blog (/blog)</a></li>
         <li class="h3"><a href="#screen-category-archive-category-slug">Screen: Category archive (/category/{slug})</a></li>
         <li class="h3"><a href="#screen-tag-archive-tag-slug">Screen: Tag archive (/tag/{slug})</a></li>
         <li class="h3"><a href="#screen-series-list-series">Screen: Series list (/series)</a></li>
@@ -195,7 +196,7 @@ CSS-variable theming, dark mode via <code>.dark</code> on <code>&lt;html&gt;</co
 <ol>
 <li><a href="#design-system">Design system</a>
 </li>
-<li>Screens — public: Home · Post view · Category archive · Tag archive · Series list · Series view · Search results · About · Not found
+<li>Screens — public: Home · Blog · Post view · Category archive · Tag archive · Series list · Series view · Search results · About · Not found
 </li>
 <li>Screens — identity: Resume
 </li>
@@ -262,6 +263,32 @@ CSS-variable theming, dark mode via <code>.dark</code> on <code>&lt;html&gt;</co
 <li><strong>Interactions &amp; states:</strong> Unknown slug → 09-404.html. Loading → TbSkeleton blocks for image/body/comments. Rating and commenting work for any visitor with <strong>no account and no sign-in</strong> (BRD-36, BRD-40 revised) — the email identifies the visitor for de-duplication and moderation and is never displayed. The page offers <strong>no</strong> sign-in, registration or favourite affordance. Because input is anonymous, comment moderation (BRD-38/39) and spam protection are load-bearing — see the Architecture open question.
 </li>
 <li>Author byline renders as plain text (public author profiles retired 2026-08-06).
+</li>
+</ul>
+<h3 id="screen-blog-blog">Screen: Blog (<code>/blog</code>)<a class="anchor-link" href="#screen-blog-blog">#</a></h3>
+<ul>
+<li><strong>Mockup:</strong> <a href="mockups/45-blog.html">mockups/45-blog.html</a> · <strong>Roles:</strong> anonymous · <strong>BRD:</strong> BRD-115 · <strong>REQ:</strong> REQ-UI-075 <em>(added 2026-11-26)</em>
+</li>
+<li><strong>Layout:</strong> Full-width container: breadcrumb + header (title, one line, post count) → 3-col post-card grid (1 col on a phone) → pagination.
+</li>
+</ul>
+<table>
+<thead><tr><th>Region</th><th>TrBlazeUI control</th><th>Data / behavior</th><th>States</th></tr></thead>
+<tbody>
+<tr><td>Menu entry</td><td>NavigationMenu link + phone Sheet link</td><td>"Blog", second after Home, in both menus; home page "browse all articles" links here</td><td>active styling on <code>/blog*</code></td></tr>
+<tr><td>Page header</td><td>Typography + TbBadge</td><td>"Blog", "Every article on the site, newest first.", "14 posts"</td><td>—</td></tr>
+<tr><td>Post grid</td><td>TbCard ×N (post card as 01-home Latest Articles)</td><td>Every published post, newest first; thumb, label badge, date, read time, title → 02-post-view.html, excerpt, author, rating read-only</td><td>nothing published → TbEmpty "No posts yet"</td></tr>
+<tr><td>Pagination</td><td>TbPagination</td><td>"Posts per page" setting; page 2+ at <code>/blog/{n}</code></td><td>single page → hidden; past the last page → TbEmpty with a link to <code>/blog</code></td></tr>
+</tbody>
+</table>
+<table>
+<thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Validation</th></tr></thead>
+<tbody>
+<tr><td>Page number (address <code>/blog/{n}</code>)</td><td>whole number</td><td>no — <code>/blog</code> is page 1</td><td>below 1 → page 1; past the last page → TbEmpty "No posts on this page" with a link to <code>/blog</code></td></tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Interactions &amp; states:</strong> Loading → spinner. When error: the post read fails → the service logs it and returns no posts, so the page shows TbEmpty "No posts yet" rather than an error page. <code>/blog</code> is in <code>sitemap.xml</code>.
 </li>
 </ul>
 <h3 id="screen-category-archive-category-slug"><a id="screen-category-archive-categoryslug"></a>Screen: Category archive (<code>/category/{slug}</code>)<a class="anchor-link" href="#screen-category-archive-category-slug">#</a></h3>

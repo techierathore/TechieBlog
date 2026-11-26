@@ -141,7 +141,7 @@ BRD-94…BRD-97).
 
 Written by the status gate after every build, verify and handoff; not by hand.
 
-**Snapshot as of 2026-11-26.** Live per-requirement status: `PROJECT-STATUS.md` and the Requirements Status table in `docs/TechieBlog-Checklist.md`.
+**Snapshot as of 2026-11-27.** Live per-requirement status: `PROJECT-STATUS.md` and the Requirements Status table in `docs/TechieBlog-Checklist.md`.
 
 | Screen | Requirements | Verified | Open | Status |
 |---|---|---|---|---|
@@ -152,7 +152,9 @@ Written by the status gate after every build, verify and handoff; not by hand.
 | Other | 6 | 6 | 0 | Done |
 | Site Settings | 1 | 1 | 0 | Done |
 | Admin Dashboard | 1 | 1 | 0 | Done |
-| Post page | 1 | 1 | 0 | Done |
+| Post page | 2 | 2 | 0 | Done |
+| Blog page | 1 | 1 | 0 | Done |
+| Usage guide | 1 | 1 | 0 | Done |
 
 ## 5. Stakeholders / users
 
@@ -456,10 +458,11 @@ commenting and rating — are anonymous and email-identified, so they carry no s
 |--------|-------|-------------|
 | Home | `/` | Portfolio-style landing: hero, stats, about, latest articles, contact *(revised 2026-08-06)* |
 | Post view | `/post/{Slug}`, `/post/{Slug}/{PageNumber}` | Full article + engagement, full-width layout |
+| Blog | `/blog`, `/blog/{PageNumber}` | Every published post, newest first, as tiles with paging *(added 2026-11-26, BRD-115)* |
 | About | `/about` | Static site information |
 | Not found | `/404` | Friendly 404 |
 
-**Requirements:** BRD-30 *(revised)*, BRD-31, BRD-32, BRD-33, BRD-93
+**Requirements:** BRD-30 *(revised)*, BRD-31, BRD-32, BRD-33, BRD-93, BRD-115, BRD-116 *(added 2026-11-26)*
 
 ### F-SRCH: Search
 
@@ -984,6 +987,9 @@ owner's say, since it is not part of the approved set named here.
 - **BRD-112** — The Settings screen's Email tab, on the website and in BlogApp, shall offer "Send test mail" to a typed address using the values on screen, and show the mail server's own answer, good or bad — screen: Site Settings, mockup [32-admin-settings](mockups/32-admin-settings.html) *(F-SET)* <!-- added 2026-11-26 -->
 - **BRD-113** — While no mail server is set, the admin dashboard shall show a warning that readers cannot confirm, linking Admins to Settings — screen: Admin Dashboard, mockup [26-admin-dashboard](mockups/26-admin-dashboard.html) *(F-SET)* <!-- added 2026-11-26 -->
 - **BRD-114** — The rating, comment and subscription confirmation journeys shall be proven end to end by an automated test with a mail catcher and a throwaway database *(F-RATE)* <!-- added 2026-11-26 -->
+- **BRD-115** — A Blog page at `/blog` shall list every published post, newest first, as tiles like the home page's latest articles, with paging; "Blog" shall be second in the site menu (after Home) on the website and in the phone menu, the home page's "browse all articles" link shall open it, and `/blog` shall be in `sitemap.xml` — screen: Blog, mockup [45-blog](mockups/45-blog.html) *(F-PUB)* <!-- added 2026-11-26 -->
+- **BRD-116** — Every box on a public page that has no heading (rating, author, related-post and listing tiles) shall keep the same space above its content as below it, in light and dark mode and at phone width — screen: Post view and the listing pages, mockup [02-post-view](mockups/02-post-view.html) *(F-PUB)* <!-- added 2026-11-26 -->
+- **BRD-117** — The usage guide's "Set up mail" shall say when a change takes effect: a save in the website's admin on the next mail, a save from BlogApp on the live site within ten minutes; and link the Brevo set-up guide *(F-ADMIN)* <!-- added 2026-11-26 -->
 
 ## 11. Non-functional requirements
 
@@ -1093,9 +1099,10 @@ owner's say, since it is not part of the approved set named here.
 - **TrBlazeUI** — the owner's shadcn/ui-inspired Blazor component library (`TrBlazeUI.Components`, GitHub Packages NuGet feed). **Adopted 2026-08-06 as this project's UI library (BRD-92)**, replacing Microsoft Fluent UI Blazor. **TechieRag** — TechieFlow's RAG library; still not used (this project has no AI/RAG features).
 
 ---
-Last updated: 2026-11-21
-Highest BRD ID: BRD-111
+Last updated: 2026-11-26
+Highest BRD ID: BRD-117
 Last amended: 2026-08-06 — TrBlazeUI adoption (BRD-92), portfolio home + no public admin entry (BRD-30 revised, BRD-93), BlogApp MAUI desktop admin (BRD-94…97, F-DESK); design-review pass: F-AUTHOR + F-FAV retired (BRD-43/44/53/54/55), reader accounts dropped (BRD-13, BRD-37), anonymous email-identified comments and ratings (BRD-36/40/41 revised)
+Added 2026-11-26 (owner UAT): BRD-115 Blog page · BRD-116 box top padding · BRD-117 usage guide mail timing
 Retired IDs (never reused): BRD-1, BRD-13, BRD-37, BRD-43, BRD-44, BRD-53, BRD-54, BRD-55
 Added 2026-08-06 (second design-review pass): BRD-98 email verification · BRD-99 self-hosted captcha ·
 BRD-100 public newsletter archive · BRD-101 public newsletter issue view

@@ -148,6 +148,10 @@ public class SitemapSvc
             // Tag pages - lower priority
             await AddTagsAsync(sb, cancellationToken).ConfigureAwait(false);
 
+            // [REQ-UI-075] The all-posts listing (/blog) changes whenever a post is published. It goes
+            // last so the root-then-posts-then-taxonomy order crawlers and tests rely on is unchanged.
+            AddUrl(sb, "/blog", DateTime.UtcNow, "daily", "0.9");
+
             sb.AppendLine("</urlset>");
             return sb.ToString();
         }

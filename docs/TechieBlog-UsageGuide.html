@@ -106,7 +106,7 @@ h2:hover .anchor-link,h3:hover .anchor-link,h4:hover .anchor-link{opacity:1}
 <div class="layout no-toc">
   <main>
     <h1>TechieBlog — Usage Guide</h1>
-    <div class="subtitle">Rendered 2026-11-26 &middot; source <code>TechieBlog-UsageGuide.md</code></div>
+    <div class="subtitle">Rendered 2026-11-27 &middot; source <code>TechieBlog-UsageGuide.md</code></div>
 
     <div class="toc-inline">
       <div>Contents</div>
@@ -196,8 +196,16 @@ cmd.exe /c "set ASPNETCORE_ENVIRONMENT=Development&amp;&amp;dotnet run --project
 <h3 id="set-up-mail">Set up mail<a class="anchor-link" href="#set-up-mail">#</a></h3>
 <p>The blog mails three things: the confirmation link a reader must open after rating, commenting or
 subscribing; password-reset links; and newsletters. <strong>The mail server is set on the Settings screen,
-and nowhere else is needed</strong> — no deploy secret, no environment value. A change takes effect on the
-next mail, with no restart. Until a mail server is set, the admin dashboard shows a yellow
+and nowhere else is needed</strong> — no deploy secret, no environment value. When a change takes effect
+depends on where you save it, and neither needs a restart:</p>
+<ul>
+<li><strong>Saved in the website's admin:</strong> the next mail uses it.
+</li>
+<li><strong>Saved in BlogApp:</strong> the live site picks it up within ten minutes.
+</li>
+</ul>
+<p>For the step-by-step Brevo set-up (account, sender, SMTP key, the values to type here), see
+<a href="Brevo-Mail-Setup.md">Brevo mail set-up</a>. Until a mail server is set, the admin dashboard shows a yellow
 <strong>"No mail server is set"</strong> warning, and the rating, comment and subscribe forms tell readers that
 email confirmation is not available right now (nothing they submit is kept waiting).</p>
 <p><strong>Clicks</strong> (website admin or BlogApp — the screen is the same):</p>

@@ -47,7 +47,7 @@ else if (siteOwner is null)
            data-testid="home-unconfigured">
         <Icon><LucideIcon Name="user-x" Size="48" /></Icon>
         <ChildContent>
-            <Button Href="/search" Variant="ButtonVariant.Outline" data-testid="home-unconfigured-search">Browse articles</Button>
+            <Button Href="/blog" Variant="ButtonVariant.Outline" data-testid="home-unconfigured-search">Browse articles</Button>
         </ChildContent>
     </Empty>
 }
@@ -76,7 +76,7 @@ else
                 </div>
 
                 <Card data-testid="home-featured-post">
-                    <CardContent Class="flex flex-col gap-3 p-6">
+                    <CardContent Class="flex flex-col gap-3 p-6 pt-6">
                         <h2 class="text-2xl font-bold leading-snug">
                             <a href="/post/@featuredPost.Slug"
                                class="text-foreground no-underline hover:text-primary hover:underline"

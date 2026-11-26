@@ -221,6 +221,9 @@ portfolio home *(added 2026-08-06)* · **10** BlogApp desktop admin *(added 2026
 | REQ-UI-072 | Send test mail from Settings (website and BlogApp) | Verified | 100% | 2026-11-26 verify: PASS — test `REQ-UI-072 send test mail shows the refusal when nothing ans`; Site Settings renders and looks right @1280/390 in light and dark mode; mockup-parity UNGRADEABLE (add data-testid anchors to the mockup) | [d](#d-req-ui-072) |
 | REQ-UI-073 | Admin dashboard warns while no mail server is set | Verified | 100% | 2026-11-26 verify: PASS — test `REQ-UI-073 the dashboard warns while no mail server is set`; Admin Dashboard renders and looks right @1280/390 in light and dark mode; matches its mockup | [d](#d-req-ui-073) |
 | REQ-NFR-045 | Whole confirmation journey proven against a mail catcher | Verified | 100% | 2026-11-26 verify: PASS — test `REQ-NFR-045 subscription journey: the mail arrives at the ca` | [d](#d-req-nfr-045) |
+| REQ-UI-074 | Header-less boxes keep their top padding | Verified | 100% | 2026-11-27 verify: PASS — test `REQ-UI-074 a header-less CardContent with its own padding na`; Post view renders and looks right @1280/390 in light and dark mode; matches its mockup | [d](#d-req-ui-074) |
+| REQ-UI-075 | Blog page lists every published post | Verified | 100% | 2026-11-27 verify: PASS — test `REQ-UI-075 Blog is second in the desktop menu, after Home`; Blog renders and looks right @1280/390 in light and dark mode; matches its mockup | [d](#d-req-ui-075) |
+| REQ-NFR-046 | Usage guide says when a mail change takes effect | Verified | 100% | 2026-11-27 verify: PASS — test `REQ-NFR-046 Set up mail says when a change takes effect and ` | [d](#d-req-nfr-046) |
 
 **Status values:** `Not Started` · `In Progress` · `Implemented` (code done, not yet verified) ·
 `Verified` (self-smoke or verifier PASS) · `Done (pre-existing)` (migrated from an earlier dev plan as
@@ -1101,3 +1104,21 @@ are marked `N/A (removed)` and kept for traceability; IDs are never reused.
 - <a id="d-req-nfr-045"></a> **REQ-NFR-045** — Whole confirmation journey proven against a mail catcher. *BRD:* BRD-114
   - *Acceptance:* When a reader rates, comments or subscribes with a mail catcher as mail server, then the mailed link confirms the submission.
   - *Also:* the rating then counts, the comment leaves PendingVerification, the subscriber is confirmed; runs on a throwaway `tbtest_` database.
+
+- <a id="d-req-ui-074"></a> **REQ-UI-074** — Header-less boxes keep their top padding. *BRD:* BRD-116 · *Mockup:* [02-post-view](mockups/02-post-view.html)
+  - *Acceptance:* When a reader views a box with no heading on the Post view, then its content has equal space above and below, in both themes and at phone width.
+  - *Also:* the rating box, author box and More Posts tiles; the same on every public page (home, Blog, archive, search, series, newsletter, about, verify and unsubscribe tiles); TrBlazeUI TR-078.
+
+
+## Blog page
+
+- <a id="d-req-ui-075"></a> **REQ-UI-075** — Blog page lists every published post. *BRD:* BRD-115 · *Mockup:* [45-blog](mockups/45-blog.html)
+  - *Acceptance:* When a reader opens /blog on the Blog screen, then every published post shows newest first as home-page tiles, with paging.
+  - *Also:* "Blog" is second in the menu, after Home, on the website and in the phone menu; the home page's "browse all articles" opens /blog; `/blog` is in sitemap.xml.
+
+
+## Usage guide
+
+- <a id="d-req-nfr-046"></a> **REQ-NFR-046** — Usage guide says when a mail change takes effect. *BRD:* BRD-117
+  - *Acceptance:* When the owner reads Set up mail in the usage guide, then it gives the timing of a website save and of a BlogApp save, and links the Brevo guide.
+  - *Also:* a website save works on the next mail; a BlogApp save reaches the live site within ten minutes; link: docs/Brevo-Mail-Setup.md.
